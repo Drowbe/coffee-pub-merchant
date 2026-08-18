@@ -6,6 +6,9 @@ what has been considered but not scheduled.
 **Where things go:** `documentation/architecture/` describes implemented systems, `documentation/plans/`
 records intent and reasoning, `documentation/testing/` holds verification checklists.
 
+`architecture/` is deliberately empty. It describes what the system *does*, and nothing since `beb8f41` has
+been run in Foundry — writing it now would be recording what the code says rather than what it does.
+
 ## Inherited lessons
 
 These cost Curator real time. They apply here identically and there is no reason to relearn them.
@@ -95,6 +98,9 @@ not ours to finish.
     atomicity the primitive exists to provide.
 - **Waiting on Blacksmith — the query envelope does not forward the caller.** See *Caller identity* above.
   The payload assertion is a bridge, and the fix is one deletion on our side once it lands.
+- **Four extractions to Blacksmith, with two consumers each proving the shape** — `plans/plan-extraction.md`,
+  the phase 1b comparison against Curator's loot. Nothing is blocked on them; they are duplication that will
+  drift if left. The fifth finding is a workaround written twice and wants an upstream fix instead.
 - Decisions A–E in `plans/plan-merchant.md` section 14 — settled 2026-08-09, recommendations accepted.
 
 ## Considered, not scheduled

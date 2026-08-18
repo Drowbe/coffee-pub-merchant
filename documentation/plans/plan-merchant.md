@@ -399,11 +399,16 @@ rather than nearly true, so building the harder thing first would assume the sma
 - GM-authoritative handler with re-validation.
 - No money, no prices displayed, no polish.
 
-### Phase 1b — Compare and extract
+### Phase 1b — Compare and extract — **done, see `plan-extraction.md`**
 
 Diff what was written against Curator's loot equivalent. **Whatever came out verbatim is the extraction
-list.** Move those pieces to Blacksmith with two real consumers proving the shape. Do this before phase 2
-adds more surface to duplicate.
+list.** Move those pieces to Blacksmith with two real consumers proving the shape.
+
+Run late rather than before phase 2, which cost nothing: the duplication phase 2 added was in pricing, and
+Curator has no pricing to duplicate. Four candidates came out — a quantity dialog (82% identical over 49
+lines), an actor picker (87% over 30), the window-base construction boilerplate (80% over 36), and party
+resolution. A fifth, `_attachWhenRendered`, is the same workaround written twice and should be fixed
+upstream rather than extracted.
 
 ### Phase 2 — Prices
 
