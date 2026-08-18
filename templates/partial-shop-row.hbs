@@ -25,7 +25,7 @@
                 <i class="fa-solid fa-hand"></i>
             </button>
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="give" data-item-id="{{id}}"
-                    data-tooltip="Send to another party member">
+                    {{#unless canGive}}disabled{{/unless}} data-tooltip="Send to another party member">
                 <i class="fa-solid fa-hand-holding-heart"></i>
             </button>
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="party" data-item-id="{{id}}"

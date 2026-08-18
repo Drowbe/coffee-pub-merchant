@@ -73,7 +73,9 @@ game.modules.get('coffee-pub-merchant').api.merchant
 ## 2c. Open, closed, and stocking
 
 - [ ] The merchant card shows an **Open / Closed** toggle for the GM; a player sees none.
-- [ ] Close the shop → a player sees a "you can look through the window" notice and **no acquire controls**.
+- [x] Close the shop → a player sees a "you can look through the window" notice and **no acquire controls**.
+- [ ] Closed shop: **all three** row controls are disabled — Acquire, Send, and Party. Send was ungated until
+      2026-08-09 and is the one to re-check.
 - [ ] A crafted acquisition against a closed shop is refused with `SHOP_CLOSED`.
 - [ ] The **GM is exempt** — they can still acquire from a closed shop, for stocking and testing.
 - [ ] Toggling open/closed updates a player's open window without either side reopening it.

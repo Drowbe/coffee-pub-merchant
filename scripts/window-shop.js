@@ -423,6 +423,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     // Barter is a conversation, not a transaction: the row lists so
                     // the party knows it exists, but nothing changes hands here.
                     canAcquire: trading && Boolean(recipient) && !isBarter,
+                    // Give needs no recipient of its own — it picks one in a dialog —
+                    // but it is still a transaction, so a closed shop refuses it.
+                    canGive: trading && !isBarter,
                     canParty: trading && Boolean(party) && !isBarter,
                     isBarter
                 }));
