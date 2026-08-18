@@ -4,7 +4,7 @@
 //
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
-import { MODULE, MERCHANT_FLAG, STOCK } from './const.js';
+import { MODULE, MERCHANT_FLAG, STOCK, SHELF_FLAG, SHELF_PRESETS } from './const.js';
 import { grantItem, isPhysical } from './merchant-inventory.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -62,6 +62,69 @@ export class MerchantManager {
         return actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...current, ...changes });
     }
 
+    // ==============================================================
+    // ===== SHELVES ================================================
+    // ==============================================================
+    // Stock is what sits on a shelf. Everything else on the Actor is the
+    // shopkeeper's own gear and is never for sale — which is the whole reason
+    // shelves exist rather than treating every physical item as stock.
+
+    static getShelfConfig(item) {
+        return item?.getFlag(MODULE.ID, SHELF_FLAG) ?? null;
+    }
+
+    static isShelf(item) {
+        return item?.type === 'container' && Boolean(this.getShelfConfig(item));
+    }
+
+    /** Shelves in display order. Hidden ones are omitted unless asked for. */
+    static getShelves(actor, { includeHidden = false } = {}) {
+        if (!actor) return [];
+        return actor.items
+            .filter((item) => this.isShelf(item))
+            .filter((item) => includeHidden || this.getShelfConfig(item).visible !== false)
+            .map((item) => ({ item, config: this.getShelfConfig(item) }))
+            .sort((a, b) => (a.config.order ?? 0) - (b.config.order ?? 0)
+                || String(a.config.label ?? a.item.name).localeCompare(String(b.config.label ?? b.item.name)));
+    }
+
+    static getShelfContents(actor, shelfItem) {
+        return actor.items.filter((item) => item.system?.container === shelfItem.id && isPhysical(item.type));
+    }
+
+    /** The shelf an item sits on, or null if it is the shopkeeper's own gear. */
+    static getShelfFor(actor, item) {
+        const containerId = item?.system?.container;
+        if (!containerId) return null;
+        const container = actor.items.get(containerId);
+        return this.isShelf(container) ? container : null;
+    }
+
+    /**
+     * Create a shelf from a preset.
+     *
+     * `weightlessContents` and no capacity, so it is unlimited and weighs nothing.
+     * Created here rather than shipped in a compendium: a pack is a thing to
+     * maintain and its items can be edited into something malformed, whereas this
+     * cannot produce a shelf with the wrong flags.
+     */
+    static async addShelf(actor, presetKey) {
+        const preset = SHELF_PRESETS[presetKey];
+        if (!actor || !preset) return null;
+
+        const [created] = await actor.createEmbeddedDocuments('Item', [{
+            name: preset.name,
+            type: 'container',
+            img: preset.img,
+            system: {
+                properties: ['weightlessContents'],
+                description: { value: `<p>${preset.hint}</p>` }
+            },
+            flags: { [MODULE.ID]: { [SHELF_FLAG]: { ...preset.shelf } } }
+        }]);
+        return created ?? null;
+    }
+
     static async setEnabled(actor, enabled) {
         const current = this.getConfig(actor);
         if (!enabled) {
@@ -70,7 +133,14 @@ export class MerchantManager {
             // closed and later reopened.
             return actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...current, enabled: false });
         }
-        return actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...this.defaultConfig(), ...(current ?? {}), enabled: true });
+        await actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...this.defaultConfig(), ...(current ?? {}), enabled: true });
+
+        // A merchant with no shelf is an empty window and a puzzle. Give the zero
+        // config path something to look at.
+        if (!this.getShelves(actor, { includeHidden: true }).length) {
+            await this.addShelf(actor, 'storefront');
+        }
+        return this.getConfig(actor);
     }
 
     // ==============================================================
@@ -178,6 +248,15 @@ export class MerchantManager {
         const item = merchant.items?.get(payload.itemId);
         if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
         if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+
+        // Only what is on a shelf is for sale. The shopkeeper's own gear is not.
+        const shelf = this.getShelfFor(merchant, item);
+        if (!shelf) return { ok: false, code: 'NOT_FOR_SALE' };
+
+        // Hidden is a permission, not a display filter: a crafted request naming a
+        // back-room item has to be refused here, not merely hidden in the window.
+        const shelfConfig = this.getShelfConfig(shelf);
+        if (shelfConfig.visible === false && !user.isGM) return { ok: false, code: 'NOT_FOR_SALE' };
 
         const check = this._validateRecipient(payload.recipientUuid, user);
         if (!check.ok) return check;

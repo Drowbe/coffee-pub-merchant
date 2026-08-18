@@ -1,6 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import { MODULE } from './const.js';
-import { isPhysical } from './merchant-inventory.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
 // resolves at call time rather than at module evaluation.
@@ -363,6 +362,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'MERCHANT_NOT_FOUND': return 'That shop is no longer on the scene.';
             case 'ITEM_NOT_FOUND': return 'That is no longer in stock.';
             case 'ITEM_NOT_TRANSFERABLE': return 'That is not something you can carry off.';
+            case 'NOT_FOR_SALE': return 'That is not for sale.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
                 : 'That container cannot be sold while it holds anything.';
@@ -394,29 +394,48 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const recipient = this.recipient;
         const config = missing ? null : MerchantManager.getConfig(merchant);
 
-        let items = [];
+        // One section per shelf. A GM sees hidden shelves too, marked as such; a
+        // player is never sent their contents at all.
+        let shelves = [];
+        let itemCount = 0;
         if (!missing) {
             const busyRow = this._busy?.row ?? null;
-            items = merchant.items
-                .filter((item) => isPhysical(item.type))
-                .map((item) => ({
+            const isGM = game.user.isGM;
+
+            shelves = MerchantManager.getShelves(merchant, { includeHidden: isGM }).map(({ item: shelf, config }) => {
+                const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => ({
                     id: item.id,
                     name: item.name,
                     img: item.img,
                     typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
                     busy: item.id === busyRow,
-                    canAcquire: Boolean(recipient),
-                    canParty: Boolean(party)
+                    // Barter is a conversation, not a transaction: the row is listed
+                    // so the party knows it exists, but nothing changes hands here.
+                    canAcquire: Boolean(recipient) && config.mode !== 'barter',
+                    canParty: Boolean(party) && config.mode !== 'barter',
+                    isBarter: config.mode === 'barter'
                 }));
+                itemCount += contents.length;
+                return {
+                    id: shelf.id,
+                    label: config.label || shelf.name,
+                    img: shelf.img,
+                    hidden: config.visible === false,
+                    isBarter: config.mode === 'barter',
+                    items: contents,
+                    count: contents.length,
+                    hasItems: contents.length > 0
+                };
+            });
         }
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
             portraitImg: merchant?.img ?? 'icons/svg/mystery-man.svg',
-            items,
-            itemCount: items.length,
-            hasItems: items.length > 0,
+            shelves,
+            hasShelves: shelves.length > 0,
+            itemCount,
             busyLabel: this._busy?.label ?? null,
             recipientName: recipient?.name ?? null,
             recipientImg: recipient?.img ?? 'icons/svg/mystery-man.svg',

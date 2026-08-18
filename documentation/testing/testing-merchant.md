@@ -51,9 +51,24 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 ---
 
+## 2b. Shelves
+
+- [ ] Enabling a merchant with no shelves auto-creates a **Storefront**.
+- [ ] Config window lists shelves with their item counts, and an **Add a shelf** row of five presets.
+- [ ] Adding a shelf creates a container on the Actor; opening it via the box icon shows dnd5e's own
+      container sheet, and dragging items in stocks it.
+- [ ] A shelf reports **unlimited capacity** and its contents add **no weight** to the merchant.
+- [ ] Items on the merchant *outside* any shelf — the shopkeeper's worn armour, their own dagger — do
+      **not** appear in the shop.
+- [ ] Each visible shelf renders as its own section in the shop window, in preset order.
+- [ ] A **Back Room** shelf is visible to the GM, marked hidden, and **absent entirely** for a player.
+- [ ] A crafted request naming a back-room item is refused with "That is not for sale."
+      *This is the one that matters: hidden must be a refusal, not just a missing section.*
+- [ ] A **Barter** shelf lists its items with "Ask" instead of acquire controls.
+
 ## 3. The window
 
-- [ ] Stock lists only physical items; features, spells and class items are absent.
+- [ ] Shelf sections list only physical items; features, spells and class items are absent.
 - [ ] Merchant card is tinted blue, "Buying as" row green, both pinned while stock scrolls.
 - [ ] Resize the window; the pinned header stays put.
 - [ ] Footer reads `[ Done ]` on the left.

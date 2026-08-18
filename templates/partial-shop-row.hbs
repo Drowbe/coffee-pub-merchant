@@ -12,6 +12,12 @@
         <div class="merchant-shop-row-actions">
             <span class="merchant-shop-blocked"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
         </div>
+    {{else if isBarter}}
+        <div class="merchant-shop-row-actions">
+            <span class="merchant-shop-blocked" data-tooltip="No fixed price; ask the merchant">
+                <i class="fa-solid fa-comments"></i> Ask
+            </span>
+        </div>
     {{else}}
         <div class="merchant-shop-row-actions">
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="acquire" data-item-id="{{id}}"

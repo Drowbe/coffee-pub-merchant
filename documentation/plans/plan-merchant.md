@@ -131,6 +131,55 @@ Consequences worth stating, because they remove most of what made loot difficult
 Finite and restocking stock reintroduce all of it, which is a reason to defer them rather than a reason to
 avoid them.
 
+## 7b. Shelves — what counts as stock
+
+**A shelf is a container Item on the merchant carrying a `shelf` flag. Its contents are the stock.**
+Anything on the Actor outside a shelf is the shopkeeper's own gear and is never for sale. Without this, a
+shopkeeper's worn armour and belt dagger were on the shelf, and everything downstream would have inherited
+that.
+
+**One schema, several presets — not several types.** Every use case raised differs only in three properties:
+
+```js
+flags['coffee-pub-merchant'].shelf = {
+    label: 'Back Room',   // section heading in the shop window
+    order: 1,
+    visible: false,       // players are never sent this shelf
+    mode: 'sale',         // 'sale' | 'barter' | 'buyback'
+    markup: null          // null inherits the merchant's markup
+}
+```
+
+| Preset | visible | mode | markup |
+|---|---|---|---|
+| Storefront | yes | sale | inherit |
+| Back Room | **no** | sale | inherit |
+| Premium | yes | sale | 1.5 |
+| Barter | yes | barter | — |
+| Buyback | yes | buyback | 0.5 |
+
+Hard-coding five kinds would leave the sixth idea — seasonal stock, faction-only, consignment — with nowhere
+to go. As presets they are data.
+
+**`visible: false` is a permission, not a display filter.** The GM handler refuses a grant from a hidden
+shelf, so a crafted request naming a back-room item fails rather than merely being hidden in the window. It
+is an affordance rather than secrecy: Foundry syncs Actor documents to every client, so a player with a
+console can read a hidden shelf. If genuine secrecy is ever needed, the items must live on an Actor the
+player's client does not have.
+
+**Barter resolves what an unpriced item means.** On a `sale` shelf, no price is a configuration gap. On a
+`barter` shelf it is deliberate — the row lists so the party knows the thing exists, and nothing changes
+hands through the window.
+
+Shelves are created from the config window rather than shipped in a compendium: a pack is a thing to
+maintain and its items can be edited into something malformed, whereas the button cannot produce a shelf with
+the wrong flags. Each is created with `weightlessContents` and no capacity, so it is unlimited and weighs
+nothing — both real dnd5e behaviours, verified: `computeCapacity` starts at `Infinity` unless a capacity is
+set, and `weightlessContents` makes a container report only its own weight.
+
+Enabling a merchant with no shelves auto-creates a Storefront, so the zero-config path shows the shape rather
+than an empty window and a puzzle.
+
 ## 8. Pricing model
 
 Three sources, resolved in order. All three exist from the start; only display uses them in v1.

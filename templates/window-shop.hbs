@@ -41,15 +41,39 @@
             </section>
         </div>
 
-        <section class="merchant-shop-section">
-            <h3><span><i class="fa-solid fa-shop"></i> Stock</span><span class="merchant-shop-count">{{itemCount}}</span></h3>
-            {{#if hasItems}}
-                <div class="merchant-shop-item-list">
-                    {{#each items}}
-                        {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
-                    {{/each}}
-                </div>
-            {{else}}<div class="merchant-shop-empty">This merchant has nothing to offer.</div>{{/if}}
-        </section>
+        {{#if hasShelves}}
+            {{#each shelves}}
+                <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
+                    <h3>
+                        <span><img class="merchant-shop-shelf-icon" src="{{img}}" alt="">{{label}}</span>
+                        <span class="merchant-shop-head-actions">
+                            {{#if hidden}}
+                                {{!-- GM only: a player is never sent this shelf. --}}
+                                <span class="merchant-shop-hidden-tag" data-tooltip="Players cannot see this shelf">
+                                    <i class="fa-solid fa-eye-slash"></i> Hidden
+                                </span>
+                            {{/if}}
+                            {{#if isBarter}}
+                                <span class="merchant-shop-hidden-tag" data-tooltip="No fixed price; settle it at the table">
+                                    <i class="fa-solid fa-comments"></i> Barter
+                                </span>
+                            {{/if}}
+                            <span class="merchant-shop-count">{{count}}</span>
+                        </span>
+                    </h3>
+                    {{#if hasItems}}
+                        <div class="merchant-shop-item-list">
+                            {{#each items}}
+                                {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                            {{/each}}
+                        </div>
+                    {{else}}<div class="merchant-shop-empty">Nothing on this shelf.</div>{{/if}}
+                </section>
+            {{/each}}
+        {{else}}
+            <section class="merchant-shop-section">
+                <div class="merchant-shop-empty">This merchant has no shelves set up.</div>
+            </section>
+        {{/if}}
     {{/if}}
 </div>

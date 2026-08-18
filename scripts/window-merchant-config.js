@@ -1,5 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE } from './const.js';
+import { MODULE, SHELF_PRESETS } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
@@ -28,7 +28,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     );
 
     static ACTION_HANDLERS = {
-        close: (_event, _target, win) => win.close()
+        close: (_event, _target, win) => win.close(),
+        addShelf: (_event, target, win) => void win.addShelf(target.dataset.preset),
+        openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId)
     };
 
     constructor(actor, options = {}) {
@@ -86,12 +88,54 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    async addShelf(presetKey) {
+        const actor = await this._resolveActor();
+        if (!actor || !presetKey) return;
+        try {
+            await MerchantManager.addShelf(actor, presetKey);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not add that shelf:`, error);
+            ui.notifications?.error('Could not add that shelf.');
+        }
+        await this.render(false);
+    }
+
+    /** Opening the shelf is how a GM stocks it — dnd5e's own container sheet. */
+    async openShelf(shelfId) {
+        const actor = await this._resolveActor();
+        const shelf = actor?.items?.get(shelfId);
+        if (!shelf) return;
+        shelf.sheet?.render(true);
+    }
+
     async getData() {
         const actor = await this._resolveActor();
+        const enabled = MerchantManager.isMerchant(actor);
+
+        // Hidden shelves included: this window is GM-only, and a shelf you cannot see
+        // in your own configuration is worse than useless.
+        const shelves = enabled
+            ? MerchantManager.getShelves(actor, { includeHidden: true }).map(({ item, config }) => {
+                const count = MerchantManager.getShelfContents(actor, item).length;
+                return {
+                    id: item.id,
+                    img: item.img,
+                    label: config.label || item.name,
+                    hidden: config.visible === false,
+                    count,
+                    one: count === 1
+                };
+            })
+            : [];
+
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
-            enabled: MerchantManager.isMerchant(actor)
+            enabled,
+            shelves,
+            shelfCount: shelves.length,
+            hasShelves: shelves.length > 0,
+            presets: Object.values(SHELF_PRESETS)
         });
 
         return {

@@ -17,6 +17,45 @@
         </label>
     </section>
 
-    {{!-- Stock policy, markup and per-item overrides land here in later phases. The
-          window exists now so they have somewhere to go. --}}
+    {{#if enabled}}
+        <section class="merchant-config-section">
+            <h3>
+                <span><i class="fa-solid fa-layer-group"></i> Shelves</span>
+                <span class="merchant-config-count">{{shelfCount}}</span>
+            </h3>
+
+            {{#if hasShelves}}
+                <div class="merchant-config-shelf-list">
+                    {{#each shelves}}
+                        <div class="merchant-config-shelf">
+                            <img src="{{img}}" alt="">
+                            <div class="merchant-config-shelf-copy">
+                                <strong>{{label}}</strong>
+                                <span>{{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}</span>
+                            </div>
+                            <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
+                                    data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
+                                <i class="fa-solid fa-box-open"></i>
+                            </button>
+                        </div>
+                    {{/each}}
+                </div>
+            {{else}}
+                <div class="merchant-config-empty">No shelves yet. Add one to start stocking this merchant.</div>
+            {{/if}}
+
+            {{!-- Created here rather than dragged from a compendium: a pack is a thing
+                  to maintain and its items can be edited into something malformed. --}}
+            <div class="merchant-config-add">
+                {{#each presets}}
+                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-add-btn"
+                            data-action="addShelf" data-preset="{{key}}" data-tooltip="{{hint}}">
+                        <img src="{{img}}" alt=""> {{name}}
+                    </button>
+                {{/each}}
+            </div>
+        </section>
+    {{/if}}
+
+    {{!-- Markup and per-item price overrides land here in phase 2. --}}
 </div>
