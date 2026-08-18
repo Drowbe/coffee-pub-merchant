@@ -136,8 +136,6 @@ likely place for a bug I cannot see without a table**, and the test doc has a sp
 
 ---
 
----
-
 ## What else got built, which needed no decisions
 
 - **Phase 1b, the comparison against Curator's loot** — `plans/plan-extraction.md`. Four things to extract to
