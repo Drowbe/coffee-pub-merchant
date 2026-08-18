@@ -322,6 +322,39 @@ adds more surface to duplicate.
 
 - Finite and restocking. Reintroduces source mutation, locking, and the concurrency work section 7 avoids.
 
+### Phase 6 — Stocking from compendiums
+
+A GM-only search-and-add panel inside the shop window, so *"do you have any special armour?"* is answered at
+the table rather than by leaving the session to go rummaging.
+
+**Nothing blocks this.** It needs only the shelf model, which exists. It is placed last because money is the
+bigger feature, not because it depends on it — move it earlier the moment it becomes the more annoying gap.
+
+Blacksmith already provides the search half:
+
+```js
+const results = await blacksmith.compendiums.search('plate', 'Item', { itemType: 'equipment', limit: 40 });
+// [{ uuid, name, type, documentClass, img, source, sourceLabel, sourcePackage, matchType }, ...]
+```
+
+Group by `source`, render `name` and `img`, add via `uuid`. `searchDetailed()` additionally reports whether
+the scan was truncated, which a picker should show rather than silently capping.
+
+The add half is `grantItem({ targetActorUuid: merchantUuid, itemUuid })`, which accepts a compendium UUID
+directly — the case `grantItem` exists for, so nothing new is needed to get the item onto the merchant.
+
+**One gap to raise with Blacksmith when this is built:** `grantItem` cannot say *which container* the new
+item lands in, so stocking a shelf means granting and then a second write to set `system.container`. A
+`container` option would make it one write and would help any consumer granting into a container. Small ask,
+worth making at the time rather than speculatively now.
+
+The flow:
+
+1. GM opens the shop, picks a shelf, types into a search box.
+2. Results grouped by source pack, with a count and a truncation notice.
+3. Clicking a result grants it to the merchant and places it on that shelf.
+4. The shop refreshes and the item is on sale immediately.
+
 ## 14. Decisions for the owner
 
 Recorded as decisions rather than assumptions because the author of this plan also wrote the loot feature
