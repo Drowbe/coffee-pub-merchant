@@ -20,6 +20,43 @@
     {{#if enabled}}
         <section class="merchant-config-section">
             <h3>
+                <span><i class="fa-solid fa-clock"></i> Trading Hours</span>
+                {{#if hasHours}}
+                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-hours-clear"
+                            data-action="clearHours" data-tooltip="Remove the schedule; the shop then only opens and closes by hand">
+                        Always open
+                    </button>
+                {{/if}}
+            </h3>
+
+            <div class="merchant-config-hours">
+                <div class="merchant-config-hours-readout">
+                    {{#if hasHours}}
+                        <span>Opens <strong data-hours-open-label>{{openLabel}}</strong></span>
+                        <span>Closes <strong data-hours-close-label>{{closeLabel}}</strong></span>
+                    {{else}}
+                        <span>No schedule &mdash; open and closed by hand.</span>
+                    {{/if}}
+                </div>
+
+                {{!-- Two ranges stacked into one track, so a single control carries
+                      both ends. --}}
+                <div class="merchant-config-hours-slider" data-hours-slider>
+                    <div class="merchant-config-hours-fill" data-hours-fill></div>
+                    <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
+                    <input type="range" min="0" max="{{maxHour}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                </div>
+
+                {{#if overridden}}
+                    <div class="merchant-config-hours-note">
+                        Currently overriding the schedule. The next opening or closing hour will set it straight.
+                    </div>
+                {{/if}}
+            </div>
+        </section>
+
+        <section class="merchant-config-section">
+            <h3>
                 <span><i class="fa-solid fa-layer-group"></i> Shelves</span>
                 <span class="merchant-config-count">{{shelfCount}}</span>
             </h3>

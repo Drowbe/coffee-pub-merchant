@@ -134,3 +134,22 @@
 
 .merchant-shop-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
 .merchant-shop-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+
+/* --- Trading hours ---------------------------------------------------- */
+.merchant-shop-hours { display: inline-flex; gap: 5px; align-items: center; margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--blacksmith-tool-divider); }
+.merchant-shop-override { margin-top: 5px; color: #a4432f; font-size: .66rem; }
+
+.merchant-config-hours { display: flex; flex-direction: column; gap: 8px; }
+.merchant-config-hours-readout { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .78rem; }
+.merchant-config-hours-readout strong { font-variant-numeric: tabular-nums; }
+.merchant-config-hours-clear { min-height: 22px; margin: 0; padding: 1px 9px; font-size: .64rem; text-transform: none; }
+
+/* Two range inputs stacked into one track: the track is inert and only the thumbs
+   take pointer events, so either end can be grabbed wherever it sits. */
+.merchant-config-hours-slider { position: relative; height: 26px; }
+.merchant-config-hours-slider::before { content: ''; position: absolute; top: 11px; right: 0; left: 0; height: 4px; border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-hours-slider input[type="range"] { position: absolute; top: 0; left: 0; width: 100%; height: 26px; margin: 0; padding: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.merchant-config-hours-slider input[type="range"]::-webkit-slider-thumb { width: 15px; height: 15px; border: 2px solid var(--blacksmith-tool-background, #fff); border-radius: 50%; background: var(--blacksmith-tool-accent); box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: auto; cursor: grab; -webkit-appearance: none; appearance: none; }
+.merchant-config-hours-slider input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+.merchant-config-hours-fill { position: absolute; top: 11px; height: 4px; border-radius: 999px; background: var(--blacksmith-tool-accent); }
+.merchant-config-hours-note { color: #a4432f; font-size: .68rem; }

@@ -91,6 +91,21 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Dragging onto a shelf highlights it while hovering.
 - [ ] A player cannot drop onto a shelf.
 
+## 2d. Trading hours
+
+- [ ] Config shows a two-ended slider; dragging either end updates the labels and the filled band live.
+- [ ] Releasing writes once — a drag across twelve hours is one update, not twelve.
+- [ ] Setting hours applies immediately: set 9–6 during the day and the shop opens without touching the clock.
+- [ ] The shop's merchant box shows the hours beside the stock count.
+- [ ] Advance the world clock past the closing hour → the shop closes on its own, for players too.
+- [ ] Advance past the opening hour → it opens again.
+- [ ] Jump **eight hours at once** across a boundary → it still lands on the right state.
+- [ ] Manually open a shop the schedule says is closed → both windows say it is overriding the schedule.
+- [ ] That override survives clock ticks **between** boundaries, and is cleared by the next crossing.
+- [ ] Toggling back to the scheduled state clears the override notice without waiting.
+- [ ] An overnight schedule (open 20, close 04) is open at midnight and closed at noon.
+- [ ] **Always open** removes the schedule and leaves the toggle purely manual.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.

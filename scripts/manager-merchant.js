@@ -4,7 +4,7 @@
 //
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
-import { MODULE, MERCHANT_FLAG, STOCK, SHELF_FLAG, SHELF_PRESETS } from './const.js';
+import { MODULE, MERCHANT_FLAG, STOCK, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt } from './const.js';
 import { grantItem, isPhysical } from './merchant-inventory.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -18,6 +18,7 @@ export class MerchantManager {
         this._registerTokenInteraction();
         GMRequest.registerHandler((op, payload, userId) => this._process(op, payload, userId));
         this._registerRefreshListener();
+        this._registerScheduleWatcher();
     }
 
     static teardown() {
@@ -74,6 +75,79 @@ export class MerchantManager {
     static async setOpen(actor, open) {
         if (!game.user.isGM) return null;
         return this.setConfig(actor, { open: Boolean(open) });
+    }
+
+    static getHours(actor) {
+        const hours = this.getConfig(actor)?.hours;
+        return hours && Number.isFinite(Number(hours.open)) && Number.isFinite(Number(hours.close))
+            ? { open: Number(hours.open), close: Number(hours.close) }
+            : null;
+    }
+
+    static async setHours(actor, hours) {
+        if (!game.user.isGM) return null;
+        await this.setConfig(actor, { hours });
+        // Applied at once, so setting hours does not sit inert until the clock next
+        // moves. A GM who just set 9 to 6 at noon expects an open shop.
+        return this.applySchedule(actor);
+    }
+
+    /**
+     * Whether the shop currently disagrees with its own schedule — which is what an
+     * override *is*. No stored flag: the next boundary crossing sets the state to
+     * match, clearing the override by doing the ordinary thing, and a GM toggling
+     * back to the scheduled state clears it because there is nothing left to
+     * disagree with.
+     */
+    static isOverridden(actor) {
+        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+        return scheduled !== null && scheduled !== this.isOpen(actor);
+    }
+
+    static async applySchedule(actor) {
+        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+        if (scheduled === null || scheduled === this.isOpen(actor)) return false;
+        await this.setConfig(actor, { open: scheduled });
+        this.broadcastActorRefresh(actor);
+        return true;
+    }
+
+    /**
+     * Open and close shops as the world clock passes their hours.
+     *
+     * GM-only, because every client running this would race the same write. Compares
+     * the schedule before and after the jump rather than watching for an exact hour,
+     * so advancing eight hours at once still lands on the right state.
+     */
+    static _registerScheduleWatcher() {
+        Hooks.on('updateWorldTime', (worldTime, dt) => {
+            if (!game.user.isGM) return;
+            void this._onWorldTimeChange(worldTime, dt);
+        });
+    }
+
+    static async _onWorldTimeChange(worldTime, dt) {
+        const previousHour = hourAt(worldTime - (Number(dt) || 0));
+        const currentHour = hourAt(worldTime);
+        if (previousHour === null || currentHour === null) return;
+
+        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+            const hours = this.getHours(actor);
+            if (!hours) continue;
+
+            const before = isScheduledOpen(hours, previousHour);
+            const after = isScheduledOpen(hours, currentHour);
+            // Only a crossing acts. Between boundaries a GM override stands.
+            if (before === after) continue;
+            if (after === this.isOpen(actor)) continue;
+
+            try {
+                await this.setConfig(actor, { open: after });
+                this.broadcastActorRefresh(actor);
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not apply the schedule for ${actor.name}:`, error);
+            }
+        }
     }
 
     // ==============================================================

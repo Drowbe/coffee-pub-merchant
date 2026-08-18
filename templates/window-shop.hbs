@@ -18,7 +18,17 @@
                 <div class="merchant-shop-subject-copy">
                     <div class="merchant-shop-kicker">Merchant</div>
                     <div class="merchant-shop-title">{{shopName}}</div>
-                    <div class="merchant-shop-description">{{itemCount}} in stock</div>
+                    <div class="merchant-shop-description">
+                        {{itemCount}} in stock
+                        {{#if hoursLabel}}<span class="merchant-shop-hours"><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
+                    </div>
+                    {{#if overridden}}
+                        {{!-- GM only. A shop disagreeing with its own schedule is
+                              deliberate, but it should never be a mystery. --}}
+                        <div class="merchant-shop-override">
+                            <i class="fa-solid fa-hand"></i> Overriding the schedule until the next opening or closing hour
+                        </div>
+                    {{/if}}
                 </div>
                 {{#if isGM}}
                     <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"

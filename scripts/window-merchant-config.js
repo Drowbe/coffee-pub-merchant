@@ -1,5 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, SHELF_PRESETS } from './const.js';
+import { MODULE, SHELF_PRESETS, hoursPerDay, formatHour } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
@@ -31,7 +31,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         addShelf: (_event, target, win) => void win.addShelf(target.dataset.preset),
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
-        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId)
+        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
+        clearHours: (_event, _target, win) => void win.clearHours()
     };
 
     constructor(actor, options = {}) {
@@ -70,9 +71,73 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     _onRender(context, options) {
         super._onRender?.(context, options);
         const toggle = this.element?.querySelector('[data-merchant-enabled]');
-        if (!toggle || toggle.dataset.merchantBound === 'true') return;
-        toggle.dataset.merchantBound = 'true';
-        toggle.addEventListener('change', (event) => void this._setEnabled(event.target.checked));
+        if (toggle && toggle.dataset.merchantBound !== 'true') {
+            toggle.dataset.merchantBound = 'true';
+            toggle.addEventListener('change', (event) => void this._setEnabled(event.target.checked));
+        }
+        this._bindHoursSlider();
+    }
+
+    /**
+     * Two range inputs behaving as one two-ended control.
+     *
+     * Dragging updates the labels and the filled band live; the write happens on
+     * release, so a drag across twelve hours is one document update rather than
+     * twelve.
+     */
+    _bindHoursSlider() {
+        const root = this.element?.querySelector('[data-hours-slider]');
+        if (!root || root.dataset.merchantBound === 'true') return;
+        root.dataset.merchantBound = 'true';
+
+        const openInput = root.querySelector('[data-hours-open]');
+        const closeInput = root.querySelector('[data-hours-close]');
+        const fill = root.querySelector('[data-hours-fill]');
+        if (!openInput || !closeInput) return;
+
+        const paint = () => {
+            const max = Number(openInput.max) || 23;
+            const open = Number(openInput.value);
+            const close = Number(closeInput.value);
+            this.element.querySelector('[data-hours-open-label]')?.replaceChildren(formatHour(open));
+            this.element.querySelector('[data-hours-close-label]')?.replaceChildren(formatHour(close));
+            if (!fill) return;
+            // An overnight window wraps, so the band is drawn from the lower value
+            // and simply reads as the span between the handles.
+            const lo = Math.min(open, close) / (max + 1);
+            const hi = Math.max(open, close) / (max + 1);
+            fill.style.left = `${lo * 100}%`;
+            fill.style.width = `${(hi - lo) * 100}%`;
+        };
+
+        for (const input of [openInput, closeInput]) {
+            input.addEventListener('input', paint);
+            input.addEventListener('change', () => void this._commitHours(Number(openInput.value), Number(closeInput.value)));
+        }
+        paint();
+    }
+
+    async _commitHours(open, close) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setHours(actor, { open, close });
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set trading hours:`, error);
+            ui.notifications?.error('Could not set trading hours.');
+        }
+        await this.render(false);
+    }
+
+    async clearHours() {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setHours(actor, null);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clear trading hours:`, error);
+        }
+        await this.render(false);
     }
 
     async _setEnabled(enabled) {
@@ -143,10 +208,22 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             })
             : [];
 
+        const hours = enabled ? MerchantManager.getHours(actor) : null;
+        const max = hoursPerDay() - 1;
+
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
             enabled,
+            hasHours: Boolean(hours),
+            // Sensible defaults for a shop that has never had a schedule, so the
+            // handles start somewhere a GM would recognise rather than at midnight.
+            openHour: hours?.open ?? Math.min(9, max),
+            closeHour: hours?.close ?? Math.min(18, max),
+            openLabel: formatHour(hours?.open ?? Math.min(9, max)),
+            closeLabel: formatHour(hours?.close ?? Math.min(18, max)),
+            maxHour: max,
+            overridden: enabled && MerchantManager.isOverridden(actor),
             shelves,
             shelfCount: shelves.length,
             hasShelves: shelves.length > 0,

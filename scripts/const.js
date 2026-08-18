@@ -106,3 +106,62 @@ export const ITEM_CATEGORIES = Object.freeze([
     { type: 'container', label: 'Containers', icon: 'fa-solid fa-box' },
     { type: 'loot', label: 'Goods', icon: 'fa-solid fa-sack-xmark' }
 ]);
+
+// ==================================================================
+// ===== TRADING HOURS ==============================================
+// ==================================================================
+//
+// The schedule proposes and the toggle disposes: crossing an opening or closing
+// hour sets the shop to match the schedule, and a GM may override it at any time.
+//
+// **The override needs no stored flag.** It is simply the state disagreeing with the
+// schedule, and the next boundary crossing sets the state to match — which clears
+// the override as a side effect of doing the normal thing. A GM toggling back to the
+// scheduled state also clears it, because there is then nothing to disagree with.
+
+export const HOURS_FLAG = 'hours';
+
+/** Hours in an in-world day. Calendars may define something other than 24. */
+export function hoursPerDay() {
+    const hours = Number(game.time?.calendar?.days?.hoursPerDay);
+    return Number.isFinite(hours) && hours > 0 ? hours : 24;
+}
+
+/** The in-world hour at a given world time, or now. */
+export function hourAt(worldTime) {
+    const calendar = game.time?.calendar;
+    if (!calendar) return null;
+    const components = worldTime === undefined
+        ? game.time.components
+        : calendar.timeToComponents(worldTime);
+    const hour = Number(components?.hour);
+    return Number.isFinite(hour) ? hour : null;
+}
+
+/**
+ * Whether a schedule says open at this hour.
+ *
+ * @returns {boolean|null} null when there is no schedule to consult
+ */
+export function isScheduledOpen(hours, hour) {
+    if (!hours || !Number.isFinite(hour)) return null;
+    const open = Number(hours.open);
+    const close = Number(hours.close);
+    if (!Number.isFinite(open) || !Number.isFinite(close)) return null;
+    // Equal bounds read as "always", which is what a GM setting both to the same
+    // hour is asking for, and avoids a zero-width window nobody can shop in.
+    if (open === close) return true;
+    if (open < close) return hour >= open && hour < close;
+    // Overnight: open 20:00, close 04:00.
+    return hour >= open || hour < close;
+}
+
+/** "9:00 AM" on a 24-hour calendar, "9:00" on anything else. */
+export function formatHour(hour) {
+    const value = Number(hour);
+    if (!Number.isFinite(value)) return '--';
+    if (hoursPerDay() !== 24) return `${value}:00`;
+    const suffix = value < 12 ? 'AM' : 'PM';
+    const display = value % 12 === 0 ? 12 : value % 12;
+    return `${display}:00 ${suffix}`;
+}

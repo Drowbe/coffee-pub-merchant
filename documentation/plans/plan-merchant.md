@@ -191,6 +191,35 @@ set, and `weightlessContents` makes a container report only its own weight.
 Enabling a merchant with no shelves auto-creates a Storefront, so the zero-config path shows the shape rather
 than an empty window and a puzzle.
 
+## 7c. Trading hours
+
+**The schedule proposes and the toggle disposes.** Crossing an opening or closing hour sets the shop to
+match its schedule; a GM may override that at any time and the override stands until the next crossing.
+
+**The override needs no stored flag.** It is simply the state disagreeing with the schedule. The next
+crossing sets the state to match, which clears the override as a side effect of doing the ordinary thing,
+and a GM toggling back to the scheduled state clears it because there is then nothing to disagree with.
+Anything stored would be a second source of truth for a fact already derivable.
+
+`hours: { open, close } | null`. Equal bounds read as always open, which is what setting both to the same
+hour is asking for and avoids a zero-width window nobody can shop in. Overnight schedules work — open 20,
+close 04 — because the check wraps rather than assuming `open < close`.
+
+Hours are read from `game.time.calendar`, not assumed: `hoursPerDay` is calendar-configurable, so the
+control's range and the time formatting both derive from it rather than hardcoding 24.
+
+The watcher runs on `updateWorldTime`, **GM-only** — every client running it would race the same write. It
+compares the schedule *before and after* the jump rather than watching for an exact hour, so advancing eight
+hours at once still lands on the right state and nothing is missed by skipping over a boundary.
+
+Setting hours applies them immediately rather than waiting for the clock to move, because a GM who sets 9 to
+6 at noon expects an open shop. A GM whose shop disagrees with its schedule is told so in both windows —
+deliberate is fine, mysterious is not.
+
+**This was argued against and the argument was wrong.** The objection was that hours would be inert in worlds
+that never advance the clock. That is not this table, core ships a world clock, and the point that settled it
+is forward-looking: catalogue mode cannot depend on a GM remembering to unlock a door.
+
 ## 8. Pricing model
 
 Three sources, resolved in order. All three exist from the start; only display uses them in v1.

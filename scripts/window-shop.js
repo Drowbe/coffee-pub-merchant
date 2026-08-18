@@ -1,5 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, ITEM_CATEGORIES } from './const.js';
+import { MODULE, ITEM_CATEGORIES, formatHour } from './const.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
@@ -411,6 +411,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const options = this.recipients;
         const recipient = this.recipient;
         const config = missing ? null : MerchantManager.getConfig(merchant);
+        const hours = missing ? null : MerchantManager.getHours(merchant);
 
         // One section per shelf. A GM sees hidden shelves too, marked as such; a
         // player is never sent their contents at all.
@@ -481,6 +482,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             itemCount,
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
+            hoursLabel: hours ? `${formatHour(hours.open)} – ${formatHour(hours.close)}` : null,
+            // Shown so a GM is never puzzled by a shop that disagrees with its own
+            // schedule; the next boundary will set it straight.
+            overridden: !missing && game.user.isGM && MerchantManager.isOverridden(merchant),
             // A player looking at a closed shop is browsing, and should be told so
             // rather than left wondering why nothing works.
             browsing: !missing && !MerchantManager.isOpen(merchant) && !game.user.isGM,
