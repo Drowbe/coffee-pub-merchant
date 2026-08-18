@@ -41,7 +41,6 @@
     "scripts/const.js",
     "scripts/merchant-inventory.js",
     "scripts/gm-request.js",
-    "scripts/window-compendium-add.js",
     "scripts/window-shop.js",
     "scripts/window-merchant-config.js",
     "scripts/manager-merchant.js",

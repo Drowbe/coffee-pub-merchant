@@ -78,9 +78,8 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] The **GM is exempt** — they can still acquire from a closed shop, for stocking and testing.
 - [ ] Toggling open/closed updates a player's open window without either side reopening it.
 - [ ] Shop titlebar has **Merchant Settings**; the character sheet header has it too, but **no Open Shop**.
-- [ ] The **+** on a shelf header opens compendium search; typing two characters returns grouped results.
-- [ ] Clicking a result puts it on that shelf and it appears in the shop.
-- [ ] A search that hits the cap says so rather than silently truncating.
+- [ ] The **+** on a shelf header opens **Blacksmith's** Compendium Search window.
+- [ ] Dragging a result from that window onto a shelf puts it on that shelf.
 - [ ] **Drag an item onto a shelf** from a compendium or the sidebar → it lands on that shelf.
 - [ ] Dragging onto a shelf highlights it while hovering.
 - [ ] A player cannot drop onto a shelf.

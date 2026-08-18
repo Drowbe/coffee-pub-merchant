@@ -132,28 +132,3 @@
 
 .merchant-shop-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
 .merchant-shop-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
-
-/* --- Compendium add window ------------------------------------------- */
-.merchant-add-window .window-content { min-height: 0; overflow: hidden; }
-.merchant-add-window .blacksmith-window-tool-root { min-height: 0; max-height: 100%; }
-.merchant-add-window .blacksmith-window-tool-body { min-height: 0; overflow: auto; }
-.merchant-add-content { display: flex; flex-direction: column; gap: 10px; padding: 8px; color: var(--blacksmith-tool-text); }
-
-.merchant-add-search { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 6px; margin: -8px -8px 0; padding: 8px; background: var(--blacksmith-tool-background); }
-.merchant-add-search > label { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: center; padding: 6px 10px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 6px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); }
-.merchant-add-search input { width: 100%; border: 0; background: transparent; color: inherit; font-family: inherit; font-size: .84rem; outline: none; }
-.merchant-add-target { color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
-
-.merchant-add-note { padding: 10px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .74rem; text-align: center; }
-.merchant-add-truncated { display: flex; gap: 8px; align-items: center; text-align: left; }
-
-.merchant-add-group > h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 6px; padding: 0 0 5px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .7rem; letter-spacing: .04em; text-transform: uppercase; }
-.merchant-add-package { color: var(--blacksmith-tool-text-muted); font-size: .62rem; text-transform: none; }
-.merchant-add-list { display: flex; flex-direction: column; gap: 3px; }
-.merchant-add-result { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 9px; align-items: center; width: 100%; padding: 4px 8px 4px 4px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); color: inherit; font-family: inherit; text-align: left; cursor: pointer; }
-.merchant-add-result:hover { border-color: var(--blacksmith-tool-accent); background: var(--blacksmith-tool-surface-hover); }
-.merchant-add-result > img { display: block; width: 30px !important; height: 30px !important; max-width: 30px !important; object-fit: cover; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; }
-.merchant-add-result-copy { min-width: 0; }
-.merchant-add-result-copy strong, .merchant-add-result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.merchant-add-result-copy strong { font-size: .78rem; }
-.merchant-add-result-copy small { color: var(--blacksmith-tool-text-muted); font-size: .64rem; }

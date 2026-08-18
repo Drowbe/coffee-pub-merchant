@@ -1,6 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import { MODULE, ITEM_CATEGORIES } from './const.js';
-import { CompendiumAddWindow } from './window-compendium-add.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
@@ -62,7 +61,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId)),
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
-        addToShelf: (_event, target, win) => void win.openCompendiumAdd(target.dataset.shelfId)
+        addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
     constructor(tokenDocument, options = {}) {
@@ -607,10 +606,23 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (token?.actor) await MerchantConfigWindow.open(token.actor);
     }
 
-    async openCompendiumAdd(shelfId) {
+    /**
+     * Blacksmith's own compendium search, opened through the window registry.
+     *
+     * Merchant had its own for a day. Theirs is better — type filter, results
+     * grouped by source, timing and a "more available" count — and its result rows
+     * are draggable with a `{ type, uuid }` payload, which is exactly what the shelf
+     * drop targets already read. So the search is theirs and the targeting is the
+     * drag, and there is no second search to keep working.
+     */
+    async openCompendiumSearch() {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        if (token?.actor) await CompendiumAddWindow.open(token.actor, shelfId);
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.openWindow !== 'function') {
+            ui.notifications?.warn('Blacksmith compendium search is unavailable.');
+            return;
+        }
+        await blacksmith.openWindow('blacksmith-compendium-search');
     }
 
     /** Open or close for business. A closed shop still opens for browsing. */

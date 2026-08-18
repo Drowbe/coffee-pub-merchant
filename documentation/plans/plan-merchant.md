@@ -352,7 +352,17 @@ the table rather than by leaving the session to go rummaging.
 **Nothing blocks this.** It needs only the shelf model, which exists. It is placed last because money is the
 bigger feature, not because it depends on it — move it earlier the moment it becomes the more annoying gap.
 
-Blacksmith already provides the search half:
+**Built, and then thrown away in favour of Blacksmith's.** Merchant shipped its own search window for a day.
+Blacksmith's is better — a type filter, results grouped by source with the pack name, timing, and a count of
+what the scan did not show — and its result rows are draggable carrying `{ type, uuid }`, which is precisely
+what Merchant's shelf drop targets already read.
+
+So the search is theirs and the targeting is the drag: the `+` on a shelf header opens
+`blacksmith.openWindow('blacksmith-compendium-search')`, and the GM drags a result onto the shelf it belongs
+on. There is no second search to keep working, and the one thing Merchant's version had that theirs does not
+— knowing which shelf you meant — is answered better by dropping on the shelf than by remembering it.
+
+For reference, the search half Blacksmith provides:
 
 ```js
 const results = await blacksmith.compendiums.search('plate', 'Item', { itemType: 'equipment', limit: 40 });
@@ -363,7 +373,8 @@ Group by `source`, render `name` and `img`, add via `uuid`. `searchDetailed()` a
 the scan was truncated, which a picker should show rather than silently capping.
 
 The add half is `grantItem({ targetActorUuid: merchantUuid, itemUuid })`, which accepts a compendium UUID
-directly — the case `grantItem` exists for, so nothing new is needed to get the item onto the merchant.
+directly — the case `grantItem` exists for. Merchant's drop handler reads the payload and calls
+`addToShelf`, which is that grant plus a write to `system.container`.
 
 **One gap to raise with Blacksmith when this is built:** `grantItem` cannot say *which container* the new
 item lands in, so stocking a shelf means granting and then a second write to set `system.container`. A
