@@ -348,16 +348,20 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const lines = await this._cartLines();
         if (!lines.length) return;
 
-        const destination = await this._askDestination('Checkout');
+        const destination = await this._askDestination('Checkout', { paid: true });
         if (!destination) return;
 
         const total = lines.reduce((sum, line) => sum + line.total, 0);
-        const buyer = fromUuidSync(destination.uuid);
-        const plan = planPayment(buyer, total);
+        const payer = this.recipient;
+        if (!payer) {
+            ui.notifications?.warn('You have no character able to pay.');
+            return;
+        }
+        const plan = planPayment(payer, total);
         if (!plan) {
             ui.notifications?.warn(
-                'That comes to ' + formatBase(total) + ' and ' + (buyer?.name ?? 'the buyer')
-                + ' holds ' + formatBase(purseValue(buyer)) + '.'
+                'That comes to ' + formatBase(total) + ' and ' + payer.name
+                + ' holds ' + formatBase(purseValue(payer)) + '.'
             );
             return;
         }
@@ -370,8 +374,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 title: 'Checkout',
                 classes: ['merchant-dialog'],
                 content: '<ul class="merchant-cart-confirm">' + list + '</ul>'
-                    + '<p>Total <strong>' + formatBase(total) + '</strong> to '
-                    + (destination.label ?? 'the buyer') + '.</p>',
+                    + '<p>' + payer.name + ' pays <strong>' + formatBase(total) + '</strong>'
+                    + (destination.uuid === payer.uuid ? '' : ', delivered to ' + (destination.label ?? 'them'))
+                    + '.</p>',
                 confirmLabel: 'Pay',
                 confirmIcon: 'fa-solid fa-coins'
             });
@@ -381,7 +386,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const result = await this._send(
             {
                 items: lines.map((line) => ({ itemId: line.id, quantity: line.quantity })),
-                recipientUuid: destination.uuid
+                recipientUuid: destination.uuid,
+                payerUuid: payer.uuid
             },
             { label: 'Paying' },
             'checkout'
@@ -419,7 +425,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * Who the goods are for: the acting character, another party member, or the
      * party itself. Asked once here rather than encoded in three icons per row.
      */
-    async _askDestination(title) {
+    async _askDestination(title, { paid = false } = {}) {
         const recipient = this.recipient;
         const party = MerchantManager.getPartyActor();
         const blacksmith = _blacksmith();
@@ -436,7 +442,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const picked = await blacksmith.dialog.choose({
             title,
             classes: ['merchant-dialog'],
-            content: '<p>Who is this for?</p>',
+            content: '<p>Who is this for?</p>'
+                // Paid delivery elsewhere is three-party \u2014 the shopper's coin, someone
+                // else's goods \u2014 and `exchange` is two-sided. Said here rather than
+                // discovered at the refusal.
+                + (paid && (recipient || party)
+                    ? '<p class="merchant-shop-hint">' + (recipient?.name ?? 'You') + ' pays either way.'
+                        + ' Buying for someone else is waiting on a Blacksmith update.</p>'
+                    : ''),
             choices
         });
         if (picked?.action !== 'submit') return null;
@@ -462,6 +475,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     /**
      * Buy an item with coin.
+     *
+     * The shopper pays. Where the goods land is a separate question, asked once in
+     * a dialog rather than encoded in three buttons, and buying for the party or
+     * for another character is therefore a gift out of the shopper's own purse.
      *
      * The affordability check and the coin plan run before anything is asked of the
      * GM, so a player learns they cannot afford something from the confirm rather
@@ -492,7 +509,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
         if (!amount) return;
 
+        // Where the goods go is asked here rather than encoded in three icons.
+        const destination = await this._askDestination('Buy ' + context.item.name, { paid: true });
+        if (!destination) return;
+
         const total = unit * amount;
+        // The shopper always pays, wherever the goods go. Buying for the party or for
+        // another character is a gift, and a gift comes out of the giver's purse.
         const plan = planPayment(recipient, total);
         if (!plan) {
             ui.notifications?.warn(
@@ -507,10 +530,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const confirmed = await blacksmith.dialog.confirm({
                 title: 'Buy ' + context.item.name,
                 classes: ['merchant-dialog'],
-                content: '<p>' + recipient.name + ' buys '
+                content: '<p>' + recipient.name + ' pays <strong>' + formatBase(total) + '</strong> for '
                     + (amount > 1 ? amount + ' ' : '')
-                    + '<strong>' + context.item.name + '</strong> for <strong>'
-                    + formatBase(total) + '</strong>.</p>',
+                    + '<strong>' + context.item.name + '</strong>'
+                    + (destination.uuid === recipient.uuid ? '' : ', for ' + (destination.label ?? 'them'))
+                    + '.</p>',
                 confirmLabel: 'Buy',
                 confirmIcon: 'fa-solid fa-coins'
             });
@@ -519,12 +543,18 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         this._report(
             await this._send(
-                { itemId, quantity: amount, recipientUuid: recipient.uuid },
+                {
+                    itemId,
+                    quantity: amount,
+                    recipientUuid: destination.uuid,
+                    payerUuid: recipient.uuid
+                },
                 { row: itemId, label: 'Buying ' + context.item.name },
                 'buy'
             ),
             recipient.name + ' bought ' + (amount > 1 ? amount + ' ' : '')
-            + context.item.name + ' for ' + formatBase(total) + '.'
+            + context.item.name + ' for ' + formatBase(total)
+            + (destination.uuid === recipient.uuid ? '' : ', for ' + (destination.label ?? 'them')) + '.'
         );
     }
 
@@ -630,9 +660,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} held.`;
             case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} in the till.`;
             case 'NOT_PRICED': return 'That has no price set.';
+            case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
+            case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
+            case 'THIRD_PARTY_DELIVERY': return 'Buying on behalf of someone else is waiting on a Blacksmith update.';
             case 'BARTER_ONLY': return 'That one is a conversation, not a purchase.';
             case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
+            case 'NO_PAYER': return 'Nobody was named to pay for that.';
+            case 'NOT_YOUR_COIN': return 'You can only spend your own character\u2019s coin.';
             case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
@@ -687,19 +722,31 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => {
                     const price = resolvePrice(config0, config, item);
                     return {
-                    id: item.id,
-                    type: item.type,
-                    name: item.name,
-                    img: item.img,
-                    typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
-                    busy: item.id === busyRow,
-                    price,
-                    priceLabel: price === null ? null : formatBase(price),
-                    // Unpriced on a sale shelf is a gap the GM should see, not a gift.
-                    unpriced: price === null && !isBarter,
-                    canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying,
-                    isBarter
-                };
+                        id: item.id,
+                        type: item.type,
+                        name: item.name,
+                        img: item.img,
+                        typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                        busy: item.id === busyRow,
+                        price,
+                        priceLabel: price === null ? null : formatBase(price),
+                        // Infinite stock, so this reads as unlimited rather than a
+                        // count. A finite shelf later puts a number in the same
+                        // column without moving anything else.
+                        qtyLabel: '\u221e',
+                        qtyTooltip: 'Unlimited stock',
+                        // A disabled button with no reason on it is the thing
+                        // players ask about, so the tooltip carries the reason.
+                        buyTooltip: !buying ? 'Buying is waiting on a Blacksmith update'
+                            : !trading ? 'The shop is closed'
+                            : !recipient ? 'You have no character able to buy'
+                            : price === null ? 'This has no price set'
+                            : 'Buy now',
+                        canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying,
+                        // Stocking and testing should not require a purse.
+                        canTakeFree: isGM && !isBarter,
+                        isBarter
+                    };
                 });
                 itemCount += contents.length;
 

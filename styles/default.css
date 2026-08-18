@@ -193,3 +193,6 @@
 .merchant-shop-cart-foot strong { font-variant-numeric: tabular-nums; }
 .merchant-shop-checkout { min-height: 28px; margin: 0; padding: 3px 14px; font-size: .74rem; white-space: nowrap; }
 .merchant-cart-confirm { margin: 0 0 8px; padding-left: 18px; }
+
+/* Dialog hint: says why a choice may be refused before it is made. */
+.merchant-dialog .merchant-shop-hint { margin: 6px 0 0; color: var(--blacksmith-tool-text-muted); font-size: .74rem; line-height: 1.4; }

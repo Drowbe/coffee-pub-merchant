@@ -248,7 +248,7 @@ export class MerchantManager {
         if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
 
         // `container` is honoured by the accessor today and by grantItem itself once
-        // the fix lands, at which point this stops being two writes.
+        // Blacksmith's staged change ships, at which point this is one write.
         const result = await grantItem({
             targetActorUuid: actor.uuid,
             itemUuid,
@@ -429,7 +429,7 @@ export class MerchantManager {
         if (!check.ok) return check;
 
         const result = op === 'buy'
-            ? await this._processBuy(merchant, item, shelf, check.actorUuid, payload)
+            ? await this._processBuy(merchant, item, shelf, check.actorUuid, payload, user)
             // grantItem, never transferItem: stock is infinite, so the merchant's
             // item is a template and is never consumed.
             : await grantItem({
@@ -450,7 +450,7 @@ export class MerchantManager {
      * splitting it into a transfer plus a currency move would mean writing rollback
      * across two primitives holding separate locks.
      */
-    static async _processBuy(merchant, item, shelf, buyerUuid, payload) {
+    static async _processBuy(merchant, item, shelf, buyerUuid, payload, user) {
         const shelfConfig = this.getShelfConfig(shelf);
         if (shelfConfig?.mode === 'barter') return { ok: false, code: 'BARTER_ONLY' };
 
@@ -458,21 +458,23 @@ export class MerchantManager {
         const unit = resolvePrice(this.getConfig(merchant), shelfConfig, item);
         if (unit === null) return { ok: false, code: 'NOT_PRICED' };
 
-        const buyer = fromUuidSync(buyerUuid);
+        const payerCheck = this._validatePayer(payload.payerUuid ?? buyerUuid, buyerUuid, user);
+        if (!payerCheck.ok) return payerCheck;
+
         const total = unit * quantity;
 
-        // Checked before anything moves, and re-checked here rather than trusting the
-        // window: prices and purses both change between render and click.
-        const plan = planPayment(buyer, total);
+        // Re-checked here rather than trusting the window: prices and purses both
+        // change between render and click.
+        const plan = planPayment(payerCheck.actor, total);
         if (!plan) {
-            return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(buyer) };
+            return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
         }
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
         const result = await exchange({
             actorA: { uuid: merchant.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
-            actorB: { uuid: buyerUuid, items: [], currency: plan.pay }
+            actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
         });
 
         return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
@@ -519,15 +521,17 @@ export class MerchantManager {
             lines.push({ itemId: item.id, quantity });
         }
 
-        const buyer = fromUuidSync(check.actorUuid);
-        const plan = planPayment(buyer, total);
-        if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(buyer) };
+        const payerCheck = this._validatePayer(payload.payerUuid ?? check.actorUuid, check.actorUuid, user);
+        if (!payerCheck.ok) return payerCheck;
+
+        const plan = planPayment(payerCheck.actor, total);
+        if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
         const result = await exchange({
             actorA: { uuid: merchant.uuid, items: lines, currency: plan.change },
-            actorB: { uuid: check.actorUuid, items: [], currency: plan.pay }
+            actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
         });
 
         return result?.ok ? { ...result, price: total } : result;
@@ -577,12 +581,42 @@ export class MerchantManager {
 
         const result = await exchange({
             actorA: { uuid: seller.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
-            actorB: { uuid: merchant.uuid, items: [], currency: plan.pay },
-            // Bought stock lands on the buyback shelf rather than loose on the NPC.
-            container: { uuid: merchant.uuid, itemId: shelf.item.id }
+            // `container` belongs to the side the goods arrive at, reading as "items
+            // arriving here land in this container" — Blacksmith's correction to the
+            // top-level form we first proposed, which carried a uuid that could
+            // disagree with the side's own.
+            actorB: { uuid: merchant.uuid, items: [], currency: plan.pay, container: shelf.item.id }
         });
 
         return result?.ok ? { ...result, price: total } : result;
+    }
+
+    /**
+     * Who is paying, and may they.
+     *
+     * The payer is always the shopper, never the destination: buying for the party
+     * or for another character is a gift, and a gift comes out of the giver's purse.
+     * That makes a delivery elsewhere a **three-party** transaction — merchant,
+     * payer, recipient — which the two-sided `exchange` shape cannot express. Refused
+     * explicitly rather than silently charging the wrong purse.
+     */
+    static _validatePayer(payerUuid, recipientUuid, user) {
+        if (!payerUuid) return { ok: false, code: 'NO_PAYER' };
+
+        let payer = null;
+        try {
+            payer = fromUuidSync(payerUuid);
+        } catch (_error) {
+            return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
+        }
+        if (!payer || payer.type !== 'character') return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
+        // Spending someone else's coin is not a thing a shop should enable.
+        if (!user.isGM && !payer.testUserPermission(user, 'OWNER')) return { ok: false, code: 'NOT_YOUR_COIN' };
+
+        if (recipientUuid && recipientUuid !== payerUuid) {
+            return { ok: false, code: 'THIRD_PARTY_DELIVERY' };
+        }
+        return { ok: true, actor: payer };
     }
 
     /**
