@@ -102,12 +102,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.element.querySelector('[data-hours-open-label]')?.replaceChildren(formatHour(open));
             this.element.querySelector('[data-hours-close-label]')?.replaceChildren(formatHour(close));
             if (!fill) return;
-            // An overnight window wraps, so the band is drawn from the lower value
-            // and simply reads as the span between the handles.
-            const lo = Math.min(open, close) / (max + 1);
-            const hi = Math.max(open, close) / (max + 1);
-            fill.style.left = `${lo * 100}%`;
-            fill.style.width = `${(hi - lo) * 100}%`;
+
+            // The band marks the hours the shop is *open*, so an overnight schedule
+            // has to draw two segments rather than one. Drawing a single band between
+            // the handles would shade 04:00-20:00 for a shop open 20:00-04:00 —
+            // exactly backwards. A gradient with hard stops covers both cases without
+            // a second element.
+            const span = max + 1;
+            const openPct = (open / span) * 100;
+            const closePct = (close / span) * 100;
+            const bar = 'var(--merchant-open-bar)';
+
+            if (open === close) fill.style.background = bar;
+            else if (open < close) {
+                fill.style.background = `linear-gradient(90deg, transparent 0 ${openPct}%, ${bar} ${openPct}% ${closePct}%, transparent ${closePct}% 100%)`;
+            } else {
+                fill.style.background = `linear-gradient(90deg, ${bar} 0 ${closePct}%, transparent ${closePct}% ${openPct}%, ${bar} ${openPct}% 100%)`;
+            }
         };
 
         for (const input of [openInput, closeInput]) {

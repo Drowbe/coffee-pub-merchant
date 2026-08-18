@@ -103,7 +103,9 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Manually open a shop the schedule says is closed → both windows say it is overriding the schedule.
 - [ ] That override survives clock ticks **between** boundaries, and is cleared by the next crossing.
 - [ ] Toggling back to the scheduled state clears the override notice without waiting.
+- [ ] The green band marks the **open** hours, and green means the same thing here as on the Open toggle.
 - [ ] An overnight schedule (open 20, close 04) is open at midnight and closed at noon.
+- [ ] That overnight schedule shades **both ends** of the slider, not the middle.
 - [ ] **Always open** removes the schedule and leaves the toggle purely manual.
 
 ## 3. The window

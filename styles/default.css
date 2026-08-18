@@ -151,5 +151,9 @@
 .merchant-config-hours-slider input[type="range"] { position: absolute; top: 0; left: 0; width: 100%; height: 26px; margin: 0; padding: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
 .merchant-config-hours-slider input[type="range"]::-webkit-slider-thumb { width: 15px; height: 15px; border: 2px solid var(--blacksmith-tool-background, #fff); border-radius: 50%; background: var(--blacksmith-tool-accent); box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: auto; cursor: grab; -webkit-appearance: none; appearance: none; }
 .merchant-config-hours-slider input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
-.merchant-config-hours-fill { position: absolute; top: 11px; height: 4px; border-radius: 999px; background: var(--blacksmith-tool-accent); }
+/* Spans the whole track; the gradient marks which hours are open, so an overnight
+   schedule shades both ends rather than the middle. Green matches the Open toggle,
+   so the same colour means the same thing in both windows. */
+.merchant-config-hours-slider { --merchant-open-bar: #2f6b33; }
+.merchant-config-hours-fill { position: absolute; top: 11px; right: 0; left: 0; height: 4px; border-radius: 999px; }
 .merchant-config-hours-note { color: #a4432f; font-size: .68rem; }
