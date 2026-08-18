@@ -34,7 +34,17 @@ let _handler = null;
 export function registerHandler(handler) {
     _handler = handler;
 
-    CONFIG.queries[QUERY] = async ({ op, payload }, { userId }) => {
+    // The caller's id travels in the payload because core does not supply it: a
+    // query handler is invoked as `handler(queryData, { timeout })` and nothing else.
+    //
+    // **That makes it client-asserted, not verified.** A raw module socket is no
+    // better — `game.socket.emit` delivers no sender either — so this is a property
+    // of Foundry rather than of this envelope, and every GM-authoritative handler in
+    // the suite shares it. Consequence: `userId` may be used to decide *who is
+    // acting*, but a handler must not grant an authority the caller could not
+    // otherwise obtain by asserting a different id. Validate what is being asked for,
+    // not merely who claims to be asking.
+    CONFIG.queries[QUERY] = async ({ op, payload, userId }) => {
         try {
             return await _handler(op, payload, userId);
         } catch (error) {
@@ -58,7 +68,7 @@ export async function request(op, payload) {
     if (!gm) return { ok: false, code: 'NO_ACTIVE_GM' };
 
     try {
-        return await gm.query(QUERY, { op, payload }, { timeout: TIMEOUT_MS });
+        return await gm.query(QUERY, { op, payload, userId: game.user.id }, { timeout: TIMEOUT_MS });
     } catch (error) {
         // A timeout, a disconnect mid-flight, or a missing QUERY_USER permission all
         // land here. None is worth a stack trace at the call site.

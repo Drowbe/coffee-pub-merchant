@@ -277,6 +277,17 @@ round-trips to itself, and the `{ok, code}` result shape carrying `NO_ACTIVE_GM`
 **The envelope routes and elects. It does not authorize.** Nothing in a payload is trusted; re-resolution and
 validation stay with the handler. This is the rule most easily lost once an envelope becomes infrastructure.
 
+**The caller's identity is client-asserted, not verified.** A core query handler is invoked as
+`handler(queryData, { timeout })` — the querying user's id is never passed. A raw module socket is no better,
+since `game.socket.emit` delivers no sender either. So `userId` travels in the payload and any client could
+put a different one there. This is a property of Foundry rather than of this envelope, and every
+GM-authoritative handler in the suite shares it, Curator's looting included.
+
+The rule that follows: **a handler must not grant an authority the caller could not otherwise obtain by
+asserting a different id.** Validate what is being asked for, not merely who claims to be asking. Today
+`_validateRecipient` leans on `user.isGM`, which a spoofed id would satisfy — low consequence while stock is
+infinite and free, and a real hole the moment money exists. It must be closed before phase 3.
+
 **Two-sided `exchange`.** Accepted in principle, symmetric shape confirmed, build starts when the phase is
 real. Three things Blacksmith flagged for that point: the result shape is the actual design work, since four
 legs means reporting per side what committed; it will be built on their existing internal cores rather than

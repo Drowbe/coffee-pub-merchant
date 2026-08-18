@@ -45,6 +45,19 @@ It also raises delivery: does an ordered item arrive immediately, at the next re
 the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
 it is built.
 
+## Caller identity is not verified (must close before money)
+
+A GM-authoritative handler cannot tell who actually asked. Core invokes a query handler as
+`handler(queryData, { timeout })` with no caller id, and `game.socket.emit` delivers no sender either, so the
+id travels in the payload and any client could assert a different one.
+
+Harmless today: stock is infinite and free, so the worst outcome is a free item from a shop that gives items
+away. **Not harmless once money exists** — `_validateRecipient` leans on `user.isGM`, which a spoofed id
+satisfies.
+
+Raised with Blacksmith, since their shared envelope will inherit the same limitation. Until it is solved,
+validate what is being asked for rather than who claims to be asking.
+
 ## Open
 
 - **Stocking from compendiums** (`plans/plan-merchant.md` phase 6). A GM-only search-and-add panel in the
