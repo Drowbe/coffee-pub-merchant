@@ -196,3 +196,25 @@
 
 /* Dialog hint: says why a choice may be refused before it is made. */
 .merchant-dialog .merchant-shop-hint { margin: 6px 0 0; color: var(--blacksmith-tool-text-muted); font-size: .74rem; line-height: 1.4; }
+
+/* --- Stock ------------------------------------------------------------ */
+/* The quantity column widens a little to hold an editable number without the
+   price column shifting between a GM's view and a player's. */
+.merchant-shop-item { grid-template-columns: 38px minmax(0,1fr) 54px 96px auto; }
+.merchant-shop-item-qty > input { width: 100%; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .76rem; text-align: center; }
+.merchant-shop-item-qty > input:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
+
+/* Out of stock stays on the shelf rather than vanishing, so a GM can still see
+   what the shop normally carries and a restocking shelf has something to refill. */
+.merchant-shop-item.is-out { opacity: .55; }
+.merchant-shop-item.is-out .merchant-shop-item-qty { color: #a4432f; font-weight: 600; }
+
+.merchant-config-shelf { grid-template-areas: "img copy actions" "stock stock stock"; }
+.merchant-config-shelf > img { grid-area: img; }
+.merchant-config-shelf-copy { grid-area: copy; }
+.merchant-config-shelf-actions { grid-area: actions; }
+.merchant-config-shelf-stock { grid-area: stock; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-config-shelf-stock > select { min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; }
+.merchant-config-shelf-inherited { color: var(--blacksmith-tool-text-muted); font-size: .7rem; font-style: italic; }
+.merchant-config-shelf-days { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
+.merchant-config-shelf-days > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }

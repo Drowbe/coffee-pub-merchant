@@ -308,10 +308,22 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Stock is infinite, so quantity is what the buyer wants rather than what is
-     * available. The cap is arbitrary and exists only to keep the slider usable.
+     * The most anyone is asked to take at once when stock does not say otherwise.
+     * Arbitrary, and there only to keep the slider usable.
      */
     static MAX_PER_ACQUISITION = 20;
+
+    /**
+     * How many of this a buyer may ask for.
+     *
+     * On an infinite shelf that is the slider cap; on a finite one it is what is
+     * actually there, so the dialog cannot offer a quantity the GM will refuse.
+     */
+    _maxFor(merchant, item) {
+        const stock = MerchantManager.getStock(merchant, item);
+        if (stock.unlimited) return ShopWindow.MAX_PER_ACQUISITION;
+        return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available);
+    }
 
     get cart() {
         if (!ShopWindow._carts.has(this.tokenUuid)) ShopWindow._carts.set(this.tokenUuid, new Map());
@@ -321,9 +333,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async addToCart(itemId) {
         const context = await this._itemContext(itemId);
         if (!context) return;
-        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
+
+        // What is already in the cart is spoken for, so the dialog offers what is
+        // left rather than the whole shelf twice over.
+        const inCart = this.cart.get(itemId) ?? 0;
+        const max = this._maxFor(context.token?.actor, context.item) - inCart;
+        if (max < 1) {
+            ui.notifications?.warn(inCart
+                ? `Your cart already holds every ${context.item.name} in stock.`
+                : `${context.item.name} is out of stock.`);
+            return;
+        }
+
+        const amount = await this._askQuantity(context.item.name, max);
         if (!amount) return;
-        this.cart.set(itemId, (this.cart.get(itemId) ?? 0) + amount);
+        this.cart.set(itemId, inCart + amount);
         await this.render(false);
     }
 
@@ -416,7 +440,26 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const shelf = MerchantManager.getShelfFor(merchant, item);
             const unit = resolvePrice(config, MerchantManager.getShelfConfig(shelf), item);
             if (unit === null) continue;
-            lines.push({ id: itemId, name: item.name, img: item.img, quantity, unit, total: unit * quantity });
+
+            // Stock sold out from under a standing cart trims the line rather than
+            // failing the whole checkout. A line trimmed to nothing drops out.
+            const stock = MerchantManager.getStock(merchant, item, MerchantManager.getShelfConfig(shelf));
+            const held = stock.unlimited ? quantity : Math.min(quantity, stock.available);
+            if (held < 1) {
+                this.cart.delete(itemId);
+                continue;
+            }
+            if (held !== quantity) this.cart.set(itemId, held);
+
+            lines.push({
+                id: itemId,
+                name: item.name,
+                img: item.img,
+                quantity: held,
+                trimmed: held !== quantity,
+                unit,
+                total: unit * held
+            });
         }
         return lines;
     }
@@ -506,7 +549,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
 
-        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
+        const max = this._maxFor(merchant, context.item);
+        if (max < 1) {
+            ui.notifications?.warn(`${context.item.name} is out of stock.`);
+            return;
+        }
+        const amount = await this._askQuantity(context.item.name, max);
         if (!amount) return;
 
         // Where the goods go is asked here rather than encoded in three icons.
@@ -628,7 +676,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
         const context = await this._itemContext(itemId);
         if (!context) return;
-        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
+        const max = this._maxFor(context.token?.actor, context.item);
+        if (max < 1) {
+            ui.notifications?.warn(`${context.item.name} is out of stock.`);
+            return;
+        }
+        const amount = await this._askQuantity(context.item.name, max);
         if (!amount) return;
         this._report(
             await this._send({ itemId, quantity: amount, recipientUuid: recipient.uuid },
@@ -642,7 +695,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             if (successMessage) ui.notifications?.info(successMessage);
             return;
         }
-        ui.notifications?.error(this._explain(result?.code, result));
+        // Goods first, coin second — so a payment that fails leaves the player
+        // holding the item. Saying so is the difference between a puzzle and a
+        // thing they can tell their GM about.
+        const suffix = result?.delivered
+            ? ' The goods were already handed over — tell your GM.'
+            : '';
+        ui.notifications?.error(this._explain(result?.code, result) + suffix);
     }
 
     _explain(code, result) {
@@ -660,6 +719,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} held.`;
             case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} in the till.`;
             case 'NOT_PRICED': return 'That has no price set.';
+            case 'OUT_OF_STOCK': return result?.itemName
+                ? `${result.itemName} is out of stock.`
+                : 'That is out of stock.';
+            case 'INSUFFICIENT_STOCK': return `Only ${result?.available ?? 0} left${result?.itemName ? ` of ${result.itemName}` : ''}.`;
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
             case 'THIRD_PARTY_DELIVERY': return 'Buying on behalf of someone else is waiting on a Blacksmith update.';
@@ -721,6 +784,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 const isBarter = config.mode === 'barter';
                 const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => {
                     const price = resolvePrice(config0, config, item);
+                    const stock = MerchantManager.getStock(merchant, item, config);
+                    const out = !stock.unlimited && stock.available < 1;
+                    // Selling from an empty shelf is refused on the GM too; this is
+                    // the honest path, not the guard.
+                    const inStock = !out;
+
                     return {
                         id: item.id,
                         type: item.type,
@@ -730,21 +799,33 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         busy: item.id === busyRow,
                         price,
                         priceLabel: price === null ? null : formatBase(price),
-                        // Infinite stock, so this reads as unlimited rather than a
-                        // count. A finite shelf later puts a number in the same
-                        // column without moving anything else.
-                        qtyLabel: '\u221e',
-                        qtyTooltip: 'Unlimited stock',
+                        // Unlimited reads as a symbol; anything else is a number in
+                        // the same column, so the layout does not move between
+                        // policies.
+                        qtyLabel: stock.unlimited ? '\u221e' : String(stock.available),
+                        qtyTooltip: stock.unlimited
+                            ? 'Unlimited stock'
+                            : (out ? 'Out of stock' : `${stock.available} in stock, restocks to ${stock.par}`),
+                        outOfStock: out,
+                        // A GM sets the count by hand here, and that also sets what a
+                        // restocking shelf refills to.
+                        canEditStock: isGM && !stock.unlimited,
+                        stockValue: stock.unlimited ? null : stock.available,
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         buyTooltip: !buying ? 'Buying is waiting on a Blacksmith update'
+                            : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
                             : price === null ? 'This has no price set'
                             : 'Buy now',
-                        canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying,
+                        cartTooltip: out ? 'Out of stock' : 'Add to cart',
+                        canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying && inStock,
+                        canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
                         // Stocking and testing should not require a purse.
                         canTakeFree: isGM && !isBarter,
+                        takeFreeTooltip: out ? 'Out of stock' : 'Take without paying (GM)',
+                        canTakeFreeNow: isGM && !isBarter && inStock,
                         isBarter
                     };
                 });
@@ -796,7 +877,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             cartCount: cartLines.length,
             hasCart: cartLines.length > 0,
             cartTotalLabel: formatBase(cartTotal),
-            canSell: !missing && hasExchange() && Boolean(recipient)
+            canSell: !missing && Boolean(recipient),
+            sellTooltip: !hasExchange()
+                ? 'Selling is waiting on a Blacksmith update'
+                : 'Sell something to this merchant',
+            sellEnabled: !missing && hasExchange() && Boolean(recipient)
                 && (MerchantManager.isOpen(merchant) || game.user.isGM)
                 && MerchantManager.getShelves(merchant, { includeHidden: true }).some(({ config }) => config.mode === 'buyback'),
             // Shown so a GM is never puzzled by a shop that disagrees with its own
@@ -894,6 +979,23 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         super._onRender?.(context, options);
         if (!game.user.isGM) return;
 
+        // A number input rather than a data-action: the value is what matters, and
+        // an action handler only knows that something was clicked.
+        for (const input of this.element?.querySelectorAll('[data-stock-item]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+            input.addEventListener('change', () => {
+                void this._commitStock(input.getAttribute('data-stock-item'), input.value);
+            });
+            // Enter should commit and leave the field, not submit anything.
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    input.blur();
+                }
+            });
+        }
+
         for (const zone of this.element?.querySelectorAll('[data-drop-shelf]') ?? []) {
             if (zone.dataset.merchantBound === 'true') continue;
             zone.dataset.merchantBound = 'true';
@@ -909,6 +1011,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 zone.classList.remove('is-dropping');
                 void this._onDropToShelf(event, shelfId);
             });
+        }
+    }
+
+    /**
+     * A GM setting a count by hand.
+     *
+     * Written directly rather than through the request handler: this is the GM
+     * curating their own shop, the same as showing or hiding a shelf. It also sets
+     * what a restocking shelf refills to — see `setStockQuantity`.
+     */
+    async _commitStock(itemId, value) {
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant || !itemId) return;
+
+        try {
+            await MerchantManager.setStockQuantity(merchant, itemId, value);
+            MerchantManager.broadcastActorRefresh(merchant);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);
+            ui.notifications?.error('Could not set that quantity.');
+            await this.render(false);
         }
     }
 

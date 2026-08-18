@@ -25,11 +25,55 @@ export const MODULE = {
 // one most likely to be got wrong out of habit.
 export const MERCHANT_FLAG = 'merchant';
 
+// ==================================================================
+// ===== STOCK POLICY ===============================================
+// ==================================================================
+//
+// **Stock is a count, not a document.** Every policy grants the buyer a *copy* and
+// adjusts a number on the merchant's own item; nothing is ever moved off a shelf by
+// a sale. That is what lets a sold-out row stay on the shelf marked out of stock
+// instead of vanishing -- which finite stock merely prefers and restocking stock
+// requires, since a row that has been deleted is not a row anything can restock.
+//
+// The count is `system.quantity` rather than a flag of ours. A flag would be a
+// parallel truth: the moment a GM edits quantity on the Actor sheet -- which they
+// will, because that is where quantity has always lived -- the two disagree and one
+// of them is silently wrong.
+
 export const STOCK = Object.freeze({
     INFINITE: 'infinite',
     FINITE: 'finite',
     RESTOCKING: 'restocking'
 });
+
+/**
+ * What a restocking shelf refills *to*.
+ *
+ * Not a separate editor. A GM setting a quantity by hand in the shop window sets
+ * both the count and the par, so the rule is "what I keep six of, I restock to six".
+ * A purchase lowers the count and leaves par alone.
+ */
+export const PAR_FLAG = 'par';
+
+/** Days between restocks when a shelf does not say otherwise. */
+export const DEFAULT_RESTOCK_DAYS = 1;
+
+/**
+ * Seconds in an in-world day, from the calendar rather than assumed.
+ *
+ * Foundry calendars may define something other than 24/60/60, and a shop on a
+ * calendar with 20-hour days should restock on *its* days.
+ */
+export function secondsPerDay() {
+    const days = game.time?.calendar?.days;
+    const hours = Number(days?.hoursPerDay);
+    const minutes = Number(days?.minutesPerHour);
+    const seconds = Number(days?.secondsPerMinute);
+    const value = (Number.isFinite(hours) && hours > 0 ? hours : 24)
+        * (Number.isFinite(minutes) && minutes > 0 ? minutes : 60)
+        * (Number.isFinite(seconds) && seconds > 0 ? seconds : 60);
+    return value;
+}
 
 // ==================================================================
 // ===== SHELVES ====================================================
@@ -65,35 +109,35 @@ export const SHELF_PRESETS = Object.freeze({
         name: 'Storefront',
         img: 'icons/svg/chest.svg',
         hint: 'Ordinary stock, on display to everyone.',
-        shelf: { label: 'Storefront', order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null }
+        shelf: { label: 'Storefront', order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     backroom: {
         key: 'backroom',
         name: 'Back Room',
         img: 'icons/svg/padlock.svg',
         hint: 'Hidden from players until you move it out front.',
-        shelf: { label: 'Back Room', order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null }
+        shelf: { label: 'Back Room', order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     premium: {
         key: 'premium',
         name: 'Premium',
         img: 'icons/svg/coins.svg',
         hint: 'On display, priced above the going rate.',
-        shelf: { label: 'Premium', order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5 }
+        shelf: { label: 'Premium', order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5, stock: null }
     },
     barter: {
         key: 'barter',
         name: 'Barter',
         img: 'icons/svg/card-hand.svg',
         hint: 'No fixed price. Settle it at the table.',
-        shelf: { label: 'Barter', order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null }
+        shelf: { label: 'Barter', order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
     },
     buyback: {
         key: 'buyback',
         name: 'Buyback',
         img: 'icons/svg/item-bag.svg',
         hint: 'Where things bought from the party end up.',
-        shelf: { label: 'Buyback', order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5 }
+        shelf: { label: 'Buyback', order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5, stock: STOCK.FINITE }
     }
 });
 

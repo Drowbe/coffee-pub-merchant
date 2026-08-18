@@ -4,7 +4,10 @@
 //
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
-import { MODULE, MERCHANT_FLAG, STOCK, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt } from './const.js';
+import {
+    MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS,
+    SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
+} from './const.js';
 import { grantItem, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
 import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
@@ -128,6 +131,10 @@ export class MerchantManager {
     }
 
     static async _onWorldTimeChange(worldTime, dt) {
+        // Restocking rides the same watcher rather than registering a second one.
+        // One clock, one hook, one thing to remember.
+        await this._applyRestocks(worldTime);
+
         const previousHour = hourAt(worldTime - (Number(dt) || 0));
         const currentHour = hourAt(worldTime);
         if (previousHour === null || currentHour === null) return;
@@ -226,11 +233,16 @@ export class MerchantManager {
      * other two are not.
      */
     static async setShelfVisible(actor, shelfId, visible) {
+        return this.setShelfConfig(actor, shelfId, { visible: Boolean(visible) });
+    }
+
+    /** Merge changes into a shelf's configuration. GM-only, written directly. */
+    static async setShelfConfig(actor, shelfId, changes) {
         if (!game.user.isGM) return null;
         const shelf = actor?.items?.get(shelfId);
         const config = this.getShelfConfig(shelf);
         if (!config) return null;
-        await shelf.setFlag(MODULE.ID, SHELF_FLAG, { ...config, visible: Boolean(visible) });
+        await shelf.setFlag(MODULE.ID, SHELF_FLAG, { ...config, ...changes });
         return shelf;
     }
 
@@ -257,6 +269,15 @@ export class MerchantManager {
             // shelf; relocating it would move stock the GM never touched.
             container: shelfId
         });
+
+        // What a GM stocks is what the shelf keeps, so the arriving quantity becomes
+        // the restock target. On a merge the row already had one and it stands: the
+        // GM topping a shelf up by hand is not redefining what it holds.
+        if (result?.ok && !result.merged && result.targetItemId) {
+            const placed = actor.items.get(result.targetItemId);
+            const arrived = Math.max(1, Math.trunc(Number(placed?.system?.quantity ?? quantity ?? 1)));
+            if (placed) await placed.setFlag(MODULE.ID, PAR_FLAG, arrived);
+        }
         return result;
     }
 
@@ -292,6 +313,176 @@ export class MerchantManager {
             await this.addShelf(actor, 'storefront');
         }
         return this.getConfig(actor);
+    }
+
+    // ==============================================================
+    // ===== STOCK POLICY ===========================================
+    // ==============================================================
+    // Stock is a count, not a document. A sale grants the buyer a copy and adjusts
+    // the number on the merchant's own item; nothing is moved off a shelf. That is
+    // what lets a sold-out row stay put, marked out of stock -- which finite stock
+    // prefers and restocking stock requires, since a deleted row is not a row
+    // anything can restock. See documentation/DECISIONS-TO-REVIEW.md.
+
+    /**
+     * Which policy governs a shelf.
+     *
+     * The shelf's own setting wins, and `null` inherits the merchant's -- the same
+     * inheritance `markup` already uses, so this is a case added to an existing
+     * pattern rather than a second one.
+     */
+    static resolveStockPolicy(actor, shelfConfig) {
+        const policies = Object.values(STOCK);
+        if (policies.includes(shelfConfig?.stock)) return shelfConfig.stock;
+        const merchant = this.getConfig(actor)?.stock;
+        return policies.includes(merchant) ? merchant : STOCK.INFINITE;
+    }
+
+    /**
+     * What is on the shelf, and what it refills to.
+     *
+     * `par` falls back to the current quantity so a shelf stocked before this
+     * existed reads as full rather than as due for a restock to zero.
+     */
+    static getStock(actor, item, shelfConfig) {
+        const config = shelfConfig ?? this.getShelfConfig(this.getShelfFor(actor, item));
+        const policy = this.resolveStockPolicy(actor, config);
+        if (policy === STOCK.INFINITE) {
+            return { policy, unlimited: true, available: Infinity, par: null };
+        }
+        const available = Math.max(0, Math.trunc(Number(item?.system?.quantity ?? 0)));
+        const stored = Number(item?.getFlag(MODULE.ID, PAR_FLAG));
+        const par = Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : available;
+        return { policy, unlimited: false, available, par };
+    }
+
+    /**
+     * Set a count by hand, which also sets what the shelf restocks to.
+     *
+     * A GM saying "I keep six of these" is describing the shop, not making a sale, so
+     * both numbers move. A purchase lowers the count and leaves the target alone.
+     */
+    static async setStockQuantity(actor, itemId, quantity) {
+        if (!game.user.isGM) return null;
+        const item = actor?.items?.get(itemId);
+        if (!item) return null;
+        const value = Math.max(0, Math.trunc(Number(quantity) || 0));
+        await item.update({
+            'system.quantity': value,
+            [`flags.${MODULE.ID}.${PAR_FLAG}`]: value
+        });
+        return item;
+    }
+
+    /**
+     * Serialise everything that reads a count and then writes it.
+     *
+     * Infinite stock had no concurrency at all -- the merchant was never mutated, so
+     * two players buying the same thing could not interact. Finite stock brings the
+     * problem back: without this, both could read "1 left" and both succeed.
+     *
+     * A promise chain is enough because exactly one client runs this. `activeGM` is
+     * deterministic across clients, so every request lands on the same GM and there
+     * is no second process to coordinate with.
+     */
+    static _stockLocks = new Map();
+
+    static _withStockLock(actor, fn) {
+        const key = actor?.uuid ?? 'unknown';
+        const previous = this._stockLocks.get(key) ?? Promise.resolve();
+        // Both handlers, so one caller's failure does not strand the queue behind it.
+        const run = previous.then(fn, fn);
+        const tail = run.then(() => {}, () => {});
+        this._stockLocks.set(key, tail);
+        void tail.then(() => {
+            if (this._stockLocks.get(key) === tail) this._stockLocks.delete(key);
+        });
+        return run;
+    }
+
+    /** Take stock off a shelf. Always called inside the lock, never outside it. */
+    static async _consumeStock(item, quantity, stock) {
+        if (stock.unlimited) return { ok: true };
+        if (quantity > stock.available) {
+            return { ok: false, code: 'INSUFFICIENT_STOCK', available: stock.available };
+        }
+        await item.update({ 'system.quantity': stock.available - quantity });
+        return { ok: true };
+    }
+
+    /**
+     * Re-read an item inside the lock.
+     *
+     * The document was resolved before the queue was joined, and a GM may have
+     * deleted it while this request waited its turn.
+     */
+    static _reread(merchant, itemId) {
+        return merchant?.items?.get(itemId) ?? null;
+    }
+
+    /**
+     * Refill a shelf to its par levels.
+     *
+     * `force` is the GM pressing the button, which works on a finite shelf too -- a
+     * shop restocked by hand is an ordinary thing, and a finite shelf still knows
+     * what it holds.
+     */
+    static async restockShelf(actor, shelfId, { force = false } = {}) {
+        if (!game.user.isGM) return 0;
+        const shelf = actor?.items?.get(shelfId);
+        const config = this.getShelfConfig(shelf);
+        if (!config) return 0;
+        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING) return 0;
+
+        const filled = await this._withStockLock(actor, async () => {
+            const updates = [];
+            for (const item of this.getShelfContents(actor, shelf)) {
+                const stock = this.getStock(actor, item, config);
+                if (stock.unlimited || stock.available >= stock.par) continue;
+                updates.push({ _id: item.id, 'system.quantity': stock.par });
+            }
+            if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
+            return updates.length;
+        });
+
+        await this.setShelfConfig(actor, shelfId, { lastRestock: game.time.worldTime });
+        if (filled) this.broadcastActorRefresh(actor);
+        return filled;
+    }
+
+    /**
+     * Restock whatever the clock says is due.
+     *
+     * Elapsed time against an interval rather than counted boundaries, so advancing a
+     * week restocks once. A shop does not accumulate seven days of stock while nobody
+     * was looking; it is simply full again.
+     */
+    static async _applyRestocks(worldTime) {
+        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+            for (const { item: shelf, config } of this.getShelves(actor, { includeHidden: true })) {
+                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING) continue;
+
+                const days = Number(config.restockDays);
+                const interval = (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS)
+                    * secondsPerDay();
+                const last = Number(config.lastRestock);
+
+                // No clock yet, or a GM has wound the world back past it. Start it
+                // here rather than restocking on the spot: switching a shelf to
+                // restocking should not empty and refill it the same instant.
+                if (!Number.isFinite(last) || worldTime < last) {
+                    await this.setShelfConfig(actor, shelf.id, { lastRestock: worldTime });
+                    continue;
+                }
+                if (worldTime - last < interval) continue;
+
+                try {
+                    await this.restockShelf(actor, shelf.id);
+                } catch (error) {
+                    console.error(`${MODULE.TITLE} | Could not restock ${actor.name}:`, error);
+                }
+            }
+        }
     }
 
     // ==============================================================
@@ -430,25 +621,87 @@ export class MerchantManager {
 
         const result = op === 'buy'
             ? await this._processBuy(merchant, item, shelf, check.actorUuid, payload, user)
-            // grantItem, never transferItem: stock is infinite, so the merchant's
-            // item is a template and is never consumed.
-            : await grantItem({
-                targetActorUuid: check.actorUuid,
-                itemUuid: item.uuid,
-                quantity: payload.quantity
-            });
+            : await this._processAcquire(merchant, item, shelf, check.actorUuid, payload);
 
         if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
         return result;
     }
 
     /**
-     * Buying: goods one way, coin the other, both or neither.
+     * Hand goods over and take them off the shelf.
+     *
+     * **Always `grantItem`, never `transferItem`, whatever the stock policy.** The
+     * merchant's item is a template carrying a count: a sale copies it and adjusts
+     * the number. A transfer would delete the row on the last unit, which loses the
+     * shelf layout and leaves a restocking shelf with nothing to restock.
+     *
+     * Must be called inside `_withStockLock`, and re-reads the item because the
+     * document was resolved before this request joined the queue.
+     */
+    static async _deliver(merchant, itemId, shelfConfig, recipientUuid, quantity) {
+        const item = this._reread(merchant, itemId);
+        if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+
+        const stock = this.getStock(merchant, item, shelfConfig);
+        if (!stock.unlimited && stock.available < quantity) {
+            return {
+                ok: false,
+                code: stock.available === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK',
+                available: stock.available
+            };
+        }
+
+        const granted = await grantItem({
+            targetActorUuid: recipientUuid,
+            itemUuid: item.uuid,
+            quantity
+        });
+        if (!granted?.ok) return granted;
+
+        const consumed = await this._consumeStock(item, quantity, stock);
+        if (!consumed.ok) {
+            // The goods are already delivered, and grantItem may have merged them
+            // into a stack the recipient already had -- so there is no copy left to
+            // take back, only a stack that would be wrong to delete. The shop's
+            // count is out by this much until a GM notices, which is the cheaper of
+            // the two errors.
+            console.error(
+                `${MODULE.TITLE} | Delivered ${quantity} x ${item.name} but could not adjust the count on ${merchant.name}.`,
+                consumed
+            );
+        }
+        return granted;
+    }
+
+    /**
+     * Take without paying.
+     *
+     * The GM's stocking-and-testing path, and -- while there is no `exchange` -- the
+     * only path that completes at all.
+     */
+    static async _processAcquire(merchant, item, shelf, recipientUuid, payload) {
+        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
+        const shelfConfig = this.getShelfConfig(shelf);
+        return this._withStockLock(merchant, () =>
+            this._deliver(merchant, item.id, shelfConfig, recipientUuid, quantity));
+    }
+
+    /**
+     * Buying: goods out, coin in.
      *
      * Everything except the mutation is decided here — price, affordability, and
-     * which coins change hands. The mutation itself is one `exchange` call, because
-     * splitting it into a transfer plus a currency move would mean writing rollback
-     * across two primitives holding separate locks.
+     * which coins change hands.
+     *
+     * **The goods and the coin are two writes, deliberately.** A single `exchange`
+     * carrying both would be atomic, which is better, but `exchange` *moves* what it
+     * is given and a shop's stock is a count rather than a document — so it would
+     * sell the template itself and empty the shelf on the first purchase. Until an
+     * exchange side can say *copy*, delivery is a grant and payment is a currency-only
+     * exchange.
+     *
+     * The order is deliberate too: goods first, so a failed payment leaves the player
+     * holding the item and the shop out of pocket. The reverse leaves a player who
+     * paid for nothing. In a game the shop should eat it.
      */
     static async _processBuy(merchant, item, shelf, buyerUuid, payload, user) {
         const shelfConfig = this.getShelfConfig(shelf);
@@ -470,22 +723,35 @@ export class MerchantManager {
             return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
         }
 
+        // Checked before the queue is joined so a shop with no exchange refuses
+        // immediately rather than after taking a lock it cannot use.
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
-        const result = await exchange({
-            actorA: { uuid: merchant.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
-            actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
-        });
+        return this._withStockLock(merchant, async () => {
+            const delivered = await this._deliver(merchant, item.id, shelfConfig, buyerUuid, quantity);
+            if (!delivered?.ok) return delivered;
 
-        return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
+            const paid = await exchange({
+                actorA: { uuid: merchant.uuid, items: [], currency: plan.change },
+                actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
+            });
+            if (!paid?.ok) {
+                return { ...paid, delivered: true, price: total };
+            }
+            return { ...paid, price: total, paid: plan.pay, change: plan.change };
+        });
     }
 
     /**
      * Buy a whole cart at once.
      *
-     * One exchange, one payment, one lot of change. The alternative — a purchase per
-     * line — is more writes and worse arithmetic, since each line would round its own
-     * change separately.
+     * **One payment and one lot of change, however many lines.** That is the point of
+     * a cart: six separate purchases would be six payments each rounding its own
+     * change, which is both more writes and worse arithmetic for the player.
+     *
+     * Delivery is still per line, because stock is a count and each line grants a
+     * copy — see `_deliver`. Every line's stock is checked before any of it moves, so
+     * a cart that cannot be filled fails whole rather than half.
      *
      * Every line is re-priced here rather than trusting what the cart was built
      * against: a GM may have changed a markup, removed stock, or closed the shop
@@ -518,7 +784,7 @@ export class MerchantManager {
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
-            lines.push({ itemId: item.id, quantity });
+            lines.push({ itemId: item.id, quantity, shelfConfig, name: item.name });
         }
 
         const payerCheck = this._validatePayer(payload.payerUuid ?? check.actorUuid, check.actorUuid, user);
@@ -529,12 +795,44 @@ export class MerchantManager {
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
-        const result = await exchange({
-            actorA: { uuid: merchant.uuid, items: lines, currency: plan.change },
-            actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
-        });
+        return this._withStockLock(merchant, async () => {
+            // Every line is checked for stock before any of it is delivered, so a
+            // cart that cannot be filled fails whole rather than half.
+            for (const line of lines) {
+                const item = this._reread(merchant, line.itemId);
+                if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+                const stock = this.getStock(merchant, item, line.shelfConfig);
+                if (!stock.unlimited && stock.available < line.quantity) {
+                    return {
+                        ok: false,
+                        code: stock.available === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK',
+                        available: stock.available,
+                        itemName: line.name
+                    };
+                }
+            }
 
-        return result?.ok ? { ...result, price: total } : result;
+            const delivered = [];
+            for (const line of lines) {
+                const result = await this._deliver(
+                    merchant, line.itemId, line.shelfConfig, check.actorUuid, line.quantity
+                );
+                // Checked above, so this is a genuine failure rather than a race.
+                // Whatever already went across stays: it may have merged into stacks
+                // the buyer already had, so there is nothing safe to take back.
+                if (!result?.ok) {
+                    return { ...result, partial: delivered.length > 0, delivered: delivered.length };
+                }
+                delivered.push(line);
+            }
+
+            const paid = await exchange({
+                actorA: { uuid: merchant.uuid, items: [], currency: plan.change },
+                actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
+            });
+            if (!paid?.ok) return { ...paid, delivered: true, price: total };
+            return { ...paid, price: total };
+        });
     }
 
     /**

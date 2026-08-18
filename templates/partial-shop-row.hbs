@@ -4,10 +4,14 @@
     Two actions, not four. Where the goods go is asked once in the Buy dialog rather
     than encoded in three icons a player has to learn apart.
 
+    A control that cannot act is disabled and says why on hover, rather than being
+    absent. An absent button reads as "this shop does not do that"; a disabled one
+    with a reason reads as "not right now, and here is what would change it".
+
     Every flag it needs is precomputed on the row itself: the partial renders at two
     depths, so `../` would mean different things in each.
 --}}
-<div class="merchant-shop-item" data-item-id="{{id}}">
+<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}" data-item-id="{{id}}">
     <img src="{{img}}" alt="">
 
     <div class="merchant-shop-item-copy">
@@ -15,9 +19,17 @@
         <span>{{typeLabel}}</span>
     </div>
 
-    {{!-- Stock is infinite, so this reads as unlimited rather than as a number.
-          Finite and restocking stock put a count here without moving anything. --}}
-    <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">{{qtyLabel}}</div>
+    {{!-- Unlimited reads as a symbol, anything else as a number, so the column does
+          not move between stock policies. A GM edits the number in place, which sets
+          both what is there and what a restocking shelf refills to. --}}
+    {{#if canEditStock}}
+        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
+            <input type="number" min="0" step="1" value="{{stockValue}}"
+                   data-stock-item="{{id}}" aria-label="Quantity in stock">
+        </div>
+    {{else}}
+        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">{{qtyLabel}}</div>
+    {{/if}}
 
     <div class="merchant-shop-item-price">
         {{#if priceLabel}}
@@ -43,7 +55,7 @@
         <div class="merchant-shop-row-actions">
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
                     data-action="addToCart" data-item-id="{{id}}"
-                    {{#unless canBuy}}disabled{{/unless}} data-tooltip="Add to cart">
+                    {{#unless canCart}}disabled{{/unless}} data-tooltip="{{cartTooltip}}">
                 <i class="fa-solid fa-cart-plus"></i>
             </button>
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-buy"
@@ -54,7 +66,8 @@
             {{#if canTakeFree}}
                 {{!-- GM only. Stocking and testing should not require a purse. --}}
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn merchant-shop-free"
-                        data-action="acquire" data-item-id="{{id}}" data-tooltip="Take without paying (GM)">
+                        data-action="acquire" data-item-id="{{id}}"
+                        {{#unless canTakeFreeNow}}disabled{{/unless}} data-tooltip="{{takeFreeTooltip}}">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </button>
             {{/if}}

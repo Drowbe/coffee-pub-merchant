@@ -65,8 +65,12 @@
                     </div>
                 {{/if}}
                 {{#if canSell}}
+                    {{!-- Disabled with a reason rather than absent. An absent button
+                          reads as "this shop does not buy things"; a disabled one
+                          says "not yet, and here is why". --}}
                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-sell"
-                            data-action="sell" data-tooltip="Sell something to this merchant">
+                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
+                            data-tooltip="{{sellTooltip}}">
                         <i class="fa-solid fa-hand-holding-dollar"></i> Sell
                     </button>
                 {{/if}}

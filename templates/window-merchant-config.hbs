@@ -56,6 +56,21 @@
         </section>
 
         <section class="merchant-config-section">
+            <h3><span><i class="fa-solid fa-boxes-stacked"></i> Stock</span></h3>
+            <label class="merchant-config-markup">
+                <span>
+                    <strong>When something is bought</strong>
+                    <small>The shop's default. Any shelf may say otherwise &mdash; Buyback always runs out.</small>
+                </span>
+                <select data-merchant-stock>
+                    {{#each merchantStockOptions}}
+                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                    {{/each}}
+                </select>
+            </label>
+        </section>
+
+        <section class="merchant-config-section">
             <h3><span><i class="fa-solid fa-tags"></i> Pricing</span></h3>
             <label class="merchant-config-markup">
                 <span>
@@ -82,6 +97,13 @@
                                 <span>{{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}</span>
                             </div>
                             <div class="merchant-config-shelf-actions">
+                                {{#if countable}}
+                                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
+                                            data-action="restockShelf" data-shelf-id="{{id}}"
+                                            data-tooltip="Refill this shelf to the quantities you set">
+                                        <i class="fa-solid fa-arrows-rotate"></i>
+                                    </button>
+                                {{/if}}
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
                                         data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
                                     <i class="fa-solid fa-box-open"></i>
@@ -90,6 +112,28 @@
                                         data-action="removeShelf" data-shelf-id="{{id}}" data-tooltip="Remove this shelf">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
+                            </div>
+
+                            {{!-- A second row under the shelf's identity rather than
+                                  beside it, so the name stays on one line. --}}
+                            <div class="merchant-config-shelf-stock">
+                                <select data-shelf-stock="{{id}}"
+                                        data-tooltip="What happens to this shelf when something is bought">
+                                    {{#each stockOptions}}
+                                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                    {{/each}}
+                                </select>
+                                {{#if inherited}}
+                                    <span class="merchant-config-shelf-inherited">{{stockLabel}}</span>
+                                {{/if}}
+                                {{#if restocking}}
+                                    <label class="merchant-config-shelf-days" data-tooltip="In-world days between refills">
+                                        every
+                                        <input type="number" min="1" step="1" value="{{restockDays}}"
+                                               data-shelf-restock-days="{{id}}" aria-label="Days between restocks">
+                                        day{{#unless oneDay}}s{{/unless}}
+                                    </label>
+                                {{/if}}
                             </div>
                         </div>
                     {{/each}}

@@ -1,15 +1,29 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, SHELF_PRESETS, hoursPerDay, formatHour } from './const.js';
+import { MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
+const STOCK_LABELS = {
+    [STOCK.INFINITE]: 'Never runs out',
+    [STOCK.FINITE]: 'Runs out',
+    [STOCK.RESTOCKING]: 'Runs out, refills'
+};
+
+/** `''` is "use the merchant's", which is how `markup: null` already behaves. */
+const STOCK_OPTIONS = [
+    { value: '', label: 'Same as the shop' },
+    { value: STOCK.INFINITE, label: STOCK_LABELS[STOCK.INFINITE] },
+    { value: STOCK.FINITE, label: STOCK_LABELS[STOCK.FINITE] },
+    { value: STOCK.RESTOCKING, label: STOCK_LABELS[STOCK.RESTOCKING] }
+];
+
 /**
  * Marking and configuring a merchant.
  *
- * A window rather than a confirmation dialog on purpose: stock policy, markup, and
- * per-item price overrides all land here in later phases, and they need somewhere to
- * go that is not a growing pile of prompts.
+ * A window rather than a confirmation dialog on purpose: stock policy, markup,
+ * trading hours and per-shelf settings all land here, and they need somewhere to go
+ * that is not a growing pile of prompts.
  */
 export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
@@ -32,6 +46,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         addShelf: (_event, target, win) => void win.addShelf(target.dataset.preset),
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
+        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
         clearHours: (_event, _target, win) => void win.clearHours()
     };
 
@@ -84,6 +99,52 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // 1.25, and only the last of those is what the GM meant.
             markup.addEventListener('change', (event) => void this._setMarkup(event.target.value));
         }
+
+        const stock = this.element?.querySelector('[data-merchant-stock]');
+        if (stock && stock.dataset.merchantBound !== 'true') {
+            stock.dataset.merchantBound = 'true';
+            stock.addEventListener('change', (event) => void this._setStock(event.target.value));
+        }
+
+        // Per-shelf policy and cadence. Both write through the same helper, since
+        // both are one field of a shelf's configuration.
+        for (const select of this.element?.querySelectorAll('[data-shelf-stock]') ?? []) {
+            if (select.dataset.merchantBound === 'true') continue;
+            select.dataset.merchantBound = 'true';
+            select.addEventListener('change', (event) => {
+                // Empty means "same as the shop", stored as null so it reads as
+                // absent rather than as a policy named "".
+                void this._commitShelfStock(select.getAttribute('data-shelf-stock'), {
+                    stock: event.target.value || null
+                });
+            });
+        }
+
+        for (const input of this.element?.querySelectorAll('[data-shelf-restock-days]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+            input.addEventListener('change', (event) => {
+                const days = Math.max(1, Math.trunc(Number(event.target.value) || DEFAULT_RESTOCK_DAYS));
+                void this._commitShelfStock(input.getAttribute('data-shelf-restock-days'), {
+                    restockDays: days
+                });
+            });
+        }
+    }
+
+    /** The shop-wide default. A shelf may still say otherwise. */
+    async _setStock(value) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        if (!Object.values(STOCK).includes(value)) return this.render(false);
+        try {
+            await MerchantManager.setConfig(actor, { stock: value });
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set the stock policy:`, error);
+            ui.notifications?.error('Could not set the stock policy.');
+        }
+        await this.render(false);
     }
 
     async _setMarkup(value) {
@@ -217,6 +278,42 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    /**
+     * Refill a shelf to its par levels now.
+     *
+     * Offered on finite shelves as well as restocking ones — "the party cleared me
+     * out last night" is an ordinary thing to say about either, and a finite shelf
+     * still knows what it holds.
+     */
+    async restockShelf(shelfId) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            const filled = await MerchantManager.restockShelf(actor, shelfId, { force: true });
+            ui.notifications?.info(filled
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'}.`
+                : 'That shelf was already full.');
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
+            ui.notifications?.error('Could not restock that shelf.');
+        }
+        await this.render(false);
+    }
+
+    /** Stock policy and restock cadence, both per shelf. */
+    async _commitShelfStock(shelfId, changes) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setShelfConfig(actor, shelfId, changes);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not update that shelf:`, error);
+            ui.notifications?.error('Could not update that shelf.');
+        }
+        await this.render(false);
+    }
+
     /** Opening the shelf is how a GM stocks it — dnd5e's own container sheet. */
     async openShelf(shelfId) {
         const actor = await this._resolveActor();
@@ -234,13 +331,29 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const shelves = enabled
             ? MerchantManager.getShelves(actor, { includeHidden: true }).map(({ item, config }) => {
                 const count = MerchantManager.getShelfContents(actor, item).length;
+                const policy = MerchantManager.resolveStockPolicy(actor, config);
+                const days = Number(config.restockDays);
                 return {
                     id: item.id,
                     img: item.img,
                     label: config.label || item.name,
                     hidden: config.visible === false,
                     count,
-                    one: count === 1
+                    one: count === 1,
+                    // `null` on the shelf means "whatever the merchant says", which is
+                    // the same inheritance markup already uses.
+                    stockOptions: STOCK_OPTIONS.map((option) => ({
+                        ...option,
+                        selected: option.value === (config.stock ?? '')
+                    })),
+                    stockLabel: STOCK_LABELS[policy] ?? policy,
+                    inherited: !config.stock,
+                    oneDay: (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS) === 1,
+                    restocking: policy === STOCK.RESTOCKING,
+                    // Restocking is the only policy with a cadence, but every shelf
+                    // that counts its stock can be refilled by hand.
+                    countable: policy !== STOCK.INFINITE,
+                    restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS
                 };
             })
             : [];
@@ -254,6 +367,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             enabled,
             hasHours: Boolean(hours),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
+            // The shop-wide default has no "same as the shop" to inherit from.
+            merchantStockOptions: STOCK_OPTIONS.filter((option) => option.value).map((option) => ({
+                ...option,
+                selected: option.value === (MerchantManager.getConfig(actor)?.stock ?? STOCK.INFINITE)
+            })),
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
             openHour: hours?.open ?? Math.min(9, max),

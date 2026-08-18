@@ -30,10 +30,14 @@ export function isPhysical(type) {
 /**
  * Copy an item onto an Actor, leaving the source untouched.
  *
- * This is what makes infinite stock simple: the merchant's item is a template, so
- * buying never mutates the merchant. No source rollback, no lock contention on the
- * shop, and no race between two players acquiring the same item. Finite stock will
- * need `transferItem` and reintroduces all of it — see plan section 7.
+ * **This is the delivery path for every stock policy, not just the infinite one.** A
+ * merchant's item is a template carrying a count: a sale grants a copy and the
+ * manager adjusts the number. `transferItem` would move the document and delete it
+ * on the last unit, which loses the shelf layout and leaves a restocking shelf with
+ * nothing to restock.
+ *
+ * What finite stock does reintroduce is the race — two buyers reading the same count
+ * — which `MerchantManager._withStockLock` answers rather than this file.
  */
 export async function grantItem(request) {
     const api = inventoryApi();
@@ -91,6 +95,18 @@ export async function exchange(request) {
     if (typeof api?.exchange !== 'function') return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
     return api.exchange(request);
 }
+
+// Two things Merchant needs that a two-sided, move-only exchange cannot express, both
+// raised with Blacksmith while the primitive is still being designed:
+//
+// 1. **Three parties.** The shopper pays, but the goods may go to another character
+//    or to the party. Merchant refuses this as THIRD_PARTY_DELIVERY rather than
+//    charging the wrong purse.
+// 2. **Copy rather than move.** A shop's stock is a count, so the goods side of a
+//    purchase is a grant, not a transfer. Merchant therefore uses `exchange` for the
+//    coin only and delivers separately — losing atomicity, which is the whole point
+//    of the primitive.
+
 
 export function hasExchange() {
     return typeof inventoryApi()?.exchange === 'function';

@@ -114,22 +114,56 @@ Token documents carry nothing. A merchant's shop is the same shop wherever it is
 
 ## 7. Stock model
 
-**v1 stock is infinite, and that makes it simpler than loot rather than harder.**
+**Stock is a count, not a document.** The merchant's item is a template; a sale grants the buyer a *copy* and
+adjusts a number. Nothing is ever moved off a shelf by a sale, under any policy.
 
 `blacksmith.inventory.grantItem({ targetActorUuid, itemUuid, quantity })` resolves an `itemUuid` pointing at
 an actor-embedded item and grants a copy to the target. **The source is never touched.** Confirmed against
 `api-inventory.js` `_prepareGrant`.
 
-Consequences worth stating, because they remove most of what made loot difficult:
+That is why `transferItem` is wrong here even once stock is finite: a transfer deletes the source row on the
+last unit, which loses the shelf layout and leaves a restocking shelf with nothing to restock. A sold-out row
+staying put, marked out of stock, is what finite stock prefers and what restocking stock requires.
+
+Three policies, set **per shelf** with `null` inheriting the merchant's — the same inheritance `markup`
+already uses, so this is a case added to an existing pattern rather than a second one:
+
+| policy | on purchase |
+|---|---|
+| `infinite` | grant a copy, count untouched |
+| `finite` | grant a copy, count down; at zero the row stays, marked out of stock |
+| `restocking` | as finite, and the count returns to par on a cadence |
+
+The count is `system.quantity` rather than a flag of ours. A flag would be a parallel truth: the moment a GM
+edits quantity on the Actor sheet — which they will, because that is where quantity has always lived — the
+two disagree and one of them is silently wrong.
+
+### What finite stock costs
+
+Infinite stock had no concurrency at all, because the merchant was never mutated:
 
 - No source mutation, so no rollback of a source side that half-failed.
 - No lock contention on the merchant Actor.
 - **No race at all** between two players buying the same item — a thing loot needed a GM election, per-Actor
   locks, and a re-validation pass to survive.
-- No "somebody took it first" failure to render.
 
-Finite and restocking stock reintroduce all of it, which is a reason to defer them rather than a reason to
-avoid them.
+Finite stock brings the race back, and only the race: delivery is still a copy, so there is still no source
+rollback to write. Two players can read the same count, so every read-then-write goes through a per-merchant
+promise chain (`_withStockLock`). That is sound because exactly one client runs it — `activeGM` is core's own
+deterministic designation, so there is no second process to coordinate with.
+
+### Par levels
+
+Restocking needs a target, and the target cannot be recovered from a shelf that has been sold down. Rather
+than a separate par editor — another number in another place to keep in sync — the quantity column in the
+shop window is editable by a GM, and setting it sets both:
+
+- a purchase lowers the count, par untouched
+- **a GM setting a quantity by hand sets what it restocks to**
+- a restock returns the count to par
+
+Which is what a shopkeeper means by "I keep six of these". The gap: a GM who wants to *temporarily* drop
+stock without changing par cannot say so in the window.
 
 ## 7b. Shelves — what counts as stock
 
@@ -381,9 +415,16 @@ adds more surface to duplicate.
 
 - [x] Price resolution, affordability, and the coin plan.
 - [x] Buy control, confirmation naming the price, GM-side re-validation.
-- [ ] **Waiting on `blacksmith.inventory.exchange`.** Everything above this line is built; the mutation is
-      one `exchange` call that returns `EXCHANGE_UNAVAILABLE` until the primitive ships, and the Buy control
-      is absent rather than present-and-broken while that is true.
+- [ ] **Waiting on `blacksmith.inventory.exchange`.** Everything above this line is built; payment is one
+      `exchange` call that returns `EXCHANGE_UNAVAILABLE` until the primitive ships.
+- [x] **Delivery is not part of that exchange.** `exchange` moves what it is given and stock is a count, so
+      handing it the merchant's item would sell the template and empty the shelf. Goods are a `grantItem`,
+      coin is a currency-only `exchange`, and the goods go first so a failed payment leaves the player
+      holding the item rather than paying for nothing. An exchange side that could say *copy* would collapse
+      this back to one atomic call; raised with Blacksmith.
+- [x] **The controls are disabled and say why, not absent.** Reverses the earlier rule. An absent button
+      reads as "this shop does not do that"; a disabled one naming its reason reads as "not right now, and
+      here is what would change it", and the row does not reflow on the day the primitive lands.
 
 ### Phase 4 — Selling
 
@@ -396,9 +437,18 @@ Selling accepts an item *from* a player, so two new questions arise: the item mu
 (`testUserPermission(user, 'OWNER')`, GM exempt), and the merchant must be able to pay — a shop with an empty
 till refuses rather than conjuring coin, which is a fiction a GM may well want.
 
-### Phase 5 — Stock policy
+### Phase 5 — Stock policy — **built**
 
-- Finite and restocking. Reintroduces source mutation, locking, and the concurrency work section 7 avoids.
+- [x] Three policies per shelf, inheriting the merchant's when unset. Buyback is always finite.
+- [x] The count is `system.quantity`; a sold-out row stays on the shelf.
+- [x] A GM edits quantities in the shop window, which sets the restock target too.
+- [x] Restocking on the world clock, per-shelf cadence in in-world days, plus a manual refill.
+- [x] Per-merchant lock around every read-then-write.
+- [x] Quantity dialogs, carts and the GM handler all bound by what is actually there.
+
+It did **not** reintroduce source mutation, which the plan expected it to. Delivery stayed a copy for the
+reason in section 7, so the only thing that came back was the race — and that is one lock rather than the
+rollback-and-revalidate machinery loot needed.
 
 ### Phase 6 — Stocking from compendiums
 

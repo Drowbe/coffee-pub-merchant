@@ -111,19 +111,27 @@ game.modules.get('coffee-pub-merchant').api.merchant
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy
-and Sell controls are **absent** rather than broken — that absence is itself the first check.
+and Sell controls are **present but disabled, naming their reason on hover** — that state is itself the first
+check, and it reverses what this file said before 2026-08-18.
 
-- [ ] With no `exchange` in Blacksmith, no Buy button and no Sell button appear, and Take still works.
+- [ ] With no `exchange` in Blacksmith, Buy and Sell are **disabled**, and hovering either says it is waiting
+      on a Blacksmith update. The GM's free-take still works.
 - [ ] Prices show on each row, formatted largest-coin-first ("1 gp 5 sp").
 - [ ] An item with no price shows **no price** in red on a sale shelf, and nothing on a barter shelf.
 - [ ] Markup 2 in config doubles every displayed price; the Premium shelf stays at its own 1.5.
 - [ ] The buyer's purse shows beside "Buying as" and matches their sheet.
 
-- [ ] Each row reads as columns: item, quantity (∞), price, actions.
+- [ ] Each row reads as columns: item, quantity, price, actions.
 - [ ] Two actions per row for a player — add to cart, and Buy. A GM also gets a free-take.
+- [ ] Every disabled control names *why* on hover, and the reason is the true one: closed shop, no character,
+      no price, out of stock, or waiting on Blacksmith. A disabled button with a generic tooltip is a bug.
 
 Once `exchange` ships:
 
+- [ ] Buy asks **how many**, then **who it is for**, then confirms with the price. Three prompts, that order.
+- [ ] The confirm names the **shopper** as the payer, not the destination.
+- [ ] Choosing anyone but yourself is refused, and the destination dialog said so **before** you chose.
+      *The shopper pays while someone else receives is a three-party transaction and `exchange` is two-sided.*
 - [ ] Buy an item you can afford → coin leaves, item arrives, and the change is right.
 - [ ] Buy with only large coins → you pay the large coin and get change back.
 - [ ] Buy with only small coins → you pay the small coins, no change.
@@ -134,6 +142,54 @@ Once `exchange` ships:
 - [ ] Sell an item belonging to a character you do not own → refused with `NOT_YOUR_ITEM`.
 - [ ] Sell to a merchant with no Buyback shelf → the Sell control is absent.
 
+### Stock
+
+Three policies, set per shelf in Merchant Settings, `Same as the shop` inheriting the merchant's.
+
+- [ ] A shelf set to **Never runs out** shows ∞ in the quantity column and never decreases.
+- [ ] A shelf set to **Runs out** shows a number, and buying decreases it.
+- [ ] **The row does not vanish at zero.** It stays, dimmed, marked out of stock.
+      *This is the whole design. A vanished row loses the shelf layout and leaves nothing to restock.*
+- [ ] At zero, Buy, add-to-cart and the GM's free-take are all disabled, all saying "Out of stock".
+- [ ] A crafted request against a zero row is refused with `OUT_OF_STOCK` — **not** merely disabled.
+- [ ] Asking for more than is there is refused with how many are left.
+- [ ] The quantity dialog will not offer more than is in stock.
+- [ ] With 1 left, the dialog does not appear at all — there is no choice to make.
+- [ ] **Buyback is finite whatever the shop is set to**, including when the shop says Never runs out.
+- [ ] Switching a shelf's policy updates an open shop for a player without either side reopening.
+
+#### Quantities and par
+
+- [ ] A GM sees an editable number in the quantity column on any counting shelf; a player sees plain text.
+- [ ] Typing a number and pressing Enter or clicking away commits it, and a player's open window updates.
+- [ ] Setting the number by hand sets **both** the count and what it restocks to.
+- [ ] Buying lowers the count and leaves the restock target alone — hover the quantity to read both back.
+- [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
+- [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
+
+#### Restocking
+
+- [ ] A shelf set to **Runs out, refills** shows an "every _n_ days" field; the other policies do not.
+- [ ] Sell the shelf down, advance the world clock by the interval → it refills to its targets.
+- [ ] Advance by **a week** on a 1-day shelf → it refills **once**, to par. Not seven times, not seven copies.
+- [ ] Advance by less than the interval → nothing changes.
+- [ ] Wind the clock **backwards** → nothing breaks, and the shelf restocks normally afterwards rather than
+      waiting for the world to catch up to a timestamp in the future.
+- [ ] A shelf that has never restocked starts its clock rather than refilling on the spot.
+- [ ] The refresh icon in Merchant Settings refills a shelf immediately, and says how many items it topped up.
+- [ ] It appears on **finite** shelves too, and says "already full" when there is nothing to do.
+- [ ] An item already at or above its target is left alone rather than being trimmed down to it.
+
+#### Two buyers, one item
+
+**The race infinite stock did not have.** Finite stock means two clients can read the same count.
+
+- [ ] Set a shelf to Runs out with exactly **1** of something.
+- [ ] Two players click Buy on it at the same moment → **one succeeds, one is refused**, and the count is 0.
+      *Both succeeding means the lock is not doing its job. Report it — this is the least visible bug here.*
+- [ ] The same with the GM's free-take, and with one player buying while another checks out a cart.
+- [ ] Neither player's window is left showing a stale count afterwards.
+
 ### Cart
 
 - [ ] Add to cart asks a quantity, and the cart appears under the buyer with a running total.
@@ -143,6 +199,11 @@ Once `exchange` ships:
 - [ ] Checkout is **one** payment and one lot of change, not one per line.
 - [ ] A cart you cannot afford is refused before anything moves, naming the total and what you hold.
 - [ ] A GM removing stock while a cart is open silently drops that line rather than failing checkout.
+- [ ] A GM *lowering* a count below what the cart holds trims the line to what is left rather than failing.
+- [ ] A line trimmed to nothing drops out of the cart entirely.
+- [ ] Adding to the cart offers only what is left after what the cart already holds.
+- [ ] A cart holding every one in stock refuses to add more, and says so.
+- [ ] Checkout is refused **whole** if any line is short, rather than delivering part of it.
 - [ ] Prices are re-checked at checkout: change a markup with a cart open and the new price applies.
 - [ ] The cart survives closing and reopening the window, and is per-player.
 
@@ -164,10 +225,11 @@ Once `exchange` ships:
 - [ ] Acquire an item → a quantity prompt appears; **dragging the slider updates the numbers**.
 - [ ] Dialog buttons read `[ Cancel ]` left, `[ Acquire ]` right.
 - [ ] The item arrives on the buying character.
-- [ ] **The merchant still has it.** Stock is infinite in v1 — this is the whole model, and it failing means
-      `transferItem` semantics have crept in somewhere.
+- [ ] **On an infinite shelf the merchant still has it, at the same quantity.** If the count drops, or the
+      row vanishes, `transferItem` semantics have crept in where `grantItem` belongs.
 - [ ] Acquire the same item twice → the buyer's stack grows rather than gaining a second row.
-- [ ] Two players acquire the same item simultaneously → both succeed, merchant unchanged.
+- [ ] Two players acquire the same item simultaneously from an **infinite** shelf → both succeed, merchant
+      unchanged. On a **finite** shelf with one left, exactly one succeeds — see *Two buyers, one item*.
 
 ---
 
@@ -203,7 +265,11 @@ Once `exchange` ships:
 
 Not bugs; do not chase these.
 
-- The merchant never runs out. Finite and restocking stock are phase 5.
-- No prices are shown. Phase 2.
-- Nothing costs money. Phase 3, and it needs Blacksmith's `exchange` primitive.
+- **Nothing costs money yet.** Buy, Sell and Checkout are complete and end at `EXCHANGE_UNAVAILABLE`,
+  because `blacksmith.inventory.exchange` does not exist. The controls are disabled and say so.
+- **Buying for another character or the party is refused** (`THIRD_PARTY_DELIVERY`). The shopper pays while
+  someone else receives is a three-party transaction; `exchange` is two-sided. Raised with Blacksmith.
 - A packed container cannot be acquired. `api.inventory` v1 refuses it in both directions.
+- A sold-out row stays on its shelf, dimmed. That is deliberate, not a failure to clean up.
+- A GM cannot temporarily lower a count without also lowering what it restocks to. Judged rare; say so if it
+  turns out not to be.

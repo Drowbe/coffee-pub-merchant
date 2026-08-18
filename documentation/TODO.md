@@ -30,7 +30,11 @@ These cost Curator real time. They apply here identically and there is no reason
   its token, so checking the Actor never catches it. Foundry reports this as
   `undefined id [...] does not exist in the EmbeddedCollection`.
 - **A setting that hides a control must also refuse the request.** Hiding a button removes it from the
-  honest path only; the GM-side check is what makes a policy real.
+  honest path only; the GM-side check is what makes a policy real. Applies to *disabled* as much as hidden:
+  out of stock is a refusal on the GM, not merely a greyed button.
+- **A control that cannot act should say why, not disappear.** An absent button reads as "this shop does not
+  do that"; a disabled one naming its reason reads as "not right now, and here is what would change it". It
+  also keeps the layout still on the day the missing thing arrives.
 - **`--blacksmith-tool-background` is a gradient.** Using it as a `color` silently drops the declaration and
   renders as an invisible label on a dark bar.
 - **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
@@ -72,12 +76,32 @@ change and handlers read the User they are handed.
 
 ## Open
 
-- **Stocking from compendiums** (`plans/plan-merchant.md` phase 6). A GM-only search-and-add panel in the
-  shop window, so *"do you have any special armour?"* is answered at the table. Blacksmith's
-  `compendiums.search()` and `inventory.grantItem()` cover both halves already; the only missing piece is a
-  `container` option on `grantItem` so an item can land on a shelf in one write rather than two.
-  **Nothing blocks this** — it needs only the shelf model, so it can move ahead of the money work whenever it
-  becomes the more annoying gap.
+Every phase in `plans/plan-merchant.md` is now built. What is left is verification and two things that are
+not ours to finish.
+
+- **Nothing from `beb8f41` onward has been run in Foundry.** That is prices, cart, checkout, the payer rule,
+  and the whole of stock policy. `documentation/testing/testing-merchant.md` is current and is the list.
+  **This is the only thing standing between the module and being real**, and it needs a table rather than
+  more code.
+- **Read `DECISIONS-TO-REVIEW.md`.** Seven calls taken unattended on 2026-08-18, ordered by how much they
+  want a second opinion. The first one changes the transaction model.
+- **Waiting on Blacksmith — `inventory.exchange` does not exist.** Buy, Sell and Checkout are complete and
+  end at `EXCHANGE_UNAVAILABLE`. Two shapes were raised while it is still being designed:
+  - **Three parties.** The shopper pays, but the goods may go to another character or to the party.
+    `{ actorA, actorB }` cannot express it; Merchant refuses it as `THIRD_PARTY_DELIVERY` rather than
+    charging the wrong purse.
+  - **Copy rather than move on a side's items.** A shop's stock is a count, so the goods half of a purchase
+    is a grant. Merchant therefore uses `exchange` for the coin only and delivers separately, which loses the
+    atomicity the primitive exists to provide.
+- **Waiting on Blacksmith — the query envelope does not forward the caller.** See *Caller identity* above.
+  The payload assertion is a bridge, and the fix is one deletion on our side once it lands.
 - Decisions A–E in `plans/plan-merchant.md` section 14 — settled 2026-08-09, recommendations accepted.
-- Two Blacksmith asks, raised 2026-08-09: a GM request/response socket envelope, and a two-sided `exchange`
-  primitive that gates the money phase.
+
+## Considered, not scheduled
+
+- **Temporarily lowering a count without moving the restock target.** A GM editing a quantity in the shop
+  window sets both, deliberately — one number, one meaning. If "the cart was raided but I still keep six"
+  turns out to be a thing GMs say, it needs either a second field or a modifier on the edit.
+- **Stock that builds up over time.** Restocking refills *to* par however long has passed, so a shop left
+  alone for a month is full rather than overflowing. Growing stock would be a different feature, and would
+  need a ceiling before it was one.
