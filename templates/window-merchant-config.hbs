@@ -33,10 +33,16 @@
                                 <strong>{{label}}</strong>
                                 <span>{{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}</span>
                             </div>
-                            <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                    data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
-                                <i class="fa-solid fa-box-open"></i>
-                            </button>
+                            <div class="merchant-config-shelf-actions">
+                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
+                                        data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
+                                    <i class="fa-solid fa-box-open"></i>
+                                </button>
+                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn merchant-config-remove"
+                                        data-action="removeShelf" data-shelf-id="{{id}}" data-tooltip="Remove this shelf">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     {{/each}}
                 </div>

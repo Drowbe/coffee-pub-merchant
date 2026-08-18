@@ -99,6 +99,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (win) void win.render(false);
     }
 
+    /**
+     * Refresh every open shop for one merchant, wherever its tokens are.
+     *
+     * Shelf changes are Actor-level, and a merchant can have tokens on several
+     * scenes, so keying the refresh on a single token would miss the others.
+     */
+    static async refreshForActor(actorUuid) {
+        for (const [tokenUuid, win] of this._windows) {
+            const token = await fromUuid(tokenUuid);
+            if (token?.actor?.uuid === actorUuid) void win.render(false);
+        }
+    }
+
     async _resolveToken() {
         return fromUuid(this.tokenUuid);
     }

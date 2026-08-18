@@ -30,7 +30,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
         addShelf: (_event, target, win) => void win.addShelf(target.dataset.preset),
-        openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId)
+        openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
+        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId)
     };
 
     constructor(actor, options = {}) {
@@ -93,9 +94,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (!actor || !presetKey) return;
         try {
             await MerchantManager.addShelf(actor, presetKey);
+            MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that shelf:`, error);
             ui.notifications?.error('Could not add that shelf.');
+        }
+        await this.render(false);
+    }
+
+    async removeShelf(shelfId) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            const removed = await MerchantManager.removeShelf(actor, shelfId);
+            if (removed) MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not remove that shelf:`, error);
+            ui.notifications?.error('Could not remove that shelf.');
         }
         await this.render(false);
     }

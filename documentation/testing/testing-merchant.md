@@ -55,8 +55,13 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 - [ ] Enabling a merchant with no shelves auto-creates a **Storefront**.
 - [ ] Config window lists shelves with their item counts, and an **Add a shelf** row of five presets.
-- [ ] Adding a shelf creates a container on the Actor; opening it via the box icon shows dnd5e's own
+- [x] Adding a shelf creates a container on the Actor; opening it via the box icon shows dnd5e's own
       container sheet, and dragging items in stocks it.
+- [ ] The trash icon removes a shelf via dnd5e's delete prompt — keeping the contents leaves them loose on
+      the merchant, deleting them removes both.
+- [ ] Cancelling that prompt leaves the shelf in place.
+- [ ] Adding or removing a shelf updates an open shop without reopening it, including a shop opened from a
+      different token of the same merchant.
 - [ ] A shelf reports **unlimited capacity** and its contents add **no weight** to the merchant.
 - [ ] Items on the merchant *outside* any shelf — the shopkeeper's worn armour, their own dagger — do
       **not** appear in the shop.

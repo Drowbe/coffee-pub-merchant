@@ -182,6 +182,22 @@ export class MerchantManager {
         return result;
     }
 
+    /**
+     * Remove a shelf through dnd5e's own delete dialog, which asks whether the
+     * contents go with it and handles the recursion. Curator learned this the same
+     * way: reimplementing it would mean a second answer to a question the system
+     * already asks, and the wrong answer orphans everything inside.
+     */
+    static async removeShelf(actor, shelfId) {
+        if (!game.user.isGM) return false;
+        const shelf = actor?.items?.get(shelfId);
+        if (!this.isShelf(shelf)) return false;
+        await shelf.deleteDialog();
+        // deleteDialog resolves whether or not the GM went through with it, so check
+        // rather than assume.
+        return !actor.items.get(shelfId);
+    }
+
     static async setEnabled(actor, enabled) {
         const current = this.getConfig(actor);
         if (!enabled) {
@@ -364,9 +380,18 @@ export class MerchantManager {
         ShopWindow.refreshForToken(tokenUuid);
     }
 
+    /** Shelf changes are Actor-level, so they reach every token of that merchant. */
+    static broadcastActorRefresh(actor) {
+        if (!actor) return;
+        game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: actor.uuid });
+        void ShopWindow.refreshForActor(actor.uuid);
+    }
+
     static _registerRefreshListener() {
         game.socket.on(`module.${MODULE.ID}`, (data) => {
-            if (data?.action === 'shopRefresh') ShopWindow.refreshForToken(data.tokenUuid);
+            if (data?.action !== 'shopRefresh') return;
+            if (data.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
+            else ShopWindow.refreshForToken(data.tokenUuid);
         });
     }
 }
