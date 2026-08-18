@@ -136,9 +136,27 @@ likely place for a bug I cannot see without a table**, and the test doc has a sp
 
 ---
 
+---
+
+## What else got built, which needed no decisions
+
+- **Phase 1b, the comparison against Curator's loot** — `plans/plan-extraction.md`. Four things to extract to
+  Blacksmith, each with two consumers agreeing line-for-line: a quantity dialog (82% identical over 49
+  lines), an actor picker (87% over 30), the window-base construction boilerplate (80% over 36), and party
+  resolution. A fifth, `_attachWhenRendered`, is the same *workaround* written twice and wants an upstream
+  fix rather than a home.
+- **Logic checks** — `tests/`, two dependency-free Node scripts. Making change now runs against 5151
+  purse/price combinations and nets exactly in all of them, which matters because `api.inventory` will never
+  convert denominations, so that arithmetic is ours permanently and nobody else was going to catch it being
+  wrong. The stock script covers the lock, including two buyers racing for the last item.
+
+---
+
 ## Still open, and not mine to close
 
 - **`exchange` does not exist.** Buy, Sell and Checkout are complete and end at `EXCHANGE_UNAVAILABLE`.
 - **The three-party gap** — the shopper pays while someone else receives. Raised with Blacksmith.
 - **Copy-vs-move on an exchange side** — decision 1 above. Also raised.
-- **Everything from `beb8f41` forward is untested in Foundry.** That is four commits now.
+- **Everything from `beb8f41` forward is untested in Foundry.** Six commits. The arithmetic half is verified
+  by `tests/`; the half that touches documents, templates, hooks and permissions is not, and cannot be
+  without a table. `documentation/testing/testing-merchant.md` is current and is the list.
