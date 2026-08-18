@@ -1,17 +1,34 @@
 {{!--
-    One stock row. Every flag it needs is precomputed on the row itself so the
-    partial never reaches for parent context.
+    One stock row, as columns: item, quantity available, price, actions.
+
+    Two actions, not four. Where the goods go is asked once in the Buy dialog rather
+    than encoded in three icons a player has to learn apart.
+
+    Every flag it needs is precomputed on the row itself: the partial renders at two
+    depths, so `../` would mean different things in each.
 --}}
 <div class="merchant-shop-item" data-item-id="{{id}}">
     <img src="{{img}}" alt="">
+
     <div class="merchant-shop-item-copy">
         <strong>{{name}}</strong>
-        <span>
-            {{typeLabel}}
-            {{#if priceLabel}}<em class="merchant-shop-price">{{priceLabel}}</em>{{/if}}
-            {{#if unpriced}}<em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a barter shelf">no price</em>{{/if}}
-        </span>
+        <span>{{typeLabel}}</span>
     </div>
+
+    {{!-- Stock is infinite, so this reads as unlimited rather than as a number.
+          Finite and restocking stock put a count here without moving anything. --}}
+    <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">{{qtyLabel}}</div>
+
+    <div class="merchant-shop-item-price">
+        {{#if priceLabel}}
+            <strong>{{priceLabel}}</strong>
+        {{else if isBarter}}
+            <em>barter</em>
+        {{else}}
+            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a barter shelf">no price</em>
+        {{/if}}
+    </div>
+
     {{#if busy}}
         <div class="merchant-shop-row-actions">
             <span class="merchant-shop-blocked"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
@@ -24,24 +41,23 @@
         </div>
     {{else}}
         <div class="merchant-shop-row-actions">
-            {{#if canBuy}}
-                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-buy" data-action="buy" data-item-id="{{id}}"
-                        data-tooltip="Buy this">
-                    <i class="fa-solid fa-coins"></i> {{priceLabel}}
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
+                    data-action="addToCart" data-item-id="{{id}}"
+                    {{#unless canBuy}}disabled{{/unless}} data-tooltip="Add to cart">
+                <i class="fa-solid fa-cart-plus"></i>
+            </button>
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-buy"
+                    data-action="buy" data-item-id="{{id}}"
+                    {{#unless canBuy}}disabled{{/unless}} data-tooltip="{{buyTooltip}}">
+                <i class="fa-solid fa-coins"></i> Buy
+            </button>
+            {{#if canTakeFree}}
+                {{!-- GM only. Stocking and testing should not require a purse. --}}
+                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn merchant-shop-free"
+                        data-action="acquire" data-item-id="{{id}}" data-tooltip="Take without paying (GM)">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </button>
             {{/if}}
-            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="acquire" data-item-id="{{id}}"
-                    {{#unless canAcquire}}disabled{{/unless}} data-tooltip="Take without paying">
-                <i class="fa-solid fa-hand"></i>
-            </button>
-            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="give" data-item-id="{{id}}"
-                    {{#unless canGive}}disabled{{/unless}} data-tooltip="Send to another party member">
-                <i class="fa-solid fa-hand-holding-heart"></i>
-            </button>
-            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="party" data-item-id="{{id}}"
-                    {{#unless canParty}}disabled{{/unless}} data-tooltip="Send to the party inventory">
-                <i class="fa-solid fa-users"></i>
-            </button>
         </div>
     {{/if}}
 </div>

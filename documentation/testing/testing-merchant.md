@@ -119,6 +119,9 @@ and Sell controls are **absent** rather than broken — that absence is itself t
 - [ ] Markup 2 in config doubles every displayed price; the Premium shelf stays at its own 1.5.
 - [ ] The buyer's purse shows beside "Buying as" and matches their sheet.
 
+- [ ] Each row reads as columns: item, quantity (∞), price, actions.
+- [ ] Two actions per row for a player — add to cart, and Buy. A GM also gets a free-take.
+
 Once `exchange` ships:
 
 - [ ] Buy an item you can afford → coin leaves, item arrives, and the change is right.
@@ -130,6 +133,18 @@ Once `exchange` ships:
 - [ ] Sell when the merchant's till is empty → refused, and nothing moves.
 - [ ] Sell an item belonging to a character you do not own → refused with `NOT_YOUR_ITEM`.
 - [ ] Sell to a merchant with no Buyback shelf → the Sell control is absent.
+
+### Cart
+
+- [ ] Add to cart asks a quantity, and the cart appears under the buyer with a running total.
+- [ ] Adding the same item twice adds to the existing line rather than making a second one.
+- [ ] Removing a line and clearing the cart both work.
+- [ ] Checkout asks who it is for, then confirms with the itemised list and total.
+- [ ] Checkout is **one** payment and one lot of change, not one per line.
+- [ ] A cart you cannot afford is refused before anything moves, naming the total and what you hold.
+- [ ] A GM removing stock while a cart is open silently drops that line rather than failing checkout.
+- [ ] Prices are re-checked at checkout: change a markup with a cart open and the new price applies.
+- [ ] The cart survives closing and reopening the window, and is per-player.
 
 ## 3. The window
 

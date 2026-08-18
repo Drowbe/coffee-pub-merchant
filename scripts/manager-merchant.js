@@ -389,12 +389,19 @@ export class MerchantManager {
     static async _process(op, payload, userId) {
         const user = game.users.get(userId);
         if (!user) return { ok: false, code: 'UNKNOWN_USER' };
-        if (!['acquire', 'buy', 'sell'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
+        if (!['acquire', 'buy', 'sell', 'checkout'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
 
         const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
         const merchant = tokenDocument?.actor;
         if (!merchant) return { ok: false, code: 'MERCHANT_NOT_FOUND' };
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
+
+        if (op === 'checkout') {
+            if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
+            const bought = await this._processCheckout(merchant, payload, user);
+            if (bought?.ok) this._broadcastRefresh(tokenDocument.uuid);
+            return bought;
+        }
 
         if (op === 'sell') {
             if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
@@ -469,6 +476,61 @@ export class MerchantManager {
         });
 
         return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
+    }
+
+    /**
+     * Buy a whole cart at once.
+     *
+     * One exchange, one payment, one lot of change. The alternative — a purchase per
+     * line — is more writes and worse arithmetic, since each line would round its own
+     * change separately.
+     *
+     * Every line is re-priced here rather than trusting what the cart was built
+     * against: a GM may have changed a markup, removed stock, or closed the shop
+     * while the cart sat open.
+     */
+    static async _processCheckout(merchant, payload, user) {
+        const check = this._validateRecipient(payload.recipientUuid, user);
+        if (!check.ok) return check;
+
+        const requested = Array.isArray(payload.items) ? payload.items : [];
+        if (!requested.length) return { ok: false, code: 'EMPTY_CART' };
+
+        const config = this.getConfig(merchant);
+        const lines = [];
+        let total = 0;
+
+        for (const entry of requested) {
+            const item = merchant.items?.get(entry?.itemId);
+            if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+            if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+
+            const shelf = this.getShelfFor(merchant, item);
+            if (!shelf) return { ok: false, code: 'NOT_FOR_SALE' };
+            const shelfConfig = this.getShelfConfig(shelf);
+            if (shelfConfig.visible === false && !user.isGM) return { ok: false, code: 'NOT_FOR_SALE' };
+            if (shelfConfig.mode === 'barter') return { ok: false, code: 'BARTER_ONLY' };
+
+            const unit = resolvePrice(config, shelfConfig, item);
+            if (unit === null) return { ok: false, code: 'NOT_PRICED' };
+
+            const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
+            total += unit * quantity;
+            lines.push({ itemId: item.id, quantity });
+        }
+
+        const buyer = fromUuidSync(check.actorUuid);
+        const plan = planPayment(buyer, total);
+        if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(buyer) };
+
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+
+        const result = await exchange({
+            actorA: { uuid: merchant.uuid, items: lines, currency: plan.change },
+            actorB: { uuid: check.actorUuid, items: [], currency: plan.pay }
+        });
+
+        return result?.ok ? { ...result, price: total } : result;
     }
 
     /**

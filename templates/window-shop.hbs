@@ -77,6 +77,44 @@
                     </button>
                 {{/if}}
             </section>
+
+            {{#if hasCart}}
+                <section class="merchant-shop-section merchant-shop-cart">
+                    <h3>
+                        <span><i class="fa-solid fa-cart-shopping"></i> Cart</span>
+                        <span class="merchant-shop-head-actions">
+                            <button type="button" class="merchant-shop-cart-clear" data-action="clearCart"
+                                    data-tooltip="Empty the cart">
+                                <i class="fa-solid fa-xmark"></i> Clear
+                            </button>
+                            <span class="merchant-shop-count">{{cartCount}}</span>
+                        </span>
+                    </h3>
+
+                    <div class="merchant-shop-cart-list">
+                        {{#each cart}}
+                            <div class="merchant-shop-cart-line">
+                                <img src="{{img}}" alt="">
+                                <span class="merchant-shop-cart-name">{{name}}</span>
+                                <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+                                <button type="button" class="merchant-shop-cart-remove" data-action="removeFromCart"
+                                        data-item-id="{{id}}" data-tooltip="Take it out of the cart">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        {{/each}}
+                    </div>
+
+                    <div class="merchant-shop-cart-foot">
+                        <span>Total <strong>{{cartTotalLabel}}</strong></span>
+                        <button type="button" class="blacksmith-window-btn-primary merchant-shop-checkout"
+                                data-action="checkout">
+                            <i class="fa-solid fa-coins"></i> Checkout
+                        </button>
+                    </div>
+                </section>
+            {{/if}}
         </div>
 
         {{#if hasShelves}}

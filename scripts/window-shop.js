@@ -42,6 +42,12 @@ async function _attachWhenRendered(control, inputName, frames = 20) {
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
 
+    // tokenUuid -> Map(itemId -> quantity). Per client, so naturally per user.
+    // Kept in memory rather than on a document: a cart is a half-formed intention,
+    // and persisting one would mean deciding when somebody else's abandoned cart
+    // expires. It survives closing the window within a session and no longer.
+    static _carts = new Map();
+
     static DEFAULT_OPTIONS = foundry.utils.mergeObject(
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
         {
@@ -59,12 +65,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
         acquire: (_event, target, win) => win.run(() => win.acquire(target.dataset.itemId)),
-        give: (_event, target, win) => win.run(() => win.giveTo(target.dataset.itemId)),
-        party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId)),
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
         buy: (_event, target, win) => win.run(() => win.buy(target.dataset.itemId)),
         sell: (_event, _target, win) => win.run(() => win.sell()),
+        addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
+        removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
+        clearCart: (_event, _target, win) => void win.clearCart(),
+        checkout: (_event, _target, win) => win.run(() => win.checkout()),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
@@ -305,6 +313,153 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     static MAX_PER_ACQUISITION = 20;
 
+    get cart() {
+        if (!ShopWindow._carts.has(this.tokenUuid)) ShopWindow._carts.set(this.tokenUuid, new Map());
+        return ShopWindow._carts.get(this.tokenUuid);
+    }
+
+    async addToCart(itemId) {
+        const context = await this._itemContext(itemId);
+        if (!context) return;
+        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
+        if (!amount) return;
+        this.cart.set(itemId, (this.cart.get(itemId) ?? 0) + amount);
+        await this.render(false);
+    }
+
+    async removeFromCart(itemId) {
+        this.cart.delete(itemId);
+        await this.render(false);
+    }
+
+    async clearCart() {
+        this.cart.clear();
+        await this.render(false);
+    }
+
+    /**
+     * Buy everything in the cart in one go.
+     *
+     * The whole point of a cart: one exchange, one payment, one lot of change. Buying
+     * six things separately is six payments and six lots of change, which is both
+     * more writes and worse arithmetic for the player.
+     */
+    async checkout() {
+        const lines = await this._cartLines();
+        if (!lines.length) return;
+
+        const destination = await this._askDestination('Checkout');
+        if (!destination) return;
+
+        const total = lines.reduce((sum, line) => sum + line.total, 0);
+        const buyer = fromUuidSync(destination.uuid);
+        const plan = planPayment(buyer, total);
+        if (!plan) {
+            ui.notifications?.warn(
+                'That comes to ' + formatBase(total) + ' and ' + (buyer?.name ?? 'the buyer')
+                + ' holds ' + formatBase(purseValue(buyer)) + '.'
+            );
+            return;
+        }
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const list = lines.map((line) => '<li>' + line.quantity + ' &times; ' + line.name
+                + ' &mdash; ' + formatBase(line.total) + '</li>').join('');
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Checkout',
+                classes: ['merchant-dialog'],
+                content: '<ul class="merchant-cart-confirm">' + list + '</ul>'
+                    + '<p>Total <strong>' + formatBase(total) + '</strong> to '
+                    + (destination.label ?? 'the buyer') + '.</p>',
+                confirmLabel: 'Pay',
+                confirmIcon: 'fa-solid fa-coins'
+            });
+            if (!confirmed) return;
+        }
+
+        const result = await this._send(
+            {
+                items: lines.map((line) => ({ itemId: line.id, quantity: line.quantity })),
+                recipientUuid: destination.uuid
+            },
+            { label: 'Paying' },
+            'checkout'
+        );
+
+        if (result?.ok) this.cart.clear();
+        this._report(result, 'Bought ' + lines.length + ' line' + (lines.length === 1 ? '' : 's')
+            + ' for ' + formatBase(total) + '.');
+    }
+
+    /** Cart lines resolved against current stock and prices. */
+    async _cartLines() {
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return [];
+        const config = MerchantManager.getConfig(merchant);
+
+        const lines = [];
+        for (const [itemId, quantity] of this.cart) {
+            const item = merchant.items.get(itemId);
+            // Stock the GM removed while a cart sat open simply drops out of it.
+            if (!item) {
+                this.cart.delete(itemId);
+                continue;
+            }
+            const shelf = MerchantManager.getShelfFor(merchant, item);
+            const unit = resolvePrice(config, MerchantManager.getShelfConfig(shelf), item);
+            if (unit === null) continue;
+            lines.push({ id: itemId, name: item.name, img: item.img, quantity, unit, total: unit * quantity });
+        }
+        return lines;
+    }
+
+    /**
+     * Who the goods are for: the acting character, another party member, or the
+     * party itself. Asked once here rather than encoded in three icons per row.
+     */
+    async _askDestination(title) {
+        const recipient = this.recipient;
+        const party = MerchantManager.getPartyActor();
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.choose !== 'function') {
+            return recipient ? { uuid: recipient.uuid, label: recipient.name } : null;
+        }
+
+        const choices = [];
+        if (recipient) choices.push({ id: 'self', label: recipient.name, icon: 'fa-solid fa-user' });
+        choices.push({ id: 'other', label: 'Another party member', icon: 'fa-solid fa-hand-holding-heart' });
+        if (party) choices.push({ id: 'party', label: party.name, icon: 'fa-solid fa-users' });
+        if (!choices.length) return null;
+
+        const picked = await blacksmith.dialog.choose({
+            title,
+            classes: ['merchant-dialog'],
+            content: '<p>Who is this for?</p>',
+            choices
+        });
+        if (picked?.action !== 'submit') return null;
+
+        if (picked.value === 'self' && recipient) return { uuid: recipient.uuid, label: recipient.name };
+        if (picked.value === 'party' && party) return { uuid: party.uuid, label: party.name };
+
+        const token = await this._resolveToken();
+        const others = MerchantManager.getGiftRecipients(token?.actor?.uuid);
+        if (!others.length) {
+            ui.notifications?.warn('There is nobody else in the party.');
+            return null;
+        }
+        const chosen = await this._pickActor({
+            title: 'Who receives it?',
+            actors: others,
+            confirmLabel: 'Choose',
+            confirmIcon: 'fa-solid fa-hand-holding-heart'
+        });
+        if (!chosen) return null;
+        return { uuid: chosen, label: others.find((a) => a.uuid === chosen)?.name };
+    }
+
     /**
      * Buy an item with coin.
      *
@@ -451,50 +606,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             `${recipient.name} acquired ${amount > 1 ? `${amount} ` : ''}${context.item.name}.`);
     }
 
-    async giveTo(itemId) {
-        const token = await this._resolveToken();
-        const choices = MerchantManager.getGiftRecipients(token?.actor?.uuid);
-        if (!choices.length) {
-            ui.notifications?.warn('There is nobody in the party to send this to.');
-            return;
-        }
-        const context = await this._itemContext(itemId);
-        if (!context) return;
-
-        const recipientUuid = await this._pickActor({
-            title: `Send ${context.item.name}`,
-            actors: choices,
-            confirmLabel: 'Send',
-            confirmIcon: 'fa-solid fa-hand-holding-heart'
-        });
-        if (!recipientUuid) return;
-
-        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
-        if (!amount) return;
-
-        const recipient = choices.find((actor) => actor.uuid === recipientUuid);
-        this._report(
-            await this._send({ itemId, quantity: amount, recipientUuid },
-                { row: itemId, label: `Sending ${context.item.name}` }),
-            `${context.item.name} sent to ${recipient?.name ?? 'the party'}.`);
-    }
-
-    async sendToParty(itemId) {
-        const party = MerchantManager.getPartyActor();
-        if (!party) {
-            ui.notifications?.warn('No primary party is set for this world.');
-            return;
-        }
-        const context = await this._itemContext(itemId);
-        if (!context) return;
-        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
-        if (!amount) return;
-        this._report(
-            await this._send({ itemId, quantity: amount, recipientUuid: party.uuid },
-                { row: itemId, label: `Sending ${context.item.name}` }),
-            `${context.item.name} sent to ${party.name}.`);
-    }
-
     /** `ok: true, merged: false` is success — the item arrived as its own row. */
     _report(result, successMessage) {
         if (result?.ok) {
@@ -587,13 +698,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     // Unpriced on a sale shelf is a gap the GM should see, not a gift.
                     unpriced: price === null && !isBarter,
                     canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying,
-                    // Barter is a conversation, not a transaction: the row lists so
-                    // the party knows it exists, but nothing changes hands here.
-                    canAcquire: trading && Boolean(recipient) && !isBarter,
-                    // Give needs no recipient of its own — it picks one in a dialog —
-                    // but it is still a transaction, so a closed shop refuses it.
-                    canGive: trading && !isBarter,
-                    canParty: trading && Boolean(party) && !isBarter,
                     isBarter
                 };
                 });
@@ -627,6 +731,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        const cartLines = missing ? [] : await this._cartLines();
+        const cartTotal = cartLines.reduce((sum, line) => sum + line.total, 0);
+
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
@@ -638,6 +745,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
             hoursLabel: hours ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}` : null,
             purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
+            cart: cartLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
+            cartCount: cartLines.length,
+            hasCart: cartLines.length > 0,
+            cartTotalLabel: formatBase(cartTotal),
             canSell: !missing && hasExchange() && Boolean(recipient)
                 && (MerchantManager.isOpen(merchant) || game.user.isGM)
                 && MerchantManager.getShelves(merchant, { includeHidden: true }).some(({ config }) => config.mode === 'buyback'),
