@@ -462,8 +462,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * them into the window's context menu automatically.
      */
     getToolHeaderActions() {
-        if (!game.user.isGM) return [];
+        // Refresh is for everyone. Nothing watches the merchant's items, so a GM
+        // restocking a shelf does not push anything to a player already looking at
+        // the shop.
+        const actions = [{
+            id: 'merchant-refresh',
+            icon: 'fa-solid fa-rotate',
+            label: 'Refresh',
+            onClick: () => void this.render(false)
+        }];
+
+        if (!game.user.isGM) return actions;
         return [
+            ...actions,
             {
                 id: 'merchant-sheet',
                 icon: 'fa-solid fa-user',

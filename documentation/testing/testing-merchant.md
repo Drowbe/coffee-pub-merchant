@@ -73,6 +73,8 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Resize the window; the pinned header stays put.
 - [ ] Footer reads `[ Done ]` on the left.
 - [ ] Window stays draggable while a dialog is open.
+- [ ] Titlebar **Refresh** picks up stock a GM added while the window was open.
+- [ ] Refresh is available to a player; Character Sheet and Prototype Token are not.
 
 ---
 
