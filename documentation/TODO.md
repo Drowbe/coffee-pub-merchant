@@ -29,6 +29,12 @@ These cost Curator real time. They apply here identically and there is no reason
 
 ## Open
 
-- Decisions A–E in `plans/plan-merchant.md` section 14, pending the owner's call.
+- **Stocking from compendiums** (`plans/plan-merchant.md` phase 6). A GM-only search-and-add panel in the
+  shop window, so *"do you have any special armour?"* is answered at the table. Blacksmith's
+  `compendiums.search()` and `inventory.grantItem()` cover both halves already; the only missing piece is a
+  `container` option on `grantItem` so an item can land on a shelf in one write rather than two.
+  **Nothing blocks this** — it needs only the shelf model, so it can move ahead of the money work whenever it
+  becomes the more annoying gap.
+- Decisions A–E in `plans/plan-merchant.md` section 14 — settled 2026-08-09, recommendations accepted.
 - Two Blacksmith asks, raised 2026-08-09: a GM request/response socket envelope, and a two-sided `exchange`
   primitive that gates the money phase.
