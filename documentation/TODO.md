@@ -10,6 +10,15 @@ records intent and reasoning, `documentation/testing/` holds verification checkl
 
 These cost Curator real time. They apply here identically and there is no reason to relearn them.
 
+- **Check for a finished window before building one.** Merchant shipped its own compendium search and
+  deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
+  the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading
+  `api-compendiums.md`, finding `search()`, and treating a documented *primitive* as evidence that no
+  *feature* existed on top of it. It does not follow. Before building any window, check
+  `blacksmith.openWindow` for a registered id, `documentation/api/api-window.md` for the registry, and the
+  Blacksmith toolbar and menubar for something that already opens what you are about to write. This is a
+  different failure from forking a file — nothing was copied, a duplicate was simply invented — and the tell
+  is the same: two things doing one job, one of which nobody else maintains.
 - **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
   can never pick up anything landing later. Curator carried two forks — `ui-context-menu.js` and
   `manager-hooks.js` — both with bugs already fixed upstream. To check: compare filenames against
