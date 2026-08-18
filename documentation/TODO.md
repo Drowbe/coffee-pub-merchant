@@ -54,18 +54,21 @@ It also raises delivery: does an ordered item arrive immediately, at the next re
 the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
 it is built.
 
-## Caller identity is not verified (must close before money)
+## Caller identity: waiting on the envelope, not on us
 
-A GM-authoritative handler cannot tell who actually asked. Core invokes a query handler as
-`handler(queryData, { timeout })` with no caller id, and `game.socket.emit` delivers no sender either, so the
-id travels in the payload and any client could assert a different one.
+Foundry **does** know who called, and knows it in a way no client can forge — `#handleUserQuery` resolves the
+querying User from the authenticated socket and throws if they do not exist. It then drops them without
+passing them to the handler. So the identity exists and is trustworthy; what is missing is a forward.
 
-Harmless today: stock is infinite and free, so the worst outcome is a free item from a shop that gives items
-away. **Not harmless once money exists** — `_validateRecipient` leans on `user.isGM`, which a spoofed id
-satisfies.
+Merchant currently asserts the caller id in its query payload, which is a **bridge, not a design** — it is
+precisely the step that turns a verified identity into a client-supplied one. No consumer can recover the
+real caller; only the envelope can reattach it.
 
-Raised with Blacksmith, since their shared envelope will inherit the same limitation. Until it is solved,
-validate what is being asked for rather than who claims to be asking.
+**Do not build a mitigation for this.** An earlier note here proposed rewriting authorization to avoid
+identity checks entirely; that answers a problem we do not have and would rule out ownership checks, which
+are the natural way to authorize a purchase. `user.isGM` and `testUserPermission` are fine *provided the user
+comes from the envelope*. When Blacksmith's surface lands, `userId` comes out of the payload in the same
+change and handlers read the User they are handed.
 
 ## Open
 

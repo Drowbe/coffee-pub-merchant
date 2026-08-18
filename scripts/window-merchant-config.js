@@ -76,6 +76,32 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             toggle.addEventListener('change', (event) => void this._setEnabled(event.target.checked));
         }
         this._bindHoursSlider();
+
+        const markup = this.element?.querySelector('[data-merchant-markup]');
+        if (markup && markup.dataset.merchantBound !== 'true') {
+            markup.dataset.merchantBound = 'true';
+            // On change rather than input: typing "1.25" passes through 1, 1.2 and
+            // 1.25, and only the last of those is what the GM meant.
+            markup.addEventListener('change', (event) => void this._setMarkup(event.target.value));
+        }
+    }
+
+    async _setMarkup(value) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        const markup = Number(value);
+        if (!Number.isFinite(markup) || markup < 0) {
+            ui.notifications?.warn('Markup must be a number.');
+            return this.render(false);
+        }
+        try {
+            const config = MerchantManager.getConfig(actor) ?? {};
+            await MerchantManager.setConfig(actor, { pricing: { ...(config.pricing ?? {}), markup } });
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set markup:`, error);
+        }
+        await this.render(false);
     }
 
     /**
@@ -227,6 +253,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
             enabled,
             hasHours: Boolean(hours),
+            markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
             openHour: hours?.open ?? Math.min(9, max),

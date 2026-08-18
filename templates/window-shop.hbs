@@ -59,6 +59,17 @@
                         <strong class="merchant-shop-warning">No character available</strong>
                     {{/if}}
                 </div>
+                {{#if purseLabel}}
+                    <div class="merchant-shop-purse" data-tooltip="What this character is carrying">
+                        <i class="fa-solid fa-coins"></i> {{purseLabel}}
+                    </div>
+                {{/if}}
+                {{#if canSell}}
+                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-sell"
+                            data-action="sell" data-tooltip="Sell something to this merchant">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
+                    </button>
+                {{/if}}
                 {{#if hasRecipientChoice}}
                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
                             data-action="changeRecipient" data-tooltip="Buy as a different character">

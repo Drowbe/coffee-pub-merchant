@@ -5,7 +5,8 @@
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
 import { MODULE, MERCHANT_FLAG, STOCK, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt } from './const.js';
-import { grantItem, isPhysical } from './merchant-inventory.js';
+import { grantItem, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
+import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 
@@ -246,13 +247,16 @@ export class MerchantManager {
         const shelf = actor?.items?.get(shelfId);
         if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
 
-        const result = await grantItem({ targetActorUuid: actor.uuid, itemUuid, quantity });
-        if (!result?.ok) return result;
-
-        const created = actor.items.get(result.targetItemId);
-        // A merge landed it on an existing row, which may already be on another
-        // shelf. Moving it then would silently relocate stock the GM did not touch.
-        if (created && !result.merged) await created.update({ 'system.container': shelfId });
+        // `container` is honoured by the accessor today and by grantItem itself once
+        // the fix lands, at which point this stops being two writes.
+        const result = await grantItem({
+            targetActorUuid: actor.uuid,
+            itemUuid,
+            quantity,
+            // A merge landed on an existing row, which may already sit on another
+            // shelf; relocating it would move stock the GM never touched.
+            container: shelfId
+        });
         return result;
     }
 
@@ -385,12 +389,19 @@ export class MerchantManager {
     static async _process(op, payload, userId) {
         const user = game.users.get(userId);
         if (!user) return { ok: false, code: 'UNKNOWN_USER' };
-        if (op !== 'acquire') return { ok: false, code: 'UNKNOWN_OPERATION' };
+        if (!['acquire', 'buy', 'sell'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
 
         const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
         const merchant = tokenDocument?.actor;
         if (!merchant) return { ok: false, code: 'MERCHANT_NOT_FOUND' };
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
+
+        if (op === 'sell') {
+            if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
+            const sold = await this._processSell(merchant, payload, user);
+            if (sold?.ok) this._broadcastRefresh(tokenDocument.uuid);
+            return sold;
+        }
 
         const item = merchant.items?.get(payload.itemId);
         if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
@@ -410,16 +421,106 @@ export class MerchantManager {
         const check = this._validateRecipient(payload.recipientUuid, user);
         if (!check.ok) return check;
 
-        // grantItem, never transferItem: stock is infinite in v1, so the merchant's
-        // item is a template and is never consumed.
-        const result = await grantItem({
-            targetActorUuid: check.actorUuid,
-            itemUuid: item.uuid,
-            quantity: payload.quantity
-        });
+        const result = op === 'buy'
+            ? await this._processBuy(merchant, item, shelf, check.actorUuid, payload)
+            // grantItem, never transferItem: stock is infinite, so the merchant's
+            // item is a template and is never consumed.
+            : await grantItem({
+                targetActorUuid: check.actorUuid,
+                itemUuid: item.uuid,
+                quantity: payload.quantity
+            });
 
         if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
         return result;
+    }
+
+    /**
+     * Buying: goods one way, coin the other, both or neither.
+     *
+     * Everything except the mutation is decided here — price, affordability, and
+     * which coins change hands. The mutation itself is one `exchange` call, because
+     * splitting it into a transfer plus a currency move would mean writing rollback
+     * across two primitives holding separate locks.
+     */
+    static async _processBuy(merchant, item, shelf, buyerUuid, payload) {
+        const shelfConfig = this.getShelfConfig(shelf);
+        if (shelfConfig?.mode === 'barter') return { ok: false, code: 'BARTER_ONLY' };
+
+        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
+        const unit = resolvePrice(this.getConfig(merchant), shelfConfig, item);
+        if (unit === null) return { ok: false, code: 'NOT_PRICED' };
+
+        const buyer = fromUuidSync(buyerUuid);
+        const total = unit * quantity;
+
+        // Checked before anything moves, and re-checked here rather than trusting the
+        // window: prices and purses both change between render and click.
+        const plan = planPayment(buyer, total);
+        if (!plan) {
+            return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(buyer) };
+        }
+
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+
+        const result = await exchange({
+            actorA: { uuid: merchant.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
+            actorB: { uuid: buyerUuid, items: [], currency: plan.pay }
+        });
+
+        return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
+    }
+
+    /**
+     * Selling: the party's item to the merchant, coin the other way.
+     *
+     * The same operation with the sides swapped, which is why a symmetric primitive
+     * was asked for rather than a buy-shaped one.
+     *
+     * **This inverts the trust model.** Every other handler validates that someone
+     * may *receive*; here a player is handing something over, so the item must be
+     * theirs and the merchant must be able to pay for it.
+     */
+    static async _processSell(merchant, payload, user) {
+        const shelf = this.getShelves(merchant, { includeHidden: true })
+            .find(({ config }) => config.mode === 'buyback');
+        if (!shelf) return { ok: false, code: 'NO_BUYBACK_SHELF' };
+
+        const seller = payload.sellerUuid ? fromUuidSync(payload.sellerUuid) : null;
+        if (!seller || seller.type !== 'character') return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
+        // The seller must be the requester's own character. Giving away someone
+        // else's possessions is not a thing a shop workflow should enable.
+        if (!user.isGM && !seller.testUserPermission(user, 'OWNER')) return { ok: false, code: 'NOT_YOUR_ITEM' };
+
+        const item = seller.items?.get(payload.itemId);
+        if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+        if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+
+        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
+        const available = Number(item.system?.quantity ?? 1);
+        if (Number.isFinite(available) && quantity > available) {
+            return { ok: false, code: 'INSUFFICIENT_QUANTITY', available };
+        }
+
+        const unit = resolveBuybackPrice(this.getConfig(merchant), shelf.config, item);
+        if (unit === null) return { ok: false, code: 'NOT_PRICED' };
+        const total = unit * quantity;
+
+        // A merchant with an empty till cannot buy, which is a fiction a GM may well
+        // want. Refused rather than conjuring coin.
+        const plan = planPayment(merchant, total);
+        if (!plan) return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: total, held: purseValue(merchant) };
+
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+
+        const result = await exchange({
+            actorA: { uuid: seller.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
+            actorB: { uuid: merchant.uuid, items: [], currency: plan.pay },
+            // Bought stock lands on the buyback shelf rather than loose on the NPC.
+            container: { uuid: merchant.uuid, itemId: shelf.item.id }
+        });
+
+        return result?.ok ? { ...result, price: total } : result;
     }
 
     /**

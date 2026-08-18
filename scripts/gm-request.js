@@ -34,16 +34,19 @@ let _handler = null;
 export function registerHandler(handler) {
     _handler = handler;
 
-    // The caller's id travels in the payload because core does not supply it: a
+    // The caller's id travels in the payload because core does not forward it: a
     // query handler is invoked as `handler(queryData, { timeout })` and nothing else.
     //
-    // **That makes it client-asserted, not verified.** A raw module socket is no
-    // better — `game.socket.emit` delivers no sender either — so this is a property
-    // of Foundry rather than of this envelope, and every GM-authoritative handler in
-    // the suite shares it. Consequence: `userId` may be used to decide *who is
-    // acting*, but a handler must not grant an authority the caller could not
-    // otherwise obtain by asserting a different id. Validate what is being asked for,
-    // not merely who claims to be asking.
+    // **This is a bridge, not a design.** Foundry *does* know who called, and knows
+    // it in a way no client can forge — `#handleUserQuery` resolves the querying User
+    // from the authenticated socket and throws if they do not exist, then drops them
+    // without passing them on. Asserting the id in the payload is what turns a
+    // trustworthy identity into a client-supplied one.
+    //
+    // Nothing a consumer does can recover the verified caller; only the envelope can
+    // reattach it. So when Blacksmith's surface lands, `userId` comes out of the
+    // payload in the same change, and handlers read the User the envelope hands them.
+    // Until then, treat a payload identity as unverified.
     CONFIG.queries[QUERY] = async ({ op, payload, userId }) => {
         try {
             return await _handler(op, payload, userId);
@@ -63,6 +66,10 @@ export async function request(op, payload) {
         if (!_handler) return { ok: false, code: 'NO_HANDLER' };
         return _handler(op, payload, game.user.id);
     }
+
+    // A world may revoke QUERY_USER, which is a different failure from having no GM
+    // and deserves its own answer rather than a raw throw from query().
+    if (!game.user.hasPermission('QUERY_USER')) return { ok: false, code: 'NO_QUERY_PERMISSION' };
 
     const gm = game.users.activeGM;
     if (!gm) return { ok: false, code: 'NO_ACTIVE_GM' };

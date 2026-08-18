@@ -1,5 +1,7 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import { MODULE, ITEM_CATEGORIES, formatHour } from './const.js';
+import { resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment } from './merchant-pricing.js';
+import { hasExchange, isPhysical } from './merchant-inventory.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
@@ -61,6 +63,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId)),
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
+        buy: (_event, target, win) => win.run(() => win.buy(target.dataset.itemId)),
+        sell: (_event, _target, win) => win.run(() => win.sell()),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
@@ -223,11 +227,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async _send(payload, busy = {}) {
+    async _send(payload, busy = {}, op = 'acquire') {
         this._busy = { row: busy.row ?? null, label: busy.label ?? 'Working' };
         await this.render(false);
         try {
-            return await MerchantManager.request('acquire', { tokenUuid: this.tokenUuid, ...payload });
+            return await MerchantManager.request(op, { tokenUuid: this.tokenUuid, ...payload });
         } finally {
             this._busy = null;
         }
@@ -300,6 +304,136 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * available. The cap is arbitrary and exists only to keep the slider usable.
      */
     static MAX_PER_ACQUISITION = 20;
+
+    /**
+     * Buy an item with coin.
+     *
+     * The affordability check and the coin plan run before anything is asked of the
+     * GM, so a player learns they cannot afford something from the confirm rather
+     * than from a refusal. The GM re-checks both regardless: this is the
+     * explanation, that is the guard.
+     */
+    async buy(itemId) {
+        const recipient = this.recipient;
+        if (!recipient) {
+            ui.notifications?.warn('You have no character able to buy.');
+            return;
+        }
+        const context = await this._itemContext(itemId);
+        if (!context) return;
+
+        const merchant = context.token?.actor;
+        const shelf = MerchantManager.getShelfFor(merchant, context.item);
+        const unit = resolvePrice(
+            MerchantManager.getConfig(merchant),
+            MerchantManager.getShelfConfig(shelf),
+            context.item
+        );
+        if (unit === null) {
+            ui.notifications?.warn(context.item.name + ' has no price.');
+            return;
+        }
+
+        const amount = await this._askQuantity(context.item.name, ShopWindow.MAX_PER_ACQUISITION);
+        if (!amount) return;
+
+        const total = unit * amount;
+        const plan = planPayment(recipient, total);
+        if (!plan) {
+            ui.notifications?.warn(
+                recipient.name + ' cannot afford that \u2014 ' + formatBase(total)
+                + ' needed, ' + formatBase(purseValue(recipient)) + ' held.'
+            );
+            return;
+        }
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Buy ' + context.item.name,
+                classes: ['merchant-dialog'],
+                content: '<p>' + recipient.name + ' buys '
+                    + (amount > 1 ? amount + ' ' : '')
+                    + '<strong>' + context.item.name + '</strong> for <strong>'
+                    + formatBase(total) + '</strong>.</p>',
+                confirmLabel: 'Buy',
+                confirmIcon: 'fa-solid fa-coins'
+            });
+            if (!confirmed) return;
+        }
+
+        this._report(
+            await this._send(
+                { itemId, quantity: amount, recipientUuid: recipient.uuid },
+                { row: itemId, label: 'Buying ' + context.item.name },
+                'buy'
+            ),
+            recipient.name + ' bought ' + (amount > 1 ? amount + ' ' : '')
+            + context.item.name + ' for ' + formatBase(total) + '.'
+        );
+    }
+
+    /**
+     * Sell something to the merchant.
+     *
+     * The inverse of buying, and the inverse of every other permission here: the
+     * item has to be the seller's own, and the merchant has to be able to pay.
+     */
+    async sell() {
+        const seller = this.recipient;
+        if (!seller) {
+            ui.notifications?.warn('You have no character able to sell.');
+            return;
+        }
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const buyback = MerchantManager.getShelves(merchant, { includeHidden: true })
+            .find(({ config }) => config.mode === 'buyback');
+        if (!buyback) {
+            ui.notifications?.warn('This merchant does not buy anything.');
+            return;
+        }
+
+        const config = MerchantManager.getConfig(merchant);
+        const sellable = seller.items.filter((item) => isPhysical(item.type)
+            && resolveBuybackPrice(config, buyback.config, item) !== null);
+        if (!sellable.length) {
+            ui.notifications?.warn(seller.name + ' has nothing this merchant would buy.');
+            return;
+        }
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.choose !== 'function') {
+            ui.notifications?.warn('The Blacksmith dialog API is unavailable.');
+            return;
+        }
+
+        const picked = await blacksmith.dialog.choose({
+            title: 'Sell to the merchant',
+            content: '<p>What is ' + seller.name + ' selling?</p>',
+            classes: ['merchant-dialog'],
+            choices: sellable.map((item) => ({
+                id: item.id,
+                label: item.name + ' \u2014 ' + formatBase(resolveBuybackPrice(config, buyback.config, item)),
+                icon: 'fa-solid fa-hand-holding-dollar'
+            }))
+        });
+        if (picked?.action !== 'submit' || !picked.value) return;
+
+        const item = seller.items.get(picked.value);
+        const available = Number(item?.system?.quantity ?? 1);
+        const amount = await this._askQuantity(item?.name ?? 'item', Number.isFinite(available) ? available : 1);
+        if (!amount) return;
+
+        this._report(
+            await this._send(
+                { itemId: picked.value, quantity: amount, sellerUuid: seller.uuid },
+                { label: 'Selling ' + item?.name },
+                'sell'
+            ),
+            seller.name + ' sold ' + (amount > 1 ? amount + ' ' : '') + item?.name + '.'
+        );
+    }
 
     async acquire(itemId) {
         const recipient = this.recipient;
@@ -381,6 +515,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'ITEM_NOT_TRANSFERABLE': return 'That is not something you can carry off.';
             case 'NOT_FOR_SALE': return 'That is not for sale.';
             case 'SHOP_CLOSED': return 'The shop is closed. You can look, but nothing is changing hands.';
+            case 'EXCHANGE_UNAVAILABLE': return 'Buying and selling are waiting on a Blacksmith update.';
+            case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} held.`;
+            case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} in the till.`;
+            case 'NOT_PRICED': return 'That has no price set.';
+            case 'BARTER_ONLY': return 'That one is a conversation, not a purchase.';
+            case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
+            case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
+            case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
                 : 'That container cannot be sold while it holds anything.';
@@ -424,16 +566,27 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // A closed shop is browsable but nothing changes hands. The GM is
             // exempt, so they can stock and test outside opening hours.
             const trading = MerchantManager.isOpen(merchant) || isGM;
+            const config0 = MerchantManager.getConfig(merchant);
+            // Buying needs the two-sided primitive. Until it ships the control is
+            // absent rather than present-and-broken.
+            const buying = hasExchange();
 
             shelves = MerchantManager.getShelves(merchant, { includeHidden: isGM }).map(({ item: shelf, config }) => {
                 const isBarter = config.mode === 'barter';
-                const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => ({
+                const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => {
+                    const price = resolvePrice(config0, config, item);
+                    return {
                     id: item.id,
                     type: item.type,
                     name: item.name,
                     img: item.img,
                     typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
                     busy: item.id === busyRow,
+                    price,
+                    priceLabel: price === null ? null : formatBase(price),
+                    // Unpriced on a sale shelf is a gap the GM should see, not a gift.
+                    unpriced: price === null && !isBarter,
+                    canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying,
                     // Barter is a conversation, not a transaction: the row lists so
                     // the party knows it exists, but nothing changes hands here.
                     canAcquire: trading && Boolean(recipient) && !isBarter,
@@ -442,7 +595,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     canGive: trading && !isBarter,
                     canParty: trading && Boolean(party) && !isBarter,
                     isBarter
-                }));
+                };
+                });
                 itemCount += contents.length;
 
                 // Grouped by kind within the shelf. A storefront with forty rows is
@@ -482,7 +636,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             itemCount,
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
-            hoursLabel: hours ? `${formatHour(hours.open)} – ${formatHour(hours.close)}` : null,
+            hoursLabel: hours ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}` : null,
+            purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
+            canSell: !missing && hasExchange() && Boolean(recipient)
+                && (MerchantManager.isOpen(merchant) || game.user.isGM)
+                && MerchantManager.getShelves(merchant, { includeHidden: true }).some(({ config }) => config.mode === 'buyback'),
             // Shown so a GM is never puzzled by a shop that disagrees with its own
             // schedule; the next boundary will set it straight.
             overridden: !missing && game.user.isGM && MerchantManager.isOverridden(merchant),

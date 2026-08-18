@@ -108,6 +108,29 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] That overnight schedule shades **both ends** of the slider, not the middle.
 - [ ] **Always open** removes the schedule and leaves the toggle purely manual.
 
+## 2e. Prices, buying and selling
+
+Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy
+and Sell controls are **absent** rather than broken — that absence is itself the first check.
+
+- [ ] With no `exchange` in Blacksmith, no Buy button and no Sell button appear, and Take still works.
+- [ ] Prices show on each row, formatted largest-coin-first ("1 gp 5 sp").
+- [ ] An item with no price shows **no price** in red on a sale shelf, and nothing on a barter shelf.
+- [ ] Markup 2 in config doubles every displayed price; the Premium shelf stays at its own 1.5.
+- [ ] The buyer's purse shows beside "Buying as" and matches their sheet.
+
+Once `exchange` ships:
+
+- [ ] Buy an item you can afford → coin leaves, item arrives, and the change is right.
+- [ ] Buy with only large coins → you pay the large coin and get change back.
+- [ ] Buy with only small coins → you pay the small coins, no change.
+- [ ] Buy something you cannot afford → refused with what it costs and what you hold, and **nothing moves**.
+- [ ] Buy on a barter shelf → refused; barter is a conversation.
+- [ ] Sell an item → it leaves your sheet, coin arrives, and it lands on the **Buyback** shelf.
+- [ ] Sell when the merchant's till is empty → refused, and nothing moves.
+- [ ] Sell an item belonging to a character you do not own → refused with `NOT_YOUR_ITEM`.
+- [ ] Sell to a merchant with no Buyback shelf → the Sell control is absent.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.

@@ -56,6 +56,17 @@
         </section>
 
         <section class="merchant-config-section">
+            <h3><span><i class="fa-solid fa-tags"></i> Pricing</span></h3>
+            <label class="merchant-config-markup">
+                <span>
+                    <strong>Markup</strong>
+                    <small>Applied to each item's own price. A shelf may override this; Premium ships at 1.5.</small>
+                </span>
+                <input type="number" min="0" step="0.05" value="{{markup}}" data-merchant-markup>
+            </label>
+        </section>
+
+        <section class="merchant-config-section">
             <h3>
                 <span><i class="fa-solid fa-layer-group"></i> Shelves</span>
                 <span class="merchant-config-count">{{shelfCount}}</span>

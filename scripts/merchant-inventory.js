@@ -41,5 +41,57 @@ export async function grantItem(request) {
         console.error(`${MODULE.TITLE} | api.inventory is unavailable; grantItem refused.`);
         return { ok: false, code: 'INVENTORY_UNAVAILABLE' };
     }
-    return api.grantItem(request);
+
+    const result = await api.grantItem(request);
+    // Never on a merge: the target row already existed and may sit on another shelf,
+    // so normalising it would relocate stock nobody touched.
+    if (result?.ok && !result.merged) {
+        await _normaliseContainer(result.targetItemId, request.targetActorUuid, request.container);
+    }
+    return result;
+}
+
+/**
+ * TEMPORARY — remove when `grantItem` clears `container` on arrival.
+ *
+ * `RESET_PATHS` covers `equipped`, `attuned` and `prepared` but not
+ * `system.container`, and the payload is built from `toObject()` verbatim. Stock on
+ * a merchant shelf carries a container id, so a granted copy arrives on the buyer
+ * still pointing at a shelf that is not on their sheet — and container membership is
+ * part of merge identity, so it cannot stack with what they already carry either.
+ *
+ * Blacksmith has this as a defect with a fix attached; the same change adds a
+ * `container` option, at which point this whole function goes away and the caller's
+ * `container` is honoured by the primitive instead.
+ */
+async function _normaliseContainer(itemId, targetActorUuid, container = null) {
+    if (!itemId) return;
+    try {
+        const actor = await fromUuid(targetActorUuid);
+        const item = actor?.items?.get(itemId);
+        const current = item?.system?.container ?? null;
+        if (!item || current === (container ?? null)) return;
+        await item.update({ 'system.container': container ?? null });
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not normalise container membership:`, error);
+    }
+}
+
+/**
+ * A two-sided exchange: goods one way, coin the other, both committing or neither.
+ *
+ * **Not built yet.** Blacksmith has accepted it in principle and will build it on
+ * their existing internal cores when this phase is real. Orchestrating it here would
+ * mean writing rollback across two primitives holding separate locks, which is
+ * exactly what api.inventory exists to prevent — so Merchant asks for it and refuses
+ * cleanly until it exists, rather than approximating it.
+ */
+export async function exchange(request) {
+    const api = inventoryApi();
+    if (typeof api?.exchange !== 'function') return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+    return api.exchange(request);
+}
+
+export function hasExchange() {
+    return typeof inventoryApi()?.exchange === 'function';
 }

@@ -222,7 +222,7 @@ is forward-looking: catalogue mode cannot depend on a GM remembering to unlock a
 
 ## 8. Pricing model
 
-Three sources, resolved in order. All three exist from the start; only display uses them in v1.
+Three sources, resolved in order.
 
 1. **Per-item override** — `pricing.overrides[itemId]`. Absolute, wins outright.
 2. **Markup** — `pricing.markup` multiplied by the item's own `system.price.value`.
@@ -231,8 +231,27 @@ Three sources, resolved in order. All three exist from the start; only display u
 An item with no price is displayed as unpriced rather than as free. A merchant is not obliged to sell
 everything it carries, and an unpriced item is a configuration gap, not a gift.
 
-Denominations come from `CONFIG.DND5E.currencies` conversion values, the same way Squire's quantity editor
-resolves gp value. Never hard-code a conversion table.
+Denominations come from `CONFIG.DND5E.currencies` conversion values. Never hard-code a conversion table:
+the list, the labels and the conversions are all read from the system, so a world that adds a denomination
+gets it for free.
+
+Everything is counted internally in the smallest denomination and formatted back out for display, which
+keeps the arithmetic in integers and avoids a rounding argument about fractional silver.
+
+### Making change
+
+**This is Merchant's, permanently.** `api.inventory` never converts denominations, by standing decision:
+exchanging coin to satisfy a payment is a table's house rule, not a mechanic. A player holding 20 sp cannot
+pay 2 gp as far as the primitive is concerned, so the plan of which coins move is worked out here.
+
+`planPayment` spends **smallest coins first**, then returns whatever was overpaid as change. That is not
+optimal in the coin-counting sense and deliberately so: it is what a person does at a counter, and it avoids
+breaking a purse into change for no reason. A buyer with only platinum pays platinum and takes change back;
+a buyer with a bag of silver pays silver.
+
+Affordability is decided on the buyer's **whole purse**, not on any one denomination — the point of making
+change — and is checked in the window before anything is asked of the GM, then again on the GM before
+anything moves. The first is the explanation; the second is the guard.
 
 ## 9. Marking and configuration
 
@@ -306,16 +325,15 @@ round-trips to itself, and the `{ok, code}` result shape carrying `NO_ACTIVE_GM`
 **The envelope routes and elects. It does not authorize.** Nothing in a payload is trusted; re-resolution and
 validation stay with the handler. This is the rule most easily lost once an envelope becomes infrastructure.
 
-**The caller's identity is client-asserted, not verified.** A core query handler is invoked as
-`handler(queryData, { timeout })` — the querying user's id is never passed. A raw module socket is no better,
-since `game.socket.emit` delivers no sender either. So `userId` travels in the payload and any client could
-put a different one there. This is a property of Foundry rather than of this envelope, and every
-GM-authoritative handler in the suite shares it, Curator's looting included.
+**The caller's identity is verified by core, but not forwarded.** `#handleUserQuery` resolves the querying User from the
+authenticated socket and throws if they do not exist — then invokes the handler as
+`handler(queryData, { timeout })` and drops them. The identity is trustworthy and simply not passed on.
 
-The rule that follows: **a handler must not grant an authority the caller could not otherwise obtain by
-asserting a different id.** Validate what is being asked for, not merely who claims to be asking. Today
-`_validateRecipient` leans on `user.isGM`, which a spoofed id would satisfy — low consequence while stock is
-infinite and free, and a real hole the moment money exists. It must be closed before phase 3.
+Merchant asserts the id in the payload as a **bridge**, which is the step that turns a verified identity into
+a client-supplied one. No consumer can recover the real caller; only the envelope can reattach it, so the
+payload id comes out when Blacksmith's surface lands. Until then, treat it as unverified — but do **not**
+rewrite authorization around it. Ownership checks are the natural way to authorize a purchase, and
+`user.isGM` is correct provided the user comes from the envelope.
 
 **Two-sided `exchange`.** Accepted in principle, symmetric shape confirmed, build starts when the phase is
 real. Three things Blacksmith flagged for that point: the result shape is the actual design work, since four
@@ -361,13 +379,22 @@ adds more surface to duplicate.
 
 ### Phase 3 — Buying
 
-- Requires the two-sided primitive.
-- Refuse a purchase the buyer cannot afford, before either side moves.
+- [x] Price resolution, affordability, and the coin plan.
+- [x] Buy control, confirmation naming the price, GM-side re-validation.
+- [ ] **Waiting on `blacksmith.inventory.exchange`.** Everything above this line is built; the mutation is
+      one `exchange` call that returns `EXCHANGE_UNAVAILABLE` until the primitive ships, and the Buy control
+      is absent rather than present-and-broken while that is true.
 
 ### Phase 4 — Selling
 
-- **Inverts the trust model.** Every handler to this point validates that someone may *receive*; selling
-  means accepting an item *from* a player and paying for it. Expect new failure modes, not new UI.
+- [x] Sell control, buyback pricing, seller-owns-it and merchant-can-pay checks.
+- [x] Sold stock lands on the Buyback shelf rather than loose on the NPC.
+- [ ] Waiting on the same primitive.
+
+**It inverted the trust model, as expected.** Every other handler validates that someone may *receive*.
+Selling accepts an item *from* a player, so two new questions arise: the item must be the seller's own
+(`testUserPermission(user, 'OWNER')`, GM exempt), and the merchant must be able to pay — a shop with an empty
+till refuses rather than conjuring coin, which is a fiction a GM may well want.
 
 ### Phase 5 — Stock policy
 

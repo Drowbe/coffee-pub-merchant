@@ -6,7 +6,11 @@
     <img src="{{img}}" alt="">
     <div class="merchant-shop-item-copy">
         <strong>{{name}}</strong>
-        <span>{{typeLabel}}</span>
+        <span>
+            {{typeLabel}}
+            {{#if priceLabel}}<em class="merchant-shop-price">{{priceLabel}}</em>{{/if}}
+            {{#if unpriced}}<em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a barter shelf">no price</em>{{/if}}
+        </span>
     </div>
     {{#if busy}}
         <div class="merchant-shop-row-actions">
@@ -20,8 +24,14 @@
         </div>
     {{else}}
         <div class="merchant-shop-row-actions">
+            {{#if canBuy}}
+                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-buy" data-action="buy" data-item-id="{{id}}"
+                        data-tooltip="Buy this">
+                    <i class="fa-solid fa-coins"></i> {{priceLabel}}
+                </button>
+            {{/if}}
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="acquire" data-item-id="{{id}}"
-                    {{#unless canAcquire}}disabled{{/unless}} data-tooltip="Acquire this">
+                    {{#unless canAcquire}}disabled{{/unless}} data-tooltip="Take without paying">
                 <i class="fa-solid fa-hand"></i>
             </button>
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="give" data-item-id="{{id}}"
