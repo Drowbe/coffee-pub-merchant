@@ -44,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The concurrency loot needed is back** (`scripts/manager-merchant.js`): infinite stock had no races at all, because the merchant was never mutated. Finite stock means two players can read the same count, so every read-then-write goes through a per-merchant promise chain. Sound because exactly one client runs it: `activeGM` is core's own deterministic designation, so there is no second process to coordinate with.
 - **Making change** (`scripts/merchant-pricing.js`): `api.inventory` never converts denominations, so Merchant works out which coins change hands. Payment spends smallest coins first and returns the overpayment as change — what a person does at a counter, rather than what an optimal coin-counter would do. Affordability is judged on the whole purse, checked in the window before the GM is asked and again on the GM before anything moves.
 
+- **Logic checks** (`tests/`): two dependency-free Node scripts covering the parts that are pure arithmetic
+  and pure control flow — making change across every combination of a small purse against seven prices, and
+  the stock policy, restock cadence and lock behaviour. They cannot catch a wrong document path or a missing
+  template field, which is most of what goes wrong in a Foundry module; they catch the half where reading the
+  code is a bad way to find a bug and a wrong answer is silent.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

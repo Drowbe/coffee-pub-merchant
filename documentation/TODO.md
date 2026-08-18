@@ -82,7 +82,9 @@ change and handlers read the User they are handed.
 Every phase in `plans/plan-merchant.md` is now built. What is left is verification and two things that are
 not ours to finish.
 
-- **Nothing from `beb8f41` onward has been run in Foundry.** That is prices, cart, checkout, the payer rule,
+- **Nothing from `beb8f41` onward has been run in Foundry.** The pure-arithmetic parts *are* verified —
+  `tests/` runs making change across 5151 purse/price combinations, plus stock policy, the restock cadence
+  and the lock — but that is the small half. That is prices, cart, checkout, the payer rule,
   and the whole of stock policy. `documentation/testing/testing-merchant.md` is current and is the list.
   **This is the only thing standing between the module and being real**, and it needs a table rather than
   more code.

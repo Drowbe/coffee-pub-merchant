@@ -5,6 +5,10 @@ Working checklist for the shop feature. Tick as you go; note failures inline.
 `../plans/plan-merchant.md` records intent; `../architecture/architecture-merchant.md` will describe what
 the system actually does once behaviour is verified.
 
+**Run the logic checks first** — `node tests/test-pricing.mjs` and `node tests/test-stock.mjs`, no
+dependencies. They cover making change, stock policy, the restock cadence and the lock, which are the parts
+where reading the code is a bad way to find a bug. Everything below needs a table; those do not.
+
 ---
 
 ## Setup
