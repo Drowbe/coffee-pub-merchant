@@ -1,0 +1,55 @@
+<div class="merchant-shop-content">
+    {{#if busyLabel}}
+        {{!-- Zero-height sticky rail: the panel floats over the dimmed list and does
+              not scroll away, without competing for top: 0 with the pinned header. --}}
+        <div class="merchant-shop-working" role="status" aria-live="polite">
+            <div class="merchant-shop-working-panel">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                <span>{{busyLabel}}&hellip;</span>
+            </div>
+        </div>
+    {{/if}}
+    {{#if missing}}
+        <div class="merchant-shop-empty">This shop is no longer available.</div>
+    {{else}}
+        <div class="merchant-shop-pinned">
+            <section class="merchant-shop-section merchant-shop-subject">
+                <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
+                <div class="merchant-shop-subject-copy">
+                    <div class="merchant-shop-kicker">Merchant</div>
+                    <div class="merchant-shop-title">{{shopName}}</div>
+                    <div class="merchant-shop-description">{{itemCount}} in stock</div>
+                </div>
+            </section>
+
+            <section class="merchant-shop-section merchant-shop-actor">
+                <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
+                <div class="merchant-shop-actor-copy">
+                    <small>Buying as</small>
+                    {{#if hasRecipient}}
+                        <strong>{{recipientName}}</strong>
+                    {{else}}
+                        <strong class="merchant-shop-warning">No character available</strong>
+                    {{/if}}
+                </div>
+                {{#if hasRecipientChoice}}
+                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
+                            data-action="changeRecipient" data-tooltip="Buy as a different character">
+                        <i class="fa-solid fa-repeat"></i>
+                    </button>
+                {{/if}}
+            </section>
+        </div>
+
+        <section class="merchant-shop-section">
+            <h3><span><i class="fa-solid fa-shop"></i> Stock</span><span class="merchant-shop-count">{{itemCount}}</span></h3>
+            {{#if hasItems}}
+                <div class="merchant-shop-item-list">
+                    {{#each items}}
+                        {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                    {{/each}}
+                </div>
+            {{else}}<div class="merchant-shop-empty">This merchant has nothing to offer.</div>{{/if}}
+        </section>
+    {{/if}}
+</div>

@@ -1,0 +1,330 @@
+# Coffee Pub Merchant — Plan
+
+**Status:** Phase 0 and Phase 1 built, untested. Decisions A–E in section 14 are settled — recommendations
+accepted on 2026-08-09.
+**Target:** Shops and merchants, filling the gap left when Curator retired its Item Piles dependency.
+**Architecture record:** `../architecture/architecture-merchant.md`, written from the code as behaviour lands.
+Do not copy this plan into it.
+
+## 1. Objective
+
+A token marked as a merchant opens a shop window. Players browse its stock and acquire items from it.
+
+Money, selling, and scarcity come later. The first version is deliberately a transfer surface, because that
+is the part the loot work already proved and the part everything else stands on.
+
+## 2. The rule that governs this module
+
+**Migrate the best version. Do not replicate.**
+
+Curator's loot feature is 2,281 lines across manager, window, templates and styles. Copying it would create
+a fork on the same day two forks were deleted from Curator for exactly this reason —
+`ui-context-menu.js` and `manager-hooks.js`, both carrying bugs the hub had already fixed, neither able to
+pick up anything landing later.
+
+The v1 described in section 1 is not 2,281 lines. Strip the corpse-specific work — death detection,
+generation, revival, bury, the empty-state lifecycle, the ledger, presence, proximity, combat gating,
+container nesting, multi-pass Loot All — and what remains is roughly 300.
+
+**Write it fresh and small. Resist reaching for loot's polish.** What is genuinely re-needed will announce
+itself, and that becomes the extraction list — validated by two real consumers rather than guessed at from
+one. Pre-extracting to Blacksmith now would be the opposite error: designing an abstraction against one real
+implementation and one imagined one.
+
+Phase 1b exists to do that comparison deliberately rather than by drift.
+
+## 3. Scope
+
+### Included, eventually
+
+- Mark an Actor as a merchant and configure it.
+- Open a shop window by interacting with a merchant token.
+- Display stock with prices.
+- Acquire an item, to the opener or to another character or the party.
+- Buying with coin.
+- Selling to the merchant.
+- Stock policy: infinite, finite, or restocking.
+
+### Explicitly excluded
+
+- Corpse looting. That is Curator's and stays there.
+- Crafting, commissions, or item upgrades.
+- Haggling, reputation-based pricing, or persuasion checks against price.
+- Multi-currency economies beyond D&D 5e's five denominations.
+- A system-agnostic economy framework. The first implementation targets D&D 5e.
+
+## 4. Ownership boundary
+
+### Merchant owns
+
+- Merchant state and configuration.
+- Stock policy and pricing policy.
+- Who may shop, and what they may do.
+- The shop window and every user-facing message.
+
+### Blacksmith owns
+
+- Every document mutation (`api.inventory`).
+- Token interaction claiming (`api.tokens`).
+- Window base, entity list, quantity split, dialogs, toasts, context menu.
+- Socket transport.
+
+### Merchant must not own
+
+- Item or currency mutation code. Not even temporarily, and not "just for the first draft".
+- A second copy of anything Blacksmith already ships.
+
+## 5. What must not be inherited from loot
+
+The loot feature made decisions that were right for corpses and would be wrong here. Each is a live risk
+because the same author is writing both.
+
+| Loot does this | Merchant must not, because |
+|---|---|
+| State on the **Token** | A corpse is one event. A merchant is a persistent entity — see section 6. |
+| `transferItem` moves stock | Infinite stock means `grantItem`, which never touches the source — section 7. |
+| Flags automatically on death | Nothing marks a merchant but a deliberate GM action — section 9. |
+| A `generationId` guards staleness | There is no generation. A shop is not an event with a lifetime. |
+| An `empty` terminal state | An infinite shop is never empty; a finite one that sells out is still a shop. |
+| A "Looted by" ledger | Purchase history is a different shape and is not needed in v1 at all. |
+| Proximity and combat gating | Plausibly wanted, but inherit nothing without deciding — section 14. |
+
+## 6. State model
+
+**Merchant state lives on the Actor, not the Token.** This is the sharpest divergence from loot and the one
+most likely to be got wrong by habit.
+
+Loot state is per-token because each corpse is a distinct event with its own generation. A merchant is a
+persistent entity: flag the token and every placed instance becomes a separate shop, deleting the token
+loses the configuration, and the same merchant on two scenes is two unrelated merchants.
+
+```js
+flags['coffee-pub-merchant'].merchant = {
+    enabled: true,
+    name: null,                 // display override; falls back to the Actor's name
+    stock: 'infinite',          // 'infinite' | 'finite' | 'restocking' — only 'infinite' in v1
+    pricing: {
+        markup: 1.0,            // multiplier applied to the item's own price
+        overrides: {}           // itemId -> { value, denomination }
+    }
+}
+```
+
+Token documents carry nothing. A merchant's shop is the same shop wherever it is placed.
+
+## 7. Stock model
+
+**v1 stock is infinite, and that makes it simpler than loot rather than harder.**
+
+`blacksmith.inventory.grantItem({ targetActorUuid, itemUuid, quantity })` resolves an `itemUuid` pointing at
+an actor-embedded item and grants a copy to the target. **The source is never touched.** Confirmed against
+`api-inventory.js` `_prepareGrant`.
+
+Consequences worth stating, because they remove most of what made loot difficult:
+
+- No source mutation, so no rollback of a source side that half-failed.
+- No lock contention on the merchant Actor.
+- **No race at all** between two players buying the same item — a thing loot needed a GM election, per-Actor
+  locks, and a re-validation pass to survive.
+- No "somebody took it first" failure to render.
+
+Finite and restocking stock reintroduce all of it, which is a reason to defer them rather than a reason to
+avoid them.
+
+## 8. Pricing model
+
+Three sources, resolved in order. All three exist from the start; only display uses them in v1.
+
+1. **Per-item override** — `pricing.overrides[itemId]`. Absolute, wins outright.
+2. **Markup** — `pricing.markup` multiplied by the item's own `system.price.value`.
+3. **The item's own price** — dnd5e already stores `system.price` with a denomination.
+
+An item with no price is displayed as unpriced rather than as free. A merchant is not obliged to sell
+everything it carries, and an unpriced item is a configuration gap, not a gift.
+
+Denominations come from `CONFIG.DND5E.currencies` conversion values, the same way Squire's quantity editor
+resolves gp value. Never hard-code a conversion table.
+
+## 9. Marking and configuration
+
+Nothing marks a merchant automatically. This is new surface with no loot equivalent, and it has a
+chicken-and-egg problem: the way *in* must be reachable on an Actor that is not yet a merchant.
+
+**Decision required — see section 14, decision A.** The recommendation is a two-part answer: an always-present
+entry point on the Actor sheet header menu that opens a Merchant Settings window carrying the "Is merchant"
+toggle, plus a prominent shortcut that appears **only** once the Actor is a merchant.
+
+The settings window is also where stock policy, markup, and per-item overrides live as they arrive, so it
+should be built as a window with room to grow rather than a confirmation dialog.
+
+## 10. Interaction
+
+Double-click a merchant token through `blacksmith.tokens.registerInteraction`, `gesture: 'clickLeft2'`,
+exactly as Curator claims corpses. The contract rules are the same and are not optional:
+
+- `matches` must be **synchronous**. Foundry's permission predicate is synchronous and a promise is truthy,
+  so an async matcher grants every double-click unconditionally.
+- `matches` must return the same answer twice in a row. Blacksmith checks permission and dispatch
+  separately.
+- The handler must never throw or return a rejected promise. Blacksmith does not fall through to Foundry
+  once permission is relaxed, so a throwing handler is a dead gesture rather than a fallback.
+
+`bypassPermission: true` is required for the same reason as loot: players do not have LIMITED permission on
+a merchant NPC's Actor, and Foundry's predicate runs before the handler.
+
+`matches` reads the Actor flag, which stays a plain flag read — no UUID resolution, no compendium lookups.
+
+## 11. Authorization
+
+Every player-initiated mutation runs on the authoritative GM. A player cannot write to a merchant's Actor or
+to another character, so this is not optional and not a formality.
+
+The GM re-resolves every UUID and revalidates before mutating:
+
+- The Actor still carries an enabled merchant flag.
+- The requested item is still on the merchant and is a physical type.
+- The recipient is one the requester may name.
+- Any policy gate that exists at the time (section 14, decision D).
+
+**Hiding a control is never the guard.** Client-side checks exist so a refusal arrives as a message rather
+than a window that fails on every action; the GM check is what makes it true.
+
+The socket envelope — request id, pending map, timeout, single-answering-GM election, response routing — is
+mechanically identical to Curator's and is the security boundary. **Do not write a second one by hand.** See
+section 12.
+
+## 12. Blacksmith dependencies
+
+| Need | Status |
+|---|---|
+| `api.inventory.grantItem` | Ships today. Covers all of v1. |
+| `api.tokens.registerInteraction` | Ships today. |
+| Window base, entity list, quantity split, dialog, toast | Ship today. |
+| **A GM request/response envelope** | Blacksmith will own it. Interim version uses core's query API. |
+| **A two-sided `exchange` primitive** | Accepted in principle, not built. Tell them when the phase is real. |
+
+**GM request envelope.** Blacksmith will own this, built on Foundry's **query API** rather than on sockets —
+`CONFIG.queries[name]` plus `game.users.activeGM.query(name, data, {timeout})`. Four of the five things a
+hand-rolled envelope provides are already core's in v13: request id, pending map, timeout, response routing.
+`game.users.activeGM` is core's own single-GM designation, so every module agrees on which GM acts rather
+than each re-deriving it with its own sort.
+
+`gm-request.js` is written against that core API now, so migrating to Blacksmith's surface should be a
+deletion rather than a rewrite. Two things must survive it: the **local-GM shortcut**, so a GM never
+round-trips to itself, and the `{ok, code}` result shape carrying `NO_ACTIVE_GM` / `TIMEOUT` /
+`HANDLER_ERROR` to match what `api.inventory` returns.
+
+**The envelope routes and elects. It does not authorize.** Nothing in a payload is trusted; re-resolution and
+validation stay with the handler. This is the rule most easily lost once an envelope becomes infrastructure.
+
+**Two-sided `exchange`.** Accepted in principle, symmetric shape confirmed, build starts when the phase is
+real. Three things Blacksmith flagged for that point: the result shape is the actual design work, since four
+legs means reporting per side what committed; it will be built on their existing internal cores rather than
+as a parallel implementation; and write count per Actor is the open question, because currency is an
+`actor.update()` while items are embedded writes.
+
+**Sequencing is envelope first.** `api.inventory`'s mutex is per-client and in memory — it does not
+coordinate two GM clients. A shared envelope is what makes `exchange`'s atomicity true in a two-GM world
+rather than nearly true, so building the harder thing first would assume the smaller thing exists.
+
+## 13. Phases
+
+### Phase 0 — Scaffold
+
+- `module.json` with `"socket": true` **from the first commit**. Foundry reads manifests at world launch, so
+  adding it later costs a world restart and silently drops every emit until then. Curator learned this the
+  slow way.
+- Requires `coffee-pub-blacksmith`. No other dependencies.
+- Documentation folders as here: `architecture/`, `plans/`, `testing/`, plus `TODO.md`.
+- Send Blacksmith the two-sided-transfer heads-up.
+
+### Phase 1 — Open and acquire
+
+- Mark an Actor as a merchant, per decision A.
+- Claim `clickLeft2` on merchant tokens.
+- Shop window listing physical stock.
+- Acquire to the opener, to another party character, or to the party Actor — via `grantItem`.
+- GM-authoritative handler with re-validation.
+- No money, no prices displayed, no polish.
+
+### Phase 1b — Compare and extract
+
+Diff what was written against Curator's loot equivalent. **Whatever came out verbatim is the extraction
+list.** Move those pieces to Blacksmith with two real consumers proving the shape. Do this before phase 2
+adds more surface to duplicate.
+
+### Phase 2 — Prices
+
+- Display resolved prices per section 8.
+- Merchant Settings gains markup and per-item overrides.
+- Still no transaction. Cheap, and it surfaces the pricing model in the UI before it is load-bearing.
+
+### Phase 3 — Buying
+
+- Requires the two-sided primitive.
+- Refuse a purchase the buyer cannot afford, before either side moves.
+
+### Phase 4 — Selling
+
+- **Inverts the trust model.** Every handler to this point validates that someone may *receive*; selling
+  means accepting an item *from* a player and paying for it. Expect new failure modes, not new UI.
+
+### Phase 5 — Stock policy
+
+- Finite and restocking. Reintroduces source mutation, locking, and the concurrency work section 7 avoids.
+
+## 14. Decisions for the owner
+
+Recorded as decisions rather than assumptions because the author of this plan also wrote the loot feature
+and is biased toward reproducing it. Each has a recommendation; the final call is the owner's.
+
+### A. How is an Actor marked as a merchant?
+
+- **Sheet header menu entry, plus a conditional shortcut (recommended).** A "Merchant" row in the Actor
+  sheet header menu — where Configure Sheet and Prototype Token live — is always present, which solves the
+  chicken-and-egg problem, and costs one unobtrusive row on non-merchants. It opens a Merchant Settings
+  window with the "Is merchant" toggle. Once enabled, a prominent button appears on the sheet for quick
+  access. This satisfies "no merchant button on non-merchants" while keeping the way in discoverable.
+- **Token HUD button only.** Cannot mark an Actor that is not yet a merchant. Good as a secondary shortcut,
+  not as the way in.
+- **A tab on the Actor sheet.** More room for later options, heavier to build, and awkward on a
+  non-merchant.
+- **Inventory tab integration.** Closest to where stock actually lives, but couples the module to a system
+  sheet layout that dnd5e changes between versions.
+
+### B. Who may open a shop?
+
+- **Anyone who can see the token (recommended).** Matches loot, and a shop that refuses to open is a worse
+  failure than one that opens and refuses to sell.
+- Owners only. Effectively GM-only, which defeats the point.
+- A per-merchant allow list. Real use case exists (a shop that only serves one faction) but not in v1.
+
+### C. Where does an acquired item go by default?
+
+- **The opener's character, with a picker for others (recommended).** Same shape as loot's "Looting as",
+  which was right there and is right here.
+- Always ask. An extra click on every acquisition.
+- Party inventory by default. Wrong default for a purchase, which is usually personal.
+
+### D. Do proximity and combat gating apply?
+
+- **Neither in v1 (recommended).** Loot has both, and inheriting them without a reason is exactly the bias
+  this section exists to catch. A shopkeeper is not a corpse: you are talking to them, and shopping during
+  combat is unusual enough that a GM can say no out loud.
+- Proximity only. Defensible — you should be near the shop — but the setting exists in Curator because
+  corpses are scattered across a battlefield, which shops are not.
+- Both, mirroring loot. Consistent, and consistency is not a reason on its own.
+
+### E. Does the shop window show items the merchant cannot sell?
+
+- **Hide non-physical items, show unpriced ones as unpriced (recommended).** A merchant's Actor carries
+  features and spells that are not stock; those are noise. An unpriced physical item is a configuration gap
+  the GM should be able to see.
+- Show everything. Honest about the Actor, useless as a shop.
+- Show only priced items. Hides the configuration gap, so the GM never learns what they forgot to price.
+
+## 15. Documentation rule
+
+`architecture/architecture-merchant.md` describes only behaviour verified against implemented code. This
+plan records intent and unresolved choices. When they disagree, the architecture document is right and this
+one is stale.

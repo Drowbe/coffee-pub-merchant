@@ -1,0 +1,22 @@
+<div class="merchant-config-content">
+    <section class="merchant-config-section merchant-config-subject">
+        <div class="merchant-config-image"><img src="{{portraitImg}}" alt="{{actorName}}"></div>
+        <div class="merchant-config-copy">
+            <div class="merchant-config-kicker">Merchant Settings</div>
+            <div class="merchant-config-title">{{actorName}}</div>
+        </div>
+    </section>
+
+    <section class="merchant-config-section">
+        <label class="merchant-config-toggle">
+            <input type="checkbox" data-merchant-enabled {{#if enabled}}checked{{/if}}>
+            <span>
+                <strong>Is a merchant</strong>
+                <small>Players can double-click this token to open its shop.</small>
+            </span>
+        </label>
+    </section>
+
+    {{!-- Stock policy, markup and per-item overrides land here in later phases. The
+          window exists now so they have somewhere to go. --}}
+</div>

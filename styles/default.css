@@ -1,0 +1,81 @@
+/* Coffee Pub Merchant - shop and configuration windows */
+
+.merchant-shop-window .window-content { min-height: 0; overflow: hidden; }
+.merchant-shop-window .blacksmith-window-tool-root { min-height: 0; max-height: 100%; }
+.merchant-shop-window .blacksmith-window-tool-body { min-height: 0; overflow: auto; }
+
+.merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 0 8px 8px; color: var(--blacksmith-tool-text); }
+.merchant-shop-section { min-width: 0; padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
+.merchant-shop-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
+.merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
+
+/* The merchant and the buyer stay put while the stock scrolls under them. */
+.merchant-shop-pinned { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 10px; margin: 0 -8px; padding: 8px 8px 10px; background: var(--blacksmith-tool-background); }
+
+/* One shared portrait treatment; only the size differs, so restyling moves all. */
+.merchant-shop-subject-image,
+.merchant-shop-actor-image,
+.merchant-config-image { overflow: hidden; border: 1px solid var(--blacksmith-tool-border); border-radius: 6px; box-shadow: 0 2px 7px rgba(0,0,0,.22); }
+.merchant-shop-subject-image > img,
+.merchant-shop-actor-image > img,
+.merchant-config-image > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
+.merchant-shop-subject-image { width: 58px; height: 58px; flex: 0 0 58px; }
+.merchant-shop-actor-image { width: 34px; height: 34px; flex: 0 0 34px; }
+.merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
+
+/* Blue for the merchant, green for the buyer, so the pair reads as who is trading
+   with whom. Mixed into the theme surfaces rather than painted over them, so the
+   cards follow Light, Dark and Glass instead of fighting them. */
+.merchant-shop-subject { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 11px; align-items: center; padding: 10px; border-color: color-mix(in srgb, #2c5a8c 22%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #2c5a8c 10%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #2c5a8c 5%, var(--blacksmith-tool-surface-sunken))); }
+.merchant-shop-actor { display: flex; gap: 9px; align-items: center; padding: 7px 8px; border-color: color-mix(in srgb, #2f6b33 22%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #2f6b33 10%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #2f6b33 5%, var(--blacksmith-tool-surface-sunken))); }
+.merchant-shop-subject-copy { min-width: 0; }
+.merchant-shop-actor-copy { flex: 1 1 auto; min-width: 0; }
+.merchant-shop-actor-copy small, .merchant-shop-actor-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-shop-actor-copy small { color: var(--blacksmith-tool-text-muted); font-size: .55rem; letter-spacing: .05em; text-transform: uppercase; }
+.merchant-shop-actor-copy strong { font-size: .82rem; }
+.merchant-shop-kicker { color: var(--blacksmith-tool-accent); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.merchant-shop-title { font-size: 1.02rem; font-weight: 700; }
+.merchant-shop-description { margin-top: 4px; color: var(--blacksmith-tool-text-muted); font-size: .72rem; }
+.merchant-shop-warning { color: #a4432f; }
+
+.merchant-shop-item-list { display: flex; flex-direction: column; gap: 4px; }
+.merchant-shop-item { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 8px; align-items: center; min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-shop-item:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
+.merchant-shop-item > img { display: block; width: 38px !important; height: 38px !important; max-width: 38px !important; object-fit: cover; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; }
+.merchant-shop-item-copy { min-width: 0; }
+.merchant-shop-item-copy strong, .merchant-shop-item-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-shop-item-copy strong { font-size: .82rem; }
+.merchant-shop-item-copy span { margin-top: 1px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; }
+
+.merchant-shop-row-actions { display: flex; gap: 4px; align-items: center; }
+.merchant-shop-row-actions > button { min-width: 0; min-height: 28px; margin: 0; padding: 2px 8px; font-size: .7rem; white-space: nowrap; }
+.merchant-shop-icon-btn i { margin: 0; }
+.merchant-shop-blocked { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; color: var(--blacksmith-tool-text-muted); font-size: .62rem; }
+.merchant-shop-empty { padding: 8px 3px; color: var(--blacksmith-tool-text-muted); font-size: .76rem; font-style: italic; text-align: center; }
+
+/* In-flight feedback only. The concurrency guarantee belongs to the GM. */
+.merchant-shop-busy .merchant-shop-content { pointer-events: none; }
+.merchant-shop-busy .merchant-shop-content > *:not(.merchant-shop-working) { opacity: .4; }
+
+/* Zero-height sticky rail carrying an absolutely placed panel, so it floats over the
+   dimmed list without competing for top: 0 with the pinned header.
+
+   Colours come from the surface and text tokens. Never use
+   --blacksmith-tool-background as a colour: it is a gradient, so the declaration is
+   dropped and the label renders invisible on a dark bar. */
+.merchant-shop-working { position: sticky; top: 0; z-index: 6; height: 0; overflow: visible; }
+.merchant-shop-working-panel { position: absolute; top: 96px; left: 50%; display: flex; gap: 10px; align-items: center; padding: 11px 18px; border: 1px solid var(--blacksmith-tool-border, rgba(0,0,0,.3)); border-radius: 8px; background: var(--blacksmith-tool-surface-raised, #fff); box-shadow: 0 6px 18px rgba(0,0,0,.35); color: var(--blacksmith-tool-text, inherit); font-size: .8rem; white-space: nowrap; transform: translateX(-50%); }
+
+/* A dialog action reading as two lines looks like two controls. */
+.merchant-dialog .dialog-buttons button,
+.merchant-dialog button[data-action] { white-space: nowrap; }
+
+/* --- Configuration window ------------------------------------------- */
+.merchant-config-content { display: flex; flex-direction: column; gap: 10px; padding: 8px; color: var(--blacksmith-tool-text); }
+.merchant-config-section { padding: 10px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
+.merchant-config-subject { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 11px; align-items: center; }
+.merchant-config-copy { min-width: 0; }
+.merchant-config-kicker { color: var(--blacksmith-tool-accent); font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.merchant-config-title { font-size: 1.0rem; font-weight: 700; }
+.merchant-config-toggle { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: start; cursor: pointer; }
+.merchant-config-toggle small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; }

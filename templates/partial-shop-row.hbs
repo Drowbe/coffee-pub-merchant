@@ -1,0 +1,31 @@
+{{!--
+    One stock row. Every flag it needs is precomputed on the row itself so the
+    partial never reaches for parent context.
+--}}
+<div class="merchant-shop-item" data-item-id="{{id}}">
+    <img src="{{img}}" alt="">
+    <div class="merchant-shop-item-copy">
+        <strong>{{name}}</strong>
+        <span>{{typeLabel}}</span>
+    </div>
+    {{#if busy}}
+        <div class="merchant-shop-row-actions">
+            <span class="merchant-shop-blocked"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
+        </div>
+    {{else}}
+        <div class="merchant-shop-row-actions">
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="acquire" data-item-id="{{id}}"
+                    {{#unless canAcquire}}disabled{{/unless}} data-tooltip="Acquire this">
+                <i class="fa-solid fa-hand"></i>
+            </button>
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="give" data-item-id="{{id}}"
+                    data-tooltip="Send to another party member">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+            </button>
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn" data-action="party" data-item-id="{{id}}"
+                    {{#unless canParty}}disabled{{/unless}} data-tooltip="Send to the party inventory">
+                <i class="fa-solid fa-users"></i>
+            </button>
+        </div>
+    {{/if}}
+</div>
