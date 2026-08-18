@@ -161,6 +161,17 @@ flags['coffee-pub-merchant'].shelf = {
 Hard-coding five kinds would leave the sixth idea — seasonal stock, faction-only, consignment — with nowhere
 to go. As presets they are data.
 
+A GM flips a shelf between shown and hidden from the **shop window's shelf header**, not only from the config
+window: that is where you are standing when you decide to bring the good stuff out. The config window is for
+setting a shop up; the shop is for running one. Moving a single item between shelves — dnd5e's own container
+drag — is the fine-grained version and needs nothing from us.
+
+Visibility is deliberately a flag rather than the container's `equipped` state. Equipped is inert on
+containers so it would have worked, and it was considered. Rejected because it is transient state the rest of
+the ecosystem clears on transfer, it can change without anyone deciding to change it — a GM tidying their
+inventory would silently hide a shelf, with nothing to lead them back to the cause — and it would put one of
+the three shelf properties somewhere the other two are not.
+
 **`visible: false` is a permission, not a display filter.** The GM handler refuses a grant from a hidden
 shelf, so a crafted request naming a back-room item fails rather than merely being hidden in the window. It
 is an affordance rather than secrecy: Foundry syncs Actor documents to every client, so a player with a

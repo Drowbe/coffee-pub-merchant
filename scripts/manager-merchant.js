@@ -125,6 +125,26 @@ export class MerchantManager {
         return created ?? null;
     }
 
+    /**
+     * Show or hide a whole shelf. GM-only and written directly: this is the GM
+     * curating their own shop, not a player action, so it does not route through the
+     * request handler.
+     *
+     * Deliberately a flag rather than the container's `equipped` state. Equipped is
+     * inert on containers so it would have worked, but it is transient state the rest
+     * of the ecosystem clears on transfer, it can change without anyone deciding to
+     * change it, and it would put one of the three shelf properties somewhere the
+     * other two are not.
+     */
+    static async setShelfVisible(actor, shelfId, visible) {
+        if (!game.user.isGM) return null;
+        const shelf = actor?.items?.get(shelfId);
+        const config = this.getShelfConfig(shelf);
+        if (!config) return null;
+        await shelf.setFlag(MODULE.ID, SHELF_FLAG, { ...config, visible: Boolean(visible) });
+        return shelf;
+    }
+
     static async setEnabled(actor, enabled) {
         const current = this.getConfig(actor);
         if (!enabled) {

@@ -47,11 +47,15 @@
                     <h3>
                         <span><img class="merchant-shop-shelf-icon" src="{{img}}" alt="">{{label}}</span>
                         <span class="merchant-shop-head-actions">
-                            {{#if hidden}}
-                                {{!-- GM only: a player is never sent this shelf. --}}
-                                <span class="merchant-shop-hidden-tag" data-tooltip="Players cannot see this shelf">
-                                    <i class="fa-solid fa-eye-slash"></i> Hidden
-                                </span>
+                            {{#if canToggle}}
+                                {{!-- GM only. The shop is where you are standing when
+                                      you decide to bring the good stuff out. --}}
+                                <button type="button" class="merchant-shop-shelf-toggle{{#if hidden}} is-hidden{{/if}}"
+                                        data-action="toggleShelf" data-shelf-id="{{id}}"
+                                        data-tooltip="{{#if hidden}}Hidden from players — click to bring it out front{{else}}On display — click to put it away{{/if}}">
+                                    <i class="fa-solid {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                                    {{#if hidden}}Hidden{{else}}Shown{{/if}}
+                                </button>
                             {{/if}}
                             {{#if isBarter}}
                                 <span class="merchant-shop-hidden-tag" data-tooltip="No fixed price; settle it at the table">

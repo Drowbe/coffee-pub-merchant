@@ -86,6 +86,11 @@
 .merchant-shop-head-actions { display: flex; gap: 6px; align-items: center; }
 .merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
 
+/* GM toggle: bring a shelf out front, or put it away, without leaving the shop. */
+.merchant-shop-shelf-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
+.merchant-shop-shelf-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-shelf-toggle.is-hidden { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
+
 /* A hidden shelf is GM-only. Dashed, so it does not read as ordinary stock. */
 .merchant-shop-shelf-hidden { border-style: dashed; border-color: color-mix(in srgb, #8c2f22 30%, var(--blacksmith-tool-divider)); }
 

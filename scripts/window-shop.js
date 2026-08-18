@@ -57,7 +57,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
         acquire: (_event, target, win) => win.run(() => win.acquire(target.dataset.itemId)),
         give: (_event, target, win) => win.run(() => win.giveTo(target.dataset.itemId)),
-        party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId))
+        party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId)),
+        toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId)
     };
 
     constructor(tokenDocument, options = {}) {
@@ -421,6 +422,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     label: config.label || shelf.name,
                     img: shelf.img,
                     hidden: config.visible === false,
+                    canToggle: isGM,
                     isBarter: config.mode === 'barter',
                     items: contents,
                     count: contents.length,
@@ -488,6 +490,27 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 onClick: () => void this.openPrototypeToken()
             }
         ];
+    }
+
+    /**
+     * Bring a shelf out front, or put it away, from the shop itself — which is where
+     * a GM is standing when they decide to. The config window is for setting a shop
+     * up; this is for running one.
+     */
+    async toggleShelf(shelfId) {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const config = MerchantManager.getShelfConfig(merchant?.items?.get(shelfId));
+        if (!config) return;
+        try {
+            await MerchantManager.setShelfVisible(merchant, shelfId, config.visible === false);
+            // Players with the shop open gain or lose a whole section, so tell them.
+            MerchantManager._broadcastRefresh(this.tokenUuid);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not change that shelf:`, error);
+            ui.notifications?.error('Could not change that shelf.');
+        }
     }
 
     async openSheet() {

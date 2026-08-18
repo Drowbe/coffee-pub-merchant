@@ -65,6 +65,10 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] A crafted request naming a back-room item is refused with "That is not for sale."
       *This is the one that matters: hidden must be a refusal, not just a missing section.*
 - [ ] A **Barter** shelf lists its items with "Ask" instead of acquire controls.
+- [ ] A GM sees a **Shown / Hidden** toggle on each shelf header; a player sees none.
+- [ ] Toggling a shelf to Hidden while a player has the shop open makes that whole section vanish for them
+      without either side reopening the window.
+- [ ] Toggling it back brings it out front for them again.
 
 ## 3. The window
 
