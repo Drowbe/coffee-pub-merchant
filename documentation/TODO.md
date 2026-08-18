@@ -27,6 +27,24 @@ These cost Curator real time. They apply here identically and there is no reason
 - **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
   quantity split still renders and still reports a value, so the failure looks like success.
 
+## Catalogue mode (idea, not scheduled)
+
+Shopping remotely — the party browses a merchant's stock without a token on the scene, and orders are
+fulfilled later or at a distance. A standing shop they can reach from anywhere rather than a place they walk
+to.
+
+Worth recording now because it pulls against two things the current design assumes:
+
+- **Interaction is token-shaped.** A shop opens by double-clicking a placed token. A catalogue has no token,
+  so it needs another way in — a journal link, a chat command, a menubar entry, or a scene-independent
+  browser listing every merchant flagged as catalogue-available.
+- **Proximity is currently a non-issue** because a shopkeeper is someone you are standing in front of. A
+  catalogue makes distance the point, which reopens the gating question that was deliberately closed.
+
+It also raises delivery: does an ordered item arrive immediately, at the next rest, or when the party reaches
+the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
+it is built.
+
 ## Open
 
 - **Stocking from compendiums** (`plans/plan-merchant.md` phase 6). A GM-only search-and-add panel in the

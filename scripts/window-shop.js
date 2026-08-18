@@ -1,5 +1,7 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE } from './const.js';
+import { MODULE, ITEM_CATEGORIES } from './const.js';
+import { CompendiumAddWindow } from './window-compendium-add.js';
+import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
 // resolves at call time rather than at module evaluation.
@@ -58,7 +60,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         acquire: (_event, target, win) => win.run(() => win.acquire(target.dataset.itemId)),
         give: (_event, target, win) => win.run(() => win.giveTo(target.dataset.itemId)),
         party: (_event, target, win) => win.run(() => win.sendToParty(target.dataset.itemId)),
-        toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId)
+        toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
+        toggleOpen: (_event, _target, win) => void win.toggleOpen(),
+        addToShelf: (_event, target, win) => void win.openCompendiumAdd(target.dataset.shelfId)
     };
 
     constructor(tokenDocument, options = {}) {
@@ -364,6 +368,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'ITEM_NOT_FOUND': return 'That is no longer in stock.';
             case 'ITEM_NOT_TRANSFERABLE': return 'That is not something you can carry off.';
             case 'NOT_FOR_SALE': return 'That is not for sale.';
+            case 'SHOP_CLOSED': return 'The shop is closed. You can look, but nothing is changing hands.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
                 : 'That container cannot be sold while it holds anything.';
@@ -403,28 +408,49 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const busyRow = this._busy?.row ?? null;
             const isGM = game.user.isGM;
 
+            // A closed shop is browsable but nothing changes hands. The GM is
+            // exempt, so they can stock and test outside opening hours.
+            const trading = MerchantManager.isOpen(merchant) || isGM;
+
             shelves = MerchantManager.getShelves(merchant, { includeHidden: isGM }).map(({ item: shelf, config }) => {
+                const isBarter = config.mode === 'barter';
                 const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => ({
                     id: item.id,
+                    type: item.type,
                     name: item.name,
                     img: item.img,
                     typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
                     busy: item.id === busyRow,
-                    // Barter is a conversation, not a transaction: the row is listed
-                    // so the party knows it exists, but nothing changes hands here.
-                    canAcquire: Boolean(recipient) && config.mode !== 'barter',
-                    canParty: Boolean(party) && config.mode !== 'barter',
-                    isBarter: config.mode === 'barter'
+                    // Barter is a conversation, not a transaction: the row lists so
+                    // the party knows it exists, but nothing changes hands here.
+                    canAcquire: trading && Boolean(recipient) && !isBarter,
+                    canParty: trading && Boolean(party) && !isBarter,
+                    isBarter
                 }));
                 itemCount += contents.length;
+
+                // Grouped by kind within the shelf. A storefront with forty rows is
+                // a wall of text otherwise.
+                const categories = ITEM_CATEGORIES
+                    .map((category) => ({
+                        ...category,
+                        items: contents.filter((item) => item.type === category.type)
+                    }))
+                    .filter((category) => category.items.length > 0);
+
+                const known = new Set(ITEM_CATEGORIES.map((c) => c.type));
+                const other = contents.filter((item) => !known.has(item.type));
+                if (other.length) categories.push({ type: 'other', label: 'Other', icon: 'fa-solid fa-question', items: other });
+
                 return {
                     id: shelf.id,
                     label: config.label || shelf.name,
                     img: shelf.img,
                     hidden: config.visible === false,
                     canToggle: isGM,
-                    isBarter: config.mode === 'barter',
-                    items: contents,
+                    canStock: isGM,
+                    isBarter,
+                    categories,
                     count: contents.length,
                     hasItems: contents.length > 0
                 };
@@ -438,6 +464,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             shelves,
             hasShelves: shelves.length > 0,
             itemCount,
+            isGM: game.user.isGM,
+            isOpen: missing ? false : MerchantManager.isOpen(merchant),
+            // A player looking at a closed shop is browsing, and should be told so
+            // rather than left wondering why nothing works.
+            browsing: !missing && !MerchantManager.isOpen(merchant) && !game.user.isGM,
             busyLabel: this._busy?.label ?? null,
             recipientName: recipient?.name ?? null,
             recipientImg: recipient?.img ?? 'icons/svg/mystery-man.svg',
@@ -478,6 +509,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return [
             ...actions,
             {
+                id: 'merchant-config',
+                icon: 'fa-solid fa-sliders',
+                label: 'Merchant Settings',
+                onClick: () => void this.openConfig()
+            },
+            {
                 id: 'merchant-sheet',
                 icon: 'fa-solid fa-user',
                 label: 'Character Sheet',
@@ -510,6 +547,84 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change that shelf:`, error);
             ui.notifications?.error('Could not change that shelf.');
+        }
+    }
+
+    /**
+     * Each shelf is a drop target, so a GM can drag stock straight onto the shelf it
+     * belongs on — from a compendium, the sidebar, or another sheet.
+     */
+    _onRender(context, options) {
+        super._onRender?.(context, options);
+        if (!game.user.isGM) return;
+
+        for (const zone of this.element?.querySelectorAll('[data-drop-shelf]') ?? []) {
+            if (zone.dataset.merchantBound === 'true') continue;
+            zone.dataset.merchantBound = 'true';
+            const shelfId = zone.getAttribute('data-drop-shelf');
+
+            zone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                zone.classList.add('is-dropping');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('is-dropping'));
+            zone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                zone.classList.remove('is-dropping');
+                void this._onDropToShelf(event, shelfId);
+            });
+        }
+    }
+
+    async _onDropToShelf(event, shelfId) {
+        let data = null;
+        try {
+            data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+        } catch (_error) {
+            return;
+        }
+        // Only Items, and only ones carrying a UUID — grantItem resolves from that.
+        if (data?.type !== 'Item' || !data.uuid) return;
+
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return;
+
+        try {
+            const result = await MerchantManager.addToShelf(merchant, shelfId, data.uuid);
+            if (result?.ok) MerchantManager._broadcastRefresh(this.tokenUuid);
+            else ui.notifications?.error(this._explain(result?.code, result));
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not add that to the shelf:`, error);
+            ui.notifications?.error('Could not add that to the shelf.');
+        }
+        await this.render(false);
+    }
+
+    async openConfig() {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        if (token?.actor) await MerchantConfigWindow.open(token.actor);
+    }
+
+    async openCompendiumAdd(shelfId) {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        if (token?.actor) await CompendiumAddWindow.open(token.actor, shelfId);
+    }
+
+    /** Open or close for business. A closed shop still opens for browsing. */
+    async toggleOpen() {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return;
+        try {
+            await MerchantManager.setOpen(merchant, !MerchantManager.isOpen(merchant));
+            MerchantManager._broadcastRefresh(this.tokenUuid);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not change the shop state:`, error);
+            ui.notifications?.error('Could not change the shop state.');
         }
     }
 

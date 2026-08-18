@@ -53,6 +53,10 @@ export class MerchantManager {
             enabled: true,
             name: null,
             stock: STOCK.INFINITE,
+            // Open for business. A closed shop still opens for browsing — you can
+            // look through the window — but nothing changes hands.
+            open: true,
+            hours: null,
             pricing: { markup: 1.0, overrides: {} }
         };
     }
@@ -60,6 +64,16 @@ export class MerchantManager {
     static async setConfig(actor, changes) {
         const current = this.getConfig(actor) ?? this.defaultConfig();
         return actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...current, ...changes });
+    }
+
+    /** Open for business. A closed shop is browsable but nothing can be acquired. */
+    static isOpen(actor) {
+        return this.getConfig(actor)?.open !== false;
+    }
+
+    static async setOpen(actor, open) {
+        if (!game.user.isGM) return null;
+        return this.setConfig(actor, { open: Boolean(open) });
     }
 
     // ==============================================================
@@ -143,6 +157,29 @@ export class MerchantManager {
         if (!config) return null;
         await shelf.setFlag(MODULE.ID, SHELF_FLAG, { ...config, visible: Boolean(visible) });
         return shelf;
+    }
+
+    /**
+     * Put an item on a shelf from a UUID — a compendium entry, a sidebar item, or
+     * anything else Foundry hands over in a drop payload.
+     *
+     * Two writes, because `grantItem` has no way to say which container the new item
+     * lands in. Worth asking Blacksmith for a `container` option; until then this is
+     * grant-then-place.
+     */
+    static async addToShelf(actor, shelfId, itemUuid, quantity) {
+        if (!game.user.isGM) return { ok: false, code: 'NOT_ALLOWED' };
+        const shelf = actor?.items?.get(shelfId);
+        if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
+
+        const result = await grantItem({ targetActorUuid: actor.uuid, itemUuid, quantity });
+        if (!result?.ok) return result;
+
+        const created = actor.items.get(result.targetItemId);
+        // A merge landed it on an existing row, which may already be on another
+        // shelf. Moving it then would silently relocate stock the GM did not touch.
+        if (created && !result.merged) await created.update({ 'system.container': shelfId });
+        return result;
     }
 
     static async setEnabled(actor, enabled) {
@@ -277,6 +314,8 @@ export class MerchantManager {
         // back-room item has to be refused here, not merely hidden in the window.
         const shelfConfig = this.getShelfConfig(shelf);
         if (shelfConfig.visible === false && !user.isGM) return { ok: false, code: 'NOT_FOR_SALE' };
+
+        if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
 
         const check = this._validateRecipient(payload.recipientUuid, user);
         if (!check.ok) return check;

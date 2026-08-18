@@ -1,0 +1,44 @@
+<div class="merchant-add-content">
+    <section class="merchant-add-search">
+        <label>
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" data-merchant-search placeholder="Search compendiums for stock&hellip;" value="{{query}}">
+        </label>
+        <div class="merchant-add-target">Adding to <strong>{{shelfLabel}}</strong></div>
+    </section>
+
+    {{#if searching}}
+        <div class="merchant-add-note"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching&hellip;</div>
+    {{else if tooShort}}
+        <div class="merchant-add-note">Keep typing &mdash; two characters at least.</div>
+    {{else if hasResults}}
+        {{#if truncated}}
+            {{!-- Reported rather than silently capped: a GM who cannot find a thing
+                  should know the scan stopped early. --}}
+            <div class="merchant-add-note merchant-add-truncated">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Showing the first {{resultCount}}. Narrow the search to see more.
+            </div>
+        {{/if}}
+        {{#each groups}}
+            <section class="merchant-add-group">
+                <h3><span>{{label}}</span><span class="merchant-add-package">{{package}}</span></h3>
+                <div class="merchant-add-list">
+                    {{#each items}}
+                        <button type="button" class="merchant-add-result" data-action="addResult"
+                                data-uuid="{{uuid}}" data-name="{{name}}" data-tooltip="Add to the shelf">
+                            <img src="{{img}}" alt="">
+                            <span class="merchant-add-result-copy">
+                                <strong>{{name}}</strong>
+                                <small>{{type}}</small>
+                            </span>
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    {{/each}}
+                </div>
+            </section>
+        {{/each}}
+    {{else}}
+        <div class="merchant-add-note">{{#if query}}Nothing matched.{{else}}Type to search every mapped compendium.{{/if}}</div>
+    {{/if}}
+</div>

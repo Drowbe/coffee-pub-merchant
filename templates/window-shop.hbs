@@ -20,7 +20,24 @@
                     <div class="merchant-shop-title">{{shopName}}</div>
                     <div class="merchant-shop-description">{{itemCount}} in stock</div>
                 </div>
+                {{#if isGM}}
+                    <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
+                            data-action="toggleOpen"
+                            data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
+                        <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
+                        {{#if isOpen}}Open{{else}}Closed{{/if}}
+                    </button>
+                {{/if}}
             </section>
+
+            {{#if browsing}}
+                {{!-- A player at a closed shop is browsing, and should be told so
+                      rather than left wondering why nothing works. --}}
+                <div class="merchant-shop-browsing">
+                    <i class="fa-solid fa-door-closed"></i>
+                    <span>Closed &mdash; you can look through the window, but nothing is changing hands.</span>
+                </div>
+            {{/if}}
 
             <section class="merchant-shop-section merchant-shop-actor">
                 <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
@@ -62,16 +79,36 @@
                                     <i class="fa-solid fa-comments"></i> Barter
                                 </span>
                             {{/if}}
+                            {{#if canStock}}
+                                <button type="button" class="merchant-shop-shelf-add" data-action="addToShelf" data-shelf-id="{{id}}"
+                                        data-tooltip="Search compendiums and add to this shelf">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            {{/if}}
                             <span class="merchant-shop-count">{{count}}</span>
                         </span>
                     </h3>
-                    {{#if hasItems}}
-                        <div class="merchant-shop-item-list">
-                            {{#each items}}
-                                {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+
+                    {{!-- Drop target for the GM: drag stock straight onto the shelf
+                          it belongs on. --}}
+                    <div class="merchant-shop-shelf-body"{{#if canStock}} data-drop-shelf="{{id}}"{{/if}}>
+                        {{#if hasItems}}
+                            {{#each categories}}
+                                <div class="merchant-shop-category">
+                                    <h4><i class="{{icon}}"></i> {{label}}</h4>
+                                    <div class="merchant-shop-item-list">
+                                        {{#each items}}
+                                            {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                                        {{/each}}
+                                    </div>
+                                </div>
                             {{/each}}
-                        </div>
-                    {{else}}<div class="merchant-shop-empty">Nothing on this shelf.</div>{{/if}}
+                        {{else}}
+                            <div class="merchant-shop-empty">
+                                {{#if canStock}}Nothing on this shelf. Drag items here, or use the + above.{{else}}Nothing on this shelf.{{/if}}
+                            </div>
+                        {{/if}}
+                    </div>
                 </section>
             {{/each}}
         {{else}}

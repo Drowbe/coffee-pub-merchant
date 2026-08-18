@@ -14,10 +14,10 @@ import { MerchantConfigWindow } from './window-merchant-config.js';
  * chain, so hooking the ApplicationV2 name catches any sheet without depending on
  * what dnd5e calls its own classes this version.
  *
- * Two entries by design: **Merchant Settings** is always present, because the way in
- * has to be reachable on an Actor that is not a merchant yet, and it costs one
- * unobtrusive menu row. **Open Shop** appears only once the Actor actually is one, so
- * nothing merchant-shaped clutters an ordinary NPC.
+ * One entry: **Merchant Settings**, always present, because the way in has to be
+ * reachable on an Actor that is not a merchant yet and it costs one unobtrusive menu
+ * row. Opening the shop itself is the token's job — double-click it — so the sheet
+ * carries setup and nothing else.
  */
 function registerSheetControls() {
     Hooks.on('getHeaderControlsApplicationV2', (app, controls) => {
@@ -32,25 +32,6 @@ function registerSheetControls() {
             onClick: () => void MerchantConfigWindow.open(actor)
         });
 
-        if (MerchantManager.isMerchant(actor)) {
-            controls.push({
-                icon: 'fa-solid fa-cart-shopping',
-                label: 'Open Shop',
-                action: 'merchantOpenShop',
-                onClick: () => {
-                    // The shop window is token-shaped, since a shop is opened by
-                    // interacting with a placed token. From the sheet, use the
-                    // Actor's first token on the current scene.
-                    const tokenDocument = actor.getActiveTokens(false, true)[0]
-                        ?? canvas.scene?.tokens.find((t) => t.actorId === actor.id);
-                    if (!tokenDocument) {
-                        ui.notifications?.warn(`${actor.name} has no token on this scene.`);
-                        return;
-                    }
-                    MerchantManager.openSafely(tokenDocument);
-                }
-            });
-        }
     });
 }
 

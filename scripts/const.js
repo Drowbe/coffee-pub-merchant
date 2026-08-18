@@ -96,3 +96,13 @@ export const SHELF_PRESETS = Object.freeze({
         shelf: { label: 'Buyback', order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5 }
     }
 });
+
+/** Stock is grouped under these headings within each shelf, in this order. */
+export const ITEM_CATEGORIES = Object.freeze([
+    { type: 'weapon', label: 'Weapons', icon: 'fa-solid fa-gavel' },
+    { type: 'equipment', label: 'Armor & Gear', icon: 'fa-solid fa-shield-halved' },
+    { type: 'consumable', label: 'Consumables', icon: 'fa-solid fa-flask' },
+    { type: 'tool', label: 'Tools', icon: 'fa-solid fa-screwdriver-wrench' },
+    { type: 'container', label: 'Containers', icon: 'fa-solid fa-box' },
+    { type: 'loot', label: 'Goods', icon: 'fa-solid fa-sack-xmark' }
+]);

@@ -70,9 +70,25 @@ game.modules.get('coffee-pub-merchant').api.merchant
       without either side reopening the window.
 - [ ] Toggling it back brings it out front for them again.
 
+## 2c. Open, closed, and stocking
+
+- [ ] The merchant card shows an **Open / Closed** toggle for the GM; a player sees none.
+- [ ] Close the shop → a player sees a "you can look through the window" notice and **no acquire controls**.
+- [ ] A crafted acquisition against a closed shop is refused with `SHOP_CLOSED`.
+- [ ] The **GM is exempt** — they can still acquire from a closed shop, for stocking and testing.
+- [ ] Toggling open/closed updates a player's open window without either side reopening it.
+- [ ] Shop titlebar has **Merchant Settings**; the character sheet header has it too, but **no Open Shop**.
+- [ ] The **+** on a shelf header opens compendium search; typing two characters returns grouped results.
+- [ ] Clicking a result puts it on that shelf and it appears in the shop.
+- [ ] A search that hits the cap says so rather than silently truncating.
+- [ ] **Drag an item onto a shelf** from a compendium or the sidebar → it lands on that shelf.
+- [ ] Dragging onto a shelf highlights it while hovering.
+- [ ] A player cannot drop onto a shelf.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.
+- [ ] Within a shelf, stock is grouped under Weapons, Armor & Gear, Consumables, Tools, Containers, Goods.
 - [ ] Merchant card is tinted blue, "Buying as" row green, both pinned while stock scrolls.
 - [ ] Resize the window; the pinned header stays put.
 - [ ] Footer reads `[ Done ]` on the left.
