@@ -40,7 +40,7 @@ assert.strictEqual(P.formatBase(1000), '10 gp', 'platinum is written as gold');
 assert.strictEqual(P.formatBase(50), '5 sp', 'electrum is written as silver');
 assert.strictEqual(P.formatBase(102500), '1,025 gp', 'thousands are separated');
 assert.strictEqual(P.formatBase(1250), '12 gp 5 sp', 'and no fractions of a coin');
-assert.strictEqual(P.formatBase(0), '\u2014');
+assert.strictEqual(P.formatBase(0), '0 gp', 'zero is an amount of money, not an absence of one');
 assert.strictEqual(P.formatBase(1), '1 cp');
 console.log('ok  formatting');
 

@@ -70,10 +70,22 @@ function priceDenominations() {
     return preferred.length ? preferred : all;
 }
 
+/**
+ * The denomination a price is quoted in when there is no price to spell out.
+ *
+ * Zero is an amount of money, not an absence of one, so it is written as money:
+ * "0 gp", not a dash. The unit is the one with a conversion of 1 — gold in dnd5e —
+ * because that is what a shop quotes in.
+ */
+function quoteDenomination() {
+    const all = priceDenominations();
+    return all.find((d) => Number(d.conversion) === 1) ?? all[0] ?? baseDenomination();
+}
+
 /** Base units rendered as "3 gp 4 sp", largest coin first, zeroes omitted. */
 export function formatBase(base) {
     const amount = Math.max(0, Math.round(Number(base) || 0));
-    if (!amount) return '—';
+    if (!amount) return `0 ${quoteDenomination().abbreviation.toLowerCase()}`;
     const baseUnit = baseDenomination();
     const parts = [];
     let remaining = amount;

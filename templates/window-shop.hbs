@@ -278,12 +278,10 @@
                                 <i class="fa-solid fa-scroll"></i>
                                 <span>Nothing here yet.</span>
                                 {{#if canSell}}
+                                    {{!-- No button here: Sell is in the header above,
+                                          where it is reachable whether the slate is
+                                          empty or not. --}}
                                     <span class="merchant-shop-cart-hint">Drag something in to sell it.</span>
-                                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-basket-pick"
-                                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
-                                            data-tooltip="{{sellTooltip}}">
-                                        Or choose from your pack
-                                    </button>
                                 {{/if}}
                             </div>
                         {{/if}}
