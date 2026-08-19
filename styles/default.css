@@ -419,24 +419,36 @@
 /* Two columns, both right-aligned, so labels line up down one edge and figures
    down the other. Right-aligned pairs put every label at a different x, which is
    what made the block read as three unrelated notes rather than a sum. */
-/* The gap lives in the label's padding rather than in `column-gap`, so the rule
-   under the total runs unbroken across both columns instead of stopping in the
-   gutter between them. */
-.merchant-shop-cart-sums { display: grid; grid-template-columns: auto auto; justify-content: end; row-gap: 2px; margin: 0; padding: 6px 8px; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+/*
+ * Each figure is a pair of joined chips: the label on a darker fill, the value on a
+ * lighter one. The label column sizes to the longest label and every chip inherits
+ * that width, so the labels align down their right edge and the figures all start
+ * at the same x — which is the alignment that makes three numbers read as a sum.
+ *
+ * No panel behind them: the chips are the fills, and a tint under a tint was the
+ * boxes-in-boxes problem again in miniature.
+ */
+.merchant-shop-cart-sums { display: grid; grid-template-columns: auto minmax(0, 1fr); row-gap: 3px; margin: 0; padding: 0; }
 .merchant-shop-cart-sum { display: contents; }
-.merchant-shop-cart-sum > dt { padding-right: 12px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
-.merchant-shop-cart-sum > dd { margin: 0; font-size: .76rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 
-/* The total is the answer; the two beneath are the working, and a rule separates
-   them the way it would on paper. */
-.merchant-shop-cart-sum-net > dt { align-self: baseline; padding-bottom: 4px; font-size: .68rem; }
-.merchant-shop-cart-sum-net > dd { padding-bottom: 4px; font-size: 1.05rem; }
+.merchant-shop-cart-sum > dt,
+.merchant-shop-cart-sum > dd { margin: 0; padding: 3px 9px; font-size: .72rem; line-height: 1.35; }
+.merchant-shop-cart-sum > dt { border-radius: 4px 0 0 4px; background: color-mix(in srgb, var(--blacksmith-tool-text) 20%, var(--blacksmith-tool-surface-sunken)); color: var(--blacksmith-tool-text); font-weight: 600; letter-spacing: .03em; text-align: right; text-transform: uppercase; white-space: nowrap; }
+.merchant-shop-cart-sum > dd { border-radius: 0 4px 4px 0; background: var(--blacksmith-tool-surface-sunken); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* The total is the answer and the two beneath are the working, so it is the one
+   that is bigger and the one that carries the colour. */
 .merchant-shop-cart-sum-net > dt,
-.merchant-shop-cart-sum-net > dd { border-bottom: 1px solid var(--blacksmith-tool-divider); margin-bottom: 4px; }
+.merchant-shop-cart-sum-net > dd { padding-top: 4px; padding-bottom: 4px; font-size: .82rem; }
+.merchant-shop-cart-sum-net > dd { font-size: .95rem; }
+.merchant-shop-cart-sum:not(.merchant-shop-cart-sum-net) > dt,
+.merchant-shop-cart-sum:not(.merchant-shop-cart-sum-net) > dd { opacity: .82; }
 /* Paying out and taking in are different events; the colour says which before the
    words are read. */
-.merchant-shop-cart-net-pay .merchant-shop-cart-sum-net > dd { color: var(--blacksmith-tool-accent); }
-.merchant-shop-cart-net-receive .merchant-shop-cart-sum-net > dd { color: #3f8a45; }
+/* Paying out and taking in are different events, and the chip says which before
+   the words are read. */
+.merchant-shop-cart-net-pay .merchant-shop-cart-sum-net > dd { background: color-mix(in srgb, var(--blacksmith-tool-accent) 14%, var(--blacksmith-tool-surface-sunken)); color: var(--blacksmith-tool-accent); }
+.merchant-shop-cart-net-receive .merchant-shop-cart-sum-net > dd { background: color-mix(in srgb, #3f8a45 16%, var(--blacksmith-tool-surface-sunken)); color: #2f6b33; }
 .merchant-shop-cart-net-even .merchant-shop-cart-sum-net > dd { color: var(--blacksmith-tool-text-muted); }
 
 /* Segments, not buckets: one cart that happens to run in two directions. */
