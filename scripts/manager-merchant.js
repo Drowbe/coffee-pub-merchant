@@ -7,7 +7,7 @@
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
-    DEFAULT_TILL, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
+    DEFAULT_TILL, SHELF_FLAG, SHELF_MODE, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
 import {
@@ -464,6 +464,25 @@ export class MerchantManager {
             return { policy, unlimited: true, available: Infinity, par: null };
         }
         const available = Math.max(0, Math.trunc(Number(item?.system?.quantity ?? 0)));
+
+        // **A buyback shelf has no restock target, and must not inherit one.** Its stock
+        // is whatever the party sold; there is nothing it is "kept at".
+        //
+        // This is a guard against a real leak, not a tidiness rule. `registerTransientFlag`
+        // makes a flag invisible to *merge comparison* -- it does not strip it from the
+        // payload -- so `par` travels with a bought item into the buyer's inventory and
+        // back again if they sell it. A bedroll bought from a shelf kept at six arrives
+        // on the buyback shelf still claiming a par of six, and the next Restock
+        // Everything manufactures five bedrolls the shop never had, from a target it
+        // never set.
+        //
+        // Blacksmith's `omitFlags` will stop the flag arriving at all. This stays after
+        // that lands: it is correct on its own terms, and it covers every item already in
+        // a world with the flag on it.
+        if (config?.mode === SHELF_MODE.BUYBACK) {
+            return { policy, unlimited: false, available, par: available };
+        }
+
         const stored = Number(item?.getFlag(MODULE.ID, PAR_FLAG));
 
         // No par flag means "as many as are there", which is right for something a GM

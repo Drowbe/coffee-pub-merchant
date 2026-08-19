@@ -105,6 +105,18 @@ assert.strictEqual(parOf(0, 6), 6, 'a sold-out shelf still knows what it keeps')
 assert.strictEqual(parOf(0, -2), 0, 'a negative par clamps rather than growing stock');
 assert.strictEqual(parOf(2, 4.7), 4, 'a fractional par truncates');
 assert.strictEqual(PAR_FLAG, 'par');
+
+// A buyback shelf ignores a stored par entirely: its stock is whatever the party
+// sold it, and there is nothing it is "kept at". This guards a real leak --
+// registerTransientFlag hides a flag from merge comparison but does not strip it
+// from the payload, so `par` travels out with a bought item and back in when it is
+// sold. A bedroll bought from a shelf kept at six would otherwise arrive on the
+// buyback shelf claiming a par of six, and the next restock would manufacture five
+// bedrolls from a target the shop never set.
+const parFor = (mode, quantity, flag) => (mode === 'buyback' ? quantity : parOf(quantity, flag));
+assert.strictEqual(parFor('buyback', 1, 6), 1, 'a buyback shelf ignores a par that rode in');
+assert.strictEqual(parFor('buyback', 1, undefined), 1, 'and has none of its own either');
+assert.strictEqual(parFor('sale', 1, 6), 6, 'while an ordinary shelf still keeps what it keeps');
 console.log('ok  par resolution');
 
 // --- trading hours: open is derived, never stored ------------------------

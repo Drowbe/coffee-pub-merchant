@@ -88,6 +88,11 @@ A purchase lowers the count and leaves par alone.
 Because Merchant writes flags to Items that `blacksmith.inventory` moves, both `par` and `shelf` are
 registered with `registerTransientFlag` at startup. **If you add a flag that lives on an item, register it.**
 
+**Registering is not stripping.** `registerTransientFlag` makes a path invisible to *merge comparison*; the
+flag still rides along in the payload. So `par` leaves with every item bought from a counted shelf and comes
+back if the buyer sells it — which is why `getStock` refuses to read a par on a buyback shelf. Blacksmith's
+`omitFlags` will stop it arriving at all; the guard stays regardless, for items already out there.
+
 ---
 
 ## 4. Stock is a count, not a document

@@ -154,10 +154,49 @@ nothing in the money path is blocked any more.
     an out-of-date Blacksmith, because the symptom otherwise looks like a Merchant bug.
   - **Caller identity — open, and agreed as a known hole.** Nothing to build. `gm-request.js` is a deletion
     when it lands. **Do not build a mitigation.**
-  - **`setCurrency` — accepted, not yet built.** Blacksmith identified a sharper reason than the one asked
-    with: the till takes part in locked operations, so the direct write races `exchange`. Treat
-    `setTillGold` as a known race until the primitive ships, then switch.
-  - **Extractions — (c) and (d) agreed, (a) has an open question, see `plans/plan-extraction.md`.**
+  - **`setCurrency` — approved, being built. Shape known; do not use until Drowbe has committed.**
+
+    ```js
+    await blacksmith.inventory.setCurrency({ targetActorUuid, currency: { gp: 250 } });
+    // { ok: true, currency: { gp: 250 }, previous: { gp: 40 } }
+    ```
+
+    Three things differ from what was asked for, each worth knowing before writing against it:
+    - **It is not GM-gated, and must not be.** `api.inventory` owns no permission checks anywhere — that is
+      the rule the whole surface rests on. **We gate it.** `setTillGold` already checks `game.user.isGM`,
+      so the call site needs no change on that account.
+    - **Only the denominations named are written.** `{ gp: 250 }` leaves silver alone rather than zeroing
+      it. Do not assume the omitted ones are cleared.
+    - **It returns `previous`.** A GM setting a till by hand is exactly the operation somebody wants to
+      undo, and that value is otherwise gone. Worth surfacing rather than discarding.
+
+    Until it ships, `setTillGold` is a **known race**, not a preference: the raw write bypasses the
+    inventory mutex, so a GM editing the till while a purchase settles can have their edit silently
+    overwritten by `exchange` writing `current + delta` from a read taken before it.
+  - **`omitFlags` — approved, being built. Fixes a live leak of ours.**
+
+    ```js
+    await blacksmith.inventory.exchange({ transfers: [...], omitFlags: ['coffee-pub-merchant.par'] });
+    ```
+
+    Call-level on `grantItem`, `grantItems`, `transferItem`, `transferItems` and `exchange`. Named paths
+    are deleted from the arrival payload before our own `flags` are merged, so declaring a path in both is
+    coherent.
+
+    **Why we need it.** `registerTransientFlag` hides a flag from *merge comparison*; it does not strip it
+    from the payload. So `par` travels out on every item bought from a counted shelf, sits in the buyer's
+    inventory, and travels back if they sell it. See the buyback guard in `getStock` for what that caused.
+
+    When it lands: pass `omitFlags: ['coffee-pub-merchant.par']` on the goods legs in `_goodsTransfers`.
+    **Pass the same path in `ignoreFlags` too, for a while.** Items bought *before* this lands carry `par`
+    on the buyer's rows, so an arrival without it will not merge with them — a silent, self-inflicted
+    duplicate-row bug with a long tail. Blacksmith flagged this; it is the kind of migration cost that is
+    invisible until somebody reports "it made a second stack".
+
+    The `getStock` buyback guard **stays** after this ships. It is correct on its own terms and it covers
+    every item already in a world with the flag on it.
+
+  - **Extractions — (c) and (d) agreed, (a) resolved in our favour, see `plans/plan-extraction.md`.**
 
   **This is a relationship, not a file.** Somebody has to own the reply, take the answer, and delete our
   side of it when each lands. If nobody owns it, workarounds quietly become the design.

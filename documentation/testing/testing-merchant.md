@@ -181,6 +181,12 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Restocking a single shelf, from either window, shows the same bar.
 - [ ] Delete stock rows **as fast as you can click** → no `Item "..." does not exist!` in the console.
 
+## 2d-vi. The par leak
+
+- [ ] Set a restocking shelf to keep **6** of something. Buy one as a player.
+- [ ] Sell it back to the merchant. It lands on the Buyback shelf.
+- [ ] Press **Restock Everything** → that buyback row stays at **1**. It must not become 6.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

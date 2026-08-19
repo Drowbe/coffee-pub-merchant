@@ -155,6 +155,25 @@ Blacksmith rather than in each consumer — either `attach()` reports failure to
 expose a `readFrom(root)` that works whether or not binding succeeded. Then the fallback leaves both modules
 and does not need a home.
 
-**Still to do:** the empirical check they asked for. Delete the fallback in one module, use the dialog, and
-see whether anything changes. That needs a running world.
+**Resolved, 2026-08-19 — and the defect was theirs.**
+
+> `attach()` returns the controller and silently no-ops when it cannot find its input. quantity-split does
+> `if (!input) return controller;` and entity-list does `if (!root) return controller;`. Neither tells the
+> caller anything. So a consumer writing a fallback is compensating for a failure the hub detected and threw
+> away — the same defect class as the doc that said listeners survive.
+
+Of the two shapes proposed, **`readFrom(root)` is the one that deletes our code**, and their reasoning is
+better than ours was: reading at submit time should not depend on binding at all. `getValue()` returns state
+maintained by a listener, so an unbound control reports its *initial* value — quietly wrong — whereas
+reading the input out of the DOM is correct either way. Binding stays for what it is actually for: live
+captions and `onChange`. `attach()` reporting failure is worth having too, but it only lets a consumer write
+a *better* fallback rather than stop writing one.
+
+They also let us off the empirical check, and were right to: a silently no-op `attach()` is a defect on its
+own terms, so the fix stands whether or not our fallback is currently reachable.
+
+**When `readFrom` lands:** delete the fallback from `_askQuantity` in both modules and re-measure. What is
+left is a label-parameterised dialog, which may well be a documented recipe rather than a helper — and that
+is a fine place for this to land. An extraction that dissolves because the underlying defect was fixed is a
+better outcome than the helper.
 
