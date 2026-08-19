@@ -632,3 +632,13 @@
 /* Price then delete, so the column order matches the markup after the move. */
 .merchant-shop-cart-total { grid-column: 4; }
 .merchant-shop-cart-remove { grid-column: 5; justify-self: end; }
+
+/* Columns that do not move between rows. Each line is its own grid, so `auto`
+   sized the quantity to its own contents and every differently-sized number shunted
+   the price and the delete along with it. Fixed at both ends now: the quantity
+   column is one width whatever is in it, and the delete sits at a fixed edge so
+   prices align on their right regardless of length. */
+.merchant-shop-cart-line { grid-template-columns: 26px minmax(0, 1fr) 3.6em auto 16px; }
+.merchant-shop-cart-qty { text-align: right; }
+/* A space after the multiplication sign, which "×5" reads badly without. */
+.merchant-shop-cart-qty > strong { margin-left: .28em; }
