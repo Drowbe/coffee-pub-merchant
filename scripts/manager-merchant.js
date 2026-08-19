@@ -6,9 +6,9 @@
 
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
-    SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
+    DEFAULT_TILL, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
-import { grantItem, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
+import { grantItem, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
 import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -161,6 +161,25 @@ export class MerchantManager {
                 console.error(`${MODULE.TITLE} | Could not apply the schedule for ${actor.name}:`, error);
             }
         }
+    }
+
+    /**
+     * Set the gold in the till.
+     *
+     * **Written directly, and this is the one place Merchant touches currency without
+     * `api.inventory`.** The primitives move deltas between purses and refuse negative
+     * amounts, so there is no way to express "this shop now holds 40 gp" when it holds
+     * 250 — and this is not a transaction, it is a GM editing an NPC's own purse, the
+     * same thing dnd5e's sheet does. Nothing leaves or arrives anywhere.
+     *
+     * Only gold, so a shop with mixed coin does not lose its silver to a round number
+     * typed in a settings box.
+     */
+    static async setTillGold(actor, gold) {
+        if (!game.user.isGM || !actor) return null;
+        const value = Math.max(0, Math.trunc(Number(gold) || 0));
+        await actor.update({ 'system.currency.gp': value });
+        return actor;
     }
 
     // ==============================================================
@@ -337,6 +356,16 @@ export class MerchantManager {
         // config path something to look at.
         if (!this.getShelves(actor, { includeHidden: true }).length) {
             await this.addShelf(actor, 'storefront');
+        }
+
+        // And a merchant with no coin cannot buy anything, which surfaces later as a
+        // refusal a GM has no reason to expect. Only ever on an empty purse, so a
+        // shop deliberately emptied stays that way.
+        if (purseValue(actor) === 0) {
+            const seeded = await grantCurrency({ targetActorUuid: actor.uuid, currency: { ...DEFAULT_TILL } });
+            if (!seeded?.ok) {
+                console.warn(`${MODULE.TITLE} | Could not seed the till for ${actor.name}:`, seeded);
+            }
         }
         return this.getConfig(actor);
     }

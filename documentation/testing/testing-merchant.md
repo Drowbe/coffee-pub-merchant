@@ -318,6 +318,17 @@ it is wired to the box and survives the things that redraw the window.
 - [ ] A GM searching still sees hidden shelves among the results, still marked hidden.
 - [ ] Close and reopen the shop → the search is **empty**, not yesterday's filter.
 
+## 2h2. The till
+
+- [ ] Mark a fresh NPC as a merchant → Settings shows a **Till** of 250 gp.
+- [ ] Mark one that already has coin → its purse is **not** topped up.
+- [ ] Empty the till to 0 → the section warns that nothing can be bought from the party.
+- [ ] Set it to 40 → the header total and the field agree.
+- [ ] Give the merchant 50 sp by hand, then set the gold field → **the silver survives**.
+- [ ] Sell to a shop with an empty till → refused, and the message reads "nothing in the till", not "— in
+      the till".
+- [ ] Try to buy something you cannot afford → "nothing held" rather than "— held", when you have no coin.
+
 ## 2i. Selling
 
 The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.

@@ -54,6 +54,16 @@ export async function grantItem(request) {
     return api.grantItem(request);
 }
 
+/** Add coin to an Actor. Deltas only, and never negative — see api-inventory.md. */
+export async function grantCurrency(request) {
+    const api = inventoryApi();
+    if (typeof api?.grantCurrency !== 'function') {
+        console.error(`${MODULE.TITLE} | api.inventory is unavailable; grantCurrency refused.`);
+        return { ok: false, code: 'INVENTORY_UNAVAILABLE' };
+    }
+    return api.grantCurrency(request);
+}
+
 /**
  * A list of directed transfers, all committing or none.
  *

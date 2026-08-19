@@ -3,6 +3,7 @@ import {
     MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
+import { purseValue, formatBase } from './merchant-pricing.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
@@ -122,6 +123,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        const till = this.element?.querySelector('[data-merchant-till]');
+        if (till && till.dataset.merchantBound !== 'true') {
+            till.dataset.merchantBound = 'true';
+            till.addEventListener('change', (event) => void this._setTill(event.target.value));
+        }
+
         const stock = this.element?.querySelector('[data-merchant-stock]');
         if (stock && stock.dataset.merchantBound !== 'true') {
             stock.dataset.merchantBound = 'true';
@@ -172,6 +179,20 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             ui.notifications?.error('Could not update this merchant.');
         }
         if (redraw) await this.render(false);
+    }
+
+    /** What the shop can pay out. A merchant with an empty till cannot buy anything. */
+    async _setTill(value) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setTillGold(actor, value);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set the till:`, error);
+            ui.notifications?.error('Could not set the till.');
+        }
+        await this.render(false);
     }
 
     /** The shop-wide default. A shelf may still say otherwise. */
@@ -463,6 +484,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             hasHours: Boolean(hours),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
             description: MerchantManager.getConfig(actor)?.description ?? '',
+            tillGold: Math.trunc(Number(actor?.system?.currency?.gp ?? 0)),
+            tillLabel: enabled ? formatBase(purseValue(actor)) : null,
+            tillEmpty: enabled && purseValue(actor) === 0,
             kindOptions: SHOP_KINDS.map((option) => ({
                 value: option.key,
                 label: option.label,

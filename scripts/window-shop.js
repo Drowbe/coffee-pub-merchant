@@ -846,8 +846,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'NOT_FOR_SALE': return 'That is not for sale.';
             case 'SHOP_CLOSED': return 'The shop is closed. You can look, but nothing is changing hands.';
             case 'EXCHANGE_UNAVAILABLE': return 'Buying and selling are waiting on a Blacksmith update.';
-            case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} held.`;
-            case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${formatBase(result?.held)} in the till.`;
+            case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} held.`;
+            // `formatBase` renders nothing as an em dash, which is right in a price
+            // column and reads as a missing word in a sentence.
+            case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} in the till.`;
             case 'NOT_PRICED': return 'That has no price set.';
             case 'OUT_OF_STOCK': return result?.itemName
                 ? `${result.itemName} is out of stock.`

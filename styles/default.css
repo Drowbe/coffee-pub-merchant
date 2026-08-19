@@ -349,3 +349,7 @@
 .merchant-shop-basket { margin-top: 10px; border-color: color-mix(in srgb, #8a6a2f 30%, var(--blacksmith-tool-divider)); }
 .merchant-shop-basket.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
 .merchant-shop-basket-pick { min-height: 24px; margin: 4px 0 0; padding: 2px 10px; font-size: .66rem; text-transform: none; }
+
+/* The till's total sits in the header pill, so the number field below can be just
+   the gold without having to carry the whole purse. */
+.merchant-config-till-total { border-radius: 5px; font-variant-numeric: tabular-nums; }

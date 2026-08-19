@@ -191,6 +191,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refuse what the merchant would not take, and refuse a packed container **in front of** the quantity dialog
   rather than after it.
 
+- **A shop starts with money** (`scripts/const.js`, `scripts/manager-merchant.js`,
+  `scripts/window-merchant-config.js`): marking an Actor as a merchant seeds 250 gp when its purse is
+  completely empty, and Merchant Settings gained a **Till** section showing what the shop holds and letting a
+  GM set the gold. An empty till says so, because a merchant that cannot buy anything only reveals it when
+  the party tries to sell — *"the merchant cannot cover that"* is a poor way to learn a till exists.
+
+  Seeded only on an empty purse, so a shop a GM has deliberately cleaned out stays that way. The setter
+  writes gold alone, so a shop holding silver does not lose it to a round number typed into a box.
+
+  **`setTillGold` is the one place Merchant touches currency without `api.inventory`.** The primitives move
+  deltas between purses and refuse negative amounts, so "this shop now holds 40 gp when it holds 250" is not
+  expressible — and this is not a transaction, it is a GM editing an NPC's own purse the way dnd5e's sheet
+  does. Nothing leaves or arrives anywhere. The seeding *is* a grant and goes through `grantCurrency`.
+- **Two messages said "—" where they meant "nothing"** (`scripts/window-shop.js`): `formatBase` renders zero
+  as an em dash, which is right in a price column and reads as a missing word in a sentence.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

@@ -55,6 +55,18 @@ export const STOCK = Object.freeze({
  */
 export const PAR_FLAG = 'par';
 
+/**
+ * What a shop starts with in the till when it is first marked as a merchant.
+ *
+ * A merchant with no coin cannot buy anything, and "the merchant cannot cover that"
+ * is a confusing first experience for a GM who has just set a shop up and does not
+ * yet know a till is a thing. Seeded once, on enabling, and only when the Actor has
+ * no coin at all — so it never quietly tops up a shop a GM has deliberately emptied.
+ *
+ * Editable per shop in Merchant Settings afterwards.
+ */
+export const DEFAULT_TILL = Object.freeze({ gp: 250 });
+
 /** Days between restocks when a shelf does not say otherwise. */
 export const DEFAULT_RESTOCK_DAYS = 1;
 
