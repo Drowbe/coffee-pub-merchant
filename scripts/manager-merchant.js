@@ -468,7 +468,10 @@ export class MerchantManager {
         // dropped on a shelf and never thought about again -- and is why a row that
         // only ever arrived by table roll creeps upward: each delivery raises the
         // quantity, which raises the target, which the next restock then protects.
-        // The per-item ceiling is what bounds that.
+        //
+        // Read through the ceiling as well as written through it, because a shelf's
+        // limit can be lowered after a target was set and the stored flag would then
+        // be the higher of the two.
         const raw = Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : available;
         const par = Math.min(raw, this.getShelfLimits(config).maxPerItem);
         return { policy, unlimited: false, available, par };
@@ -499,12 +502,21 @@ export class MerchantManager {
         if (!game.user.isGM) return null;
         const item = actor?.items?.get(itemId);
         if (!item) return null;
-        const value = Math.max(0, Math.trunc(Number(quantity) || 0));
+
+        const wanted = Math.max(0, Math.trunc(Number(quantity) || 0));
+        // Clamped to the shelf's ceiling rather than accepted and quietly undone.
+        // Storing 10 under a limit of 5 would leave the row reading 10 while its
+        // restock target read 5 -- two numbers disagreeing with no way to see why.
+        // One number governs, and the shelf's limit is where it is raised.
+        const shelfConfig = this.getShelfConfig(this.getShelfFor(actor, item));
+        const { maxPerItem } = this.getShelfLimits(shelfConfig);
+        const value = Math.min(wanted, maxPerItem);
+
         await item.update({
             'system.quantity': value,
             [`flags.${MODULE.ID}.${PAR_FLAG}`]: value
         });
-        return item;
+        return { item, value, clamped: value !== wanted, maxPerItem };
     }
 
     /**

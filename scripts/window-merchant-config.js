@@ -667,6 +667,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             openLabel: formatHour(hours?.open ?? Math.min(9, max)),
             closeLabel: formatHour(hours?.close ?? Math.min(18, max)),
             maxHour: max,
+            dayStartLabel: formatHour(0),
+            dayEndLabel: formatHour(max),
             overridden: enabled && MerchantManager.isOverridden(actor),
             shelves,
             shelfCount: shelves.length,

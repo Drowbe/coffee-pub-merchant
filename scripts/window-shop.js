@@ -1229,7 +1229,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const merchant = token?.actor;
         if (!merchant) return;
         try {
-            await MerchantManager.setStockQuantity(merchant, stockId, next);
+            const result = await MerchantManager.setStockQuantity(merchant, stockId, next);
+            // Silently correcting a number a GM typed is how you get somebody
+            // re-typing it, so say what happened and where the limit lives.
+            if (result?.clamped) {
+                ui.notifications?.info(
+                    `This shelf holds at most ${result.maxPerItem} of any one thing, so that is ${result.value}. `
+                    + 'Raise the shelf’s "each" limit in Merchant Settings to keep more.'
+                );
+            }
             MerchantManager.broadcastActorRefresh(merchant);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);

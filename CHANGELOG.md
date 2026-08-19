@@ -484,6 +484,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dnd5e's own delete prompt so a container asks about its contents. Setting a quantity to zero says *sold
   out*, and a restocking shelf brings it back; this says the shelf no longer carries it.
 
+- **A typed quantity is clamped to the shelf's ceiling, and says so** (`scripts/manager-merchant.js`,
+  `scripts/window-shop.js`): typing 10 into a row on a shelf that holds 5 of anything used to store 10 while
+  the restock target read 5 — two numbers disagreeing with nothing to explain why. It clamps now and tells
+  you where the limit is raised. One number governs.
+- **The trading-hours slider reads against the day** (`templates/window-merchant-config.hbs`): the day's ends
+  flank the track, because a band means nothing without the span it sits in. The chosen hours read as one
+  phrase above it rather than two labels facing each other, with the opening figure green and the closing one
+  red to match their handles. Deeper channel, larger handles.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

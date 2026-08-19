@@ -180,14 +180,25 @@
 .merchant-shop-override { margin-top: 5px; color: #a4432f; font-size: .66rem; }
 
 .merchant-config-hours { display: flex; flex-direction: column; gap: 8px; }
-.merchant-config-hours-readout { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .78rem; }
+.merchant-config-hours-readout { font-size: .8rem; }
+/* The chosen hours read as one phrase rather than two facing labels, and the
+   figures carry the colour their handles do. */
+.merchant-config-hours-readout [data-hours-open-label] { color: #2f6b33; }
+.merchant-config-hours-readout [data-hours-close-label] { color: #a4432f; }
+
+/* The day's ends flank the track: a band means nothing without the span it sits
+   in. */
+.merchant-config-hours-row { display: flex; align-items: center; gap: 10px; }
+.merchant-config-hours-bound { flex: 0 0 auto; color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.merchant-config-hours-row > .merchant-config-hours-slider { flex: 1 1 auto; min-width: 0; }
 .merchant-config-hours-readout strong { font-variant-numeric: tabular-nums; }
 .merchant-config-hours-clear { min-height: 22px; margin: 0; padding: 1px 9px; font-size: .64rem; text-transform: none; }
 
 /* Two range inputs stacked into one track: the track is inert and only the thumbs
    take pointer events, so either end can be grabbed wherever it sits. */
 .merchant-config-hours-slider { position: relative; height: 26px; }
-.merchant-config-hours-slider::before { content: ''; position: absolute; top: 11px; right: 0; left: 0; height: 4px; border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); }
+/* A sunk channel with a rim, so the band inside it reads as filling something. */
+.merchant-config-hours-slider::before { content: ''; position: absolute; top: 9px; right: 0; left: 0; height: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); }
 .merchant-config-hours-slider input[type="range"] { position: absolute; top: 0; left: 0; width: 100%; height: 26px; margin: 0; padding: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
 .merchant-config-hours-slider input[type="range"]::-webkit-slider-thumb { width: 15px; height: 15px; border: 2px solid var(--blacksmith-tool-background, #fff); border-radius: 50%; background: var(--blacksmith-tool-accent); box-shadow: 0 1px 3px rgba(0,0,0,.4); pointer-events: auto; cursor: grab; -webkit-appearance: none; appearance: none; }
 .merchant-config-hours-slider input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
@@ -195,7 +206,7 @@
    schedule shades both ends rather than the middle. Green matches the Open toggle,
    so the same colour means the same thing in both windows. */
 .merchant-config-hours-slider { --merchant-open-bar: #2f6b33; }
-.merchant-config-hours-fill { position: absolute; top: 11px; right: 0; left: 0; height: 4px; border-radius: 999px; }
+.merchant-config-hours-fill { position: absolute; top: 10px; right: 1px; left: 1px; height: 6px; border-radius: 999px; }
 .merchant-config-hours-note { color: #a4432f; font-size: .68rem; }
 
 /* --- Prices and coin -------------------------------------------------- */
@@ -296,6 +307,10 @@
    nearly invisible on the light themes -- so the colour that has to read is on
    the thing you grab. The band is thicker and lighter here for the same reason. */
 .merchant-config-hours-slider { --merchant-open-bar: #3f8a45; }
+/* Bigger, rounder handles that sit on the channel rather than in it, and read as
+   grabbable at a glance. */
+.merchant-config-hours-slider input[type="range"]::-webkit-slider-thumb { width: 17px; height: 17px; border-width: 2px; }
+.merchant-config-hours-slider input[type="range"]::-moz-range-thumb { width: 17px; height: 17px; border-width: 2px; }
 .merchant-config-hours-slider::before,
 .merchant-config-hours-fill { top: 10px; height: 6px; }
 

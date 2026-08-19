@@ -32,19 +32,24 @@
             <div class="merchant-config-hours">
                 <div class="merchant-config-hours-readout">
                     {{#if hasHours}}
-                        <span>Opens <strong data-hours-open-label>{{openLabel}}</strong></span>
-                        <span>Closes <strong data-hours-close-label>{{closeLabel}}</strong></span>
+                        Open <strong data-hours-open-label>{{openLabel}}</strong>
+                        to <strong data-hours-close-label>{{closeLabel}}</strong>
                     {{else}}
-                        <span>No schedule &mdash; open and closed by hand.</span>
+                        No schedule &mdash; open and closed by hand.
                     {{/if}}
                 </div>
 
-                {{!-- Two ranges stacked into one track, so a single control carries
-                      both ends. --}}
-                <div class="merchant-config-hours-slider" data-hours-slider>
-                    <div class="merchant-config-hours-fill" data-hours-fill></div>
-                    <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
-                    <input type="range" min="0" max="{{maxHour}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                {{!-- The day's ends flank the track, so the band is read against the
+                      whole day rather than against nothing. Two ranges stacked into
+                      one track, so a single control carries both handles. --}}
+                <div class="merchant-config-hours-row">
+                    <span class="merchant-config-hours-bound">{{dayStartLabel}}</span>
+                    <div class="merchant-config-hours-slider" data-hours-slider>
+                        <div class="merchant-config-hours-fill" data-hours-fill></div>
+                        <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
+                        <input type="range" min="0" max="{{maxHour}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                    </div>
+                    <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
                 </div>
 
                 {{#if overridden}}

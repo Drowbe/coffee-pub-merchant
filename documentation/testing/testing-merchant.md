@@ -97,7 +97,10 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 ## 2d. Trading hours
 
-- [ ] Config shows a two-ended slider; dragging either end updates the labels and the filled band live.
+- [ ] The slider is flanked by the first and last hour of the day.
+- [ ] The readout reads as one phrase — "Open 7:00 AM to 6:00 PM" — with the opening hour green and the
+      closing hour red, matching their handles.
+- [ ] Dragging either end updates the labels and the filled band live.
 - [ ] Releasing writes once — a drag across twelve hours is one update, not twelve.
 - [ ] Setting hours applies immediately: set 9–6 during the day and the shop opens without touching the clock.
 - [ ] The shop's merchant box shows the hours beside the stock count.
@@ -198,6 +201,11 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
 #### Shelf ceilings
+
+- [ ] Type a quantity **above** a shelf's "each" limit → it clamps, and says where to raise the limit.
+- [ ] Raise the limit, type it again → it takes.
+- [ ] Lower a shelf's limit **below** an existing row's quantity → nothing is deleted, and the row's restock
+      target reads the new, lower limit.
 
 - [ ] A new shelf shows **25 products** and **20 each**.
 - [ ] Fill a shelf to its product ceiling, then restock from a table → no new rows appear, and existing rows
