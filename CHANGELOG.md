@@ -259,6 +259,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The GM handler is down to one operation. It was four this morning.
 
+- **One cart, two segments, total pinned to the top** (`templates/window-shop.hbs`,
+  `styles/default.css`): the cart and the sell basket are one panel with **Buying** and **Selling** segments
+  and one running net, pinned at the top so it is on screen however long the list gets. A total you have to
+  scroll to find is a total you stop trusting, and a cart list is exactly what gets long enough to hide one.
+  The net reads "You pay", "You receive" or "Even trade" and is coloured accordingly, because a bare number
+  makes the shopper work out which direction it runs.
+
+  Segments rather than buckets follows from settlement being one press: two panels with two totals described
+  a transaction that no longer exists. **It also makes the whole panel the drop target.** An item a character
+  is carrying can only be sold, so the cart already knows which way a drop goes — aiming at the right half
+  was asking the user to state something the panel could work out.
+- **The search is pinned to the stock list** (`styles/default.css`): it filters that list, so it travels with
+  that column and sticks to the top of it rather than sitting in the window header several rows away from
+  what it acts on.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

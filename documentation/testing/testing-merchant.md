@@ -234,6 +234,25 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The same with the GM's free-take, and with one player buying while another checks out a cart.
 - [ ] Neither player's window is left showing a stale count afterwards.
 
+### The cart panel
+
+- [ ] Cart and Selling are **one panel** with two segments, not two panels.
+- [ ] The total sits at the **top** and stays there while the list scrolls.
+- [ ] It reads "You pay", "You receive" or "Even trade" and matches the direction of the difference.
+- [ ] Each segment shows its own subtotal.
+- [ ] **Drop an item anywhere on the panel** — over the Buying segment, over the total, over empty space —
+      and it lands in Selling. There is no wrong half to aim at.
+- [ ] The whole panel highlights while dragging over it.
+- [ ] The single clear button empties **both** segments.
+- [ ] Empty, the panel says so and offers *Or choose from your pack*.
+
+### Search
+
+- [ ] The search box sits **above the stock list**, inside that column.
+- [ ] Scroll the stock list → the search stays put.
+- [ ] Scroll the cart → the search does not move either; they are separate scrollers.
+- [ ] It does not sit in the window header any more, so a shop with a long description does not push it down.
+
 ### Settling
 
 One button in the footer settles the whole visit. Its label is part of the design, not decoration.

@@ -80,9 +80,14 @@
                 {{/if}}
             </section>
 
-            {{#if hasShelves}}
-                {{!-- Last in the pinned block, so it reads as "filter what is below"
-                      and stays put while the stock scrolls under it. --}}
+        </div>
+
+        <div class="merchant-shop-columns">
+            <div class="merchant-shop-stock">
+        {{#if hasShelves}}
+                {{!-- Pinned to the top of the stock column: it belongs to the list it
+                      filters, not to the window, and stays put while that list scrolls
+                      under it. --}}
                 <section class="merchant-shop-section merchant-shop-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="search" placeholder="Search this shop" aria-label="Search stock"
@@ -92,12 +97,6 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </section>
-            {{/if}}
-        </div>
-
-        <div class="merchant-shop-columns">
-            <div class="merchant-shop-stock">
-        {{#if hasShelves}}
             {{#each shelves}}
                 <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
                     <h3>
@@ -163,108 +162,98 @@
             </div>
 
             {{#if hasShelves}}
-                {{!-- To the right of the stock, where a shopper expects it, and sticky
-                      so it stays in view while the list scrolls under it. It wraps
-                      underneath on a narrow window — see the flex-basis rules. --}}
-                <aside class="merchant-shop-cart-column">
+                {{!-- One cart, two segments.
+                      Buying and selling are one settlement, so they are one panel with
+                      a running total rather than two buckets with two. It also means
+                      the *whole* panel is the drop target: an item off a character
+                      sheet can only be sold, so aiming at a sub-panel was asking the
+                      user to know something the panel already knows. --}}
+                <aside class="merchant-shop-cart-column" data-drop-sell>
                     <section class="merchant-shop-section merchant-shop-cart">
-                        <h3>
-                            <span><i class="fa-solid fa-cart-shopping"></i> Cart</span>
-                            <span class="merchant-shop-head-actions">
-                                {{#if hasCart}}
-                                    <button type="button" class="merchant-shop-cart-clear" data-action="clearCart"
+                        {{!-- Pinned, so the total is on screen however long the list
+                              gets. A total you have to scroll to find is a total you
+                              stop trusting. --}}
+                        <header class="merchant-shop-cart-head">
+                            <div class="merchant-shop-cart-title">
+                                <span><i class="fa-solid fa-cart-shopping"></i> Cart</span>
+                                {{#if hasAnything}}
+                                    <button type="button" class="merchant-shop-cart-clear" data-action="clearAll"
                                             data-tooltip="Empty the cart">
                                         <i class="fa-solid fa-xmark"></i>
                                     </button>
                                 {{/if}}
-                                <span class="merchant-shop-count">{{cartCount}}</span>
-                            </span>
-                        </h3>
+                            </div>
+                            <div class="merchant-shop-cart-net merchant-shop-cart-net-{{netDirection}}">
+                                <span>{{netLabel}}</span>
+                                <strong>{{netTotalLabel}}</strong>
+                            </div>
+                        </header>
 
-                        {{#if hasCart}}
-                            <div class="merchant-shop-cart-list">
-                                {{#each cart}}
-                                    <div class="merchant-shop-cart-line">
-                                        <img src="{{img}}" alt="">
-                                        <span class="merchant-shop-cart-name">{{name}}</span>
-                                        <button type="button" class="merchant-shop-cart-remove" data-action="removeFromCart"
-                                                data-item-id="{{id}}" data-tooltip="Take it out of the cart">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                        <span class="merchant-shop-cart-meta">
-                                            <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
-                                            <span class="merchant-shop-cart-total">{{totalLabel}}</span>
-                                        </span>
+                        {{#if hasAnything}}
+                            {{#if hasCart}}
+                                <div class="merchant-shop-cart-segment">
+                                    <h4>
+                                        <span><i class="fa-solid fa-basket-shopping"></i> Buying</span>
+                                        <span class="merchant-shop-cart-subtotal">{{cartTotalLabel}}</span>
+                                    </h4>
+                                    <div class="merchant-shop-cart-list">
+                                        {{#each cart}}
+                                            <div class="merchant-shop-cart-line">
+                                                <img src="{{img}}" alt="">
+                                                <span class="merchant-shop-cart-name">{{name}}</span>
+                                                <button type="button" class="merchant-shop-cart-remove" data-action="removeFromCart"
+                                                        data-item-id="{{id}}" data-tooltip="Take it out of the cart">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                                <span class="merchant-shop-cart-meta">
+                                                    <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                                    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+                                                </span>
+                                            </div>
+                                        {{/each}}
                                     </div>
-                                {{/each}}
-                            </div>
-
-                            {{!-- No button. One press settles both panels, so it
-                                  belongs to neither and lives in the footer. --}}
-                            <div class="merchant-shop-cart-foot">
-                                <span>Total <strong>{{cartTotalLabel}}</strong></span>
-                            </div>
-                        {{else}}
-                            {{!-- Rendered empty rather than hidden, so the stock list
-                                  does not reflow the moment a first item is added. --}}
-                            <div class="merchant-shop-empty merchant-shop-cart-empty">
-                                <i class="fa-solid fa-cart-shopping"></i>
-                                <span>Nothing in the cart yet.</span>
-                            </div>
-                        {{/if}}
-                    </section>
-                    {{#if canSell}}
-                        {{!-- Under the cart, and a drop target: drag something off a
-                              character sheet to sell it. The button is the same path
-                              for anyone who would rather not drag. --}}
-                        <section class="merchant-shop-section merchant-shop-basket" data-drop-sell>
-                            <h3>
-                                <span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span>
-                                <span class="merchant-shop-head-actions">
-                                    {{#if hasBasket}}
-                                        <button type="button" class="merchant-shop-cart-clear" data-action="clearBasket"
-                                                data-tooltip="Empty the basket">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
-                                    {{/if}}
-                                    <span class="merchant-shop-count">{{basketCount}}</span>
-                                </span>
-                            </h3>
+                                </div>
+                            {{/if}}
 
                             {{#if hasBasket}}
-                                <div class="merchant-shop-cart-list">
-                                    {{#each basket}}
-                                        <div class="merchant-shop-cart-line">
-                                            <img src="{{img}}" alt="">
-                                            <span class="merchant-shop-cart-name">{{name}}</span>
-                                            <button type="button" class="merchant-shop-cart-remove" data-action="removeFromBasket"
-                                                    data-item-id="{{id}}" data-tooltip="Take it out of the basket">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                            <span class="merchant-shop-cart-meta">
-                                                <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
-                                                <span class="merchant-shop-cart-total">{{totalLabel}}</span>
-                                            </span>
-                                        </div>
-                                    {{/each}}
+                                <div class="merchant-shop-cart-segment merchant-shop-cart-selling">
+                                    <h4>
+                                        <span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span>
+                                        <span class="merchant-shop-cart-subtotal">{{basketTotalLabel}}</span>
+                                    </h4>
+                                    <div class="merchant-shop-cart-list">
+                                        {{#each basket}}
+                                            <div class="merchant-shop-cart-line">
+                                                <img src="{{img}}" alt="">
+                                                <span class="merchant-shop-cart-name">{{name}}</span>
+                                                <button type="button" class="merchant-shop-cart-remove" data-action="removeFromBasket"
+                                                        data-item-id="{{id}}" data-tooltip="Take it out of the cart">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                                <span class="merchant-shop-cart-meta">
+                                                    <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                                    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+                                                </span>
+                                            </div>
+                                        {{/each}}
+                                    </div>
                                 </div>
-
-                                <div class="merchant-shop-cart-foot">
-                                    <span>You get <strong>{{basketTotalLabel}}</strong></span>
-                                </div>
-                            {{else}}
-                                <div class="merchant-shop-empty merchant-shop-cart-empty">
-                                    <i class="fa-solid fa-hand-holding-dollar"></i>
-                                    <span>Drag something here to sell it.</span>
+                            {{/if}}
+                        {{else}}
+                            <div class="merchant-shop-empty merchant-shop-cart-empty">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                                <span>Nothing here yet.</span>
+                                {{#if canSell}}
+                                    <span class="merchant-shop-cart-hint">Drag something in to sell it.</span>
                                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-basket-pick"
                                             data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
                                             data-tooltip="{{sellTooltip}}">
                                         Or choose from your pack
                                     </button>
-                                </div>
-                            {{/if}}
-                        </section>
-                    {{/if}}
+                                {{/if}}
+                            </div>
+                        {{/if}}
+                    </section>
                 </aside>
             {{/if}}
         </div>

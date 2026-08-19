@@ -146,10 +146,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         sell: (_event, _target, win) => win.run(() => win.sell()),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
-        clearCart: (_event, _target, win) => void win.clearCart(),
+        clearAll: (_event, _target, win) => void win.clearAll(),
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
-        clearBasket: (_event, _target, win) => void win.clearBasket(),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
@@ -441,8 +440,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async clearCart() {
+    /** One cart, so one thing empties it. */
+    async clearAll() {
         this.cart.clear();
+        this.basket.clear();
         await this.render(false);
     }
 
@@ -811,11 +812,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async clearBasket() {
-        this.basket.clear();
-        await this.render(false);
-    }
-
     /** Basket lines resolved against what the seller still has, and current offers. */
     async _basketLines() {
         const seller = this.recipient;
@@ -1084,6 +1080,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             cartCount: cartLines.length,
             hasCart: cartLines.length > 0,
             cartTotalLabel: formatBase(cartTotal),
+            hasAnything: cartLines.length > 0 || basketLines.length > 0,
+            // The running total, in the direction it actually runs. "You pay" and
+            // "You receive" are different sentences and a shopper should not have to
+            // work out which one a bare number is.
+            netLabel: cartTotal - basketTotal > 0 ? 'You pay'
+                : cartTotal - basketTotal < 0 ? 'You receive'
+                    : 'Even trade',
+            netDirection: cartTotal - basketTotal > 0 ? 'pay'
+                : cartTotal - basketTotal < 0 ? 'receive'
+                    : 'even',
+            netTotalLabel: formatBase(Math.abs(cartTotal - basketTotal)),
             basket: basketLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
             basketCount: basketLines.length,
             hasBasket: basketLines.length > 0,
@@ -1329,7 +1336,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * The sell basket accepts items dragged off a character sheet.
+     * The whole cart accepts items dragged off a character sheet.
+     *
+     * The whole panel, not a sell sub-panel: an item a character is carrying can only
+     * be sold, so the cart already knows which way a drop goes. Asking the user to aim
+     * at the right half was asking them to state something the panel could work out.
      *
      * Not GM-only, unlike the shelf drop zones: selling is the one thing in this
      * window a player does with their own possessions. Foundry's drag payload carries
