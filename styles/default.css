@@ -202,10 +202,8 @@
 .merchant-shop-cart-name { min-width: 0; overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-cart-qty { color: var(--blacksmith-tool-text-muted); font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
 .merchant-shop-cart-total { font-size: .76rem; text-align: right; font-variant-numeric: tabular-nums; }
-.merchant-shop-cart-remove,
-.merchant-shop-cart-clear { padding: 1px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .62rem; cursor: pointer; }
-.merchant-shop-cart-remove:hover,
-.merchant-shop-cart-clear:hover { border-color: #a4432f; color: #a4432f; }
+.merchant-shop-cart-remove { padding: 1px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .62rem; cursor: pointer; }
+.merchant-shop-cart-remove:hover { border-color: #a4432f; color: #a4432f; }
 .merchant-shop-cart-foot { display: flex; flex-direction: column; align-items: stretch; gap: 7px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); font-size: .8rem; }
 .merchant-shop-cart-foot > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .merchant-shop-cart-foot strong { font-variant-numeric: tabular-nums; }
@@ -359,7 +357,6 @@
 
 .merchant-shop-cart-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 14px 6px; }
 .merchant-shop-cart-empty > i { font-size: 1.1rem; opacity: .5; }
-.merchant-shop-cart-clear { line-height: 1; }
 
 /* Every one of these is in your own cart: dimmed like an empty shelf, but tinted
    rather than greyed, because the stock is not gone — it is spoken for by you. */
@@ -390,8 +387,9 @@
 /* The one main action, right-justified in the footer. It settles both panels, so
    it belongs to neither; the running net rides on it so the number is where the
    press is. */
-.merchant-shop-settle { display: inline-flex; gap: 8px; align-items: center; }
-.merchant-shop-settle-net { padding: 1px 7px; border-radius: 999px; background: rgba(0,0,0,.22); font-size: .68rem; font-variant-numeric: tabular-nums; }
+.merchant-shop-settle { display: inline-flex; gap: 7px; align-items: center; }
+/* Beside the action it undoes, and quiet next to it. */
+.merchant-shop-clear { display: inline-flex; gap: 6px; align-items: center; margin-right: 7px; }
 
 /* Two lists in one confirm need to say which is which. */
 .merchant-confirm-head { margin: 8px 0 3px; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .75; }
@@ -408,12 +406,19 @@
  * scroller and it sticks there instead. Both are correct.
  */
 .merchant-shop-cart-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; margin: 0 -8px 8px; padding: 8px 8px 7px; border-bottom: 1px solid var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-raised); }
-.merchant-shop-cart-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
-.merchant-shop-cart-title > span { display: inline-flex; gap: 7px; align-items: center; }
+/* Title and the number that matters on one line; the two numbers it is made of
+   beneath it, right-aligned under it so the eye reads down the column of figures
+   rather than across three labels. */
+.merchant-shop-cart-headline { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.merchant-shop-cart-title { display: inline-flex; gap: 7px; align-items: center; color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 
-.merchant-shop-cart-net { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .8rem; }
-.merchant-shop-cart-net > span { color: var(--blacksmith-tool-text-muted); font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
-.merchant-shop-cart-net > strong { font-size: .95rem; font-variant-numeric: tabular-nums; }
+.merchant-shop-cart-sum { display: flex; align-items: baseline; justify-content: flex-end; gap: 7px; font-size: .72rem; }
+.merchant-shop-cart-sum > span { color: var(--blacksmith-tool-text-muted); letter-spacing: .03em; text-transform: uppercase; }
+.merchant-shop-cart-sum > strong { min-width: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The subtotals are the working; the total is the answer. */
+.merchant-shop-cart-sum-net > span { font-size: .7rem; }
+.merchant-shop-cart-sum-net > strong { font-size: 1rem; }
+.merchant-shop-cart-sum:not(.merchant-shop-cart-sum-net) { opacity: .78; }
 /* Paying out and taking in are different events; the colour says which before the
    words are read. */
 .merchant-shop-cart-net-pay > strong { color: var(--blacksmith-tool-accent); }
@@ -422,9 +427,8 @@
 
 /* Segments, not buckets: one cart that happens to run in two directions. */
 .merchant-shop-cart-segment + .merchant-shop-cart-segment { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
-.merchant-shop-cart-segment > h4 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.merchant-shop-cart-segment > h4 > span:first-child { display: inline-flex; gap: 5px; align-items: center; }
-.merchant-shop-cart-subtotal { font-size: .68rem; font-variant-numeric: tabular-nums; text-transform: none; }
+.merchant-shop-cart-segment > h4 { margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.merchant-shop-cart-segment > h4 > span { display: inline-flex; gap: 5px; align-items: center; }
 .merchant-shop-cart-selling .merchant-shop-cart-line { background: color-mix(in srgb, #8a6a2f 12%, var(--blacksmith-tool-surface-sunken)); }
 
 .merchant-shop-cart-hint { font-size: .72rem; opacity: .8; }

@@ -236,6 +236,15 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 ### The cart panel
 
+- [ ] The head reads: **Cart** and the total on one line, then **Buying** and **Selling** beneath, right
+      aligned under it.
+- [ ] Total equals Buying minus Selling, and the three agree at all times.
+- [ ] The segment headings carry **no** subtotal — that number is in the head.
+- [ ] The footer reads `[ Cancel ]` left, `[ Clear ] [ Checkout/Sell/Trade ]` right.
+- [ ] The action button is present with an **empty** cart, and pressing it says there is nothing in it yet.
+- [ ] **Clear** is disabled on an empty cart and empties both segments otherwise.
+- [ ] No amount on the action button; it is in the cart head.
+
 - [ ] Cart and Selling are **one panel** with two segments, not two panels.
 - [ ] The total sits at the **top** and stays there while the list scrolls.
 - [ ] It reads "You pay", "You receive" or "Even trade" and matches the direction of the difference.

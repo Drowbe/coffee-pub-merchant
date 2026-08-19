@@ -281,6 +281,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   right edge never sits under the bar and the layout does not shift the moment a list grows long enough to
   need one.
 
+- **The cart head shows its working** (`templates/window-shop.hbs`): the total on the title line, and the
+  two figures it is made of right-aligned beneath it — Buying, Selling — so the eye reads down a column of
+  numbers rather than across three labels. The subtotals that used to sit on the segment headings are gone;
+  they were the same numbers said twice.
+- **The action button is always there** (`scripts/window-shop.js`): it used to vanish when the cart was
+  empty, which makes the empty state a puzzle. It stays, and pressing it says there is nothing in the cart
+  yet. **Clear** sits beside it, next to the action it undoes, and the amount has come off the button — it is
+  already stated three ways at the top of the cart.
+- **"Done" is now "Cancel"**: nothing has happened until the cart is settled, so leaving is abandoning rather
+  than finishing.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

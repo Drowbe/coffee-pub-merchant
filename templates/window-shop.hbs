@@ -179,18 +179,25 @@
                               gets. A total you have to scroll to find is a total you
                               stop trusting. --}}
                         <header class="merchant-shop-cart-head">
-                            <div class="merchant-shop-cart-title">
-                                <span><i class="fa-solid fa-cart-shopping"></i> Cart</span>
-                                {{#if hasAnything}}
-                                    <button type="button" class="merchant-shop-cart-clear" data-action="clearAll"
-                                            data-tooltip="Empty the cart">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                {{/if}}
+                            {{!-- Title and the number that matters on one line, the two
+                                  it is made of beneath. Emptying lives in the footer
+                                  beside the action it undoes. --}}
+                            <div class="merchant-shop-cart-headline">
+                                <span class="merchant-shop-cart-title">
+                                    <i class="fa-solid fa-cart-shopping"></i> Cart
+                                </span>
+                                <span class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
+                                    <span>{{netLabel}}</span>
+                                    <strong>{{netTotalLabel}}</strong>
+                                </span>
                             </div>
-                            <div class="merchant-shop-cart-net merchant-shop-cart-net-{{netDirection}}">
-                                <span>{{netLabel}}</span>
-                                <strong>{{netTotalLabel}}</strong>
+                            <div class="merchant-shop-cart-sum">
+                                <span>Buying</span>
+                                <strong>{{cartTotalLabel}}</strong>
+                            </div>
+                            <div class="merchant-shop-cart-sum">
+                                <span>Selling</span>
+                                <strong>{{basketTotalLabel}}</strong>
                             </div>
                         </header>
 
@@ -199,10 +206,7 @@
                         {{#if hasAnything}}
                             {{#if hasCart}}
                                 <div class="merchant-shop-cart-segment">
-                                    <h4>
-                                        <span><i class="fa-solid fa-basket-shopping"></i> Buying</span>
-                                        <span class="merchant-shop-cart-subtotal">{{cartTotalLabel}}</span>
-                                    </h4>
+                                    <h4><span><i class="fa-solid fa-basket-shopping"></i> Buying</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each cart}}
                                             <div class="merchant-shop-cart-line">
@@ -224,10 +228,7 @@
 
                             {{#if hasBasket}}
                                 <div class="merchant-shop-cart-segment merchant-shop-cart-selling">
-                                    <h4>
-                                        <span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span>
-                                        <span class="merchant-shop-cart-subtotal">{{basketTotalLabel}}</span>
-                                    </h4>
+                                    <h4><span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each basket}}
                                             <div class="merchant-shop-cart-line">

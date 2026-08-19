@@ -457,7 +457,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async settle() {
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
-        if (!cart.length && !basket.length) return;
+        if (!cart.length && !basket.length) {
+            ui.notifications?.info('There is nothing in the cart yet.');
+            return;
+        }
 
         const shopper = this.recipient;
         if (!shopper) {
@@ -551,7 +554,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _settleLabel(cart, basket) {
         if (cart.length && basket.length) return 'Trade';
         if (basket.length) return 'Sell';
-        return cart.length ? 'Checkout' : '';
+        return 'Checkout';
     }
 
     /** Cart lines resolved against current stock and prices. */
@@ -1119,34 +1122,37 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // The label follows the state: a cart outlives the moment it was filled, so
         // somebody returning to sell one thing must see "Trade" before they press it
         // rather than discovering it in the confirm.
+        const hasAnything = cartLines.length > 0 || basketLines.length > 0;
         const settleLabel = this._settleLabel(cartLines, basketLines);
         const net = cartTotal - basketTotal;
-        const settleNet = !cartLines.length && !basketLines.length ? ''
-            : net > 0 ? `\u2212${formatBase(net)}`
-                : net < 0 ? `+${formatBase(-net)}`
-                    : 'even';
-        const settleTooltip = net > 0 ? `You pay ${formatBase(net)}`
-            : net < 0 ? `You receive ${formatBase(-net)}`
-                : 'An even trade';
+        const settleTooltip = !hasAnything ? 'Nothing in the cart yet'
+            : net > 0 ? `You pay ${formatBase(net)}`
+                : net < 0 ? `You receive ${formatBase(-net)}`
+                    : 'An even trade';
 
         return {
             appId: this.id,
             bodyContent,
             showToolFooter: true,
+            // "Cancel", not "Done": nothing has happened until the cart is settled, so
+            // leaving is abandoning rather than finishing.
             toolFooterLeft: `
                 <button type="button" class="blacksmith-window-btn-secondary" data-action="close">
-                    <i class="fa-solid fa-check"></i> Done
+                    <i class="fa-solid fa-xmark"></i> Cancel
                 </button>`,
-            // One main action, right-justified — the pattern the rest of the suite
-            // uses. It settles both panels, so it cannot live in either of them.
-            toolFooterRight: settleLabel
-                ? `
+            // The main action, right-justified, with the thing that undoes it beside
+            // it. Always present: a button that vanishes when the cart is empty makes
+            // the empty state a puzzle, so it stays and says why instead.
+            toolFooterRight: `
+                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-clear"
+                        data-action="clearAll" ${hasAnything ? '' : 'disabled'}
+                        data-tooltip="Empty the cart">
+                    <i class="fa-solid fa-trash"></i> Clear
+                </button>
                 <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
                         data-action="settle" data-tooltip="${settleTooltip}">
                     <i class="fa-solid fa-scale-balanced"></i> ${settleLabel}
-                    <span class="merchant-shop-settle-net">${settleNet}</span>
                 </button>`
-                : ''
         };
     }
 
