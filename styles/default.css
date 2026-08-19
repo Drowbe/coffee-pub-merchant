@@ -328,7 +328,7 @@
    thing being browsed. When the window narrows past the two bases the cart wraps
    onto its own row, where it is the only item and grows to full width — which is
    why there is no max-width to undo. */
-.merchant-shop-cart-column { flex: 1 1 260px; min-width: 0; }
+.merchant-shop-cart-column { flex: 1 1 300px; min-width: 0; }
 
 /* Sticky under the pinned header rather than at the top of the scroller, which is
    *behind* it. The offset is the header's measured height — it varies with the
@@ -339,7 +339,7 @@
    page. The breakpoint is the two flex bases plus the gap — the width at which
    they stop wrapping — so the layout and the scrolling change at the same moment,
    and it moves whenever either basis does. */
-@container (min-width: 570px) {
+@container (min-width: 610px) {
     .merchant-shop-columns { overflow: hidden; align-items: stretch; }
     .merchant-shop-main,
     .merchant-shop-stock,
@@ -480,7 +480,7 @@
 /* Narrow, where the whole columns area is one scroller: these ride along with it,
    so sticky keeps them in view. Wide, they are fixed heads and sticky never
    engages. One rule covers both. */
-@container (max-width: 569.98px) {
+@container (max-width: 609.98px) {
     .merchant-shop-stock > .merchant-shop-search,
     .merchant-shop-cart-head { position: sticky; top: 0; z-index: 2; }
     /* Narrow, the header cards ride the same scroller as everything else. */
@@ -638,12 +638,15 @@
    the price and the delete along with it. Fixed at both ends now: the quantity
    column is one width whatever is in it, and the delete sits at a fixed edge so
    prices align on their right regardless of length. */
-/* The price column was `auto`, so a wide price sized it wider, the name column
-   gave up the difference, and everything between them slid left — which is why the
-   quantity sat in a different place on every row. `minmax` gives it a floor
-   instead: every ordinary price occupies the same width, and only something longer
-   than the floor moves anything. */
-.merchant-shop-cart-line { grid-template-columns: 26px minmax(0, 1fr) 3.6em minmax(6.8em, auto) 16px; }
+/* Widths in px, not em.
+   `em` resolves against this element's font-size, not the smaller text inside the
+   cells, so `3.6em` and `6.8em` were reserving roughly 58 and 109 pixels for a "× 1"
+   and a "50 gp" — 167px of a 260px column, which left the name about three
+   characters. Measured against the type that actually goes in them:
+   "× 12" is ~30px and "20,000 gp" is ~62px at .76rem.
+   The price keeps a floor so ordinary prices all occupy one width and the quantity
+   stays put; only something longer than the floor moves anything. */
+.merchant-shop-cart-line { grid-template-columns: 24px minmax(0, 1fr) 34px minmax(66px, auto) 14px; gap: 6px; }
 .merchant-shop-cart-qty { text-align: right; }
 /* A space after the multiplication sign, which "×5" reads badly without. */
 .merchant-shop-cart-qty > strong { margin-left: .28em; }
