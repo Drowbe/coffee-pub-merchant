@@ -1225,6 +1225,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _onRender(context, options) {
         super._onRender?.(context, options);
 
+        this._keepScroll();
         this._bindSearch();
         this._bindSellDrop();
         // Re-applied after every render, because a refresh, a GM stocking a shelf, or
@@ -1301,6 +1302,34 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // So the query lives on the window, the filter is one pass over rendered rows, and
     // `_onRender` re-applies it. Typing never re-renders; a render never loses the
     // search.
+
+    /**
+     * Put each scrolling region back where it was.
+     *
+     * Adding something to the cart re-renders, which replaces the markup and takes
+     * the scroll position with it — so a player who scrolled to the bottom of a long
+     * shelf and pressed Add was thrown back to the top and had to find their place
+     * again for every single item.
+     *
+     * Recorded on scroll rather than captured before each render, because a render
+     * can be triggered from anywhere: a socket refresh, a GM restocking, another
+     * player buying. There is no single place to hook a "before" on.
+     */
+    _keepScroll() {
+        this._scroll ??= {};
+        for (const [key, selector] of [['stock', '.merchant-shop-shelves'], ['cart', '.merchant-shop-cart-body']]) {
+            const region = this.element?.querySelector(selector);
+            if (!region) continue;
+
+            const saved = this._scroll[key];
+            // Clamped by the browser, so a list that shrank simply lands at its end.
+            if (saved) region.scrollTop = saved;
+
+            if (region.dataset.merchantBound === 'true') continue;
+            region.dataset.merchantBound = 'true';
+            region.addEventListener('scroll', () => { this._scroll[key] = region.scrollTop; }, { passive: true });
+        }
+    }
 
     /** Bound once per element. Re-render replaces the node, hence the guard. */
     _bindSearch() {

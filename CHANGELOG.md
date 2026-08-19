@@ -292,6 +292,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Done" is now "Cancel"**: nothing has happened until the cart is settled, so leaving is abandoning rather
   than finishing.
 
+- **Adding to the cart no longer throws you back to the top of the shelf** (`scripts/window-shop.js`): a
+  re-render replaces the markup and takes the scroll position with it, so a player at the bottom of a long
+  shelf lost their place on every single Add. Both scrolling regions now remember where they were. Recorded
+  on scroll rather than captured before each render, because a render comes from anywhere — a socket refresh,
+  a GM restocking, another player buying — and there is no one place to hook a "before" on.
+- **Two panels instead of boxes inside boxes** (`styles/default.css`): the window had four levels of frame —
+  a panel around the column, a bordered card per shelf, a card per row, and the same again on the cart side.
+  Each was legible on its own; together they read as packaging rather than content. One box per column now,
+  with headings and rules doing the separating and a row being a tint rather than a card. The cart lines were
+  inset by the panel's padding *and* carried their own card, which read as a gutter down both sides; one
+  inset now.
+- **The row button is an icon**: the word "Add" beside a cart-plus glyph was saying the same thing twice.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

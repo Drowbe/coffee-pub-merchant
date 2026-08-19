@@ -446,3 +446,48 @@
     .merchant-shop-stock > .merchant-shop-search,
     .merchant-shop-cart-head { position: sticky; top: 0; z-index: 2; }
 }
+
+/* ==================================================================
+   FLATTENING — two panels, not boxes inside boxes
+   ==================================================================
+   The window had four levels of frame: a panel around the column, a bordered
+   card per shelf, a card per row, and the same again on the cart side. Every
+   level was legible on its own and together they read as packaging rather than
+   as content.
+   One box per column now. Inside them, headings and rules do the separating,
+   and a row is a tint rather than a card. */
+
+/* The stock column is the box; the search sits inside its top edge. */
+.merchant-shop-stock { padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
+
+/* Shelves are headed groups, not cards. */
+.merchant-shop-stock .merchant-shop-shelf { padding: 0; border: 0; border-radius: 0; background: none; }
+.merchant-shop-shelves > .merchant-shop-shelf + .merchant-shop-shelf { padding-top: 10px; border-top: 1px solid var(--blacksmith-tool-divider); }
+/* A hidden shelf loses its dashed frame and says so on the heading instead. */
+.merchant-shop-stock .merchant-shop-shelf-hidden { border-style: none; opacity: .82; }
+
+/* The search is an input, not a panel. */
+.merchant-shop-stock > .merchant-shop-search { padding: 0 0 8px; border: 0; border-radius: 0; background: none; }
+
+/* The no-shelves and no-matches notices are lines of text, not cards. */
+.merchant-shop-stock .merchant-shop-no-matches,
+.merchant-shop-columns > .merchant-shop-stock > .merchant-shop-section:not(.merchant-shop-search) { border: 0; background: none; }
+
+/* Rows: a tint that separates them, with the frame only on hover. */
+.merchant-shop-item { border-color: transparent; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-shop-item:hover { border-color: var(--blacksmith-tool-divider); }
+
+/* The cart is the other box; its lines are tints inside it. */
+.merchant-shop-cart-line { background: color-mix(in srgb, var(--blacksmith-tool-surface-sunken) 70%, transparent); }
+/* The head already carries a rule, so the panel does not need one under it too. */
+.merchant-shop-cart-segment + .merchant-shop-cart-segment { margin-top: 10px; }
+
+/* The cart lines were inset by the panel's padding *and* carried their own card,
+   which read as a gutter down both sides. One inset now, and a small one. */
+.merchant-shop-cart { padding: 0 6px 6px; }
+.merchant-shop-cart-head { margin: 0 -6px 7px; padding: 7px 6px 6px; }
+.merchant-shop-cart-line { padding: 4px 6px; }
+
+/* Icon only now, so it is a square rather than a button with a hole where a word
+   used to be. The tooltip still carries the reason it is disabled. */
+.merchant-shop-cart-add { display: inline-grid; width: 26px; height: 24px; place-items: center; padding: 0; }
