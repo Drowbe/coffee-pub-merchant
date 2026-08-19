@@ -13,9 +13,11 @@
     <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
           data-edit-line="{{id}}" data-line-side="{{side}}"
           data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
+    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+    {{!-- Last, at the far edge: removing is the one destructive thing on the line,
+          so it sits apart from the numbers rather than beside one of them. --}}
     <button type="button" class="merchant-shop-cart-remove" data-action="{{removeAction}}"
             data-item-id="{{id}}" data-tooltip="Take it off the slate">
         <i class="fa-solid fa-xmark"></i>
     </button>
-    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
 </div>

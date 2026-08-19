@@ -595,8 +595,11 @@
 .merchant-shop-item-qty { display: flex; flex-direction: column; gap: 1px; align-items: center; line-height: 1.1; }
 .merchant-shop-item-qty > small { color: var(--blacksmith-tool-text-muted); font-size: .52rem; letter-spacing: .08em; text-transform: uppercase; }
 .merchant-shop-item-qty > strong { font-size: .8rem; font-variant-numeric: tabular-nums; }
-.merchant-shop-qty-editable { cursor: text; }
-.merchant-shop-qty-editable:hover { color: var(--blacksmith-tool-accent); }
+/* The same hover the loot window gives an editable count: a filled cell, so it
+   reads as a field before it is double-clicked rather than after. A colour change
+   alone was too quiet to say "you can edit this". */
+.merchant-shop-qty-editable { padding: 1px 5px; border-radius: 4px; cursor: text; }
+.merchant-shop-qty-editable:hover { background: var(--blacksmith-tool-surface-hover, rgba(0,0,0,.07)); }
 .merchant-shop-qty-input { width: 46px; height: 20px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-accent); border-radius: 3px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .76rem; text-align: center; }
 .merchant-shop-cart-qty .merchant-shop-qty-input { width: 38px; height: 18px; font-size: .7rem; }
 
@@ -619,6 +622,12 @@
 .merchant-shop-cart-qty { color: var(--blacksmith-tool-text-muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .merchant-shop-cart-qty > strong { color: var(--blacksmith-tool-text); }
 .merchant-shop-cart-total { min-width: 0; font-size: .76rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-/* Beside the quantity it undoes, and quiet until pointed at. */
-.merchant-shop-cart-remove { padding: 0 3px; font-size: .7rem; line-height: 1; opacity: .55; }
+/* At the far edge, and red — it is the one destructive control on the line. Quiet
+   until the line is pointed at, so a list of eight is not a row of warnings. */
+.merchant-shop-cart-remove { padding: 0 2px 0 6px; color: #a4432f; font-size: .78rem; line-height: 1; opacity: .45; }
 .merchant-shop-cart-line:hover .merchant-shop-cart-remove { opacity: 1; }
+.merchant-shop-cart-remove:hover { color: #8c2f22; }
+
+/* Price then delete, so the column order matches the markup after the move. */
+.merchant-shop-cart-total { grid-column: 4; }
+.merchant-shop-cart-remove { grid-column: 5; justify-self: end; }
