@@ -22,12 +22,30 @@
 
 import { MODULE } from './const.js';
 
-/** Merchant's palette, as strict hex — the toast API validates and ignores anything else. */
+/**
+ * Merchant's palette, as strict hex — the toast API validates and ignores anything else.
+ *
+ * **A toast is dark and the windows are parchment, so these are not the window colours.**
+ * The first version of this file reused them — the same green as the Open sign, the same
+ * red as Always closed — and they were nearly unreadable: `styles/toast.css` paints
+ * `rgba(20, 20, 20, 0.9)` behind them, and a colour chosen to sit on parchment has
+ * nowhere near the contrast to sit on that. One `color` drives the border, the icon and
+ * the title together, so getting it wrong makes the whole toast hard to read rather than
+ * just the trim.
+ *
+ * These are the same four hues lifted for a dark surface, and pitched to sit beside the
+ * body text the stylesheet already uses (`#ac9f81`) rather than fight it.
+ *
+ * There is no built-in set to reach for instead: the toast API has no `type` or `theme`
+ * concept, only a caller-supplied hex. Passing no colour at all is a real option and
+ * gives the default look, but then an error and a receipt are indistinguishable, which
+ * is worth more than the consistency.
+ */
 const COLOR = Object.freeze({
-    info: '#8a6a3f',      // parchment gold; the shop telling you something
-    success: '#2f6b33',   // the same green as the Open sign
-    warn: '#b07a2a',      // amber: you can fix this
-    error: '#8a2f2f'      // the same red as Always closed
+    info: '#c8b083',      // parchment gold, lifted off the dark
+    success: '#7fbf6a',   // the Open sign's green, made legible
+    warn: '#e0a34a',      // amber: you can fix this
+    error: '#e06c5a'      // red, and still red at this weight
 });
 
 const ICON = Object.freeze({

@@ -1240,6 +1240,23 @@ export class MerchantManager {
             .reduce((total, [denomination, amount]) => total + toBase(amount, denomination), 0);
     }
 
+    /**
+     * Which coins are missing, and how many, so a refusal can say something useful.
+     *
+     * "The till cannot cover it" is not actionable when the till holds twenty thousand
+     * gold. What it actually lacks is *small change* -- six silver, say -- and that is
+     * a different problem with a different fix.
+     */
+    static _changeShortfall(payee, plan) {
+        const purse = payee?.system?.currency ?? {};
+        const missing = {};
+        for (const [denomination, amount] of Object.entries(plan?.change ?? {})) {
+            const held = Number(purse[denomination] ?? 0);
+            if (held < amount) missing[denomination] = amount - held;
+        }
+        return missing;
+    }
+
     static _canMakeChange(payee, plan) {
         const purse = payee?.system?.currency ?? {};
         return Object.entries(plan.change ?? {})
@@ -1396,7 +1413,10 @@ export class MerchantManager {
             plan = planPayment(shopper, net);
             if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: net, held: purseValue(shopper) };
             if (!this._canMakeChange(merchant, plan)) {
-                return { ok: false, code: 'NO_CHANGE', price: net, changeBase: this._changeBase(plan) };
+                return {
+                    ok: false, code: 'NO_CHANGE', side: 'merchant', price: net,
+                    changeBase: this._changeBase(plan), shortfall: this._changeShortfall(merchant, plan)
+                };
             }
             coin = this._coinTransfers(shopper.uuid, merchant.uuid, plan);
         } else if (net < 0) {
@@ -1405,7 +1425,10 @@ export class MerchantManager {
                 return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: -net, held: purseValue(merchant) };
             }
             if (!this._canMakeChange(shopper, plan)) {
-                return { ok: false, code: 'NO_CHANGE', price: -net, changeBase: this._changeBase(plan) };
+                return {
+                    ok: false, code: 'NO_CHANGE', side: 'shopper', price: -net,
+                    changeBase: this._changeBase(plan), shortfall: this._changeShortfall(shopper, plan)
+                };
             }
             coin = this._coinTransfers(merchant.uuid, shopper.uuid, plan);
         }

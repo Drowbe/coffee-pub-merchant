@@ -870,7 +870,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // Not the player's fault and not something they can work around: the
             // coins they hand over are chosen for them, smallest first. Say whose
             // problem it is.
-            case 'NO_CHANGE': return `The merchant has not got the change for that — they owe ${formatBase(result?.changeBase)} back and the till cannot cover it.`;
+            // Names the side that is actually short, and what of. The old wording blamed
+            // the till in both directions, including the one where the *shopper* owes the
+            // change back -- and it said "cannot cover it" of a till holding twenty
+            // thousand gold, when what it lacked was six silver.
+            case 'NO_CHANGE': {
+                const owed = formatBase(result?.changeBase);
+                const missing = Object.entries(result?.shortfall ?? {})
+                    .map(([denomination, count]) => `${count} ${denomination}`)
+                    .join(', ');
+                const who = result?.side === 'shopper'
+                    ? 'You would owe'
+                    : 'The merchant would owe';
+                return `${who} ${owed} in change, and has not got the coins for it`
+                    + (missing ? ` — short ${missing}.` : '.');
+            }
             case 'INSUFFICIENT_CURRENCY': return 'Somebody is short of the coins that were meant to change hands, and nothing moved.';
             case 'INVALID_CURRENCY': return 'That payment did not add up. Nothing moved.';
             case 'SOURCE_ACTOR_NOT_FOUND':
