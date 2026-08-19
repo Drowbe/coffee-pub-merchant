@@ -578,56 +578,29 @@ export class MerchantManager {
         return GMRequest.request(op, payload);
     }
 
-    /** Runs on the GM only. Nothing in payload is trusted without re-resolving it. */
+    /**
+     * Runs on the GM only. Nothing in payload is trusted without re-resolving it.
+     *
+     * Two operations, because everything a player buys goes through the cart. There
+     * was a `buy` that purchased one row outright and an `acquire` that handed one
+     * over free; both are gone. Buy-now was never fewer prompts than the cart — pick a
+     * quantity, pick a destination, confirm, either way — so it was a second path
+     * through the same money for no gain, and a second place for the two to disagree.
+     */
     static async _process(op, payload, userId) {
         const user = game.users.get(userId);
         if (!user) return { ok: false, code: 'UNKNOWN_USER' };
-        if (!['acquire', 'buy', 'sell', 'checkout'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
+        if (!['sell', 'checkout'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
 
         const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
         const merchant = tokenDocument?.actor;
         if (!merchant) return { ok: false, code: 'MERCHANT_NOT_FOUND' };
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
-
-        if (op === 'checkout') {
-            if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
-            const bought = await this._processCheckout(merchant, payload, user);
-            if (bought?.ok) this._broadcastRefresh(tokenDocument.uuid);
-            return bought;
-        }
-
-        if (op === 'sell') {
-            if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
-            const sold = await this._processSell(merchant, payload, user);
-            if (sold?.ok) this._broadcastRefresh(tokenDocument.uuid);
-            return sold;
-        }
-
-        const item = merchant.items?.get(payload.itemId);
-        if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
-        if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
-        // A shelf nested inside another shelf is furniture, not stock. Hidden from the
-        // window by getShelfContents, and refused here, because hiding a control is
-        // only the honest path.
-        if (this.isShelf(item)) return { ok: false, code: 'NOT_FOR_SALE' };
-
-        // Only what is on a shelf is for sale. The shopkeeper's own gear is not.
-        const shelf = this.getShelfFor(merchant, item);
-        if (!shelf) return { ok: false, code: 'NOT_FOR_SALE' };
-
-        // Hidden is a permission, not a display filter: a crafted request naming a
-        // back-room item has to be refused here, not merely hidden in the window.
-        const shelfConfig = this.getShelfConfig(shelf);
-        if (shelfConfig.visible === false && !user.isGM) return { ok: false, code: 'NOT_FOR_SALE' };
-
         if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
 
-        const check = this._validateRecipient(payload.recipientUuid, user);
-        if (!check.ok) return check;
-
-        const result = op === 'buy'
-            ? await this._processBuy(merchant, item, shelf, check.actorUuid, payload, user)
-            : await this._processAcquire(merchant, item, shelf, check.actorUuid, payload);
+        const result = op === 'checkout'
+            ? await this._processCheckout(merchant, payload, user)
+            : await this._processSell(merchant, payload, user);
 
         if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
         return result;
@@ -704,70 +677,6 @@ export class MerchantManager {
         const purse = payee?.system?.currency ?? {};
         return Object.entries(plan.change ?? {})
             .every(([denomination, amount]) => Number(purse[denomination] ?? 0) >= amount);
-    }
-
-    /**
-     * Take without paying.
-     *
-     * The GM's stocking-and-testing path. Still an `exchange` rather than a bare
-     * grant, so the stock policy is decided in exactly one place.
-     */
-    static async _processAcquire(merchant, item, shelf, recipientUuid, payload) {
-        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
-        const shelfConfig = this.getShelfConfig(shelf);
-        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
-        return exchange({
-            transfers: [this._goodsTransfer(merchant, item, shelfConfig, recipientUuid, quantity)]
-        });
-    }
-
-    /**
-     * Buying: goods out, coin in.
-     *
-     * Everything except the mutation is decided here — price, affordability, and
-     * which coins change hands.
-     *
-     * **One exchange: goods out, coin in, change back.** All three commit or none do,
-     * so there is no longer any order to get right and no failure that leaves a player
-     * holding goods they did not pay for. That was a real defect while delivery was a
-     * separate grant, and it is gone rather than mitigated.
-     *
-     * Payment and change are two legs and are never netted, because the payer must
-     * actually hold what they hand over.
-     */
-    static async _processBuy(merchant, item, shelf, buyerUuid, payload, user) {
-        const shelfConfig = this.getShelfConfig(shelf);
-        if (shelfConfig?.mode === 'barter') return { ok: false, code: 'BARTER_ONLY' };
-
-        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
-        const unit = resolvePrice(this.getConfig(merchant), shelfConfig, item);
-        if (unit === null) return { ok: false, code: 'NOT_PRICED' };
-
-        const payerCheck = this._validatePayer(payload.payerUuid ?? buyerUuid, buyerUuid, user);
-        if (!payerCheck.ok) return payerCheck;
-
-        const total = unit * quantity;
-
-        // Re-checked here rather than trusting the window: prices and purses both
-        // change between render and click.
-        const plan = planPayment(payerCheck.actor, total);
-        if (!plan) {
-            return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
-        }
-
-        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
-        if (!this._canMakeChange(merchant, plan)) {
-            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
-        }
-
-        const result = await exchange({
-            transfers: [
-                this._goodsTransfer(merchant, item, shelfConfig, buyerUuid, quantity),
-                ...this._coinTransfers(payerCheck.actor.uuid, merchant.uuid, plan)
-            ]
-        });
-
-        return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
     }
 
     /**

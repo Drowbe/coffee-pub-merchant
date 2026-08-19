@@ -161,6 +161,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read "Yours" and "Left on the shelf" rather than "Take" and "Leave", which was looting vocabulary in a
   shop.
 
+- **The cart is the only way to buy** (`scripts/window-shop.js`, `scripts/manager-merchant.js`,
+  `templates/partial-shop-row.hbs`): the Buy control that purchased a row outright is gone, and so is the
+  GM-only take-without-paying. One action per row — **Add** — and one checkout.
+
+  Buy-now was never fewer prompts than the cart: pick a quantity, pick a destination, confirm, either way. It
+  was a second path through the same money for no gain, and a second place for the two to disagree — the
+  cart reserves stock, so the paths had already begun to interact. The free take was the only thing that
+  completed anything before `exchange` existed; that reason went with the primitive shipping, and a GM can
+  drag an item from the merchant's sheet. Free goods will come back as part of a wider change rather than as
+  a wand on every row.
+
+  The GM handler is down to two operations, `checkout` and `sell`, and the single-item resolution path in
+  front of them is gone with them.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

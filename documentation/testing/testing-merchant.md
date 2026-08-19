@@ -126,7 +126,7 @@ check, and it reverses what this file said before 2026-08-18.
 - [ ] The buyer's purse shows beside "Buying as" and matches their sheet.
 
 - [ ] Each row reads as columns: item, quantity, price, actions.
-- [ ] Two actions per row for a player — add to cart, and Buy. A GM also gets a free-take.
+- [ ] **One** action per row: **Add**. No Buy button and no GM wand — the cart is the only way to buy.
 - [ ] Every disabled control names *why* on hover, and the reason is the true one: closed shop, no character,
       no price, out of stock, or waiting on Blacksmith. A disabled button with a generic tooltip is a bug.
 

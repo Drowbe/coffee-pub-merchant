@@ -135,10 +135,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
-        acquire: (_event, target, win) => win.run(() => win.acquire(target.dataset.itemId)),
+
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
-        buy: (_event, target, win) => win.run(() => win.buy(target.dataset.itemId)),
         sell: (_event, _target, win) => win.run(() => win.sell()),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
@@ -303,7 +302,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async _send(payload, busy = {}, op = 'acquire') {
+    async _send(payload, busy = {}, op = 'checkout') {
         this._busy = { row: busy.row ?? null, label: busy.label ?? 'Working' };
         await this.render(false);
         try {
@@ -591,100 +590,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Buy an item with coin.
-     *
-     * The shopper pays. Where the goods land is a separate question, asked once in
-     * a dialog rather than encoded in three buttons, and buying for the party or
-     * for another character is therefore a gift out of the shopper's own purse.
-     *
-     * The affordability check and the coin plan run before anything is asked of the
-     * GM, so a player learns they cannot afford something from the confirm rather
-     * than from a refusal. The GM re-checks both regardless: this is the
-     * explanation, that is the guard.
-     */
-    async buy(itemId) {
-        const recipient = this.recipient;
-        if (!recipient) {
-            ui.notifications?.warn('You have no character able to buy.');
-            return;
-        }
-        const context = await this._itemContext(itemId);
-        if (!context) return;
-
-        const merchant = context.token?.actor;
-        const shelf = MerchantManager.getShelfFor(merchant, context.item);
-        const unit = resolvePrice(
-            MerchantManager.getConfig(merchant),
-            MerchantManager.getShelfConfig(shelf),
-            context.item
-        );
-        if (unit === null) {
-            ui.notifications?.warn(context.item.name + ' has no price.');
-            return;
-        }
-
-        const max = this._maxFor(merchant, context.item);
-        if (max < 1) {
-            ui.notifications?.warn(`${context.item.name} is out of stock.`);
-            return;
-        }
-        const amount = await this._askQuantity(context.item.name, max, {
-            title: `Buy ${context.item.name}`,
-            confirmLabel: 'Buy',
-            confirmIcon: 'fa-solid fa-coins'
-        });
-        if (!amount) return;
-
-        // Where the goods go is asked here rather than encoded in three icons.
-        const destination = await this._askDestination('Buy ' + context.item.name, { paid: true });
-        if (!destination) return;
-
-        const total = unit * amount;
-        // The shopper always pays, wherever the goods go. Buying for the party or for
-        // another character is a gift, and a gift comes out of the giver's purse.
-        const plan = planPayment(recipient, total);
-        if (!plan) {
-            ui.notifications?.warn(
-                recipient.name + ' cannot afford that \u2014 ' + formatBase(total)
-                + ' needed, ' + formatBase(purseValue(recipient)) + ' held.'
-            );
-            return;
-        }
-
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.dialog?.confirm === 'function') {
-            const confirmed = await blacksmith.dialog.confirm({
-                title: 'Buy ' + context.item.name,
-                classes: ['merchant-dialog'],
-                content: '<p>' + recipient.name + ' pays <strong>' + formatBase(total) + '</strong> for '
-                    + (amount > 1 ? amount + ' ' : '')
-                    + '<strong>' + context.item.name + '</strong>'
-                    + (destination.uuid === recipient.uuid ? '' : ', for ' + (destination.label ?? 'them'))
-                    + '.</p>',
-                confirmLabel: 'Buy',
-                confirmIcon: 'fa-solid fa-coins'
-            });
-            if (!confirmed) return;
-        }
-
-        this._report(
-            await this._send(
-                {
-                    itemId,
-                    quantity: amount,
-                    recipientUuid: destination.uuid,
-                    payerUuid: recipient.uuid
-                },
-                { row: itemId, label: 'Buying ' + context.item.name },
-                'buy'
-            ),
-            recipient.name + ' bought ' + (amount > 1 ? amount + ' ' : '')
-            + context.item.name + ' for ' + formatBase(total)
-            + (destination.uuid === recipient.uuid ? '' : ', for ' + (destination.label ?? 'them')) + '.'
-        );
-    }
-
-    /**
      * Sell something to the merchant.
      *
      * The inverse of buying, and the inverse of every other permission here: the
@@ -748,31 +653,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ),
             seller.name + ' sold ' + (amount > 1 ? amount + ' ' : '') + item?.name + '.'
         );
-    }
-
-    async acquire(itemId) {
-        const recipient = this.recipient;
-        if (!recipient) {
-            ui.notifications?.warn('You have no character able to receive this.');
-            return;
-        }
-        const context = await this._itemContext(itemId);
-        if (!context) return;
-        const max = this._maxFor(context.token?.actor, context.item);
-        if (max < 1) {
-            ui.notifications?.warn(`${context.item.name} is out of stock.`);
-            return;
-        }
-        const amount = await this._askQuantity(context.item.name, max, {
-            title: `Give ${context.item.name}`,
-            confirmLabel: 'Give',
-            confirmIcon: 'fa-solid fa-hand-holding-heart'
-        });
-        if (!amount) return;
-        this._report(
-            await this._send({ itemId, quantity: amount, recipientUuid: recipient.uuid },
-                { row: itemId, label: `Giving ${context.item.name}` }),
-            `The shopkeeper gave ${recipient.name} ${amount > 1 ? `${amount} ` : ''}${context.item.name}.`);
     }
 
     /** `ok: true, merged: false` is success — the item arrived as its own row. */
@@ -874,9 +754,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // exempt, so they can stock and test outside opening hours.
             const trading = MerchantManager.isOpen(merchant) || isGM;
             const config0 = MerchantManager.getConfig(merchant);
-            // Buying needs the two-sided primitive. Until it ships the control is
-            // absent rather than present-and-broken.
-            const buying = hasExchange();
 
             shelves = MerchantManager.getShelves(merchant, { includeHidden: isGM }).map(({ item: shelf, config }) => {
                 const isBarter = config.mode === 'barter';
@@ -923,24 +800,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         stockValue: stock.unlimited ? null : stock.available,
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
-                        buyTooltip: !buying ? 'Buying is waiting on a Blacksmith update'
-                            : allInCart ? 'Every one of these is already in your cart'
+                        // A disabled button with no reason on it is the thing
+                        // players ask about, so the tooltip carries the reason.
+                        cartTooltip: allInCart ? 'Every one of these is already in your cart'
                             : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
                             : price === null ? 'This has no price set'
-                            : 'Buy now',
-                        cartTooltip: allInCart ? 'Every one of these is already in your cart'
-                            : out ? 'Out of stock'
                             : 'Add to cart',
-                        canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying && inStock,
                         canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
-                        // Stocking and testing should not require a purse.
-                        canTakeFree: isGM && !isBarter,
-                        takeFreeTooltip: allInCart ? 'Every one of these is already in your cart'
-                            : out ? 'Out of stock'
-                            : 'Take without paying (GM)',
-                        canTakeFreeNow: isGM && !isBarter && inStock,
                         isBarter
                     };
                 });

@@ -342,3 +342,6 @@
    rather than greyed, because the stock is not gone — it is spoken for by you. */
 .merchant-shop-item.is-reserved { opacity: .7; }
 .merchant-shop-item.is-reserved .merchant-shop-item-qty { color: var(--blacksmith-tool-accent); font-weight: 600; }
+
+/* One action per row now, so it can afford a word beside the icon. */
+.merchant-shop-cart-add { min-height: 24px; margin: 0; padding: 2px 10px; font-size: .68rem; text-transform: none; white-space: nowrap; }

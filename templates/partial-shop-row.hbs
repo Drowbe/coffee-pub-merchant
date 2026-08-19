@@ -4,6 +4,9 @@
     Two actions, not four. Where the goods go is asked once in the Buy dialog rather
     than encoded in three icons a player has to learn apart.
 
+    One action per row: everything a player buys goes through the cart, and the cart
+    is checked out once.
+
     A control that cannot act is disabled and says why on hover, rather than being
     absent. An absent button reads as "this shop does not do that"; a disabled one
     with a reason reads as "not right now, and here is what would change it".
@@ -57,24 +60,15 @@
         </div>
     {{else}}
         <div class="merchant-shop-row-actions">
-            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
+            {{!-- One action. There was a Buy alongside this that purchased the row
+                  outright, and it was never fewer prompts than the cart: pick a
+                  quantity, pick a destination, confirm, either way. Two paths through
+                  the same money, and two places for them to disagree. --}}
+            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-cart-add"
                     data-action="addToCart" data-item-id="{{id}}"
                     {{#unless canCart}}disabled{{/unless}} data-tooltip="{{cartTooltip}}">
-                <i class="fa-solid fa-cart-plus"></i>
+                <i class="fa-solid fa-cart-plus"></i> Add
             </button>
-            <button type="button" class="blacksmith-window-btn-secondary merchant-shop-buy"
-                    data-action="buy" data-item-id="{{id}}"
-                    {{#unless canBuy}}disabled{{/unless}} data-tooltip="{{buyTooltip}}">
-                <i class="fa-solid fa-coins"></i> Buy
-            </button>
-            {{#if canTakeFree}}
-                {{!-- GM only. Stocking and testing should not require a purse. --}}
-                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn merchant-shop-free"
-                        data-action="acquire" data-item-id="{{id}}"
-                        {{#unless canTakeFreeNow}}disabled{{/unless}} data-tooltip="{{takeFreeTooltip}}">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                </button>
-            {{/if}}
         </div>
     {{/if}}
 </div>
