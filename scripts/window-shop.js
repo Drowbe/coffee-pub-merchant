@@ -1092,6 +1092,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         super._onRender?.(context, options);
 
         this._keepScroll();
+        void this._applyItemTooltips();
         this._bindQuantityEdits();
         this._bindSearch();
         this._bindSellDrop();
@@ -1133,6 +1134,56 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // So the query lives on the window, the filter is one pass over rendered rows, and
     // `_onRender` re-applies it. Typing never re-renders; a render never loses the
     // search.
+
+    /**
+     * Hang dnd5e's own item card on every row that names an item.
+     *
+     * The system already renders one, and renders it right: `richTooltip()` knows
+     * what belongs on a weapon and what belongs on a potion, and keeps knowing when
+     * dnd5e changes its mind. Three dataset attributes are the whole integration —
+     * the tooltip manager finds the `.loading[data-uuid]` placeholder, resolves it
+     * and swaps the card in. Squire does this the same way, for the same reason.
+     *
+     * On the **name**, not the row. A row also carries a quantity cell that says how
+     * to edit it and buttons that say what they do, and a row-wide card would cover
+     * every one of them.
+     *
+     * Three families, from two different Actors: the shelves and the buying side of
+     * the slate are the merchant's items; the selling side is the shopper's own.
+     */
+    async _applyItemTooltips() {
+        const root = this.element;
+        if (!root) return;
+
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const shopper = this.recipient;
+
+        const decorate = (target, item, fallback) => {
+            if (!target) return;
+            // No richTooltip means a system that is not dnd5e. Fall back to the name,
+            // which a truncated row needs whatever else is missing.
+            if (typeof item?.richTooltip !== 'function') {
+                if (fallback && !target.dataset.tooltip) target.dataset.tooltip = fallback;
+                return;
+            }
+            target.dataset.tooltip =
+                `<section class="loading" data-uuid="${item.uuid}"><i class="fas fa-spinner fa-spin-pulse"></i></section>`;
+            target.dataset.tooltipClass = 'dnd5e2 dnd5e-tooltip item-tooltip themed theme-light';
+        };
+
+        for (const row of root.querySelectorAll('.merchant-shop-item[data-item-id]')) {
+            const item = merchant?.items?.get(row.dataset.itemId);
+            decorate(row.querySelector('.merchant-shop-item-copy strong'), item);
+        }
+
+        for (const line of root.querySelectorAll('.merchant-shop-cart-line[data-item-id]')) {
+            const name = line.querySelector('.merchant-shop-cart-name');
+            const side = line.querySelector('[data-line-side]')?.getAttribute('data-line-side');
+            const owner = side === 'basket' ? shopper : merchant;
+            decorate(name, owner?.items?.get(line.dataset.itemId), name?.textContent?.trim());
+        }
+    }
 
     /**
      * Put each scrolling region back where it was.

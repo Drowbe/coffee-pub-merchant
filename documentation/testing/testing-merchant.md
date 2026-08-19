@@ -328,6 +328,14 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The same with the GM's free-take, and with one player buying while another checks out a cart.
 - [ ] Neither player's window is left showing a stale count afterwards.
 
+### Item tooltips
+
+- [ ] Hover an item's **name** on a shelf → dnd5e's item card, the same one its sheet shows.
+- [ ] Hover the quantity, the price or a button on that row → their own tooltips, **not** the item card.
+- [ ] Hover a name in the slate's **Buying** section → the merchant's item.
+- [ ] Hover one in **Selling** → your own item. *Different Actors; a mix-up here shows the wrong card.*
+- [ ] A truncated name still tells you what it is.
+
 ### The cart panel
 
 - [ ] The head reads: **Cart** and the total on one line, then **Buying** and **Selling** beneath, right

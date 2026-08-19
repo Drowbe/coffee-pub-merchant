@@ -521,6 +521,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a question, and the dialog says that rolled stock is added rather than replaced. It reports one total
   rather than one notification per shelf.
 
+- **Hovering an item shows dnd5e's own card** (`scripts/window-shop.js`): on the shelves and on both sides of
+  the slate. The system already renders one and renders it right — `richTooltip()` knows what belongs on a
+  weapon and what belongs on a potion, and keeps knowing when dnd5e changes its mind. Three dataset
+  attributes are the whole integration; Squire does it the same way for the same reason.
+
+  On the **name**, not the row: a row also carries a quantity cell saying how to edit it and buttons saying
+  what they do, and a row-wide card would cover every one of them. The two sides of the slate resolve against
+  different Actors — what you are buying is the merchant's, what you are selling is yours. Falls back to the
+  plain name where `richTooltip` is absent, which a truncated row needs whatever else is missing.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
