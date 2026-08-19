@@ -987,7 +987,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 ...line,
                 totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
                 agreed: line.total !== null,
-                canPrice: isGM,
+                canPrice: game.user.isGM,
                 priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
                 priceTooltip: line.unit === null
                     ? 'Double-click to set the agreed price, each, in gp'
@@ -1018,7 +1018,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 ...line,
                 totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
                 agreed: line.total !== null,
-                canPrice: isGM,
+                canPrice: game.user.isGM,
                 priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
                 priceTooltip: line.unit === null
                     ? 'Double-click to set the agreed price, each, in gp'
