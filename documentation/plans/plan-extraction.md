@@ -49,6 +49,27 @@ is exactly the signal this exercise looks for.
 **Shape:** `blacksmith.dialog.pickActor({ title, actors, confirmLabel, confirmIcon })` returning a uuid or
 `null`.
 
+> **Existence checked and remeasured, 2026-08-19 — 83% is stale, and it went UP.**
+>
+> Both consumers still exist (`window-shop.js` and `window-loot.js`), checked before remeasuring, which is
+> the rule this list adopted after (a) turned out to have lost one.
+>
+> Measured formatting-insensitively — Curator wraps the `entities` map over six lines where Merchant has it
+> on one, and a naive line diff scores that as 19% while nothing has actually diverged. On the collapsed
+> streams it is **99% identical over ~1,150 characters**, and the *entire* difference is two strings:
+>
+> ```
+> inputName: 'merchant-actor'   vs   'curator-loot-actor'
+> classes:   ['merchant-dialog'] vs  ['curator-dialog']
+> ```
+>
+> Nothing else differs by a character. Adopting `readIdsFrom` is what closed the last gap: Merchant had
+> parameterised a confirm label Curator hardcoded, and the two callbacks are now identical.
+>
+> **Recommend extracting.** Two live consumers, agreeing on everything except their own names, is as clean
+> as this bar gets — and a helper whose only parameters are the caller's own identifiers is exactly the
+> shape that says the logic was never the caller's.
+
 ### 3. `_attachWhenRendered` — **fixed upstream 2026-08-18. Both copies deleted.**
 
 `window-shop.js:22` and `window-loot.js:22`. Poll animation frames until an embedded control's input is in
