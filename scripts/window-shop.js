@@ -129,11 +129,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
         {
             classes: ['merchant-shop-window'],
-            // Wide enough for the stock and the cart side by side: 300 + 220 for the
+            // Wide enough for the stock and the slate side by side: 300 + 260 for the
             // two flex bases, plus the gap and the content padding. Narrower than this
-            // and the cart wraps underneath, which is correct but is not the layout
+            // and the slate wraps underneath, which is correct but is not the layout
             // the shop should open in.
-            position: { width: 660, height: 600 },
+            position: { width: 700, height: 600 },
             window: { title: 'Shop', resizable: true, minimizable: true },
             windowSizeConstraints: { minWidth: 380, minHeight: 320, maxWidth: 1040, maxHeight: 'calc(100vh - 40px)' },
             toolTitlebar: 'full',

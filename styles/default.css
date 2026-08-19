@@ -328,17 +328,18 @@
    thing being browsed. When the window narrows past the two bases the cart wraps
    onto its own row, where it is the only item and grows to full width — which is
    why there is no max-width to undo. */
-.merchant-shop-cart-column { flex: 1 1 220px; min-width: 0; }
+.merchant-shop-cart-column { flex: 1 1 260px; min-width: 0; }
 
 /* Sticky under the pinned header rather than at the top of the scroller, which is
    *behind* it. The offset is the header's measured height — it varies with the
    description, the browsing notice and the override line, so it cannot be a
    constant. Set from _onRender; the fallback keeps this sane if that never runs. */
 /* Side by side: each pane scrolls on its own, so a long shelf list does not carry
-   the cart off the bottom of the window and a full cart does not lengthen the page.
-   The breakpoint is the two flex bases plus the gap — the width at which they stop
-   wrapping — so the layout and the scrolling change at the same moment. */
-@container (min-width: 530px) {
+   the slate off the bottom of the window and a full slate does not lengthen the
+   page. The breakpoint is the two flex bases plus the gap — the width at which
+   they stop wrapping — so the layout and the scrolling change at the same moment,
+   and it moves whenever either basis does. */
+@container (min-width: 570px) {
     .merchant-shop-columns { overflow: hidden; align-items: stretch; }
     .merchant-shop-main,
     .merchant-shop-stock,
@@ -479,7 +480,7 @@
 /* Narrow, where the whole columns area is one scroller: these ride along with it,
    so sticky keeps them in view. Wide, they are fixed heads and sticky never
    engages. One rule covers both. */
-@container (max-width: 529.98px) {
+@container (max-width: 569.98px) {
     .merchant-shop-stock > .merchant-shop-search,
     .merchant-shop-cart-head { position: sticky; top: 0; z-index: 2; }
     /* Narrow, the header cards ride the same scroller as everything else. */
