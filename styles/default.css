@@ -605,6 +605,12 @@
    reads as a field before it is double-clicked rather than after. A colour change
    alone was too quiet to say "you can edit this". */
 .merchant-shop-qty-editable { padding: 1px 5px; border-radius: 4px; cursor: text; }
+/* Only ever added by the GM-side binding, so the cursor and the permission are
+   the same fact -- a player never sees an affordance their click would not honour. */
+.merchant-shop-openable { cursor: pointer; }
+.merchant-shop-openable:hover { outline: 1px solid var(--blacksmith-tool-divider); outline-offset: 1px; }
+/* Said, not priced. The label is the whole statement a negotiate shelf makes. */
+.merchant-shop-negotiate { font-style: italic; opacity: .85; }
 /* A price still being haggled over. Not an error -- the row is fine, the
    number is simply the part of it that is still outstanding. */
 .merchant-shop-cart-total.is-tbd { color: #a4432f; font-style: italic; }

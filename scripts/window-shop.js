@@ -2,7 +2,8 @@ import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scrip
 import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
 import { startProgress } from './merchant-progress.js';
 import {
-    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment, toBase, fromBase
+    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment, toBase, fromBase,
+    negotiatedPrice
 } from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
@@ -546,6 +547,26 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             .find(({ config }) => config.mode === 'buyback') ?? null;
     }
 
+    /**
+     * What a GM needs to know when the price column says only "negotiate".
+     *
+     * Two different facts, and which is missing changes what the GM should do. An
+     * agreed price is a decision already taken and worth repeating back. A book price
+     * is an anchor to haggle against. Neither is a thing to show a player: the whole
+     * point of the shelf is that the number is not published.
+     */
+    _negotiateHint(merchantConfig, item, agreedPrice) {
+        const agreed = negotiatedPrice(merchantConfig, item?.id);
+        if (agreed !== null) return `Agreed at ${formatBase(agreed)} — GM only`;
+
+        const price = item?.system?.price;
+        const listed = Number.isFinite(Number(price?.value))
+            ? toBase(Number(price.value), price.denomination ?? 'gp')
+            : null;
+        if (listed) return `No price agreed. Worth ${formatBase(listed)} on the books — GM only`;
+        return 'No price agreed, and none on the books. Name one on the slate — GM only';
+    }
+
     /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
         if (!this._wouldTake(item)) return null;
@@ -887,7 +908,20 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
                         busy: item.id === busyRow,
                         price,
-                        priceLabel: price === null ? null : formatBase(price),
+                        // **A negotiate shelf never shows a figure**, not even once a
+                        // price has been agreed. The agreement is between the GM and
+                        // whoever is standing there; putting it in the price column
+                        // publishes it to the next player who opens the shop, and turns
+                        // a shelf that exists in order not to have prices into one that
+                        // quietly accumulates them.
+                        priceLabel: isBarter || price === null ? null : formatBase(price),
+                        // The GM needs an anchor to haggle against, and it is the one
+                        // thing they cannot see once the column is blank. Players get
+                        // nothing here at all -- a tooltip saying what it is worth is
+                        // exactly the number a negotiate shelf is withholding.
+                        negotiateTooltip: isGM && isBarter
+                            ? this._negotiateHint(config0, item, price)
+                            : null,
                         // Unlimited reads as a symbol; anything else is a number in
                         // the same column, so the layout does not move between
                         // policies.
@@ -1171,6 +1205,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // carry `data-edit-stock`, and only a GM is given those.
         if (!game.user.isGM) return;
 
+        this._bindItemSheets();
+
         for (const zone of this.element?.querySelectorAll('[data-drop-shelf]') ?? []) {
             if (zone.dataset.merchantBound === 'true') continue;
             zone.dataset.merchantBound = 'true';
@@ -1210,9 +1246,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * the tooltip manager finds the `.loading[data-uuid]` placeholder, resolves it
      * and swaps the card in. Squire does this the same way, for the same reason.
      *
-     * On the **name**, not the row. A row also carries a quantity cell that says how
-     * to edit it and buttons that say what they do, and a row-wide card would cover
-     * every one of them.
+     * On the **name and the image**, not the row. A row also carries a quantity cell
+     * that says how to edit it and buttons that say what they do, and a row-wide card
+     * would cover every one of them. The picture is the other half of what a person
+     * points at when they mean "that one", so it gets the same card -- reaching past a
+     * 32-pixel icon to a truncated name is a worse gesture than either.
      *
      * Three families, from two different Actors: the shelves and the buying side of
      * the slate are the merchant's items; the selling side is the shopper's own.
@@ -1225,7 +1263,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const merchant = token?.actor;
         const shopper = this.recipient;
 
-        const decorate = (target, item, fallback) => {
+        const decorate = (targets, item, fallback) => {
+            for (const target of [targets].flat()) decorateOne(target, item, fallback);
+        };
+
+        const decorateOne = (target, item, fallback) => {
             if (!target) return;
             // No richTooltip means a system that is not dnd5e. Fall back to the name,
             // which a truncated row needs whatever else is missing.
@@ -1240,14 +1282,62 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         for (const row of root.querySelectorAll('.merchant-shop-item[data-item-id]')) {
             const item = merchant?.items?.get(row.dataset.itemId);
-            decorate(row.querySelector('.merchant-shop-item-copy strong'), item);
+            decorate([row.querySelector('.merchant-shop-item-copy strong'), row.querySelector('img')], item);
         }
 
         for (const line of root.querySelectorAll('.merchant-shop-cart-line[data-item-id]')) {
             const name = line.querySelector('.merchant-shop-cart-name');
             const side = line.querySelector('[data-line-side]')?.getAttribute('data-line-side');
             const owner = side === 'basket' ? shopper : merchant;
-            decorate(name, owner?.items?.get(line.dataset.itemId), name?.textContent?.trim());
+            decorate([name, line.querySelector('img')], owner?.items?.get(line.dataset.itemId),
+                name?.textContent?.trim());
+        }
+    }
+
+    /**
+     * A GM clicking an item's picture opens that item.
+     *
+     * The picture is already the thing carrying the item's card on hover, so it is
+     * already the part of the row that means "this item" rather than "this row" --
+     * which makes it the honest place to put the way in. A GM who wants to fix a
+     * price, edit a description or check what a rolled result actually is otherwise
+     * has to leave the shop, open the Actor, and find the shelf it is sitting in.
+     *
+     * **GM only, and enforced by not binding it** rather than by refusing inside the
+     * handler: a player has no permission on a shopkeeper's items, so the sheet would
+     * open empty or not at all, and a control that does nothing is worse than one that
+     * is not there. The cursor changes only where the click works, so the affordance
+     * and the permission are the same fact.
+     *
+     * Both families, from both Actors: the shelves and the buying side are the
+     * merchant's, the selling side is the shopper's.
+     */
+    _bindItemSheets() {
+        const root = this.element;
+        if (!root) return;
+
+        const open = async (itemId, fromBasket) => {
+            const token = await this._resolveToken();
+            // Re-read after the await. A row can be sold, cleared or restocked out from
+            // under a click, and a stale reference would open the wrong sheet or throw.
+            const owner = fromBasket ? this.recipient : token?.actor;
+            owner?.items?.get(itemId)?.sheet?.render(true);
+        };
+
+        for (const row of root.querySelectorAll('.merchant-shop-item[data-item-id], .merchant-shop-cart-line[data-item-id]')) {
+            const img = row.querySelector('img');
+            if (!img || img.dataset.merchantBound === 'true') continue;
+            img.dataset.merchantBound = 'true';
+            img.classList.add('merchant-shop-openable');
+
+            const fromBasket = row.querySelector('[data-line-side]')?.getAttribute('data-line-side') === 'basket';
+            img.addEventListener('click', (event) => {
+                // The row underneath is a drop target and the slate line is not a
+                // button, but neither should hear this.
+                event.preventDefault();
+                event.stopPropagation();
+                void open(row.dataset.itemId, fromBasket);
+            });
         }
     }
 

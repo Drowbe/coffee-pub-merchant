@@ -41,10 +41,16 @@
     {{/if}}
 
     <div class="merchant-shop-item-price">
-        {{#if priceLabel}}
+        {{!-- A negotiate shelf is checked *first*, before any figure. Once a price has
+              been agreed `priceLabel` would otherwise have something in it, and showing
+              it here would publish a private agreement to the next player who opened
+              the shop. The tooltip is GM-only and the context decides that, so a player
+              inspecting the markup finds nothing to read either. --}}
+        {{#if isBarter}}
+            <em class="merchant-shop-negotiate"
+                {{#if negotiateTooltip}}data-tooltip="{{negotiateTooltip}}"{{/if}}>negotiate</em>
+        {{else if priceLabel}}
             <strong>{{priceLabel}}</strong>
-        {{else if isBarter}}
-            <em data-tooltip="No price until one is agreed">negotiate</em>
         {{else}}
             <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a negotiate shelf">no price</em>
         {{/if}}

@@ -144,6 +144,19 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] The same works on the **selling** side: an unpriced possession can go in the basket at TBD, the GM
       names what the merchant will pay, and settling moves it.
 - [ ] A **player** sees the price but cannot double-click to change it.
+- [ ] A negotiate shelf's price column reads **negotiate** and shows **no figure ever** — including after a
+      price has been agreed for that item, and including on the next player's screen.
+- [ ] As GM, hover that label → a tooltip gives the agreed price, or what it is worth on the books.
+- [ ] As a **player**, hover it → **no tooltip at all**, and nothing readable in the markup.
+
+## 2d-v. Item cards and opening items
+
+- [ ] Hover an item's **picture** on a shelf row → the system's item card appears, same as hovering the name.
+- [ ] The same on both sides of the slate — the buying side reads the merchant's item, the selling side
+      reads the shopper's own.
+- [ ] As **GM**, click a picture → that item's sheet opens. Works from a shelf row and from a slate line.
+- [ ] As a **player**, the picture is not clickable and the cursor does not suggest it is.
+- [ ] Clicking the picture does not also trigger the row underneath it.
 
 ## 2d-iii. How deep table-rolled stock stacks
 
