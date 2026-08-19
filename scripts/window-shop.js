@@ -196,6 +196,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         showSell: (_event, _target, win) => win.showSide(true),
         sortSell: (_event, _target, win) => win.cycleSellSort(),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
+        addToBasketRow: (_event, target, win) => void win.addToBasketRow(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearAll: (_event, _target, win) => void win.clearAll(),
         settle: (_event, _target, win) => win.run(() => win.settle()),

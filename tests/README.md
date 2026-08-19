@@ -49,6 +49,10 @@ functions out of the class so the test can import the real ones.
 
 `test-pricing.mjs` has no such problem: it imports `merchant-pricing.js` directly and runs the real code.
 
+`test-actions.mjs` needs nothing at all and catches the quietest bug class here: a
+button whose `data-action` no handler answers. That fails by doing nothing — no throw,
+no log, no syntax error — so it is invisible to every other check and to `node --check`.
+
 ## A trap worth knowing about
 
 `test-search.mjs` needs `jsdom` and `handlebars` because it renders the real templates. When they are
