@@ -381,6 +381,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The markup was duplicated for buying and selling, so it is a partial now. Which side a line is on and what
   removes it ride on the line itself, the same way the shop row's flags do.
 
+- **A shop has its own name** (`scripts/window-merchant-config.js`, `templates/`): the config carried a
+  `name` field from the scaffold and the shop window already read it, but nothing ever set it — so every shop
+  was called after whoever stood behind the counter. Bob can now run *Potions and Stuff*. Left blank, the
+  shop is still named after the Actor, and the field's placeholder says so.
+
+  The shopkeeper's own name appears on the meta line **only when the two differ**: "Bob" written over a shop
+  called Bob is a line of nothing.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

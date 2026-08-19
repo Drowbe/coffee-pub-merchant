@@ -351,6 +351,16 @@ The cart is a column to the right of the stock, sticky, and always present.
 - [ ] Prices are re-checked at checkout: change a markup with a cart open and the new price applies.
 - [ ] The cart survives closing and reopening the window, and is per-player.
 
+## 2g0. Shop name
+
+- [ ] Merchant Settings has a **Shop name** field, blank by default, with the Actor's name as placeholder.
+- [ ] Leave it blank → the shop window's title is the Actor's name, and no shopkeeper line appears.
+- [ ] Set it to something else → the title is the shop name and the meta line names the shopkeeper.
+- [ ] Set it to exactly the Actor's name → **no** shopkeeper line; the name is not printed twice.
+- [ ] Clear it back to blank → the title reverts to the Actor's name.
+- [ ] The caret does not jump while typing, and it saves when you click away.
+- [ ] A player sees the shop name, not the Actor's, in the window title and the titlebar.
+
 ## 2g. Kind, description, and the shelf menu
 
 - [ ] Merchant Settings shows **The Shop** with a kind dropdown and a description box.

@@ -107,6 +107,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             markup.addEventListener('change', (event) => void this._setMarkup(event.target.value));
         }
 
+        const shopName = this.element?.querySelector('[data-merchant-name]');
+        if (shopName && shopName.dataset.merchantBound !== 'true') {
+            shopName.dataset.merchantBound = 'true';
+            shopName.addEventListener('change', (event) => {
+                // Blank means "call it after the shopkeeper", so it is stored as null
+                // rather than as an empty string that would read as a name of nothing.
+                const value = String(event.target.value ?? '').trim();
+                void this._setField({ name: value || null }, { redraw: false });
+            });
+        }
+
         const kind = this.element?.querySelector('[data-merchant-kind]');
         if (kind && kind.dataset.merchantBound !== 'true') {
             kind.dataset.merchantBound = 'true';
@@ -484,6 +495,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             hasHours: Boolean(hours),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
             description: MerchantManager.getConfig(actor)?.description ?? '',
+            shopName: MerchantManager.getConfig(actor)?.name ?? '',
             tillGold: Math.trunc(Number(actor?.system?.currency?.gp ?? 0)),
             tillLabel: enabled ? formatBase(purseValue(actor)) : null,
             tillEmpty: enabled && purseValue(actor) === 0,

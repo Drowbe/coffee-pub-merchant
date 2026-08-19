@@ -28,6 +28,7 @@
                             <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
                             <div class="merchant-shop-title">{{shopName}}</div>
                             <div class="merchant-shop-description">
+                                {{#if hasKeeper}}<span class="merchant-shop-keeper"><i class="fa-solid fa-user"></i> {{keeperName}}</span>{{/if}}
                                 {{itemCount}} in stock
                                 {{#if hoursLabel}}<span class="merchant-shop-hours"><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
                             </div>

@@ -998,6 +998,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
+            // The shopkeeper is only worth naming when the shop is not named after
+            // them. "Bob" over a shop called Bob is a line of nothing.
+            keeperName: token?.actor?.name ?? token?.name ?? '',
+            hasKeeper: Boolean(config?.name)
+                && String(config.name).trim() !== String(token?.actor?.name ?? '').trim(),
             // The kind replaces the word "Merchant" above the name, which was telling
             // the player something they could already see.
             kindLabel: shopKind(config?.kind).label,
