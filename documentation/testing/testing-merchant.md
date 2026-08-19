@@ -246,6 +246,14 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The single clear button empties **both** segments.
 - [ ] Empty, the panel says so and offers *Or choose from your pack*.
 
+### Scrollbars
+
+- [ ] The stock scrollbar starts **below** the search box, not beside it.
+- [ ] The cart scrollbar starts **below** the total, not beside it.
+- [ ] Neither bar runs up behind a box that does not move.
+- [ ] A row's right edge is never underneath its scrollbar.
+- [ ] Adding the item that first makes a list long enough to scroll does **not** shift the rows sideways.
+
 ### Search
 
 - [ ] The search box sits **above the stock list**, inside that column.

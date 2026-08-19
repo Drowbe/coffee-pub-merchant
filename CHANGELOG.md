@@ -274,6 +274,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that column and sticks to the top of it rather than sitting in the window header several rows away from
   what it acts on.
 
+- **Scrollbars start below the fixed heads** (`templates/window-shop.hbs`, `styles/default.css`): the search
+  box and the cart total were sticky *inside* their scrollers, so each scrollbar ran the full height of the
+  pane and up behind a box that never moves. They are fixed heads now with the scrolling region as a sibling
+  beneath, which is what the sticky was standing in for. `scrollbar-gutter: stable` holds the space, so a row's
+  right edge never sits under the bar and the layout does not shift the moment a list grows long enough to
+  need one.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

@@ -97,6 +97,10 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </section>
+
+                {{!-- The scrolling region starts here, below the search, so the
+                      scrollbar does not run up behind a box that never moves. --}}
+                <div class="merchant-shop-shelves">
             {{#each shelves}}
                 <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
                     <h3>
@@ -154,6 +158,7 @@
             <section class="merchant-shop-section merchant-shop-no-matches" data-shop-no-matches hidden>
                 <div class="merchant-shop-empty">Nothing here matches that.</div>
             </section>
+                </div>
         {{else}}
             <section class="merchant-shop-section">
                 <div class="merchant-shop-empty">This merchant has no shelves set up.</div>
@@ -189,6 +194,8 @@
                             </div>
                         </header>
 
+                        {{!-- Likewise: the scroller starts below the total. --}}
+                        <div class="merchant-shop-cart-body">
                         {{#if hasAnything}}
                             {{#if hasCart}}
                                 <div class="merchant-shop-cart-segment">
@@ -253,6 +260,7 @@
                                 {{/if}}
                             </div>
                         {{/if}}
+                        </div>
                     </section>
                 </aside>
             {{/if}}
