@@ -255,6 +255,16 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The single clear button empties **both** segments.
 - [ ] Empty, the panel says so and offers *Or choose from your pack*.
 
+### Layout
+
+- [ ] The cart is level with the **merchant card**, not with the first shelf — it runs the full height of the
+      window beside everything.
+- [ ] Only the footer spans both columns.
+- [ ] The merchant card, buyer card and search stay put while the item list scrolls beneath them.
+- [ ] A tall cart uses that whole height rather than being squeezed under the header.
+- [ ] Narrow the window until the cart wraps → the header cards, search, items and cart stack in that order
+      and scroll as one.
+
 ### Shelf grouping
 
 - [ ] Shelves read as distinct groups; a long Storefront does not run into the shelf below it.

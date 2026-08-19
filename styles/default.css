@@ -13,7 +13,10 @@
 .merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
 
 /* The merchant and the buyer stay put while the stock scrolls under them. */
-.merchant-shop-pinned { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; margin: 0 -8px; padding: 8px 8px 10px; background: var(--blacksmith-tool-background); }
+/* The left column: what the shop is, who is shopping, and what is on the shelves.
+   The cart runs the full height beside all of it, and the only thing spanning both
+   is the action bar in the footer. */
+.merchant-shop-main { flex: 4 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 
 /* One shared thumbnail treatment, in two forms.
  *
@@ -322,7 +325,7 @@
 /* Narrow: the cart has wrapped underneath, so the two together scroll as one
    region — two half-height scrollers stacked would be worse than one. */
 .merchant-shop-columns { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; min-width: 0; min-height: 0; overflow-y: auto; }
-.merchant-shop-stock { flex: 4 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.merchant-shop-stock { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 .merchant-shop-shelves { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 /* Grows a quarter as fast as the stock, so a wide window spends its room on the
    thing being browsed. When the window narrows past the two bases the cart wraps
@@ -340,6 +343,7 @@
    wrapping — so the layout and the scrolling change at the same moment. */
 @container (min-width: 530px) {
     .merchant-shop-columns { overflow: hidden; align-items: stretch; }
+    .merchant-shop-main,
     .merchant-shop-stock,
     .merchant-shop-cart-column { max-height: 100%; min-height: 0; overflow: hidden; }
 
@@ -445,6 +449,8 @@
 @container (max-width: 529.98px) {
     .merchant-shop-stock > .merchant-shop-search,
     .merchant-shop-cart-head { position: sticky; top: 0; z-index: 2; }
+    /* Narrow, the header cards ride the same scroller as everything else. */
+    .merchant-shop-main { min-height: 0; }
 }
 
 /* ==================================================================

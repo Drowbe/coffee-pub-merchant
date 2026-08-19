@@ -312,6 +312,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question the frame never did: which shelf is this, forty rows down. Hidden shelves tint the band rather
   than relying on the pill alone, now that the dashed border is gone.
 
+- **The cart runs the full height of the window** (`templates/window-shop.hbs`, `styles/default.css`): the
+  merchant card, the buyer card and the search were in a full-width band *above* the two columns, so the cart
+  started level with the item list and wasted the height beside the header. They are the top of the left
+  column now, and the cart sits beside all of it. The only thing spanning both columns is the action bar in
+  the footer, which is the one thing that acts on both.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

@@ -12,8 +12,13 @@
     {{#if missing}}
         <div class="merchant-shop-empty">This shop is no longer available.</div>
     {{else}}
-        <div class="merchant-shop-pinned">
-            <section class="merchant-shop-section merchant-shop-subject">
+        <div class="merchant-shop-columns">
+            {{!-- Everything the shop is and everything it sells, in one
+                  column. The cart sits beside the whole of it rather than
+                  beneath the header, and the only thing spanning both is
+                  the action bar in the footer. --}}
+            <div class="merchant-shop-main">
+                <section class="merchant-shop-section merchant-shop-subject">
                 <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
                 <div class="merchant-shop-subject-copy">
                     <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
@@ -80,9 +85,7 @@
                 {{/if}}
             </section>
 
-        </div>
 
-        <div class="merchant-shop-columns">
             <div class="merchant-shop-stock">
         {{#if hasShelves}}
                 {{!-- Pinned to the top of the stock column: it belongs to the list it
@@ -164,7 +167,8 @@
                 <div class="merchant-shop-empty">This merchant has no shelves set up.</div>
             </section>
         {{/if}}
-            </div>
+            </div>{{!-- /stock --}}
+        </div>{{!-- /main --}}
 
             {{#if hasShelves}}
                 {{!-- One cart, two segments.
