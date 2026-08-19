@@ -10,7 +10,12 @@ Ordered by how much I want you to look at it.
 
 ## 1. Buying no longer moves the merchant's item — it grants a copy and decrements a count
 
-**Status: this one changes the transaction model. Read it first.**
+**Status: superseded on 2026-08-19, and worth reading anyway for what it was.**
+
+> `exchange` shipped with **both** primitives this asked for — `copy` for a template row and
+> `preserveEmptySource` for a counted one. Buying is a single atomic call again, so the grant-then-charge
+> ordering below, and the failure it chooses between, no longer exist. The reasoning about *why* stock is a
+> count rather than a document still stands and still governs the code.
 
 `_processBuy` used to hand `exchange` the goods *and* the coin in one call, on the reasoning that a single
 primitive holding both locks is the only way to avoid writing rollback. That reasoning still holds. It is

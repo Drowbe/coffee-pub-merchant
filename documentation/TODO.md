@@ -121,34 +121,31 @@ change and handlers read the User they are handed.
 
 ## Open
 
-Every phase in `plans/plan-merchant.md` is now built. What is left is verification and two things that are
-not ours to finish.
+Every phase in `plans/plan-merchant.md` is built, and `blacksmith.inventory.exchange` has shipped, so
+nothing in the money path is blocked any more.
 
-- **Nothing from `beb8f41` onward has been run in Foundry.** The pure-arithmetic parts *are* verified —
-  `tests/` runs making change across 5151 purse/price combinations, plus stock policy, the restock cadence
-  and the lock — but that is the small half. That is prices, cart, checkout, the payer rule,
-  and the whole of stock policy. `documentation/testing/testing-merchant.md` is current and is the list.
-  **This is the only thing standing between the module and being real**, and it needs a table rather than
-  more code.
-- **Read `DECISIONS-TO-REVIEW.md`.** Seven calls taken unattended on 2026-08-18, ordered by how much they
-  want a second opinion. The first one changes the transaction model.
-- **Waiting on Blacksmith — `inventory.exchange` does not exist.** Buy, Sell and Checkout are complete and
-  end at `EXCHANGE_UNAVAILABLE`. Two shapes were raised while it is still being designed:
-  - **Three parties.** The shopper pays, but the goods may go to another character or to the party.
-    `{ actorA, actorB }` cannot express it; Merchant refuses it as `THIRD_PARTY_DELIVERY` rather than
-    charging the wrong purse.
-  - **Copy rather than move on a transfer.** A shop's stock is a count, so the goods half of a purchase is a
-    grant. Merchant uses `exchange` for the coin only and delivers separately, which loses the atomicity the
-    primitive exists to provide. **Blacksmith has asked which of two primitives we want and is blocked on the
-    answer** — `copy: true` (source untouched) or `preserveEmptySource` (a real transfer that leaves the row
-    behind at zero). Our answer is *both, and `copy` first*: the count lives in `system.quantity`, so
-    `preserveEmptySource` gives finite shelves the better implementation, but only `copy` covers infinite
-    shelves — which are the default.
-- **Waiting on Blacksmith — the query envelope does not forward the caller.** See *Caller identity* above.
-  The payload assertion is a bridge, and the fix is one deletion on our side once it lands.
-- **Four extractions to Blacksmith, with two consumers each proving the shape** — `plans/plan-extraction.md`,
-  the phase 1b comparison against Curator's loot. Nothing is blocked on them; they are duplication that will
-  drift if left. The fifth finding is a workaround written twice and wants an upstream fix instead.
+- **Nothing since `beb8f41` has been run in Foundry beyond spot checks.** That is sixty commits: prices,
+  the slate, settlement, stock policy, search, roll tables, and the whole of the window's layout.
+  `testing/testing-merchant.md` is current and is the list. The pure-logic half *is* verified — `tests/`
+  covers making change across 5,151 purse/price combinations, stock policy, the restock cadence, the lock,
+  the trading-hours derivation and the search filter — but that is the small half.
+- **Read `DECISIONS-TO-REVIEW.md`** before changing the transaction model. Its first entry is out of date in
+  one respect: `exchange` shipped with both `copy` and `preserveEmptySource`, so buying is one atomic call
+  again and the grant-then-charge failure it describes cannot happen.
+- **Sell as the party is untried.** The path exists — the party Group Actor is in the "Buying as" list and
+  the same code serves it — but a Group Actor's inventory and purse have never been exercised by it.
+- **The GM has no way to hand something over for free.** Deliberate: the take-without-paying control was
+  removed on the understanding that free goods return as part of a wider change. Until then, a GM drags from
+  the merchant's sheet.
+- **`setTillGold` writes currency directly**, outside `api.inventory`. The primitives move deltas between
+  purses and refuse negatives, so "this shop now holds 40 when it holds 250" is not expressible. It is a GM
+  editing an NPC's own purse rather than a transaction, so it may be correct to sit outside — but if that
+  boundary should hold absolutely, the ask to Blacksmith is a `setCurrency` with no counterparty.
+- **Four extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
+  Re-measured after `dialog.wait()` gained `controls`: the helpers shrank but got *more* alike, so they still
+  qualify. Nothing is blocked on them.
+- **The query envelope still does not forward the caller.** See *Caller identity* above. One deletion on our
+  side when it lands.
 - Decisions A–E in `plans/plan-merchant.md` section 14 — settled 2026-08-09, recommendations accepted.
 
 ## Considered, not scheduled
@@ -158,4 +155,10 @@ not ours to finish.
   turns out to be a thing GMs say, it needs either a second field or a modifier on the edit.
 - **Stock that builds up over time.** Restocking refills *to* par however long has passed, so a shop left
   alone for a month is full rather than overflowing. Growing stock would be a different feature, and would
-  need a ceiling before it was one.
+  need a ceiling before it was one. Note this now cuts differently for a table-stocked shelf: that one adds
+  on every restock, so a shop left alone does not accumulate deliveries but a shop visited weekly does.
+- **A roll count that is a formula.** A shelf rolls its table a fixed number of times. `1d4+1` would be more
+  in keeping with the rest of the system, and is a parse plus a `Roll` away — but a fixed count is
+  predictable, and a GM who wants variety can put it in the table.
+- **Per-segment clears on the slate.** One control empties both segments. Dumping what you are selling while
+  keeping what you are buying is per-line only.
