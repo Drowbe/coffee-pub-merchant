@@ -255,6 +255,15 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The single clear button empties **both** segments.
 - [ ] Empty, the panel says so and offers *Or choose from your pack*.
 
+### Shelf grouping
+
+- [ ] Shelves read as distinct groups; a long Storefront does not run into the shelf below it.
+- [ ] Scroll a long shelf → its heading **sticks to the top of the list** and names what you are looking at.
+- [ ] Scrolling into the next shelf swaps the heading for that one.
+- [ ] Rows pass **behind** the heading and stay legible against it rather than merging into it.
+- [ ] A hidden shelf's heading is tinted as well as carrying the Hidden pill.
+- [ ] The search box does not scroll with the headings; it stays above them.
+
 ### Scrollbars
 
 - [ ] The stock scrollbar starts **below** the search box, not beside it.

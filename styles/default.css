@@ -462,7 +462,7 @@
 
 /* Shelves are headed groups, not cards. */
 .merchant-shop-stock .merchant-shop-shelf { padding: 0; border: 0; border-radius: 0; background: none; }
-.merchant-shop-shelves > .merchant-shop-shelf + .merchant-shop-shelf { padding-top: 10px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-shop-shelves { gap: 16px; }
 /* A hidden shelf loses its dashed frame and says so on the heading instead. */
 .merchant-shop-stock .merchant-shop-shelf-hidden { border-style: none; opacity: .82; }
 
@@ -491,3 +491,40 @@
 /* Icon only now, so it is a square rather than a button with a hole where a word
    used to be. The tooltip still carries the reason it is disabled. */
 .merchant-shop-cart-add { display: inline-grid; width: 26px; height: 24px; place-items: center; padding: 0; }
+
+/* --- Shelf headings do the grouping ------------------------------------- */
+/*
+ * Removing the cards removed the group boundaries with them: seven items on the
+ * Storefront and one in the Back Room ran together into a single list.
+ *
+ * The heading carries it now — a filled band rather than a line of text, and
+ * sticky inside the list, so the shelf you are looking at names itself while you
+ * scroll through it. That is a stronger grouping signal than a frame was, and it
+ * answers a question a frame never did: which shelf is this, forty rows down.
+ */
+.merchant-shop-stock .merchant-shop-shelf > h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 0 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px;
+    /* The panel's own tone, not the rows' — a row is sunken, so it stays distinct
+       as it slides underneath rather than merging with the band it passes behind. */
+    background: var(--blacksmith-tool-surface-raised);
+    box-shadow: 0 2px 4px -2px rgba(0,0,0,.28);
+    color: var(--blacksmith-tool-text);
+    font-size: .72rem;
+}
+/* The name reads first; the controls beside it stay quiet. */
+.merchant-shop-stock .merchant-shop-shelf > h3 > span:first-child { color: var(--blacksmith-tool-accent); font-weight: 700; }
+
+/* Hidden shelves lost their dashed frame with everything else, so the band
+   carries that too rather than leaving the pill to say it alone. */
+.merchant-shop-stock .merchant-shop-shelf-hidden > h3 { border-color: color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); background: color-mix(in srgb, #8c2f22 8%, var(--blacksmith-tool-surface-raised)); }
+.merchant-shop-stock .merchant-shop-shelf-hidden { opacity: 1; }
+
+/* Rows sit in from the heading, so the group reads as one thing hanging off it. */
+.merchant-shop-shelf-body { padding-left: 2px; }
+.merchant-shop-category + .merchant-shop-category { margin-top: 8px; }

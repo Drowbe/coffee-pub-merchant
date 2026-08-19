@@ -305,6 +305,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inset now.
 - **The row button is an icon**: the word "Add" beside a cart-plus glyph was saying the same thing twice.
 
+- **Shelf headings do the grouping** (`styles/default.css`): flattening the cards took the group boundaries
+  with them, and seven items on the Storefront ran straight into one in the Back Room. The heading is a
+  filled band now rather than a line of text, and **sticky inside the list**, so the shelf you are looking at
+  names itself while you scroll through it. That is a stronger boundary than the frame was, and it answers a
+  question the frame never did: which shelf is this, forty rows down. Hidden shelves tint the band rather
+  than relying on the pill alone, now that the dashed border is gone.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
