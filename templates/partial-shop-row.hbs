@@ -44,9 +44,9 @@
         {{#if priceLabel}}
             <strong>{{priceLabel}}</strong>
         {{else if isBarter}}
-            <em>barter</em>
+            <em data-tooltip="No price until one is agreed">negotiate</em>
         {{else}}
-            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a barter shelf">no price</em>
+            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a negotiate shelf">no price</em>
         {{/if}}
     </div>
 
@@ -54,21 +54,10 @@
         <div class="merchant-shop-row-actions">
             <span class="merchant-shop-blocked"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
         </div>
-    {{else if isBarter}}
-        <div class="merchant-shop-row-actions">
-            <span class="merchant-shop-blocked" data-tooltip="No fixed price; ask the merchant">
-                <i class="fa-solid fa-comments"></i> Ask
-            </span>
-            {{#if canRemove}}
-                {{!-- GM only. Zero is out of stock, which is a state a shop is in;
-                      this is the shelf no longer carrying the thing at all. --}}
-                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-remove"
-                        data-action="removeStock" data-item-id="{{id}}"
-                        data-tooltip="Take this off the shelf entirely">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            {{/if}}
-        </div>
+    {{!-- A negotiate row adds like any other. "Ask" was a dead end: it named the
+          thing to do and then left you to do it somewhere else. Putting it on the
+          slate at TBD is what asking *is* -- the item is now between the two of you,
+          and the price is the part still outstanding. --}}
     {{else}}
         <div class="merchant-shop-row-actions">
             {{!-- One action. There was a Buy alongside this that purchased the row

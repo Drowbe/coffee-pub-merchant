@@ -42,6 +42,15 @@ export function toBase(value, denomination) {
     return Math.round((amount / from.conversion) * base.conversion);
 }
 
+/** Base units back out to an amount of one denomination. The inverse of `toBase`. */
+export function fromBase(base, denomination) {
+    const amount = Math.max(0, Math.round(Number(base) || 0));
+    const to = denominations().find((d) => d.key === denomination);
+    const baseUnit = baseDenomination();
+    if (!to || !baseUnit.conversion) return amount;
+    return (amount / baseUnit.conversion) * to.conversion;
+}
+
 /** An actor's whole purse, in base units. */
 export function purseValue(actor) {
     const currency = actor?.system?.currency ?? {};
@@ -115,10 +124,15 @@ export function formatBase(base) {
  *   configuration gap on a sale shelf and deliberate on a barter one.
  */
 export function resolvePrice(merchantConfig, shelfConfig, item) {
-    const override = merchantConfig?.pricing?.overrides?.[item?.id];
-    if (override && Number.isFinite(Number(override.value))) {
-        return toBase(Number(override.value), override.denomination ?? 'gp');
-    }
+    // An agreed price wins outright, which is what makes it agreed.
+    const negotiated = negotiatedPrice(merchantConfig, item?.id);
+    if (negotiated !== null) return negotiated;
+
+    // A negotiate shelf has no list price by definition: what a thing costs there is
+    // whatever the two of you settle on, and until you have settled there is no
+    // number. Anything else would be putting a price on the shelf that exists so as
+    // not to have one.
+    if (shelfConfig?.mode === SHELF_MODE.BARTER) return null;
 
     const price = item?.system?.price;
     const value = Number(price?.value);
@@ -138,6 +152,30 @@ export function resolvePrice(merchantConfig, shelfConfig, item) {
 }
 
 /**
+ * A price the GM has agreed for one item, in base units, or null.
+ *
+ * Stored on the merchant rather than carried in the request, because the price is
+ * the one number in a transaction a player must not be able to name. A slate is
+ * client state; this is a document, and the GM handler reads the document.
+ */
+export function negotiatedPrice(merchantConfig, itemId) {
+    const agreed = merchantConfig?.pricing?.overrides?.[itemId];
+    if (agreed === null || agreed === undefined) return null;
+    // A plain number is base units, which is what the negotiate control writes. The
+    // `{ value, denomination }` shape is what a per-item override was before it, and
+    // is still read so nothing configured earlier stops working.
+    if (Number.isFinite(Number(agreed))) return Math.max(0, Math.round(Number(agreed)));
+    if (Number.isFinite(Number(agreed.value))) return toBase(Number(agreed.value), agreed.denomination ?? 'gp');
+    return null;
+}
+
+/** What the GM has agreed to pay for one thing the party is selling, or null. */
+export function negotiatedBuyback(merchantConfig, itemId) {
+    const agreed = merchantConfig?.pricing?.buybackOverrides?.[itemId];
+    return Number.isFinite(Number(agreed)) ? Math.max(0, Math.round(Number(agreed))) : null;
+}
+
+/**
  * What a merchant pays for an item the party sells, in base units.
  *
  * A fraction of what the thing is worth, not a fraction of the shop's asking price —
@@ -148,6 +186,9 @@ export function resolvePrice(merchantConfig, shelfConfig, item) {
  * as a rate paid rather than a rate charged.
  */
 export function resolveBuybackPrice(merchantConfig, shelfConfig, item) {
+    const agreed = negotiatedBuyback(merchantConfig, item?.id);
+    if (agreed !== null) return agreed;
+
     const price = resolvePrice({ ...merchantConfig, pricing: { ...merchantConfig?.pricing, overrides: {} } }, null, item);
     if (price === null) return null;
     const rate = Number.isFinite(Number(shelfConfig?.markup)) ? Number(shelfConfig.markup) : 0.5;

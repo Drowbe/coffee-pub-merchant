@@ -10,7 +10,9 @@ import {
     DEFAULT_TILL, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
-import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase } from './merchant-pricing.js';
+import {
+    resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase, fromBase
+} from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 
@@ -517,6 +519,37 @@ export class MerchantManager {
             [`flags.${MODULE.ID}.${PAR_FLAG}`]: value
         });
         return { item, value, clamped: value !== wanted, maxPerItem };
+    }
+
+    /**
+     * Agree a price for one thing, in base units.
+     *
+     * **Written to the merchant, not carried in the request.** A price is the one
+     * number in a transaction a player must not be able to name, and a slate is
+     * client state. Putting it on the document means the GM handler reads the same
+     * figure whoever presses the button.
+     *
+     * `side` says which way it runs: what the shop charges for its own goods, or what
+     * it will pay for one of yours. Two different agreements about two different
+     * items, which is why they are two maps rather than one.
+     *
+     * `null` clears it, and clearing a negotiate-shelf item puts it back to having no
+     * price at all — which is the state that shelf exists to express.
+     */
+    static async setNegotiatedPrice(merchant, itemId, base, { side = 'buy' } = {}) {
+        if (!game.user.isGM || !merchant || !itemId) return null;
+
+        const key = side === 'sell' ? 'buybackOverrides' : 'overrides';
+        const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
+        const agreed = { ...(pricing[key] ?? {}) };
+
+        if (base === null || base === undefined) delete agreed[itemId];
+        else agreed[itemId] = Math.max(0, Math.round(Number(base) || 0));
+
+        pricing[key] = agreed;
+        await this.setConfig(merchant, { pricing });
+        this.broadcastActorRefresh(merchant);
+        return true;
     }
 
     /**
@@ -1064,6 +1097,47 @@ export class MerchantManager {
             .every(([denomination, amount]) => Number(purse[denomination] ?? 0) >= amount);
     }
 
+    /**
+     * Give an unpriced item the price that was agreed for it.
+     *
+     * A haggled discount is not what a thing is worth — a longsword bought cheap is
+     * still a longsword, and selling it on should fetch a longsword's price. So a
+     * price is only ever written where there was none, which is the case a negotiate
+     * shelf exists for: the odd, the unique, the thing with no entry in any book.
+     * Agreeing a number for one of those *is* deciding what it is worth, and the
+     * party should be able to sell it for that later.
+     *
+     * One update for the whole Actor. A write per item is a write per item to the
+     * same Actor, which is the shape that trips dnd5e's encumbrance recompute.
+     */
+    static async _recordAgreedPrices(owner, items, { merchant = null } = {}) {
+        if (!owner || !items?.length) return;
+
+        const config = this.getConfig(merchant ?? owner);
+        const updates = [];
+        for (const item of items) {
+            const worth = Number(item?.system?.price?.value);
+            if (Number.isFinite(worth) && worth > 0) continue;
+
+            const agreed = merchant
+                ? resolveBuybackPrice(config, this.getShelfConfig(this.getShelfFor(merchant, item)), item)
+                : resolvePrice(config, this.getShelfConfig(this.getShelfFor(owner, item)), item);
+            if (agreed === null || agreed <= 0) continue;
+
+            updates.push({
+                _id: item.id,
+                'system.price': { value: fromBase(agreed, 'gp'), denomination: 'gp' }
+            });
+        }
+
+        if (!updates.length) return;
+        try {
+            await owner.updateEmbeddedDocuments('Item', updates);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not record the agreed price on ${owner.name}:`, error);
+        }
+    }
+
     /** Price the buy side. Every line re-resolved and re-priced on the GM. */
     static _priceBuying(merchant, requested, user) {
         const config = this.getConfig(merchant);
@@ -1084,10 +1158,11 @@ export class MerchantManager {
             if (shelfConfig.visible === false && !user.isGM) {
                 return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
             }
-            if (shelfConfig.mode === 'barter') return { ok: false, code: 'BARTER_ONLY', itemName: item.name };
-
+            // No `BARTER_ONLY` refusal any more. A negotiate shelf has no list price,
+            // so `resolvePrice` returns null until one is agreed — and refusing an
+            // unpriced line is the same refusal either way.
             const unit = resolvePrice(config, shelfConfig, item);
-            if (unit === null) return { ok: false, code: 'NOT_PRICED', itemName: item.name };
+            if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
@@ -1114,10 +1189,10 @@ export class MerchantManager {
             }
 
             const unit = resolveBuybackPrice(config, shelf.config, item);
-            if (unit === null) return { ok: false, code: 'NOT_PRICED', itemName: item.name };
+            if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             total += unit * quantity;
-            lines.push({ itemId: item.id, quantity });
+            lines.push({ itemId: item.id, item, quantity });
         }
         return { ok: true, lines, total };
     }
@@ -1189,6 +1264,13 @@ export class MerchantManager {
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
+        // What was agreed becomes what the thing is worth, for anything that had no
+        // worth of its own. Written before the goods move so the copy carries it —
+        // and one batched update per Actor rather than a write per item, because a
+        // second write to an Actor is what trips dnd5e's encumbrance recompute.
+        await this._recordAgreedPrices(merchant, bought.lines.map((line) => line.item));
+        await this._recordAgreedPrices(shopper, sold.lines.map((line) => line.item), { merchant });
+
         const goodsIn = sold.lines.length
             ? [{
                 from: shopper.uuid,
@@ -1207,9 +1289,40 @@ export class MerchantManager {
             ]
         });
 
+        // An agreement covers the trade it was made for. Left standing, a haggled
+        // discount would quietly become the shelf price for everyone who came after,
+        // and a settled negotiate line would keep a price the shelf exists not to
+        // have. Cleared only on success, so a refused trade can be tried again on
+        // the same terms.
+        if (result?.ok) await this._clearAgreedPrices(merchant, bought.lines, sold.lines);
+
         return result?.ok
             ? { ...result, net, spent: bought.total, earned: sold.total }
             : result;
+    }
+
+    /** Drop the agreements a settled trade used up. One write, both sides. */
+    static async _clearAgreedPrices(merchant, boughtLines, soldLines) {
+        const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
+        const overrides = { ...(pricing.overrides ?? {}) };
+        const buyback = { ...(pricing.buybackOverrides ?? {}) };
+
+        let touched = false;
+        for (const line of boughtLines ?? []) {
+            if (line?.item?.id in overrides) { delete overrides[line.item.id]; touched = true; }
+        }
+        for (const line of soldLines ?? []) {
+            if (line?.itemId in buyback) { delete buyback[line.itemId]; touched = true; }
+        }
+        if (!touched) return;
+
+        pricing.overrides = overrides;
+        pricing.buybackOverrides = buyback;
+        try {
+            await this.setConfig(merchant, { pricing });
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clear the agreed prices:`, error);
+        }
     }
 
     /**

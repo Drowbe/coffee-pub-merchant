@@ -1,6 +1,6 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import {
-    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen
+    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase } from './merchant-pricing.js';
@@ -369,11 +369,24 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             const closePct = (close / span) * 100;
             const bar = 'var(--merchant-open-bar)';
 
-            if (open === close) fill.style.background = bar;
+            // Handles together is a window with no hours in it: nothing to shade.
+            if (open === close) fill.style.background = 'transparent';
             else if (open < close) {
                 fill.style.background = `linear-gradient(90deg, transparent 0 ${openPct}%, ${bar} ${openPct}% ${closePct}%, transparent ${closePct}% 100%)`;
             } else {
                 fill.style.background = `linear-gradient(90deg, ${bar} 0 ${closePct}%, transparent ${closePct}% ${openPct}%, ${bar} ${openPct}% 100%)`;
+            }
+
+            // The two ends of the same gesture: band drawn across the whole day, or
+            // band shut to nothing. Said here rather than only on release, so the
+            // label and the handles never disagree while the drag is in progress.
+            const badge = this.element.querySelector('[data-hours-badge]');
+            if (badge) {
+                const shut = open === close;
+                const always = open === 0 && close === span;
+                badge.textContent = shut ? 'Always closed' : (always ? 'Always open' : '');
+                badge.classList.toggle('is-closed', shut);
+                badge.hidden = !shut && !always;
             }
         };
 
@@ -689,6 +702,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // thing the slider says when it covers the whole span — so there is one
             // state on screen rather than a schedule and a not-a-schedule.
             alwaysOpen: isAlwaysOpen(hours),
+            alwaysClosed: isAlwaysClosed(hours),
+            hoursBadge: isAlwaysOpen(hours) ? 'Always open' : (isAlwaysClosed(hours) ? 'Always closed' : null),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
             description: MerchantManager.getConfig(actor)?.description ?? '',
             shopName: MerchantManager.getConfig(actor)?.name ?? '',

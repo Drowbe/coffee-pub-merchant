@@ -103,4 +103,52 @@ for (let cp = 0; cp <= 4; cp++) {
 }
 console.log(`ok  ${checked} purse/price combinations net exactly`);
 
+// --- negotiation ---------------------------------------------------------
+// The rule the whole feature turns on: an agreed price beats everything, and a
+// shelf that exists not to have prices has none until one is agreed.
+const item = (id, gp) => ({ id, system: gp === null ? {} : { price: { value: gp, denomination: 'gp' } } });
+const NEGOTIATE = { mode: 'barter' };
+const SALE = { mode: 'sale', markup: null };
+
+assert.strictEqual(P.resolvePrice({}, NEGOTIATE, item('a', 50)), null,
+    'a negotiate shelf has no price even for a listed item');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50)), 5000, 'and an ordinary shelf still does');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', null)), null, 'nothing to go on is still nothing');
+
+const AGREED = { pricing: { overrides: { a: 1200 } } };
+assert.strictEqual(P.resolvePrice(AGREED, NEGOTIATE, item('a', null)), 1200, 'an agreed price is the price');
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50)), 1200, 'and it beats the list price too');
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('b', 50)), 5000, 'without leaking onto anything else');
+assert.strictEqual(P.negotiatedPrice(AGREED, 'a'), 1200);
+assert.strictEqual(P.negotiatedPrice(AGREED, 'b'), null);
+assert.strictEqual(P.negotiatedPrice({}, 'a'), null);
+
+// Free is a price a merchant can offer, so zero has to survive the round trip
+// rather than reading as "no agreement yet".
+assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: 0 } } }, 'a'), 0, 'nothing is a price');
+
+// The older `{ value, denomination }` override shape still reads, so a shop
+// configured before any of this existed keeps its prices.
+assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: { value: 7, denomination: 'gp' } } } }, 'a'), 700);
+
+const BUYBACK = { mode: 'buyback', markup: 0.5 };
+assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
+assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
+assert.strictEqual(
+    P.resolveBuybackPrice({ pricing: { buybackOverrides: { a: 900 } } }, BUYBACK, item('a', null)), 900,
+    'until the GM says what the merchant will pay');
+assert.strictEqual(
+    P.resolveBuybackPrice({ pricing: { overrides: { a: 9999 } } }, BUYBACK, item('a', 50)), 2500,
+    'a buy-side agreement does not decide what the shop pays');
+console.log('ok  agreed prices, both directions');
+
+// --- fromBase round-trips ------------------------------------------------
+// The price control types gold and stores base units; both directions have to
+// agree or a price drifts every time it is opened and closed.
+for (const [gp, base] of [[1, 100], [7.5, 750], [0, 0], [200, 20000]]) {
+    assert.strictEqual(P.toBase(gp, 'gp'), base);
+    assert.strictEqual(P.fromBase(base, 'gp'), gp, `${base}cp reads back as ${gp}gp`);
+}
+console.log('ok  gold and base units round-trip');
+
 console.log('\nall pricing checks passed');

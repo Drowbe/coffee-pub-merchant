@@ -202,9 +202,12 @@ export const SHELF_PRESETS = Object.freeze({
     },
     barter: {
         key: 'barter',
-        name: 'Barter',
+        // Called Negotiate on screen, stored as `barter`: renaming the label costs
+        // nothing, renaming the stored value would silently un-mode every shelf a
+        // GM has already made.
+        name: 'Negotiate',
         img: 'icons/containers/misc/basket-handle-woven-yellow.webp',
-        hint: 'No fixed price. Settle it at the table.',
+        hint: 'No price until you agree one. The GM sets it on the slate.',
         shelf: { order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
     },
     buyback: {
@@ -267,9 +270,11 @@ export function isScheduledOpen(hours, hour) {
     const open = Number(hours.open);
     const close = Number(hours.close);
     if (!Number.isFinite(open) || !Number.isFinite(close)) return null;
-    // Equal bounds read as "always", which is what a GM setting both to the same
-    // hour is asking for, and avoids a zero-width window nobody can shop in.
-    if (open === close) return true;
+    // Handles on the same hour is a window with no hours in it, and a shop with no
+    // hours in it is shut. The other reading -- treating it as "always" -- gave two
+    // gestures for open and none for closed, which is exactly the ambiguity the
+    // whole-span rule was meant to remove.
+    if (open === close) return false;
     if (open < close) return hour >= open && hour < close;
     // Overnight: open 20:00, close 04:00.
     return hour >= open || hour < close;
@@ -290,16 +295,29 @@ export function formatHour(hour) {
 }
 
 /**
- * Whether a schedule covers every hour there is.
- *
- * Two ways to say it and both are honest: the handles together, or the whole span
- * from one midnight to the next. `isScheduledOpen` already answers true for both —
- * this is only for saying so on screen.
+ * Whether a schedule covers every hour there is: the band drawn across the whole
+ * day, one midnight to the next. Only for saying so on screen — `isScheduledOpen`
+ * already answers the question that matters.
  */
 export function isAlwaysOpen(hours) {
     if (!hours) return true;
     const open = Number(hours.open);
     const close = Number(hours.close);
     if (!Number.isFinite(open) || !Number.isFinite(close)) return true;
-    return open === close || (open === 0 && close === hoursPerDay());
+    return open === 0 && close === hoursPerDay();
+}
+
+/**
+ * Whether a schedule has no hours in it at all: both handles on the same mark.
+ *
+ * The mirror of the above, and the reason the two ends of the slider mean opposite
+ * things. Dragging the band shut is the only way to say "never open" with the same
+ * control that says "always open", so it says it.
+ */
+export function isAlwaysClosed(hours) {
+    if (!hours) return false;
+    const open = Number(hours.open);
+    const close = Number(hours.close);
+    if (!Number.isFinite(open) || !Number.isFinite(close)) return false;
+    return open === close;
 }

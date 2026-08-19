@@ -1,6 +1,8 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen } from './const.js';
-import { resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment } from './merchant-pricing.js';
+import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
+import {
+    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment, toBase, fromBase
+} from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
@@ -445,6 +447,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
 
+        const unagreed = [...cart, ...basket].filter((line) => line.total === null);
+        if (unagreed.length) {
+            ui.notifications?.warn(
+                'You have unnegotiated items on your slate. Remove them, or negotiate a price with the merchant.'
+            );
+            return;
+        }
+
         const spent = cart.reduce((sum, line) => sum + line.total, 0);
         const earned = basket.reduce((sum, line) => sum + line.total, 0);
         const net = spent - earned;
@@ -496,8 +506,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 continue;
             }
             const shelf = MerchantManager.getShelfFor(merchant, item);
+            // An unpriced line stays, showing as not yet agreed. Dropping it would
+            // make adding something from a negotiate shelf look like nothing
+            // happened, which is the opposite of asking about it.
             const unit = resolvePrice(config, MerchantManager.getShelfConfig(shelf), item);
-            if (unit === null) continue;
 
             // Stock sold out from under a standing cart trims the line rather than
             // failing the whole checkout. A line trimmed to nothing drops out.
@@ -516,7 +528,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 quantity: held,
                 trimmed: held !== quantity,
                 unit,
-                total: unit * held
+                total: unit === null ? null : unit * held
             });
         }
         return lines;
@@ -532,10 +544,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             .find(({ config }) => config.mode === 'buyback') ?? null;
     }
 
-    /** What the merchant would pay for this, or null if it would not take it. */
+    /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
-        if (!item || !isPhysical(item.type)) return null;
+        if (!this._wouldTake(item)) return null;
         return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item);
+    }
+
+    /**
+     * Whether this is the sort of thing that can change hands at all.
+     *
+     * Separate from what it fetches, because those are different refusals. A spell is
+     * not goods and never will be; a curio with no price in any book is goods whose
+     * price has not been named yet, and naming it is what the slate is for.
+     */
+    _wouldTake(item) {
+        return Boolean(item) && isPhysical(item.type);
     }
 
     /**
@@ -562,7 +585,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // What is already in the basket is spoken for, so an item wholly promised does
         // not appear again as though it were still on the shelf.
         const sellable = seller.items.filter((item) => {
-            if (this._offerFor(merchant, buyback, item) === null) return null;
+            if (!this._wouldTake(item)) return false;
             const available = Number(item.system?.quantity ?? 1);
             const held = this.basket.get(item.id) ?? 0;
             return (Number.isFinite(available) ? available : 1) - held > 0;
@@ -592,7 +615,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 name: item.name,
                 img: item.img,
                 type: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
-                badges: [{ label: formatBase(this._offerFor(merchant, buyback, item)) }]
+                badges: [{
+                    label: this._offerFor(merchant, buyback, item) === null
+                        ? 'TBD'
+                        : formatBase(this._offerFor(merchant, buyback, item))
+                }]
             })),
             mode: 'multi',
             inputName: 'merchant-sell',
@@ -646,7 +673,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ui.notifications?.warn(`You are selling as ${seller.name}. That belongs to somebody else.`);
             return;
         }
-        if (this._offerFor(merchant, buyback, item) === null) {
+        if (!this._wouldTake(item)) {
             ui.notifications?.warn(`This merchant would not take ${item.name}.`);
             return;
         }
@@ -696,10 +723,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 continue;
             }
             const unit = this._offerFor(merchant, buyback, item);
-            if (unit === null) {
-                this.basket.delete(itemId);
-                continue;
-            }
 
             const available = Number(item.system?.quantity ?? 1);
             const held = Math.min(quantity, Number.isFinite(available) ? available : 1);
@@ -709,7 +732,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             }
             if (held !== quantity) this.basket.set(itemId, held);
 
-            lines.push({ id: itemId, name: item.name, img: item.img, quantity: held, unit, total: unit * held });
+            lines.push({
+                id: itemId,
+                name: item.name,
+                img: item.img,
+                quantity: held,
+                unit,
+                total: unit === null ? null : unit * held
+            });
         }
         return lines;
     }
@@ -777,9 +807,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
-            case 'BARTER_ONLY': return result?.itemName
-                ? `${result.itemName} is a conversation, not a purchase.`
-                : 'That one is a conversation, not a purchase.';
+            case 'NOT_NEGOTIATED': return result?.itemName
+                ? `No price has been agreed for ${result.itemName}.`
+                : 'No price has been agreed for one of those.';
             case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
             case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
@@ -878,9 +908,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                             : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
+                            : (price === null && isBarter) ? 'Add to the slate and agree a price'
                             : price === null ? 'This has no price set'
                             : 'Add to the slate',
-                        canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
+                        // A negotiate row has no price *yet*, which is not the same
+                        // as having none. It goes on the slate at TBD and settling
+                        // is what waits for the number.
+                        canCart: trading && Boolean(recipient) && inStock && (isBarter || price !== null),
                         // Setting a quantity to zero says "sold out"; this says "we do
                         // not carry that". Different statements, so different controls.
                         canRemove: isGM,
@@ -918,9 +952,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const descriptionHtml = missing ? '' : await _enrich(config?.description);
         const cartLines = missing ? [] : await this._cartLines();
-        const cartTotal = cartLines.reduce((sum, line) => sum + line.total, 0);
+        const cartTotal = cartLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
         const basketLines = missing ? [] : await this._basketLines();
-        const basketTotal = basketLines.reduce((sum, line) => sum + line.total, 0);
+        const basketTotal = basketLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
@@ -942,14 +976,22 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
             // A shop open every hour has no hours worth printing; "midnight to
-            // midnight" is a fact about the clock rather than about the shop.
-            hoursLabel: hours && !isAlwaysOpen(hours)
+            // midnight" is a fact about the clock rather than about the shop. Nor has
+            // one that never opens: "3:00 PM to 3:00 PM" is not a span, and the sign
+            // above it already says the shop is shut.
+            hoursLabel: hours && !isAlwaysOpen(hours) && !isAlwaysClosed(hours)
                 ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}`
                 : null,
             purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
             cart: cartLines.map((line) => ({
                 ...line,
-                totalLabel: formatBase(line.total),
+                totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
+                agreed: line.total !== null,
+                canPrice: isGM,
+                priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
+                priceTooltip: line.unit === null
+                    ? 'Double-click to set the agreed price, each, in gp'
+                    : `${formatBase(line.unit)} each — double-click to change it`,
                 side: 'cart',
                 removeAction: 'removeFromCart'
             })),
@@ -974,7 +1016,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             fundsLabel: recipient ? formatBase(purseValue(recipient)) : formatBase(0),
             basket: basketLines.map((line) => ({
                 ...line,
-                totalLabel: formatBase(line.total),
+                totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
+                agreed: line.total !== null,
+                canPrice: isGM,
+                priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
+                priceTooltip: line.unit === null
+                    ? 'Double-click to set the agreed price, each, in gp'
+                    : `${formatBase(line.unit)} each — double-click to change it`,
                 side: 'basket',
                 removeAction: 'removeFromBasket'
             })),
@@ -1238,13 +1286,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * what the committed number is written to.
      */
     _bindQuantityEdits() {
-        for (const cell of this.element?.querySelectorAll('[data-edit-stock], [data-edit-line]') ?? []) {
+        const cells = this.element?.querySelectorAll('[data-edit-stock], [data-edit-line], [data-edit-price]') ?? [];
+        for (const cell of cells) {
             if (cell.dataset.merchantBound === 'true') continue;
             cell.dataset.merchantBound = 'true';
+            const price = cell.hasAttribute('data-edit-price');
             cell.addEventListener('dblclick', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                this._beginQuantityEdit(cell);
+                if (price) this._beginPriceEdit(cell);
+                else this._beginQuantityEdit(cell);
             });
         }
     }
@@ -1281,6 +1332,78 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         });
         // Clicking away commits, matching the rest of the suite.
         input.addEventListener('blur', () => void finish(true));
+    }
+
+    /**
+     * Double-click a slate price to name it. GM only.
+     *
+     * The same gesture as the quantity beside it, and deliberately so — but a price
+     * is gold rather than a count, so it takes decimals, and an empty box clears the
+     * agreement rather than meaning zero. Clearing matters: on a negotiate line it
+     * puts the row back to TBD, which is the state that says the haggling is still
+     * live. Zero, meanwhile, is a real price. Free is a thing a merchant can offer.
+     *
+     * What is typed is the price *each*. The cell shows the line total, so for a
+     * single item they are the same number and for several the tooltip says which
+     * is which. Editing the total instead would divide by the quantity and leave 40
+     * gp for three showing as 39.99.
+     */
+    _beginPriceEdit(cell) {
+        if (this.busy || cell.querySelector('input')) return;
+        const value = cell.querySelector('strong');
+        if (!value) return;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = 'any';
+        input.value = cell.getAttribute('data-price-each') ?? '';
+        input.placeholder = 'gp';
+        input.className = 'merchant-shop-qty-input';
+
+        value.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let settled = false;
+        const finish = async (commit) => {
+            if (settled) return;
+            settled = true;
+            const raw = input.value.trim();
+            input.replaceWith(value);
+            if (commit) {
+                const gold = raw === '' ? null : Number(raw);
+                if (raw === '' || (Number.isFinite(gold) && gold >= 0)) await this._commitPrice(cell, gold);
+            }
+            await this.render(false);
+        };
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); void finish(true); }
+            else if (event.key === 'Escape') { event.preventDefault(); void finish(false); }
+        });
+        input.addEventListener('blur', () => void finish(true));
+    }
+
+    async _commitPrice(cell, gold) {
+        const itemId = cell.getAttribute('data-edit-price');
+        if (!itemId) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return;
+
+        // Which way the money runs decides which agreement this is. What the shop
+        // charges for its own goods and what it will pay for one of yours are two
+        // different numbers about two different things.
+        const side = cell.getAttribute('data-line-side') === 'basket' ? 'sell' : 'buy';
+        try {
+            await MerchantManager.setNegotiatedPrice(
+                merchant, itemId, gold === null ? null : toBase(gold, 'gp'), { side }
+            );
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not agree that price:`, error);
+            ui.notifications?.error('Could not agree that price.');
+        }
     }
 
     async _commitQuantity(cell, next) {

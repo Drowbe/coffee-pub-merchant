@@ -163,3 +163,58 @@ likely place for a bug I cannot see without a table**, and the test doc has a sp
 - **Everything from `beb8f41` forward is untested in Foundry.** Six commits. The arithmetic half is verified
   by `tests/`; the half that touches documents, templates, hooks and permissions is not, and cannot be
   without a table. `documentation/testing/testing-merchant.md` is current and is the list.
+
+---
+
+## Negotiated prices
+
+### D-N1. What the price box edits: each, or the line total
+
+The slate cell shows the **line total**. Double-clicking it opens a box holding the price
+**each**, and the tooltip says so ("12 gp each — double-click to change it").
+
+**Why not edit the total.** "The three potions for 40 gp" is how it gets said at a table, and
+editing what you can see is the honest gesture. But the price is stored per item, so the total
+has to be divided back down: 40 gp for three is 1333 cp each, which shows straight back as
+39.99 gp. A number that changes the moment you type it is worse than one that needs a tooltip.
+
+- **A. Edit each, show the total** — what is built. Exact. Needs the tooltip for quantities > 1.
+- **B. Edit the total, divide down** — reads better, rounds visibly wrong.
+- **C. Show `3 × 12 gp` on the line** — no ambiguity at all, but a fourth number in a narrow
+  column that is already tight.
+
+**Recommendation: A.** C is the fallback if you find the tooltip is not enough in play.
+
+### D-N2. Agreements are cleared when the trade settles
+
+A negotiated figure lives on the merchant until the trade it was made for goes through, then it
+is deleted.
+
+**Why.** Left standing, a discount haggled by one player would quietly become the shelf price
+for everyone who came after, and a settled negotiate line would keep a price on the shelf that
+exists in order not to have one.
+
+- **A. Clear on settle** — what is built. Each negotiation is its own conversation.
+- **B. Keep it** — the shelf remembers. Good if you think of a negotiate shelf as "unpriced
+  until first sold, then priced"; bad if two parties should get two different deals.
+- **C. Clear buy-side, keep sell-side.**
+
+**Recommendation: A**, but this is the one I would most expect you to overrule — B is a
+defensible reading of "that IS the price".
+
+### D-N3. The price is stamped on the item only when it had none
+
+An item that arrives with no price of its own is written with what was agreed. An item that
+already had a price keeps it, however deep the discount.
+
+This is your rule, restated to be sure I read it the way you meant: *a longsword bought cheap is
+still worth what a longsword is worth, but a curio negotiated at 200 gp is worth 200 gp.* If you
+meant that a discount should also follow the item, that is a one-line change.
+
+### D-N4. Unpriced possessions can go in the sell basket
+
+Previously the shop refused anything it had no price for: *"This merchant would not take X."*
+That now applies only to things that are not goods at all (spells, features). Anything physical
+can go in the basket at TBD for the GM to price, which is the sell-side half of the same
+workflow. Say if you would rather the buyback shelf's rate remain the only sell-side price.
+

@@ -118,12 +118,32 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] An overnight schedule (open 20, close 04) is open at midnight and closed at noon.
 - [ ] That overnight schedule shades **both ends** of the slider, not the middle.
 - [ ] There is **no Always open button**.
-- [ ] Drag the handles to cover the whole slider → an **Always open** label appears on the section heading.
+- [ ] Drag the handles to cover the whole slider → an **Always open** label appears on the section heading,
+      **mid-drag**, not on release, and with no box drawn around it.
 - [ ] With that set, the shop is open at **every** hour, 11pm included. *That hour used to fall outside a
       "whole day" span, which is why the closing handle now reaches midnight rather than 11pm.*
 - [ ] A shop that has never had hours set shows the handles across the whole day and reads as always open.
 - [ ] The shop window shows **no hours** for an always-open shop.
 - [ ] Move a handle off the full span → the label goes and the hours appear in the shop.
+- [ ] Drag one handle **onto the other** → the band empties and the label reads **Always closed**, in red.
+- [ ] With that set, the shop is **closed at every hour**, and the shop window shows no hours for it either.
+- [ ] A GM can still open it by hand with the Open toggle; that reads as overriding the schedule, as usual.
+
+## 2d-ii. Negotiating a price
+
+- [ ] A **Negotiate** shelf (was Barter) shows *negotiate* in the price column and its tag reads **Negotiate**.
+- [ ] Its rows have the ordinary **+** button, not an "Ask" label.
+- [ ] Add one → it lands on the slate with the price showing **TBD**, in red italic.
+- [ ] **Complete Transaction** with a TBD line refuses: *"You have unnegotiated items on your slate..."*
+- [ ] As GM, **double-click the price** on a slate line → an input appears, prefilled with the price *each*.
+- [ ] Type a number, press Enter → the line shows that price, the totals and the net update.
+- [ ] Settle it → the item arrives in the character's inventory **carrying that price**.
+- [ ] Buy something that already had a price, negotiated down → the item keeps its **own** price, not the
+      discount. *A longsword bought cheap is still worth what a longsword is worth.*
+- [ ] After settling, the shelf row is back to **negotiate** — the agreement did not become the list price.
+- [ ] The same works on the **selling** side: an unpriced possession can go in the basket at TBD, the GM
+      names what the merchant will pay, and settling moves it.
+- [ ] A **player** sees the price but cannot double-click to change it.
 
 ## 2e. Prices, buying and selling
 

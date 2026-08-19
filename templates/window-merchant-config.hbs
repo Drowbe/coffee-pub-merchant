@@ -21,12 +21,14 @@
         <section class="merchant-config-section">
             <h3>
                 <span><i class="fa-solid fa-clock"></i> Trading Hours</span>
-                {{#if alwaysOpen}}
-                    {{!-- Said, not offered. Covering the whole slider *is* always
-                          open, so a button that also meant it was a second way to
-                          say one thing and a way for the two to disagree. --}}
-                    <span class="merchant-config-hours-always">Always open</span>
-                {{/if}}
+                {{!-- Said, not offered. The slider itself *is* the statement -- band
+                      across the whole day, or band shut to nothing -- so a button
+                      that also meant it would be a second way to say one thing and a
+                      way for the two to disagree. --}}
+                {{!-- One element, repainted mid-drag, so what it says keeps up with
+                      the handles instead of arriving a beat later on release. --}}
+                <span class="merchant-config-hours-always{{#if alwaysClosed}} is-closed{{/if}}"
+                      data-hours-badge {{#unless hoursBadge}}hidden{{/unless}}>{{hoursBadge}}</span>
             </h3>
 
             <div class="merchant-config-hours">

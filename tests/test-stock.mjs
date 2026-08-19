@@ -15,7 +15,7 @@ globalThis.foundry = { utils: { mergeObject: (a, b) => ({ ...a, ...b }) } };
 globalThis.fromUuid = async () => null;
 globalThis.fromUuidSync = () => null;
 
-const { STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, secondsPerDay, isScheduledOpen, isAlwaysOpen } =
+const { STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, secondsPerDay, isScheduledOpen, isAlwaysOpen, isAlwaysClosed } =
     await import('../scripts/const.js');
 
 // --- secondsPerDay ------------------------------------------------------
@@ -178,14 +178,24 @@ assert.strictEqual(isOpen(NIGHT, 2), true, 'and in the small hours');
 assert.strictEqual(isOpen(NIGHT, 12), false, 'shut at noon');
 console.log('ok  overnight schedules');
 
-// A schedule covering the whole day is "always open", said two ways, and the
-// arithmetic agrees with the label without a special case: the closing handle
-// reaches the end of the day rather than its last hour.
+// The two ends of one gesture. A band across the whole day is always open; a band
+// shut to nothing is never open. The arithmetic agrees with both labels without a
+// special case, because the closing handle reaches the end of the day rather than
+// its last hour.
 assert.strictEqual(isAlwaysOpen(null), true, 'no schedule is open all day');
 assert.strictEqual(isAlwaysOpen({ open: 0, close: 24 }), true, 'and so is midnight to midnight');
-assert.strictEqual(isAlwaysOpen({ open: 9, close: 9 }), true, 'and so are the handles together');
 assert.strictEqual(isAlwaysOpen({ open: 7, close: 18 }), false);
 assert.strictEqual(isAlwaysOpen({ open: 0, close: 23 }), false, 'one hour short is not all day');
+assert.strictEqual(isAlwaysOpen({ open: 9, close: 9 }), false, 'handles together is not all day');
+
+assert.strictEqual(isAlwaysClosed({ open: 9, close: 9 }), true, 'handles together is never open');
+assert.strictEqual(isAlwaysClosed({ open: 0, close: 24 }), false, 'the whole day is not never');
+assert.strictEqual(isAlwaysClosed(null), false, 'and no schedule at all is not never');
+for (const hour of [0, 9, 12, 23]) {
+    assert.strictEqual(isScheduledOpen({ open: 9, close: 9 }, hour), false,
+        `shut at ${hour} when the window has no hours in it`);
+}
+console.log('ok  a window with no hours in it');
 
 for (const hour of [0, 6, 12, 18, 23]) {
     assert.strictEqual(isScheduledOpen({ open: 0, close: 24 }, hour), true,
