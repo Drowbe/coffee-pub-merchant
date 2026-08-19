@@ -1350,16 +1350,26 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * something it carries, and a restocking shelf brings it back. This is the shelf
      * no longer carrying it.
      *
-     * Through dnd5e's own delete prompt, so a container asks about its contents and
-     * the system owns the recursion — the same reasoning as removing a shelf.
+     * **No confirmation.** Putting something back on a shelf is a drag, so a prompt
+     * here charges every removal for a mistake that costs seconds to undo — and a
+     * dialog that always says yes is one people stop reading.
+     *
+     * A packed container is the exception, and it goes through dnd5e's own delete
+     * prompt: that one asks whether the contents go too, which is a real question
+     * with a wrong answer that orphans everything inside.
      */
     async removeStock(itemId) {
         if (!game.user.isGM) return;
         const token = await this._resolveToken();
         const item = token?.actor?.items?.get(itemId);
         if (!item) return;
+
+        const packed = item.type === 'container'
+            && (token.actor.items.filter((child) => child.system?.container === item.id).length > 0);
+
         try {
-            await item.deleteDialog();
+            if (packed) await item.deleteDialog();
+            else await item.delete();
             MerchantManager.broadcastActorRefresh(token.actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove ${item.name}:`, error);

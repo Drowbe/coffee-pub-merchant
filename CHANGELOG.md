@@ -480,9 +480,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quantity it currently has, which is right for something dropped on a shelf and forgotten — but means a row
   that only ever arrived by table roll creeps upward, each delivery raising the target the next restock then
   protects. `par` is now read through the ceiling.
-- **A GM can take something off a shelf** (`templates/partial-shop-row.hbs`): an **×** on each row, through
-  dnd5e's own delete prompt so a container asks about its contents. Setting a quantity to zero says *sold
-  out*, and a restocking shelf brings it back; this says the shelf no longer carries it.
+- **A GM can take something off a shelf** (`templates/partial-shop-row.hbs`): an **×** on each row. Setting a
+  quantity to zero says *sold out*, and a restocking shelf brings it back; this says the shelf no longer
+  carries it.
+
+  No confirmation: putting something back is a drag, so a prompt would charge every removal for a mistake
+  that costs seconds to undo — and a dialog that always gets a yes is one people stop reading. A **packed
+  container** is the exception and keeps dnd5e's own prompt, because that one asks whether the contents go
+  too, which is a real question with a wrong answer that orphans everything inside.
 
 - **A typed quantity is clamped to the shelf's ceiling, and says so** (`scripts/manager-merchant.js`,
   `scripts/window-shop.js`): typing 10 into a row on a shelf that holds 5 of anything used to store 10 while

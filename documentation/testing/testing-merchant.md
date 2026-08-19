@@ -224,9 +224,10 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 #### Removing stock
 
 - [ ] A GM sees an **×** on each shop row; a player does not.
-- [ ] It opens dnd5e's delete prompt and removes the row entirely.
-- [ ] Removing a **container** asks about its contents.
-- [ ] Cancelling the prompt leaves the row alone.
+- [ ] It removes the row **immediately**, with no confirmation.
+- [ ] Removing a **packed container** still asks — about its contents, which is a real question.
+- [ ] Cancelling that prompt leaves the container alone.
+- [ ] An **empty** container is removed without a prompt like anything else.
 - [ ] Setting a quantity to 0 instead leaves the row in place, marked out of stock, and a restock brings it
       back. *These are two different statements and must stay so.*
 
