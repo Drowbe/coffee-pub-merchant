@@ -230,21 +230,21 @@ export const ITEM_CATEGORIES = Object.freeze([
 ]);
 
 /**
- * Which kinds of thing a shop keeps a pile of.
- *
- * Not a dnd5e property -- every physical item carries a quantity, so the system
- * cannot answer this. It is a statement about shops: an apothecary has a shelf of
- * identical potions, and nobody has eight identical suits of plate. Ammunition is
- * the exception among weapons and is handled by sub-type below.
- */
-export const STACKABLE_TYPES = Object.freeze(['consumable', 'loot']);
-
-/**
  * How deep a pile of one thing can get, by what it costs.
  *
- * The cheaper a thing is, the more of it a shop has -- which is the whole of the
- * intuition, and the reason a flat "stock depth" setting reads wrong the moment it
- * puts three suits of plate armour next to three rations.
+ * **Price decides this, not type.** There was a whitelist of stackable *types* here
+ * -- consumables and loot stack, gear does not -- and it was wrong about the
+ * ordinary case. A general store's shelf is daggers, vials, clothes, chests and
+ * tools, every one of which a shop plainly keeps several of, and every one of which
+ * the whitelist excluded. The result was a depth feature that changed nothing
+ * anybody could see.
+ *
+ * Cost was always what the intuition meant: a 1 gp vial lands deep, a 1500 gp suit
+ * of plate lands alone. Nobody has eight suits of plate because plate is expensive,
+ * not because it is armour. The types are gone entirely rather than kept as a
+ * modifier -- a rule that fires on type *and* price is two rules to hold in your
+ * head at the moment somebody is asking why their shop looks wrong, which is
+ * exactly when one is already too many.
  *
  * These are **caps, not counts**. The depth is rolled within the band, so a shelf
  * stocked twice does not look stocked twice the same way. Thresholds are in base

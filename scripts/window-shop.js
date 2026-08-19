@@ -1,5 +1,6 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
+import { startProgress } from './merchant-progress.js';
 import {
     resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment, toBase, fromBase
 } from './merchant-pricing.js';
@@ -166,6 +167,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch(),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
+        clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
         removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
     };
 
@@ -1550,19 +1552,43 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async removeStock(itemId) {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const item = token?.actor?.items?.get(itemId);
-        if (!item) return;
 
-        const packed = item.type === 'container'
-            && (token.actor.items.filter((child) => child.system?.container === item.id).length > 0);
+        // Clicking down a shelf faster than it re-renders sends the same id twice: the
+        // row is still on screen because the render that would have removed it has not
+        // landed yet. The second delete then reaches a document the first one already
+        // took, and Foundry answers `Item "..." does not exist!` -- a server round trip
+        // reported as an error for something the GM did correctly.
+        //
+        // Claimed before the first await, released in `finally`, because the whole
+        // window in which this goes wrong is between the click and the resolve.
+        this._removing ??= new Set();
+        if (this._removing.has(itemId)) return;
+        this._removing.add(itemId);
 
         try {
-            if (packed) await item.deleteDialog();
-            else await item.delete();
-            MerchantManager.broadcastActorRefresh(token.actor);
-        } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not remove ${item.name}:`, error);
+            const token = await this._resolveToken();
+            // Re-read after the await rather than trusting anything captured before it.
+            // The document may have gone in the meantime -- by another click, another
+            // GM, or the sheet -- and gone is the outcome we wanted anyway.
+            const item = token?.actor?.items?.get(itemId);
+            if (!item) return;
+
+            const packed = item.type === 'container'
+                && (token.actor.items.filter((child) => child.system?.container === item.id).length > 0);
+
+            try {
+                if (packed) await item.deleteDialog();
+                else await item.delete();
+                MerchantManager.broadcastActorRefresh(token.actor);
+            } catch (error) {
+                // Someone else got there first. That is the state we were asking for,
+                // so it is not worth a red line in anybody's console.
+                if (token.actor.items.get(itemId)) {
+                    console.error(`${MODULE.TITLE} | Could not remove ${item.name}:`, error);
+                }
+            }
+        } finally {
+            this._removing.delete(itemId);
         }
     }
 
@@ -1570,14 +1596,67 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const token = await this._resolveToken();
         const merchant = token?.actor;
         if (!merchant) return;
+
+        const shelfName = merchant.items.get(shelfId)?.name ?? 'the shelf';
+        const bar = startProgress(
+            MerchantManager.restockWorkUnits(merchant, shelfId, { force: true }),
+            `Restocking ${shelfName}`
+        );
         try {
-            const filled = await MerchantManager.restockShelf(merchant, shelfId, { force: true });
-            ui.notifications?.info(filled
-                ? `Restocked ${filled} item${filled === 1 ? '' : 's'}.`
-                : 'Nothing to restock on that shelf.');
+            const filled = await MerchantManager.restockShelf(merchant, shelfId, {
+                force: true,
+                onStep: (message) => bar.step(message)
+            });
+            bar.finish(filled
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
+                : `${shelfName} had nothing to restock.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
+            bar.finish('Could not restock that shelf.');
             ui.notifications?.error('Could not restock that shelf.');
+        }
+    }
+
+    /**
+     * Take everything off a shelf.
+     *
+     * **Confirmed, unlike removing one row.** A single item is easy to put back, which
+     * is why that one has no prompt; a shelf is nineteen of them and a table roll to
+     * get them, so the scale is what earns the question.
+     */
+    async clearShelf(shelfId) {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const shelf = merchant?.items?.get(shelfId);
+        if (!shelf) return;
+
+        const count = MerchantManager.getShelfContents(merchant, shelf).length;
+        if (!count) {
+            ui.notifications?.info(`${shelf.name} is already empty.`);
+            return;
+        }
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Clear Shelf',
+                classes: ['merchant-dialog'],
+                content: `<p>Take all ${count} item${count === 1 ? '' : 's'} off `
+                    + `<strong>${shelf.name}</strong>.</p>`
+                    + '<p>The shelf itself stays, with everything it is set to. This cannot be undone.</p>',
+                confirmLabel: 'Clear Shelf',
+                confirmIcon: 'fa-solid fa-broom'
+            });
+            if (!confirmed) return;
+        }
+
+        try {
+            const cleared = await MerchantManager.clearShelf(merchant, shelfId);
+            ui.notifications?.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
+            ui.notifications?.error('Could not clear that shelf.');
         }
     }
 

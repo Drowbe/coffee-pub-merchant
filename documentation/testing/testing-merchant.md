@@ -156,6 +156,18 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Lower a shelf's **each** limit below a band cap → rolled depth respects the shelf, not the band.
 - [ ] A shelf at its **products** limit still refuses new rows, and says so in the console.
 
+## 2d-iv. Clearing and restocking feedback
+
+- [ ] Each shelf has a **broom** button, in the shop window and in Merchant Settings.
+- [ ] It asks first, names the count, and says the shelf itself stays.
+- [ ] Confirm → every row goes, the **shelf remains** with its stock policy, limits and tables intact.
+- [ ] Clearing an already-empty shelf says so and asks nothing.
+- [ ] **Restock Everything** shows a progress bar that names the shelf and table it is working on.
+- [ ] The bar reaches 100% exactly as the work finishes — not early, not stuck short.
+- [ ] A shelf whose table has been deleted still completes the bar rather than leaving it hanging.
+- [ ] Restocking a single shelf, from either window, shows the same bar.
+- [ ] Delete stock rows **as fast as you can click** → no `Item "..." does not exist!` in the console.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

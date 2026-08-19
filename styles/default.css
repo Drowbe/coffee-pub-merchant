@@ -135,6 +135,10 @@
 .merchant-config-shelf-actions { display: flex; gap: 4px; align-items: center; }
 .merchant-config-icon-btn { min-height: 26px; margin: 0; padding: 2px 8px; }
 .merchant-config-remove:hover { border-color: #a4432f; color: #a4432f; }
+/* Clearing a shelf is destructive, so it warns on approach like the other two
+   destructive controls do. It is not red at rest -- a row of red buttons reads
+   as a warning about the shelf rather than about the click. */
+.merchant-shop-shelf-clear:hover { color: #a4432f; }
 .merchant-config-icon-btn i { margin: 0; }
 
 .merchant-config-empty { padding: 6px 3px; color: var(--blacksmith-tool-text-muted); font-size: .74rem; font-style: italic; text-align: center; }

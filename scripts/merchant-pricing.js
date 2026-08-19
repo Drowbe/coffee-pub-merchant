@@ -10,7 +10,7 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE, SHELF_MODE, STACKABLE_TYPES, STOCK_DEPTH_BANDS } from './const.js';
+import { MODULE, SHELF_MODE, STOCK_DEPTH_BANDS } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -45,16 +45,19 @@ export function toBase(value, denomination) {
 /**
  * How many of this thing a table roll should put on the shelf.
  *
- * Three rules, in order, and the order is the whole design:
+ * Two rules, in order:
  *
  * 1. **What the item says it is.** A compendium entry authored as a quiver of twenty
  *    arrows is a quiver of twenty arrows. We used to hardcode one and stock a single
  *    arrow, which threw away the only statement anybody had actually made.
- * 2. **What it costs**, for anything that stacks. Cheap things come in piles and dear
- *    things come singly, which is what a shop looks like. The band sets a ceiling and
- *    the depth is rolled inside it, so stocking the same shelf twice does not produce
- *    the same shop twice.
- * 3. **One**, for anything else. Nobody has eight suits of plate.
+ * 2. **What it costs.** Cheap things come in piles and dear things come singly, which
+ *    is what a shop looks like. The band sets a ceiling and the die fills it, so
+ *    stocking the same shelf twice does not produce the same shop twice.
+ *
+ * There was a third rule between them -- a whitelist of *types* that stack -- and it
+ * made the whole feature invisible. A general store's shelf is daggers, vials,
+ * clothes, chests and tools, and the whitelist excluded every one of them. Price was
+ * always what the intuition meant. See `STOCK_DEPTH_BANDS`.
  *
  * The shelf's own "each" limit clamps the result, so a ceiling a GM set by hand is
  * never argued with by a die.
@@ -65,12 +68,11 @@ export function toBase(value, denomination) {
  */
 export function stockDepth(item, { maxPerItem = Infinity, random = Math.random } = {}) {
     const ceiling = Math.max(1, Math.trunc(Number(maxPerItem)) || 1);
+    if (!item) return 1;
 
     // 1. The author already answered.
     const authored = Math.trunc(Number(item?.system?.quantity));
     if (Number.isFinite(authored) && authored > 1) return Math.min(authored, ceiling);
-
-    if (!isStackable(item)) return 1;
 
     // 2. The band caps it; the die fills it.
     const price = item?.system?.price;
@@ -82,11 +84,6 @@ export function stockDepth(item, { maxPerItem = Infinity, random = Math.random }
     return cap <= 1 ? 1 : 1 + Math.floor(random() * cap);
 }
 
-/** Whether a shop would keep a pile of this. Ammunition counts; other weapons do not. */
-export function isStackable(item) {
-    if (STACKABLE_TYPES.includes(item?.type)) return true;
-    return item?.type === 'weapon' && item?.system?.type?.value === 'ammo';
-}
 
 /** Base units back out to an amount of one denomination. The inverse of `toBase`. */
 export function fromBase(base, denomination) {

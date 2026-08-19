@@ -189,19 +189,16 @@ assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, r
 assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll }), 4,
     'the shelf ceiling beats the band');
 
-// 3. Everything else is one. Nobody has eight suits of plate.
-for (const type of ['equipment', 'weapon', 'tool', 'container']) {
-    assert.strictEqual(P.stockDepth(goods(type, 0.1, 1), { maxPerItem: 99, random: maxRoll }), 1,
-        `${type} does not come in a pile however cheap it is`);
+// 3. Price decides it, not type. The whitelist that used to sit here excluded
+// daggers, vials, clothes, chests and tools -- which is to say a general store's
+// entire shelf -- so the feature changed nothing anybody could see.
+for (const type of ['equipment', 'weapon', 'tool', 'container', 'consumable', 'loot']) {
+    assert.strictEqual(P.stockDepth(goods(type, 0.1, 1), { maxPerItem: 99, random: maxRoll }), 10,
+        `a cheap ${type} comes in a pile like anything else cheap`);
+    assert.strictEqual(P.stockDepth(goods(type, 900, 1), { maxPerItem: 99, random: maxRoll }), 1,
+        `and a dear ${type} comes alone`);
 }
-assert.strictEqual(P.stockDepth(goods('loot', 0.1, 1), { maxPerItem: 99, random: maxRoll }), 10,
-    'goods do, though');
-assert.strictEqual(P.stockDepth(goods('weapon', 0.05, 1, 'ammo'), { maxPerItem: 99, random: maxRoll }), 10,
-    'and so does ammunition, which is the exception among weapons');
-
-assert.strictEqual(P.isStackable(goods('consumable', 1, 1)), true);
-assert.strictEqual(P.isStackable(goods('weapon', 1, 1)), false);
-assert.strictEqual(P.isStackable(goods('weapon', 1, 1, 'ammo')), true);
+console.log('ok  depth follows price, not type');
 
 // An item with no price at all must not become a pile by default.
 assert.strictEqual(P.stockDepth(goods('consumable', null, 1), { maxPerItem: 99, random: maxRoll }), 10,

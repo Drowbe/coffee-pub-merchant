@@ -170,6 +170,14 @@
                                         data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
                                     <i class="fa-solid fa-box-open"></i>
                                 </button>
+                                {{!-- Between opening the shelf and deleting it, which is
+                                      where it sits in meaning too: empty it, or be rid
+                                      of it. --}}
+                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
+                                        data-action="clearShelf" data-shelf-id="{{id}}"
+                                        data-tooltip="Clear this shelf — take everything off it">
+                                    <i class="fa-solid fa-broom"></i>
+                                </button>
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn merchant-config-remove"
                                         data-action="removeShelf" data-shelf-id="{{id}}" data-tooltip="Remove this shelf">
                                     <i class="fa-solid fa-trash"></i>

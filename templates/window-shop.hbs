@@ -154,6 +154,14 @@
                                         data-tooltip="Search the compendiums — drag a result onto this shelf">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
+                                {{!-- Last, and the only one that asks first. Setting a
+                                      count to zero says "sold out"; this says "take it
+                                      all off and let me start again". --}}
+                                <button type="button" class="merchant-shop-shelf-add merchant-shop-shelf-clear"
+                                        data-action="clearShelf" data-shelf-id="{{id}}"
+                                        data-tooltip="Clear this shelf — take everything off it">
+                                    <i class="fa-solid fa-broom"></i>
+                                </button>
                             {{/if}}
                             <span class="merchant-shop-count">{{count}}</span>
                         </span>

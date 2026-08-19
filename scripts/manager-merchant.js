@@ -673,10 +673,11 @@ export class MerchantManager {
      * on every cycle and a shop left alone would fill up for ever. Most tables are
      * there to furnish a shelf once; the ones that are not say so.
      */
-    static async rollShelfTable(actor, shelfId, { automatic = false } = {}) {
+    static async rollShelfTable(actor, shelfId, { automatic = false, onStep = null } = {}) {
         if (!game.user.isGM) return 0;
         const shelf = actor?.items?.get(shelfId);
         if (!this.getShelfConfig(shelf)) return 0;
+        const step = typeof onStep === 'function' ? onStep : () => {};
 
         const drawn = [];
         for (const entry of this.getShelfTables(shelf)) {
@@ -700,14 +701,18 @@ export class MerchantManager {
                     ({ results = [] } = await table.roll());
                 } catch (error) {
                     console.error(`${MODULE.TITLE} | Could not roll ${table.name}:`, error);
+                    // The rolls this table will not now make are still owed to the
+                    // bar, or it stops short of its own end.
+                    for (let owed = i; owed < entry.rolls; owed++) step(`Rolling ${table.name}`);
                     break;
                 }
                 for (const result of results) {
                     if (result?.documentUuid) drawn.push(result.documentUuid);
                 }
+                step(`Rolling ${table.name} — ${i + 1} of ${entry.rolls}`);
             }
         }
-        if (!drawn.length) return 0;
+        if (!drawn.length) { step(`Nothing rolled for ${shelf.name}`); return 0; }
 
         // Resolved once per distinct uuid: several tables rolling the same row should
         // cost one lookup, and only physical items can sit on a shelf.
@@ -724,15 +729,37 @@ export class MerchantManager {
         }
 
         const items = this._withinLimits(actor, shelf, drawn, resolved);
-        if (!items.length) return 0;
+        if (!items.length) { step(`${shelf.name} is full`); return 0; }
+        step(`Stocking ${shelf.name}`);
 
         // One call for every table on the shelf, so the same potion rolled by two of
         // them lands as one row of two — see grantItems.
         const result = await grantItems({ targetActorUuid: actor.uuid, items, container: shelfId });
-        if (!result?.ok) {
+
+        // `results` is index-aligned with what was sent and entries fail independently,
+        // so the top-level flag alone says only "something went wrong somewhere". A GM
+        // reading the console needs to know *which* row and *why* -- a bare
+        // `{ ok: false, results: Array(20) }` is not a report, it is a shrug.
+        const failures = (result?.results ?? [])
+            .map((entry, index) => ({ entry, item: items[index] }))
+            .filter(({ entry }) => entry && entry.ok === false);
+
+        if (failures.length) {
+            console.error(
+                `${MODULE.TITLE} | ${failures.length} of ${items.length} rolled result`
+                + `${items.length === 1 ? '' : 's'} did not reach ${shelf.name}:`,
+                failures.map(({ entry, item }) => ({
+                    uuid: item?.itemUuid,
+                    name: resolved.get(item?.itemUuid)?.name ?? '(unresolved)',
+                    quantity: item?.quantity,
+                    reason: entry?.code ?? entry?.error ?? entry?.reason ?? entry
+                }))
+            );
+        } else if (!result?.ok) {
             console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from its tables:`, result);
         }
-        return items.length;
+
+        return items.length - failures.length;
     }
 
     /**
@@ -792,17 +819,70 @@ export class MerchantManager {
     }
 
     /**
+     * Take everything off a shelf, leaving the shelf.
+     *
+     * Distinct from removing the shelf and from setting counts to zero, which are the
+     * two things it sits between: zero says "sold out", deleting the container says
+     * "this shop has no such shelf", and this says "clear it and let me start again".
+     * A GM re-rolling a shop's stock wants the third and had to do it a row at a time.
+     *
+     * One `deleteEmbeddedDocuments` for the lot -- a delete per row is a write per row
+     * to the same Actor, and doing it in a loop is what makes a fast clicker race the
+     * re-render.
+     */
+    static async clearShelf(actor, shelfId) {
+        if (!game.user.isGM) return 0;
+        const shelf = actor?.items?.get(shelfId);
+        if (!this.getShelfConfig(shelf)) return 0;
+
+        return this._withStockLock(actor, async () => {
+            // Read inside the lock: a purchase settling right now changes this list.
+            const ids = this.getShelfContents(actor, shelf).map((item) => item.id);
+            if (!ids.length) return 0;
+            try {
+                await actor.deleteEmbeddedDocuments('Item', ids);
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not clear ${shelf.name}:`, error);
+                return 0;
+            }
+            this.broadcastActorRefresh(actor);
+            return ids.length;
+        });
+    }
+
+    /**
+     * How many steps restocking this shelf will take, for sizing a progress bar.
+     *
+     * Counted the same way `restockShelf` spends them -- one for the refill, one per
+     * roll, one for the delivery -- so the bar reaches its end exactly when the work
+     * does. A total derived any other way drifts, and a bar that stops at 80% or hits
+     * 100% early is worse than no bar, because it is a claim rather than a guess.
+     */
+    static restockWorkUnits(actor, shelfId, { force = false } = {}) {
+        const shelf = actor?.items?.get(shelfId);
+        if (!this.getShelfConfig(shelf)) return 0;
+
+        let units = 1;
+        for (const entry of this.getShelfTables(shelf)) {
+            if (!force && !entry.auto) continue;
+            units += Math.max(0, Math.trunc(Number(entry.rolls) || 0));
+        }
+        return units + 1;
+    }
+
+    /**
      * Refill a shelf to its par levels.
      *
      * `force` is the GM pressing the button, which works on a finite shelf too -- a
      * shop restocked by hand is an ordinary thing, and a finite shelf still knows
      * what it holds.
      */
-    static async restockShelf(actor, shelfId, { force = false } = {}) {
+    static async restockShelf(actor, shelfId, { force = false, onStep = null } = {}) {
         if (!game.user.isGM) return 0;
         const shelf = actor?.items?.get(shelfId);
         const config = this.getShelfConfig(shelf);
         if (!config) return 0;
+        const step = typeof onStep === 'function' ? onStep : () => {};
         if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING
             && !this.getShelfTables(shelf).some((entry) => entry.auto)) return 0;
 
@@ -816,11 +896,12 @@ export class MerchantManager {
             if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
             return updates.length;
         });
+        step(`Refilling ${shelf.name}`);
 
         // Two mechanisms, deliberately both: par brings back what the shelf is known
         // to keep, and the tables bring in whatever it happens to have got hold of
         // this time. A shelf may use either or both.
-        const rolled = await this.rollShelfTable(actor, shelfId, { automatic: !force });
+        const rolled = await this.rollShelfTable(actor, shelfId, { automatic: !force, onStep: step });
 
         await this.setShelfConfig(actor, shelfId, { lastRestock: game.time.worldTime });
         if (filled || rolled) this.broadcastActorRefresh(actor);

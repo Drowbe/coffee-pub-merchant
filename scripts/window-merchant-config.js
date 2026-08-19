@@ -4,6 +4,7 @@ import {
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase } from './merchant-pricing.js';
+import { startProgress } from './merchant-progress.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
@@ -56,6 +57,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
+        clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
         restockAll: (_event, _target, win) => void win.restockAll(),
         removeShelfTable: (_event, target, win) =>
             void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid),
@@ -537,18 +539,34 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (!confirmed) return;
         }
 
-        let stocked = 0;
-        for (const { item } of shelves) {
-            try {
-                stocked += await MerchantManager.restockShelf(actor, item.id, { force: true });
-            } catch (error) {
-                console.error(`${MODULE.TITLE} | Could not restock ${item.name}:`, error);
-            }
-        }
+        // Sized before anything starts, from the same arithmetic the work itself
+        // spends, so the bar ends where the work does. Restocking a shop is dozens of
+        // table rolls and a compendium lookup for each result -- seconds of apparently
+        // nothing, which reads as nothing having happened, which is how a GM comes to
+        // press the button twice.
+        const total = shelves.reduce(
+            (sum, { item }) => sum + MerchantManager.restockWorkUnits(actor, item.id, { force: true }),
+            0
+        );
+        const bar = startProgress(total, `Restocking ${actor.name}`);
 
-        ui.notifications?.info(stocked
-            ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'}.`
-            : 'Every shelf was already full.');
+        let stocked = 0;
+        try {
+            for (const { item } of shelves) {
+                try {
+                    stocked += await MerchantManager.restockShelf(actor, item.id, {
+                        force: true,
+                        onStep: (message) => bar.step(message)
+                    });
+                } catch (error) {
+                    console.error(`${MODULE.TITLE} | Could not restock ${item.name}:`, error);
+                }
+            }
+        } finally {
+            bar.finish(stocked
+                ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'}.`
+                : 'Every shelf was already full.');
+        }
         await this.render(false);
     }
 
@@ -562,14 +580,60 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     async restockShelf(shelfId) {
         const actor = await this._resolveActor();
         if (!actor) return;
+
+        const shelfName = actor.items.get(shelfId)?.name ?? 'the shelf';
+        const bar = startProgress(
+            MerchantManager.restockWorkUnits(actor, shelfId, { force: true }),
+            `Restocking ${shelfName}`
+        );
         try {
-            const filled = await MerchantManager.restockShelf(actor, shelfId, { force: true });
-            ui.notifications?.info(filled
-                ? `Restocked ${filled} item${filled === 1 ? '' : 's'}.`
-                : 'That shelf was already full.');
+            const filled = await MerchantManager.restockShelf(actor, shelfId, {
+                force: true,
+                onStep: (message) => bar.step(message)
+            });
+            bar.finish(filled
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
+                : `${shelfName} was already full.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
+            bar.finish('Could not restock that shelf.');
             ui.notifications?.error('Could not restock that shelf.');
+        }
+        await this.render(false);
+    }
+
+    /** Take everything off a shelf, leaving the shelf. Confirmed -- see the shop window. */
+    async clearShelf(shelfId) {
+        const actor = await this._resolveActor();
+        const shelf = actor?.items?.get(shelfId);
+        if (!shelf) return;
+
+        const count = MerchantManager.getShelfContents(actor, shelf).length;
+        if (!count) {
+            ui.notifications?.info(`${shelf.name} is already empty.`);
+            return;
+        }
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Clear Shelf',
+                classes: ['merchant-dialog'],
+                content: `<p>Take all ${count} item${count === 1 ? '' : 's'} off `
+                    + `<strong>${shelf.name}</strong>.</p>`
+                    + '<p>The shelf itself stays, with everything it is set to. This cannot be undone.</p>',
+                confirmLabel: 'Clear Shelf',
+                confirmIcon: 'fa-solid fa-broom'
+            });
+            if (!confirmed) return;
+        }
+
+        try {
+            const cleared = await MerchantManager.clearShelf(actor, shelfId);
+            ui.notifications?.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
+            ui.notifications?.error('Could not clear that shelf.');
         }
         await this.render(false);
     }
