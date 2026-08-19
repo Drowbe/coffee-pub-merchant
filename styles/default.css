@@ -697,3 +697,8 @@
 /* A shelf can name several tables, so they stack. */
 .merchant-config-shelf-tables { grid-area: table; display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
 .merchant-config-shelf-tables .merchant-config-shelf-table { margin-top: 0; }
+
+/* Whether a table also delivers on the clock, beside the count it delivers. */
+.merchant-config-shelf-reroll { display: inline-flex; gap: 5px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; white-space: nowrap; cursor: pointer; }
+.merchant-config-shelf-reroll > input { margin: 0; }
+.merchant-config-shelf-rolls { margin-left: auto; }

@@ -145,9 +145,14 @@
                                 </span>
                             {{/if}}
                             {{#if canStock}}
+                                <button type="button" class="merchant-shop-shelf-add" data-action="restockShelf"
+                                        data-shelf-id="{{id}}"
+                                        data-tooltip="Restock: bring it back to its quantities and roll its tables">
+                                    <i class="fa-solid fa-arrows-rotate"></i>
+                                </button>
                                 <button type="button" class="merchant-shop-shelf-add" data-action="addToShelf" data-shelf-id="{{id}}"
-                                        data-tooltip="Open compendium search — drag a result onto this shelf">
-                                    <i class="fa-solid fa-plus"></i>
+                                        data-tooltip="Search the compendiums — drag a result onto this shelf">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
                             {{/if}}
                             <span class="merchant-shop-count">{{count}}</span>

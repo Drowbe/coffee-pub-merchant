@@ -533,10 +533,17 @@ export class MerchantManager {
         if (list.length) {
             return list
                 .filter((entry) => entry?.uuid)
-                .map((entry) => ({ uuid: entry.uuid, rolls: this._rollCount(entry.rolls) }));
+                .map((entry) => ({
+                    uuid: entry.uuid,
+                    rolls: this._rollCount(entry.rolls),
+                    // Off by default: a table that fires on every restock adds stock
+                    // for ever, and a shop quietly filling up is a worse surprise than
+                    // one that needs a switch thrown.
+                    auto: entry.auto === true
+                }));
         }
         return config.table
-            ? [{ uuid: config.table, rolls: this._rollCount(config.tableRolls) }]
+            ? [{ uuid: config.table, rolls: this._rollCount(config.tableRolls), auto: false }]
             : [];
     }
 
@@ -553,7 +560,7 @@ export class MerchantManager {
         // the roll count is how you ask for that.
         if (tables.some((entry) => entry.uuid === uuid)) return null;
         return this.setShelfConfig(actor, shelfId, {
-            tables: [...tables, { uuid, rolls: 1 }],
+            tables: [...tables, { uuid, rolls: 1, auto: false }],
             // The single-table fields are what this list replaced.
             table: null,
             tableRolls: null
@@ -567,9 +574,18 @@ export class MerchantManager {
     }
 
     static async setShelfTableRolls(actor, shelfId, uuid, rolls) {
+        return this._updateShelfTable(actor, shelfId, uuid, { rolls: this._rollCount(rolls) });
+    }
+
+    /** Whether this table also fires when the clock brings a restock round. */
+    static async setShelfTableAuto(actor, shelfId, uuid, auto) {
+        return this._updateShelfTable(actor, shelfId, uuid, { auto: Boolean(auto) });
+    }
+
+    static async _updateShelfTable(actor, shelfId, uuid, changes) {
         const shelf = actor?.items?.get(shelfId);
         const tables = this.getShelfTables(shelf)
-            .map((entry) => (entry.uuid === uuid ? { ...entry, rolls: this._rollCount(rolls) } : entry));
+            .map((entry) => (entry.uuid === uuid ? { ...entry, ...changes } : entry));
         return this.setShelfConfig(actor, shelfId, { tables, table: null, tableRolls: null });
     }
 
@@ -582,14 +598,21 @@ export class MerchantManager {
      *
      * Non-item results are skipped rather than refused: a table with a "nothing this
      * week" text row is a reasonable table, and so is one mixing items with flavour.
+     *
+     * **`automatic` is the difference between stocking a shop and running one.** A GM
+     * pressing Restock has asked for it, so every table rolls. The clock coming round
+     * only rolls the tables marked to reroll — otherwise every table would add stock
+     * on every cycle and a shop left alone would fill up for ever. Most tables are
+     * there to furnish a shelf once; the ones that are not say so.
      */
-    static async rollShelfTable(actor, shelfId) {
+    static async rollShelfTable(actor, shelfId, { automatic = false } = {}) {
         if (!game.user.isGM) return 0;
         const shelf = actor?.items?.get(shelfId);
         if (!this.getShelfConfig(shelf)) return 0;
 
         const drawn = [];
         for (const entry of this.getShelfTables(shelf)) {
+            if (automatic && !entry.auto) continue;
             let table = null;
             try {
                 table = await fromUuid(entry.uuid);
@@ -656,7 +679,8 @@ export class MerchantManager {
         const shelf = actor?.items?.get(shelfId);
         const config = this.getShelfConfig(shelf);
         if (!config) return 0;
-        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !this.getShelfTables(shelf).length) return 0;
+        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING
+            && !this.getShelfTables(shelf).some((entry) => entry.auto)) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
             const updates = [];
@@ -670,9 +694,9 @@ export class MerchantManager {
         });
 
         // Two mechanisms, deliberately both: par brings back what the shelf is known
-        // to keep, and the table brings in whatever it happens to have got hold of
+        // to keep, and the tables bring in whatever it happens to have got hold of
         // this time. A shelf may use either or both.
-        const rolled = await this.rollShelfTable(actor, shelfId);
+        const rolled = await this.rollShelfTable(actor, shelfId, { automatic: !force });
 
         await this.setShelfConfig(actor, shelfId, { lastRestock: game.time.worldTime });
         if (filled || rolled) this.broadcastActorRefresh(actor);
@@ -691,7 +715,8 @@ export class MerchantManager {
             for (const { item: shelf, config } of this.getShelves(actor, { includeHidden: true })) {
                 // A table-stocked shelf restocks on the clock whatever its policy: it
                 // is not refilling to a level, it is receiving a delivery.
-                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !this.getShelfTables(shelf).length) continue;
+                const rerolls = this.getShelfTables(shelf).some((entry) => entry.auto);
+                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !rerolls) continue;
 
                 const days = Number(config.restockDays);
                 const interval = (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS)

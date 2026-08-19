@@ -174,6 +174,18 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        for (const box of this.element?.querySelectorAll('[data-shelf-table-auto]') ?? []) {
+            if (box.dataset.merchantBound === 'true') continue;
+            box.dataset.merchantBound = 'true';
+            box.addEventListener('change', (event) => {
+                void this._setTableAuto(
+                    box.getAttribute('data-shelf-table-auto'),
+                    box.getAttribute('data-table-uuid'),
+                    event.target.checked
+                );
+            });
+        }
+
         for (const zone of this.element?.querySelectorAll('[data-drop-table]') ?? []) {
             if (zone.dataset.merchantBoundDrop === 'true') continue;
             zone.dataset.merchantBoundDrop = 'true';
@@ -514,6 +526,18 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    async _setTableAuto(shelfId, uuid, auto) {
+        const actor = await this._resolveActor();
+        if (!actor || !uuid) return;
+        try {
+            await MerchantManager.setShelfTableAuto(actor, shelfId, uuid, auto);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set that table to reroll:`, error);
+        }
+        await this.render(false);
+    }
+
     async removeShelfTable(shelfId, uuid) {
         const actor = await this._resolveActor();
         if (!actor || !uuid) return;
@@ -587,7 +611,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         // than left blank, so a GM can see which one to remove.
                         name: this._tableName(entry.uuid) ?? 'Missing table',
                         rolls: entry.rolls,
-                        oneRoll: entry.rolls === 1
+                        oneRoll: entry.rolls === 1,
+                        auto: entry.auto
                     })),
                     hasTables: MerchantManager.getShelfTables(item).length > 0
                 };

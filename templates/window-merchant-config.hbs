@@ -210,6 +210,15 @@
                                                    aria-label="Rolls per restock">
                                             roll{{#unless oneRoll}}s{{/unless}}
                                         </label>
+                                        {{!-- Off means the table furnishes the shelf when
+                                              a GM asks and never again. On means it also
+                                              delivers on the clock. --}}
+                                        <label class="merchant-config-shelf-reroll"
+                                               data-tooltip="Also roll this every time the clock brings a restock. Off, it only rolls when you press Restock.">
+                                            <input type="checkbox" data-shelf-table-auto="{{../id}}"
+                                                   data-table-uuid="{{uuid}}" {{#if auto}}checked{{/if}}>
+                                            <span>reroll</span>
+                                        </label>
                                         <button type="button" class="merchant-config-icon-btn merchant-config-remove"
                                                 data-action="removeShelfTable" data-shelf-id="{{../id}}"
                                                 data-table-uuid="{{uuid}}"

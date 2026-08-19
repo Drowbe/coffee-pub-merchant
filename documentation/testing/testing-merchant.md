@@ -197,6 +197,18 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
+#### Rerolling, and restocking from the shop
+
+- [ ] A newly dropped table has **reroll off**.
+- [ ] Press **Restock** — from Settings or from the shelf header in the shop — and **every** table rolls,
+      marked or not.
+- [ ] Advance the clock past the interval → **only** tables with reroll ticked deliver.
+- [ ] A shelf whose tables are all unmarked, on a policy that is not "runs out, refills", is left alone by
+      the clock entirely.
+- [ ] Tick reroll, advance the clock, and it delivers; untick it and it stops.
+- [ ] The shelf header's restock control is GM-only, and sits beside the search glass.
+- [ ] The search control is a **magnifying glass**, and opens Blacksmith's compendium search.
+
 #### Several tables on one shelf
 
 - [ ] Drop a second table on a shelf → **both** are listed, each with its own roll count.

@@ -453,6 +453,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edits the Actor sheet beside it. And **Open Shop**, because setting a shop up and looking at it are the
   same sitting; it finds a token on the active scene first, then anywhere else the merchant stands.
 
+- **A table rolls on the clock only if it is told to** (`scripts/manager-merchant.js`): each table on a
+  shelf carries a **reroll** switch, off by default. A GM pressing Restock has asked for it, so every table
+  rolls; the clock coming round rolls only the ones marked.
+
+  That is the difference between stocking a shop and running one — and without it, every table added stock on
+  every cycle and a shop left alone filled up for ever. Most tables are there to furnish a shelf once; the
+  ones that are not now say so.
+- **Restock from the shop, not only from Settings** (`templates/window-shop.hbs`): a GM gets a restock
+  control on each shelf header, where they already are when they notice a shelf is bare. It brings the shelf
+  back to its quantities and rolls all its tables.
+- **The compendium search is a magnifying glass** rather than a plus, which is what it does.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

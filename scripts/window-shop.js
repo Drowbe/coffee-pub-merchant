@@ -154,7 +154,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         clearAll: (_event, _target, win) => void win.clearAll(),
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
-        addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
+        addToShelf: (_event, _target, win) => void win.openCompendiumSearch(),
+        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId)
     };
 
     constructor(tokenDocument, options = {}) {
@@ -1317,6 +1318,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
         await this.addToBasket(item);
+    }
+
+    /**
+     * Restock a shelf from the shop itself.
+     *
+     * The same act as the button in Merchant Settings, put where a GM already is when
+     * they notice a shelf is bare. A press is deliberate, so every table on the shelf
+     * rolls — the reroll flag governs the clock, not the button.
+     */
+    async restockShelf(shelfId) {
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return;
+        try {
+            const filled = await MerchantManager.restockShelf(merchant, shelfId, { force: true });
+            ui.notifications?.info(filled
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'}.`
+                : 'Nothing to restock on that shelf.');
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
+            ui.notifications?.error('Could not restock that shelf.');
+        }
     }
 
     async _onDropToShelf(event, shelfId) {
