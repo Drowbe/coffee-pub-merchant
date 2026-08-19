@@ -268,33 +268,43 @@ export class MerchantManager {
      * Put an item on a shelf from a UUID — a compendium entry, a sidebar item, or
      * anything else Foundry hands over in a drop payload.
      *
-     * One write. `grantItem` takes the container itself, so the item arrives on the
-     * shelf rather than landing at the root and being moved.
+     * **One write, and the restock target goes in it.** This used to grant and then
+     * `setFlag` the par, which is two sequential writes to one Actor — the shape that
+     * trips dnd5e's encumbrance recompute into creating `dnd5eencumbered0` twice and
+     * having the server reject the second. `api-inventory.md` is explicit that arrival
+     * flags belong in the write and that no amount of awaiting avoids it.
+     *
+     * `grantItem` takes the container too, so the item arrives on the shelf rather
+     * than landing at the root and being moved there.
      */
     static async addToShelf(actor, shelfId, itemUuid, quantity) {
         if (!game.user.isGM) return { ok: false, code: 'NOT_ALLOWED' };
         const shelf = actor?.items?.get(shelfId);
         if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
 
-        const result = await grantItem({
+        // The par has to be known before the write, so the arriving quantity is
+        // resolved here rather than read back off the result. `quantity` omitted
+        // means "the source's own", which is exactly what grantItem will use.
+        let arriving = Math.trunc(Number(quantity));
+        if (!Number.isFinite(arriving) || arriving < 1) {
+            const source = await fromUuid(itemUuid);
+            arriving = Math.max(1, Math.trunc(Number(source?.system?.quantity ?? 1)));
+        }
+
+        return grantItem({
             targetActorUuid: actor.uuid,
             itemUuid,
             quantity,
             // Container membership is part of merge identity, so a merge can only
             // land on a row already on this shelf — stock the GM put elsewhere is
             // never relocated by a restock.
-            container: shelfId
+            container: shelfId,
+            // What a GM stocks is what the shelf keeps. On a merge only the flags
+            // passed here are written, so topping up a shelf by hand does redefine
+            // its target — which is the rule the shop window's editable quantity
+            // already follows.
+            flags: { [MODULE.ID]: { [PAR_FLAG]: arriving } }
         });
-
-        // What a GM stocks is what the shelf keeps, so the arriving quantity becomes
-        // the restock target. On a merge the row already had one and it stands: the
-        // GM topping a shelf up by hand is not redefining what it holds.
-        if (result?.ok && !result.merged && result.targetItemId) {
-            const placed = actor.items.get(result.targetItemId);
-            const arrived = Math.max(1, Math.trunc(Number(placed?.system?.quantity ?? quantity ?? 1)));
-            if (placed) await placed.setFlag(MODULE.ID, PAR_FLAG, arrived);
-        }
-        return result;
     }
 
     /**
@@ -607,7 +617,7 @@ export class MerchantManager {
     }
 
     /**
-     * One leg of an exchange: goods leaving the shelf.
+     * The goods legs of an exchange: everything leaving the shelves.
      *
      * The stock policy is expressed entirely as two flags on the transfer, which is
      * what `copy` and `preserveEmptySource` were asked for and built for:
@@ -624,14 +634,28 @@ export class MerchantManager {
      * a separate currency exchange, which could and did hand the goods over and then
      * fail to take the money.
      */
-    static _goodsTransfer(merchant, item, shelfConfig, recipientUuid, quantity) {
-        const unlimited = this.resolveStockPolicy(merchant, shelfConfig) === STOCK.INFINITE;
-        return {
-            from: merchant.uuid,
-            to: recipientUuid,
-            items: [{ itemId: item.id, quantity }],
-            ...(unlimited ? { copy: true } : { preserveEmptySource: true })
-        };
+    static _goodsTransfers(merchant, recipientUuid, lines) {
+        // `items` is an array, so a whole cart from one shelf policy is one leg. A leg
+        // per line would be the mistake `api-inventory.md` names for grantItems: the
+        // plural form only batches when everything meets in the same call.
+        //
+        // Two legs at most, because the two policies cannot share one: `copy` and
+        // `preserveEmptySource` are per transfer and answer different stock models.
+        const groups = new Map();
+        for (const line of lines) {
+            const unlimited = this.resolveStockPolicy(merchant, line.shelfConfig) === STOCK.INFINITE;
+            const key = unlimited ? 'copy' : 'move';
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    from: merchant.uuid,
+                    to: recipientUuid,
+                    items: [],
+                    ...(unlimited ? { copy: true } : { preserveEmptySource: true })
+                });
+            }
+            groups.get(key).items.push({ itemId: line.item.id, quantity: line.quantity });
+        }
+        return [...groups.values()];
     }
 
     /**
@@ -741,8 +765,7 @@ export class MerchantManager {
         // per-line stock check that used to run first is the primitive's job now.
         return exchange({
             transfers: [
-                ...lines.map((line) =>
-                    this._goodsTransfer(merchant, line.item, line.shelfConfig, check.actorUuid, line.quantity)),
+                ...this._goodsTransfers(merchant, check.actorUuid, lines),
                 ...this._coinTransfers(payerCheck.actor.uuid, merchant.uuid, plan)
             ]
         }).then((result) => (result?.ok ? { ...result, price: total } : result));
@@ -814,15 +837,17 @@ export class MerchantManager {
         // needs, which is the one direction the primitive suited without a new option.
         const result = await exchange({
             transfers: [
-                ...lines.map((line) => ({
+                {
                     from: seller.uuid,
                     to: merchant.uuid,
-                    items: [{ itemId: line.itemId, quantity: line.quantity }],
+                    // The whole basket in one leg: same seller, same merchant, same
+                    // shelf, so splitting it per line would batch nothing.
+                    items: lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
                     // Bought stock lands on the buyback shelf rather than loose on the
                     // NPC. `container` belongs to the transfer, so it is unambiguously
                     // about where these items arrive.
                     container: shelf.item.id
-                })),
+                },
                 ...this._coinTransfers(merchant.uuid, seller.uuid, plan)
             ]
         });

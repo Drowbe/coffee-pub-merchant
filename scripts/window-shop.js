@@ -825,7 +825,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
         // No suffix about goods already handed over: a purchase is one `exchange`
         // now, so a failed payment moves nothing at all.
-        ui.notifications?.error(this._explain(result?.code, result));
+        const message = this._explain(result?.code, result);
+        // LOCK_TIMEOUT is the only retryable code; every other one describes a state
+        // that will not change by trying again, so only it says "try again".
+        if (result?.code === 'SOURCE_UPDATE_FAILED' || result?.code === 'ROLLBACK_FAILED') {
+            console.error(`${MODULE.TITLE} | ${result.code}:`, result);
+        }
+        ui.notifications?.error(message);
     }
 
     _explain(code, result) {
@@ -860,7 +866,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'SAME_ACTOR': return 'That would be trading with yourself.';
             case 'DUPLICATE_ITEM': return 'That item is in the cart twice. Clear it and try again.';
             case 'EXCHANGE_EMPTY': return 'There was nothing to settle.';
-            case 'SOURCE_UPDATE_FAILED': return 'The merchant’s stock could not be updated, so nothing moved.';
+            // The doc asks for these to be surfaced rather than swallowed: whether
+            // the row was created or grown, and by how much, is what a GM needs to
+            // repair the state by hand.
+            case 'SOURCE_UPDATE_FAILED': return 'The stock could not be reduced, so the goods were put back.';
             case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';

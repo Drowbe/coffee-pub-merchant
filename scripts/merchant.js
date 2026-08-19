@@ -2,7 +2,7 @@
 // ===== COFFEE PUB MERCHANT — ENTRY POINT ==========================
 // ==================================================================
 
-import { MODULE } from './const.js';
+import { MODULE, PAR_FLAG, SHELF_FLAG } from './const.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import { MerchantManager } from './manager-merchant.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
@@ -58,6 +58,21 @@ Hooks.once('ready', async function () {
     } catch (error) {
         console.error(`${MODULE.TITLE} | Failed to register with Blacksmith:`, error);
     }
+
+    // **Declare every flag Merchant writes to an item.** Merge identity is
+    // deep-equal flags, so an undeclared flag makes two otherwise identical stacks
+    // refuse to merge — and worse, makes it depend on whether our write has landed
+    // yet, which no other module can see coming. The obligation sits with whoever
+    // writes the flag, and that is us.
+    //
+    // Both qualify: a restock target and a shelf's configuration describe where a
+    // thing is kept, not what it is. Two identical potions are the same potion
+    // whether the shop keeps six of them or three.
+    //
+    // Optional-chained because it lands with api.inventory, which may be newer than
+    // the Blacksmith a given world has installed.
+    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${PAR_FLAG}`);
+    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${SHELF_FLAG}`);
 
     // Registered for every user, not just the GM: the interaction claim and the
     // request path both have to exist on a player's client.
