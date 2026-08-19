@@ -10,7 +10,7 @@
 .merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 8px; color: var(--blacksmith-tool-text); container-type: inline-size; }
 .merchant-shop-section { min-width: 0; padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
 .merchant-shop-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
-.merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
+.merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
 
 /* The merchant and the buyer stay put while the stock scrolls under them. */
 /* The left column: what the shop is, who is shopping, and what is on the shelves.
@@ -109,10 +109,10 @@
 .merchant-shop-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
 .merchant-shop-shelf-icon { width: 20px !important; height: 20px !important; max-width: 20px !important; }
 .merchant-shop-head-actions { display: flex; gap: 6px; align-items: center; }
-.merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
+.merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
 
 /* GM toggle: bring a shelf out front, or put it away, without leaving the shop. */
-.merchant-shop-shelf-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
+.merchant-shop-shelf-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
 .merchant-shop-shelf-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 .merchant-shop-shelf-toggle.is-hidden { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
 
@@ -122,7 +122,7 @@
 /* --- Configuration: shelves ------------------------------------------ */
 .merchant-config-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; }
 .merchant-config-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
-.merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
+.merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
 
 .merchant-config-shelf-list { display: flex; flex-direction: column; gap: 4px; }
 .merchant-config-shelf { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
@@ -141,8 +141,10 @@
 
 /* --- Open for business ----------------------------------------------- */
 .merchant-shop-subject { grid-template-columns: 58px minmax(0,1fr) auto; }
+/* Squarer and with room around the words, so it reads as the sign hanging in the
+   window rather than as a tag. */
 .merchant-shop-open-toggle,
-.merchant-shop-open-state { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 999px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .68rem; white-space: nowrap; }
+.merchant-shop-open-state { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; padding: 2px 10px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 5px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .72rem; white-space: nowrap; }
 .merchant-shop-open-toggle { cursor: pointer; }
 .merchant-shop-open-state.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
 /* Name at one end, the door at the other; the two lines below run the full width
@@ -164,7 +166,7 @@
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
 
-.merchant-shop-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
+.merchant-shop-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
 .merchant-shop-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 
 /* --- Trading hours ---------------------------------------------------- */
@@ -199,7 +201,7 @@
 /* --- Prices and coin -------------------------------------------------- */
 .merchant-shop-price { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-style: normal; font-variant-numeric: tabular-nums; }
 .merchant-shop-unpriced { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: #a4432f; font-style: normal; }
-.merchant-shop-purse { display: inline-flex; gap: 5px; align-items: center; padding: 2px 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.merchant-shop-purse { display: inline-flex; gap: 5px; align-items: center; padding: 2px 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
 .merchant-config-markup small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
 .merchant-config-markup input { width: 100%; padding: 4px 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-variant-numeric: tabular-nums; text-align: center; }
@@ -278,7 +280,7 @@
 /* The browser's own clear affordance is inconsistent across platforms and does not
    fire our handler, so it is suppressed in favour of the button beside it. */
 .merchant-shop-search > input::-webkit-search-cancel-button { display: none; }
-.merchant-shop-search-clear { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .62rem; cursor: pointer; }
+.merchant-shop-search-clear { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .62rem; cursor: pointer; }
 .merchant-shop-search-clear:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 .merchant-shop-no-matches { border-style: dashed; }
 
@@ -312,7 +314,7 @@
 .merchant-config-shelf-inherited { flex: 0 0 auto; white-space: nowrap; }
 
 .merchant-config-head-actions { display: inline-flex; gap: 7px; align-items: center; }
-.merchant-config-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
+.merchant-config-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
 .merchant-config-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 
 /* --- Shop description --------------------------------------------------- */
@@ -606,7 +608,7 @@
 
 /* Sell from the slate's own header. It was reachable only from the empty state,
    so putting one thing on the slate hid the way to add a second without dragging. */
-.merchant-shop-slate-sell { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: uppercase; cursor: pointer; }
+.merchant-shop-slate-sell { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: uppercase; cursor: pointer; }
 .merchant-shop-slate-sell:hover:not(:disabled) { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 .merchant-shop-slate-sell:disabled { opacity: .45; cursor: default; }
 
