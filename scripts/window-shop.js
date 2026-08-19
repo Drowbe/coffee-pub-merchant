@@ -1091,13 +1091,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // The running total, in the direction it actually runs. "You pay" and
             // "You receive" are different sentences and a shopper should not have to
             // work out which one a bare number is.
-            netLabel: cartTotal - basketTotal > 0 ? 'You pay'
-                : cartTotal - basketTotal < 0 ? 'You receive'
-                    : 'Even trade',
-            netDirection: cartTotal - basketTotal > 0 ? 'pay'
-                : cartTotal - basketTotal < 0 ? 'receive'
-                    : 'even',
-            netTotalLabel: formatBase(Math.abs(cartTotal - basketTotal)),
+            // A total you are owed is written with a sign rather than a colour, so
+            // the direction survives every theme and does not depend on seeing one.
+            netTotalLabel: (cartTotal - basketTotal < 0 ? '+' : '')
+                + formatBase(Math.abs(cartTotal - basketTotal)),
             basket: basketLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
             basketCount: basketLines.length,
             hasBasket: basketLines.length > 0,

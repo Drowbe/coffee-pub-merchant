@@ -338,11 +338,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description used to share the portrait's column, so a sentence wrapped in a narrow gutter beside a face. It
   spans the card now, where a paragraph can be one.
 
-- **The slate's totals line up** (`templates/window-shop.hbs`, `styles/default.css`): they were three
-  right-aligned label-and-value pairs, so every label began at a different x and the block read as three
-  unrelated notes rather than a sum. Two right-aligned columns now — labels down one edge, figures down the
-  other — on a tinted panel, with a rule under the total separating the answer from its working, the way it
-  would be on paper.
+- **The slate's totals are label-and-value chips** (`templates/window-shop.hbs`, `styles/default.css`): they
+  were three right-aligned label-and-value pairs, so every label began at a different x and the block read as
+  three unrelated notes rather than a sum. The label column now sizes to the longest label and every chip
+  inherits that width, so labels align down one edge and figures start at the same x.
+
+  Three identical rows; nothing distinguishes the total except sitting first and being called **Total**. An
+  earlier pass gave it a larger size, a coloured chip, a rule beneath it and uppercase bold labels, which
+  turned a plain pattern into a decorated one. A total you are owed is written `+20 gp` — the sign carries
+  the direction, which survives every theme and does not depend on seeing a colour.
+
+  The fills are the theme's own text colour mixed into **transparency** rather than into a surface, so the
+  pair composites over whatever is behind it: opaque light, opaque dark, or glass.
 - **Buying and Selling are headed like shelves are**: they do the same job — telling you which list you are
   looking at — and were set several sizes smaller than the headings they sit opposite.
 - **Sell is reachable from the slate header**: the picker was only offered in the empty state, so putting one
