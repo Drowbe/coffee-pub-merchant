@@ -427,6 +427,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Restocking also came off the same `try` as the schedule: a restock that threw used to take the opening
   hours down with it.
 
+- **A shelf can be stocked by rolling a table** (`scripts/manager-merchant.js`,
+  `scripts/window-merchant-config.js`): drag a RollTable onto a shelf in Merchant Settings, say how many
+  times to roll it, and every restock — the button or the clock — rolls and puts what comes up on that shelf.
+  A uuid rather than an id, so a table in a compendium works exactly like one in the world, which is where a
+  GM keeps this sort of table.
+
+  **`roll()`, not `draw()`.** Drawing marks results as drawn, so a shop restocking from a table would exhaust
+  it and then quietly stock nothing. A shop's table describes what it tends to carry; it is not a bag things
+  are taken out of.
+
+  Rolls go through `grantItems` in **one** call, so a table that rolls the same potion three times produces
+  one row of three rather than three rows of one. Non-item results are skipped rather than refused — a table
+  with a "nothing this week" row is a reasonable table. A table-stocked shelf restocks on the clock whatever
+  its stock policy, because it is not refilling to a level, it is receiving a delivery.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

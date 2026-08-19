@@ -682,3 +682,14 @@
 /* A text field in the settings rows, matching the number ones beside it. */
 .merchant-config-field input[type="text"] { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .78rem; }
 .merchant-config-field input[type="text"]:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
+
+/* --- Roll tables on a shelf --------------------------------------------- */
+/* A third line on the shelf row, quiet when empty: most shelves are stocked by
+   hand and should not have to look at a control they will not use. */
+.merchant-config-shelf { grid-template-areas: "img copy actions" "stock stock stock" "table table table"; }
+.merchant-config-shelf-table { grid-area: table; display: flex; align-items: center; gap: 8px; min-height: 22px; margin-top: 3px; }
+.merchant-config-shelf-table-name { display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; color: var(--blacksmith-tool-text); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-config-shelf-table-empty { display: inline-flex; gap: 6px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; opacity: .7; }
+.merchant-config-shelf-rolls { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
+.merchant-config-shelf-rolls > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+.merchant-config-shelf.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }

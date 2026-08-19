@@ -197,6 +197,22 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
+#### Stocking from a roll table
+
+- [ ] Drag a **RollTable** from the sidebar onto a shelf row in Merchant Settings → the row highlights and
+      the table's name appears on it.
+- [ ] Drag one from a **compendium** → same thing. A compendium table is the normal case.
+- [ ] Drag something that is not a table → refused with a message, and the shelf is unchanged.
+- [ ] Set the roll count; press **Restock** → that many rolls, and what comes up lands on that shelf.
+- [ ] A table rolling the same item several times produces **one row** with a quantity, not several rows.
+- [ ] Text-only results are skipped without erroring.
+- [ ] Non-physical results — a journal, an actor — are skipped too.
+- [ ] Rolling does **not** mark the table's results as drawn; restock twice and the second still rolls.
+- [ ] Advance the clock past the shelf's interval → it rolls on its own.
+- [ ] A table-stocked shelf restocks on the clock even when its policy is not "runs out, refills".
+- [ ] The **×** clears the table and the shelf stops rolling.
+- [ ] Delete the table from the world → the shelf shows no table rather than erroring.
+
 #### Restocking
 
 - [ ] A shelf set to **Runs out, refills** shows an "every _n_ days" field; the other policies do not.

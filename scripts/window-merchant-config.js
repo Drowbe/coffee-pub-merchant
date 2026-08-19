@@ -54,6 +54,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
+        clearShelfTable: (_event, target, win) => void win.clearShelfTable(target.dataset.shelfId),
         clearHours: (_event, _target, win) => void win.clearHours()
     };
 
@@ -160,6 +161,32 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        for (const input of this.element?.querySelectorAll('[data-shelf-table-rolls]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+            input.addEventListener('change', (event) => {
+                const rolls = Math.min(20, Math.max(1, Math.trunc(Number(event.target.value) || 1)));
+                void this._commitShelfStock(input.getAttribute('data-shelf-table-rolls'), { tableRolls: rolls });
+            });
+        }
+
+        for (const zone of this.element?.querySelectorAll('[data-drop-table]') ?? []) {
+            if (zone.dataset.merchantBoundDrop === 'true') continue;
+            zone.dataset.merchantBoundDrop = 'true';
+            const shelfId = zone.getAttribute('data-drop-table');
+
+            zone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                zone.classList.add('is-dropping');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('is-dropping'));
+            zone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                zone.classList.remove('is-dropping');
+                void this._onDropTable(event, shelfId);
+            });
+        }
+
         for (const input of this.element?.querySelectorAll('[data-shelf-restock-days]') ?? []) {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
@@ -202,6 +229,37 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the till:`, error);
             ui.notifications?.error('Could not set the till.');
+        }
+        await this.render(false);
+    }
+
+    /**
+     * Assign a roll table to a shelf by dropping one on it.
+     *
+     * Dragged rather than picked from a list, matching how stock itself gets onto a
+     * shelf — and a table in a compendium drags the same as one in the world, which a
+     * picker of world tables would have missed.
+     */
+    async _onDropTable(event, shelfId) {
+        let data = null;
+        try {
+            data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+        } catch (_error) {
+            return;
+        }
+        if (data?.type !== 'RollTable' || !data.uuid) {
+            if (data?.type) ui.notifications?.warn('Drop a roll table here, not a ' + String(data.type).toLowerCase() + '.');
+            return;
+        }
+
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setShelfTable(actor, shelfId, data.uuid);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set that table:`, error);
+            ui.notifications?.error('Could not set that table.');
         }
         await this.render(false);
     }
@@ -426,6 +484,28 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    /** A table's name for display, or null if it no longer resolves. */
+    _tableName(uuid) {
+        if (!uuid) return null;
+        try {
+            return fromUuidSync(uuid)?.name ?? null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    async clearShelfTable(shelfId) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setShelfTable(actor, shelfId, null);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clear that table:`, error);
+        }
+        await this.render(false);
+    }
+
     /** Stock policy and restock cadence, both per shelf. */
     async _commitShelfStock(shelfId, changes) {
         const actor = await this._resolveActor();
@@ -459,6 +539,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 const count = MerchantManager.getShelfContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);
+                const rolls = Math.min(20, Math.max(1, Math.trunc(Number(config.tableRolls) || 1)));
                 return {
                     id: item.id,
                     img: item.img,
@@ -480,7 +561,14 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // Restocking is the only policy with a cadence, but every shelf
                     // that counts its stock can be refilled by hand.
                     countable: policy !== STOCK.INFINITE,
-                    restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS
+                    restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
+                    // A uuid that no longer resolves reads as no table rather than as
+                    // a broken one. `fromUuidSync` throws on some shapes rather than
+                    // returning null, and a compendium uuid gives an index entry --
+                    // which carries a name, which is all this needs.
+                    tableName: this._tableName(config.table),
+                    tableRolls: rolls,
+                    oneRoll: rolls === 1
                 };
             })
             : [];

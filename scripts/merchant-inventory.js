@@ -54,6 +54,24 @@ export async function grantItem(request) {
     return api.grantItem(request);
 }
 
+/**
+ * Put several items on an Actor in one operation.
+ *
+ * **Not a loop over `grantItem`.** Everything that can be created goes in one
+ * `createEmbeddedDocuments` and every merge in one update, which is what keeps a
+ * batch to two writes per Actor — and duplicates only coalesce into a single row
+ * when their payloads meet in the same call. A table that rolls the same potion
+ * three times should produce one row of three, not three rows of one.
+ */
+export async function grantItems(request) {
+    const api = inventoryApi();
+    if (typeof api?.grantItems !== 'function') {
+        console.error(`${MODULE.TITLE} | api.inventory is unavailable; grantItems refused.`);
+        return { ok: false, code: 'INVENTORY_UNAVAILABLE' };
+    }
+    return api.grantItems(request);
+}
+
 /** Add coin to an Actor. Deltas only, and never negative — see api-inventory.md. */
 export async function grantCurrency(request) {
     const api = inventoryApi();

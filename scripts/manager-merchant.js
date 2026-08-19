@@ -8,7 +8,7 @@ import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_TILL, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
-import { grantItem, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
+import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
 import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -513,6 +513,91 @@ export class MerchantManager {
     }
 
     /**
+     * The roll table a shelf restocks from, or null.
+     *
+     * Stored as a uuid rather than an id so a table in a compendium works the same as
+     * one in the world — which is the point, since a shop's stock table is exactly
+     * the sort of thing a GM keeps in a module compendium.
+     */
+    static async getShelfTable(shelf) {
+        const uuid = this.getShelfConfig(shelf)?.table;
+        if (!uuid) return null;
+        try {
+            const table = await fromUuid(uuid);
+            return table?.documentName === 'RollTable' ? table : null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    static async setShelfTable(actor, shelfId, uuid) {
+        return this.setShelfConfig(actor, shelfId, { table: uuid ?? null });
+    }
+
+    /**
+     * Roll a shelf's table and put what comes up on it.
+     *
+     * **`roll()`, not `draw()`.** Drawing marks results as drawn, so a shop restocking
+     * from a table would exhaust it and then quietly stock nothing. A shop's table is
+     * a description of what it tends to carry, not a bag things are taken out of.
+     *
+     * Non-item results are skipped rather than refused: a table with a "nothing this
+     * week" text row is a reasonable table, and so is one mixing items with flavour.
+     */
+    static async rollShelfTable(actor, shelfId) {
+        if (!game.user.isGM) return 0;
+        const shelf = actor?.items?.get(shelfId);
+        const config = this.getShelfConfig(shelf);
+        if (!config) return 0;
+
+        const table = await this.getShelfTable(shelf);
+        if (!table) return 0;
+
+        const rolls = Math.min(20, Math.max(1, Math.trunc(Number(config.tableRolls) || 1)));
+        const drawn = [];
+        for (let i = 0; i < rolls; i++) {
+            let results = [];
+            try {
+                ({ results = [] } = await table.roll());
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not roll ${table.name}:`, error);
+                break;
+            }
+            for (const result of results) {
+                if (!result?.documentUuid) continue;
+                drawn.push(result.documentUuid);
+            }
+        }
+        if (!drawn.length) return 0;
+
+        // Resolved once per distinct uuid: a table that rolls the same row twice
+        // should cost one lookup, and only physical items can sit on a shelf.
+        const sellable = new Map();
+        for (const uuid of drawn) {
+            if (!sellable.has(uuid)) {
+                let item = null;
+                try {
+                    item = await fromUuid(uuid);
+                } catch (_error) {
+                    item = null;
+                }
+                sellable.set(uuid, item?.documentName === 'Item' && isPhysical(item.type));
+            }
+        }
+
+        const items = drawn.filter((uuid) => sellable.get(uuid)).map((uuid) => ({ itemUuid: uuid, quantity: 1 }));
+        if (!items.length) return 0;
+
+        // One call, so duplicates coalesce into one row rather than becoming several
+        // rows of one — see grantItems.
+        const result = await grantItems({ targetActorUuid: actor.uuid, items, container: shelfId });
+        if (!result?.ok) {
+            console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from ${table.name}:`, result);
+        }
+        return items.length;
+    }
+
+    /**
      * Refill a shelf to its par levels.
      *
      * `force` is the GM pressing the button, which works on a finite shelf too -- a
@@ -524,7 +609,7 @@ export class MerchantManager {
         const shelf = actor?.items?.get(shelfId);
         const config = this.getShelfConfig(shelf);
         if (!config) return 0;
-        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING) return 0;
+        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !config.table) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
             const updates = [];
@@ -537,9 +622,14 @@ export class MerchantManager {
             return updates.length;
         });
 
+        // Two mechanisms, deliberately both: par brings back what the shelf is known
+        // to keep, and the table brings in whatever it happens to have got hold of
+        // this time. A shelf may use either or both.
+        const rolled = await this.rollShelfTable(actor, shelfId);
+
         await this.setShelfConfig(actor, shelfId, { lastRestock: game.time.worldTime });
-        if (filled) this.broadcastActorRefresh(actor);
-        return filled;
+        if (filled || rolled) this.broadcastActorRefresh(actor);
+        return filled + rolled;
     }
 
     /**
@@ -552,7 +642,9 @@ export class MerchantManager {
     static async _applyRestocks(worldTime) {
         for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
             for (const { item: shelf, config } of this.getShelves(actor, { includeHidden: true })) {
-                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING) continue;
+                // A table-stocked shelf restocks on the clock whatever its policy: it
+                // is not refilling to a level, it is receiving a delivery.
+                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !config.table) continue;
 
                 const days = Number(config.restockDays);
                 const interval = (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS)
