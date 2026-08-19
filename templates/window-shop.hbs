@@ -72,16 +72,6 @@
                         <i class="fa-solid fa-coins"></i> {{purseLabel}}
                     </div>
                 {{/if}}
-                {{#if canSell}}
-                    {{!-- Disabled with a reason rather than absent. An absent button
-                          reads as "this shop does not buy things"; a disabled one
-                          says "not yet, and here is why". --}}
-                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-sell"
-                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
-                            data-tooltip="{{sellTooltip}}">
-                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
-                    </button>
-                {{/if}}
                 {{#if hasRecipientChoice}}
                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
                             data-action="changeRecipient" data-tooltip="Buy as a different character">
@@ -225,6 +215,62 @@
                             </div>
                         {{/if}}
                     </section>
+                    {{#if canSell}}
+                        {{!-- Under the cart, and a drop target: drag something off a
+                              character sheet to sell it. The button is the same path
+                              for anyone who would rather not drag. --}}
+                        <section class="merchant-shop-section merchant-shop-basket" data-drop-sell>
+                            <h3>
+                                <span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span>
+                                <span class="merchant-shop-head-actions">
+                                    {{#if hasBasket}}
+                                        <button type="button" class="merchant-shop-cart-clear" data-action="clearBasket"
+                                                data-tooltip="Empty the basket">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    {{/if}}
+                                    <span class="merchant-shop-count">{{basketCount}}</span>
+                                </span>
+                            </h3>
+
+                            {{#if hasBasket}}
+                                <div class="merchant-shop-cart-list">
+                                    {{#each basket}}
+                                        <div class="merchant-shop-cart-line">
+                                            <img src="{{img}}" alt="">
+                                            <span class="merchant-shop-cart-name">{{name}}</span>
+                                            <button type="button" class="merchant-shop-cart-remove" data-action="removeFromBasket"
+                                                    data-item-id="{{id}}" data-tooltip="Take it out of the basket">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                            <span class="merchant-shop-cart-meta">
+                                                <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                                <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+                                            </span>
+                                        </div>
+                                    {{/each}}
+                                </div>
+
+                                <div class="merchant-shop-cart-foot">
+                                    <span>You get <strong>{{basketTotalLabel}}</strong></span>
+                                    <button type="button" class="blacksmith-window-btn-primary merchant-shop-checkout"
+                                            data-action="sellBasket">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
+                                    </button>
+                                </div>
+                            {{else}}
+                                <div class="merchant-shop-empty merchant-shop-cart-empty">
+                                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                                    <span>Drag something here to sell it.</span>
+                                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-basket-pick"
+                                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
+                                            data-tooltip="{{sellTooltip}}">
+                                        Or choose from your pack
+                                    </button>
+                                </div>
+                            {{/if}}
+                        </section>
+                    {{/if}}
                 </aside>
             {{/if}}
         </div>

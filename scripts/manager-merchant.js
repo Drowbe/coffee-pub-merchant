@@ -749,10 +749,12 @@ export class MerchantManager {
     }
 
     /**
-     * Selling: the party's item to the merchant, coin the other way.
+     * Selling: the party's items to the merchant, coin the other way.
      *
      * The same operation with the sides swapped, which is why a symmetric primitive
-     * was asked for rather than a buy-shaped one.
+     * was asked for rather than a buy-shaped one. A basket rather than one item at a
+     * time, for the same reason the cart is a cart: a dungeon haul sold piecemeal is
+     * a payment and a lot of change per item, each rounding separately.
      *
      * **This inverts the trust model.** Every other handler validates that someone
      * may *receive*; here a player is handing something over, so the item must be
@@ -769,19 +771,30 @@ export class MerchantManager {
         // else's possessions is not a thing a shop workflow should enable.
         if (!user.isGM && !seller.testUserPermission(user, 'OWNER')) return { ok: false, code: 'NOT_YOUR_ITEM' };
 
-        const item = seller.items?.get(payload.itemId);
-        if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
-        if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+        const requested = Array.isArray(payload.items) ? payload.items : [];
+        if (!requested.length) return { ok: false, code: 'EMPTY_BASKET' };
 
-        const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
-        const available = Number(item.system?.quantity ?? 1);
-        if (Number.isFinite(available) && quantity > available) {
-            return { ok: false, code: 'INSUFFICIENT_QUANTITY', available };
+        const config = this.getConfig(merchant);
+        const lines = [];
+        let total = 0;
+
+        for (const entry of requested) {
+            const item = seller.items?.get(entry?.itemId);
+            if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+            if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+
+            const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
+            const available = Number(item.system?.quantity ?? 1);
+            if (Number.isFinite(available) && quantity > available) {
+                return { ok: false, code: 'INSUFFICIENT_QUANTITY', available, itemName: item.name };
+            }
+
+            const unit = resolveBuybackPrice(config, shelf.config, item);
+            if (unit === null) return { ok: false, code: 'NOT_PRICED', itemName: item.name };
+
+            total += unit * quantity;
+            lines.push({ itemId: item.id, quantity });
         }
-
-        const unit = resolveBuybackPrice(this.getConfig(merchant), shelf.config, item);
-        if (unit === null) return { ok: false, code: 'NOT_PRICED' };
-        const total = unit * quantity;
 
         // A merchant with an empty till cannot buy, which is a fiction a GM may well
         // want. Refused rather than conjuring coin.
@@ -794,26 +807,27 @@ export class MerchantManager {
             return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
         }
 
-        // Three arrows, not two sides. Selling genuinely does move the goods — the
-        // party's sword becomes the merchant's — so this is a transfer rather than the
-        // copy a purchase needs, and it is the one direction the primitive already
-        // suits without a new option.
+        // One call for the whole basket, mirroring checkout: every line and both coin
+        // legs commit together, so one unsellable line writes nothing rather than
+        // half a haul. Selling genuinely moves the goods — the party's sword becomes
+        // the merchant's — so these are transfers rather than the copies a purchase
+        // needs, which is the one direction the primitive suited without a new option.
         const result = await exchange({
             transfers: [
-                {
+                ...lines.map((line) => ({
                     from: seller.uuid,
                     to: merchant.uuid,
-                    items: [{ itemId: item.id, quantity }],
+                    items: [{ itemId: line.itemId, quantity: line.quantity }],
                     // Bought stock lands on the buyback shelf rather than loose on the
                     // NPC. `container` belongs to the transfer, so it is unambiguously
                     // about where these items arrive.
                     container: shelf.item.id
-                },
+                })),
                 ...this._coinTransfers(merchant.uuid, seller.uuid, plan)
             ]
         });
 
-        return result?.ok ? { ...result, price: total } : result;
+        return result?.ok ? { ...result, price: total, lines: lines.length } : result;
     }
 
     /**

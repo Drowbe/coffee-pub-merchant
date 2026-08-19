@@ -175,6 +175,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The GM handler is down to two operations, `checkout` and `sell`, and the single-item resolution path in
   front of them is gone with them.
 
+- **Selling is a basket, and the basket is a drop target** (`scripts/window-shop.js`,
+  `scripts/manager-merchant.js`): a **Selling** panel under the cart. Drag something off a character sheet
+  onto it, or press *Or choose from your pack* for the same thing without dragging — both go through one
+  place, so a dragged item and a chosen one are refused for the same reasons. One **Sell** settles the lot as
+  a single exchange: one payment, one lot of change, however many lines. Selling a dungeon haul piecemeal was
+  a payment and a lot of change per item, each rounding on its own.
+
+  It mirrors the cart deliberately, down to the line layout. Buying became cart-only for the reason that a
+  second path through the same money is a second place for the two to disagree; leaving selling as a one-shot
+  would have left that inconsistency in the other half of the window.
+
+  The Sell button on the buyer card is gone — the basket carries its own. Drops resolve through `fromUuid`
+  rather than parsing the sheet's payload, refuse anything belonging to a character you are not shopping as,
+  refuse what the merchant would not take, and refuse a packed container **in front of** the quantity dialog
+  rather than after it.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

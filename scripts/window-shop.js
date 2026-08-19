@@ -109,6 +109,11 @@ export function filterShopList(root, query) {
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
 
+    // tokenUuid -> Map(itemId -> quantity), for things being sold TO the merchant.
+    // Same shape and same reasoning as the cart; kept apart because a basket holds the
+    // seller's own possessions and a cart holds the shop's.
+    static _baskets = new Map();
+
     // tokenUuid -> Map(itemId -> quantity). Per client, so naturally per user.
     // Kept in memory rather than on a document: a cart is a half-formed intention,
     // and persisting one would mean deciding when somebody else's abandoned cart
@@ -143,6 +148,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearCart: (_event, _target, win) => void win.clearCart(),
         checkout: (_event, _target, win) => win.run(() => win.checkout()),
+        removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
+        clearBasket: (_event, _target, win) => void win.clearBasket(),
+        sellBasket: (_event, _target, win) => win.run(() => win.sellBasket()),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
@@ -405,6 +413,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return ShopWindow._carts.get(this.tokenUuid);
     }
 
+    get basket() {
+        if (!ShopWindow._baskets.has(this.tokenUuid)) ShopWindow._baskets.set(this.tokenUuid, new Map());
+        return ShopWindow._baskets.get(this.tokenUuid);
+    }
+
     async addToCart(itemId) {
         const context = await this._itemContext(itemId);
         if (!context) return;
@@ -590,10 +603,27 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Sell something to the merchant.
+     * The buyback shelf, or null when this merchant does not buy anything.
      *
-     * The inverse of buying, and the inverse of every other permission here: the
-     * item has to be the seller's own, and the merchant has to be able to pay.
+     * That shelf existing *is* "this shop buys things"; there is no separate setting.
+     */
+    _buyback(merchant) {
+        return MerchantManager.getShelves(merchant, { includeHidden: true })
+            .find(({ config }) => config.mode === 'buyback') ?? null;
+    }
+
+    /** What the merchant would pay for this, or null if it would not take it. */
+    _offerFor(merchant, buyback, item) {
+        if (!item || !isPhysical(item.type)) return null;
+        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item);
+    }
+
+    /**
+     * Pick something to sell from a list.
+     *
+     * The no-drag path to the same basket. Dragging between two windows is fiddly and
+     * some people simply will not, so the button has to reach everything the drop zone
+     * does rather than being a lesser version of it.
      */
     async sell() {
         const seller = this.recipient;
@@ -603,18 +633,24 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
         const token = await this._resolveToken();
         const merchant = token?.actor;
-        const buyback = MerchantManager.getShelves(merchant, { includeHidden: true })
-            .find(({ config }) => config.mode === 'buyback');
+        const buyback = this._buyback(merchant);
         if (!buyback) {
             ui.notifications?.warn('This merchant does not buy anything.');
             return;
         }
 
-        const config = MerchantManager.getConfig(merchant);
-        const sellable = seller.items.filter((item) => isPhysical(item.type)
-            && resolveBuybackPrice(config, buyback.config, item) !== null);
+        // What is already in the basket is spoken for, so an item wholly promised does
+        // not appear again as though it were still on the shelf.
+        const sellable = seller.items.filter((item) => {
+            if (this._offerFor(merchant, buyback, item) === null) return null;
+            const available = Number(item.system?.quantity ?? 1);
+            const held = this.basket.get(item.id) ?? 0;
+            return (Number.isFinite(available) ? available : 1) - held > 0;
+        });
         if (!sellable.length) {
-            ui.notifications?.warn(seller.name + ' has nothing this merchant would buy.');
+            ui.notifications?.warn(this.basket.size
+                ? `Everything ${seller.name} can sell here is already in the basket.`
+                : `${seller.name} has nothing this merchant would buy.`);
             return;
         }
 
@@ -630,29 +666,155 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             classes: ['merchant-dialog'],
             choices: sellable.map((item) => ({
                 id: item.id,
-                label: item.name + ' \u2014 ' + formatBase(resolveBuybackPrice(config, buyback.config, item)),
+                label: item.name + ' \u2014 ' + formatBase(this._offerFor(merchant, buyback, item)),
                 icon: 'fa-solid fa-hand-holding-dollar'
             }))
         });
         if (picked?.action !== 'submit' || !picked.value) return;
 
-        const item = seller.items.get(picked.value);
-        const available = Number(item?.system?.quantity ?? 1);
-        const amount = await this._askQuantity(item?.name ?? 'item', Number.isFinite(available) ? available : 1, {
-            title: `Sell ${item?.name ?? 'item'}`,
-            confirmLabel: 'Sell',
+        await this.addToBasket(seller.items.get(picked.value));
+    }
+
+    /**
+     * Put something in the sell basket, asking how many.
+     *
+     * Shared by the picker and the drop zone, so a dragged item and a chosen one land
+     * the same way and are refused for the same reasons.
+     */
+    async addToBasket(item) {
+        const seller = this.recipient;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const buyback = merchant ? this._buyback(merchant) : null;
+        if (!item || !seller || !buyback) return;
+
+        if (item.parent?.uuid !== seller.uuid) {
+            ui.notifications?.warn(`You are selling as ${seller.name}. That belongs to somebody else.`);
+            return;
+        }
+        if (this._offerFor(merchant, buyback, item) === null) {
+            ui.notifications?.warn(`This merchant would not take ${item.name}.`);
+            return;
+        }
+        // Refused in front of the quantity dialog rather than after it: dnd5e keeps
+        // containment on the child, so a packed container cannot change hands, and
+        // `exchange` would refuse it anyway with a worse message.
+        const packed = item.type === 'container'
+            && (item.parent?.items?.filter((child) => child.system?.container === item.id).length ?? 0) > 0;
+        if (packed) {
+            ui.notifications?.warn(`Unpack ${item.name} first \u2014 a full container cannot change hands.`);
+            return;
+        }
+
+        const held = this.basket.get(item.id) ?? 0;
+        const available = Number(item.system?.quantity ?? 1);
+        const max = (Number.isFinite(available) ? available : 1) - held;
+        if (max < 1) {
+            ui.notifications?.warn(`Every ${item.name} you have is already in the basket.`);
+            return;
+        }
+
+        const amount = await this._askQuantity(item.name, max, {
+            title: `Sell ${item.name}`,
+            confirmLabel: 'Add to basket',
             confirmIcon: 'fa-solid fa-hand-holding-dollar'
         });
         if (!amount) return;
 
-        this._report(
-            await this._send(
-                { itemId: picked.value, quantity: amount, sellerUuid: seller.uuid },
-                { label: 'Selling ' + item?.name },
-                'sell'
-            ),
-            seller.name + ' sold ' + (amount > 1 ? amount + ' ' : '') + item?.name + '.'
+        this.basket.set(item.id, held + amount);
+        await this.render(false);
+    }
+
+    async removeFromBasket(itemId) {
+        this.basket.delete(itemId);
+        await this.render(false);
+    }
+
+    async clearBasket() {
+        this.basket.clear();
+        await this.render(false);
+    }
+
+    /** Basket lines resolved against what the seller still has, and current offers. */
+    async _basketLines() {
+        const seller = this.recipient;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        const buyback = merchant ? this._buyback(merchant) : null;
+        if (!seller || !buyback) return [];
+
+        const lines = [];
+        for (const [itemId, quantity] of this.basket) {
+            const item = seller.items.get(itemId);
+            // Sold, dropped, or belonging to a character you have since switched away
+            // from: it simply leaves the basket.
+            if (!item) {
+                this.basket.delete(itemId);
+                continue;
+            }
+            const unit = this._offerFor(merchant, buyback, item);
+            if (unit === null) {
+                this.basket.delete(itemId);
+                continue;
+            }
+
+            const available = Number(item.system?.quantity ?? 1);
+            const held = Math.min(quantity, Number.isFinite(available) ? available : 1);
+            if (held < 1) {
+                this.basket.delete(itemId);
+                continue;
+            }
+            if (held !== quantity) this.basket.set(itemId, held);
+
+            lines.push({ id: itemId, name: item.name, img: item.img, quantity: held, unit, total: unit * held });
+        }
+        return lines;
+    }
+
+    /**
+     * Sell the whole basket at once.
+     *
+     * One payment and one lot of change, however many lines — the same reasoning as
+     * checkout, and the reason a basket exists rather than a sale per item.
+     */
+    async sellBasket() {
+        const lines = await this._basketLines();
+        if (!lines.length) return;
+
+        const seller = this.recipient;
+        if (!seller) {
+            ui.notifications?.warn('You have no character able to sell.');
+            return;
+        }
+        const total = lines.reduce((sum, line) => sum + line.total, 0);
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const list = lines.map((line) => '<li>' + line.quantity + ' &times; ' + line.name
+                + ' &mdash; ' + formatBase(line.total) + '</li>').join('');
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Sell to the merchant',
+                classes: ['merchant-dialog'],
+                content: '<ul class="merchant-cart-confirm">' + list + '</ul>'
+                    + '<p>' + seller.name + ' receives <strong>' + formatBase(total) + '</strong>.</p>',
+                confirmLabel: 'Sell',
+                confirmIcon: 'fa-solid fa-hand-holding-dollar'
+            });
+            if (!confirmed) return;
+        }
+
+        const result = await this._send(
+            {
+                items: lines.map((line) => ({ itemId: line.id, quantity: line.quantity })),
+                sellerUuid: seller.uuid
+            },
+            { label: 'Selling' },
+            'sell'
         );
+
+        if (result?.ok) this.basket.clear();
+        this._report(result, seller.name + ' sold ' + lines.length + ' line'
+            + (lines.length === 1 ? '' : 's') + ' for ' + formatBase(total) + '.');
     }
 
     /** `ok: true, merged: false` is success — the item arrived as its own row. */
@@ -845,6 +1007,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const descriptionHtml = missing ? '' : await _enrich(config?.description);
         const cartLines = missing ? [] : await this._cartLines();
         const cartTotal = cartLines.reduce((sum, line) => sum + line.total, 0);
+        const basketLines = missing ? [] : await this._basketLines();
+        const basketTotal = basketLines.reduce((sum, line) => sum + line.total, 0);
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
@@ -867,11 +1031,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             cartCount: cartLines.length,
             hasCart: cartLines.length > 0,
             cartTotalLabel: formatBase(cartTotal),
-            canSell: !missing && Boolean(recipient),
-            sellTooltip: !hasExchange()
-                ? 'Selling is waiting on a Blacksmith update'
-                : 'Sell something to this merchant',
-            sellEnabled: !missing && hasExchange() && Boolean(recipient)
+            basket: basketLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
+            basketCount: basketLines.length,
+            hasBasket: basketLines.length > 0,
+            basketTotalLabel: formatBase(basketTotal),
+            // The buyback shelf existing is what "this shop buys things" means.
+            canSell: !missing && Boolean(this._buyback(merchant)),
+            sellTooltip: !recipient
+                ? 'You have no character able to sell'
+                : 'Choose something to sell',
+            sellEnabled: !missing && Boolean(recipient)
                 && (MerchantManager.isOpen(merchant) || game.user.isGM)
                 && MerchantManager.getShelves(merchant, { includeHidden: true }).some(({ config }) => config.mode === 'buyback'),
             // Shown so a GM is never puzzled by a shop that disagrees with its own
@@ -970,6 +1139,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         this._measurePinned();
         this._bindSearch();
+        this._bindSellDrop();
         // Re-applied after every render, because a refresh, a GM stocking a shelf, or
         // another player's purchase all rebuild the list underneath a standing search.
         this._applyFilter();
@@ -1108,6 +1278,50 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** One pass over the rendered list. See `filterShopList`. */
     _applyFilter() {
         if (this.element) filterShopList(this.element, this._search);
+    }
+
+    /**
+     * The sell basket accepts items dragged off a character sheet.
+     *
+     * Not GM-only, unlike the shelf drop zones: selling is the one thing in this
+     * window a player does with their own possessions. Foundry's drag payload carries
+     * a uuid, so the item is resolved rather than reconstructed from the sheet it came
+     * from — `fromUuid` already knows how to read `Actor.x.Item.y`.
+     */
+    _bindSellDrop() {
+        const zone = this.element?.querySelector('[data-drop-sell]');
+        if (!zone || zone.dataset.merchantBound === 'true') return;
+        zone.dataset.merchantBound = 'true';
+
+        zone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            zone.classList.add('is-dropping');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('is-dropping'));
+        zone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            zone.classList.remove('is-dropping');
+            void this._onDropToSell(event);
+        });
+    }
+
+    async _onDropToSell(event) {
+        let data = null;
+        try {
+            data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+        } catch (_error) {
+            return;
+        }
+        if (data?.type !== 'Item' || !data.uuid) return;
+
+        const item = await fromUuid(data.uuid);
+        // A compendium or sidebar item has no owner to take it from. Only something
+        // actually on a character can be sold.
+        if (!item?.parent?.uuid) {
+            ui.notifications?.warn('Only something a character is carrying can be sold.');
+            return;
+        }
+        await this.addToBasket(item);
     }
 
     async _onDropToShelf(event, shelfId) {

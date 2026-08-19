@@ -318,6 +318,30 @@ it is wired to the box and survives the things that redraw the window.
 - [ ] A GM searching still sees hidden shelves among the results, still marked hidden.
 - [ ] Close and reopen the shop → the search is **empty**, not yesterday's filter.
 
+## 2i. Selling
+
+The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
+
+- [ ] A merchant **with** a Buyback shelf shows a **Selling** panel under the cart; one without shows none.
+- [ ] Empty, it reads "Drag something here to sell it" and offers *Or choose from your pack*.
+- [ ] The button lists what the merchant would take, each with its offer.
+- [ ] Picking one asks a quantity, then it appears in the basket — it does **not** sell immediately.
+- [ ] **Drag an item from your character sheet onto the panel** → the panel highlights, and it asks a
+      quantity the same way.
+- [ ] Squire's inventory panel drags the same way and lands the same way.
+- [ ] Drag something from a **compendium** or the sidebar → refused: only what a character carries can be sold.
+- [ ] Drag something off a character you are **not** shopping as → refused, naming who you are selling as.
+- [ ] Drag a **packed container** → refused with "unpack it first", **before** any quantity prompt.
+- [ ] Drag something the merchant would not buy → refused, naming it.
+- [ ] Add the same item twice → the line grows rather than doubling, and it will not offer more than you have.
+- [ ] Basket full of everything you own → the picker says so rather than listing them again.
+- [ ] **Sell** confirms with the itemised list and the total, then pays **once**.
+- [ ] Everything sold lands on the **Buyback** shelf and is immediately on sale there.
+- [ ] Sell to a merchant whose till cannot cover it → refused, and **nothing** leaves your sheet.
+- [ ] Switch "Buying as" to another character → the basket empties of the first character's things rather
+      than trying to sell them.
+- [ ] Sell an item you are holding in the cart's shop at the same time — cart and basket do not interfere.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.
