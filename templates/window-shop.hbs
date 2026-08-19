@@ -281,8 +281,19 @@
                               stop trusting. --}}
                         <header class="merchant-shop-cart-head">
                             <div class="merchant-shop-cart-headline">
+                                {{!-- Whose slate, with a face on it. A slate belongs to
+                                      a character rather than to whoever is looking at
+                                      it, and clicking somebody's portrait on the bar
+                                      swaps the whole panel underneath you -- so the
+                                      panel says whose it now is. --}}
                                 <span class="merchant-shop-cart-title">
-                                    <i class="fa-solid fa-scroll"></i> Slate
+                                    {{#if hasRecipient}}
+                                        <img class="merchant-shop-cart-portrait" src="{{recipientImg}}" alt=""
+                                             data-tooltip="{{recipientName}}'s slate">
+                                        <span>{{recipientName}}</span>
+                                    {{else}}
+                                        <i class="fa-solid fa-scroll"></i> <span>Slate</span>
+                                    {{/if}}
                                 </span>
                                 {{#if canSell}}
                                     {{!-- The picker was only reachable from the empty

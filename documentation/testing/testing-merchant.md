@@ -238,6 +238,8 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Two people shopping as the **same character** both get a face; neither is hidden by the other.
 - [ ] A face's tooltip names the **person** and the character they are shopping as, when those differ.
 - [ ] Switch "Buying as" → everyone else's view of your face updates to the new character.
+- [ ] The slate title carries the shopper's **portrait and name**, and both change when you switch.
+- [ ] With no character available, the slate title falls back to a scroll icon and the word Slate.
 - [ ] Close the shop → your face leaves everyone else's bar.
 - [ ] Disconnect a player → their face leaves too, rather than standing there forever.
 
