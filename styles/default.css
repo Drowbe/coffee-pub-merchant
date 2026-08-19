@@ -540,3 +540,12 @@
 
 /* The drop outline follows the card it is offered on, not a square inside it. */
 .merchant-shop-shelf-body.is-dropping { outline-offset: -4px; border-radius: 5px; }
+
+/* --- Merchant card: identity across the top, prose beneath --------------- */
+/* The description used to share the portrait's column, so a sentence wrapped in a
+   narrow gutter beside a face. It spans the card now, where a paragraph can be
+   one. */
+.merchant-shop-subject { display: block; }
+.merchant-shop-subject-head { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.merchant-shop-subject-copy { flex: 1 1 auto; }
+.merchant-shop-blurb { margin-top: 9px; padding-top: 8px; }

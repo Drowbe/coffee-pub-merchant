@@ -19,14 +19,29 @@
                   the action bar in the footer. --}}
             <div class="merchant-shop-main">
                 <section class="merchant-shop-section merchant-shop-subject">
-                <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
-                <div class="merchant-shop-subject-copy">
-                    <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
-                    <div class="merchant-shop-title">{{shopName}}</div>
-                    <div class="merchant-shop-description">
-                        {{itemCount}} in stock
-                        {{#if hoursLabel}}<span class="merchant-shop-hours"><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
+                    {{!-- Who and what, across the top; anything the GM wrote spans the
+                          full width beneath it, where a paragraph has room to be one
+                          rather than a column squeezed beside a portrait. --}}
+                    <div class="merchant-shop-subject-head">
+                        <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
+                        <div class="merchant-shop-subject-copy">
+                            <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
+                            <div class="merchant-shop-title">{{shopName}}</div>
+                            <div class="merchant-shop-description">
+                                {{itemCount}} in stock
+                                {{#if hoursLabel}}<span class="merchant-shop-hours"><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
+                            </div>
+                        </div>
+                        {{#if isGM}}
+                            <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
+                                    data-action="toggleOpen"
+                                    data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
+                                <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
+                                {{#if isOpen}}Open{{else}}Closed{{/if}}
+                            </button>
+                        {{/if}}
                     </div>
+
                     {{#if hasDescription}}
                         {{!-- Triple-stache: this is enriched HTML, and it is GM-written
                               by construction — the field only exists in a GM-only
@@ -42,16 +57,7 @@
                             <i class="fa-solid fa-hand"></i> Overriding the schedule until the next opening or closing hour
                         </div>
                     {{/if}}
-                </div>
-                {{#if isGM}}
-                    <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
-                            data-action="toggleOpen"
-                            data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
-                        <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
-                        {{#if isOpen}}Open{{else}}Closed{{/if}}
-                    </button>
-                {{/if}}
-            </section>
+                </section>
 
             {{#if browsing}}
                 {{!-- A player at a closed shop is browsing, and should be told so
@@ -171,9 +177,11 @@
         </div>{{!-- /main --}}
 
             {{#if hasShelves}}
-                {{!-- One cart, two segments.
-                      Buying and selling are one settlement, so they are one panel with
-                      a running total rather than two buckets with two. It also means
+                {{!-- One slate, two segments.
+                      "Slate" rather than "cart": a slate is a running reckoning you
+                      settle and then wipe, which is what this is and what a cart is
+                      not. Buying and selling are one settlement, so they are one panel
+                      with one total rather than two buckets with two. It also means
                       the *whole* panel is the drop target: an item off a character
                       sheet can only be sold, so aiming at a sub-panel was asking the
                       user to know something the panel already knows. --}}
@@ -188,7 +196,7 @@
                                   beside the action it undoes. --}}
                             <div class="merchant-shop-cart-headline">
                                 <span class="merchant-shop-cart-title">
-                                    <i class="fa-solid fa-cart-shopping"></i> Cart
+                                    <i class="fa-solid fa-scroll"></i> Slate
                                 </span>
                                 <span class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
                                     <span>{{netLabel}}</span>
@@ -217,7 +225,7 @@
                                                 <img src="{{img}}" alt="">
                                                 <span class="merchant-shop-cart-name">{{name}}</span>
                                                 <button type="button" class="merchant-shop-cart-remove" data-action="removeFromCart"
-                                                        data-item-id="{{id}}" data-tooltip="Take it out of the cart">
+                                                        data-item-id="{{id}}" data-tooltip="Take it off the slate">
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
                                                 <span class="merchant-shop-cart-meta">
@@ -239,7 +247,7 @@
                                                 <img src="{{img}}" alt="">
                                                 <span class="merchant-shop-cart-name">{{name}}</span>
                                                 <button type="button" class="merchant-shop-cart-remove" data-action="removeFromBasket"
-                                                        data-item-id="{{id}}" data-tooltip="Take it out of the cart">
+                                                        data-item-id="{{id}}" data-tooltip="Take it off the slate">
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
                                                 <span class="merchant-shop-cart-meta">
@@ -253,7 +261,7 @@
                             {{/if}}
                         {{else}}
                             <div class="merchant-shop-empty merchant-shop-cart-empty">
-                                <i class="fa-solid fa-cart-shopping"></i>
+                                <i class="fa-solid fa-scroll"></i>
                                 <span>Nothing here yet.</span>
                                 {{#if canSell}}
                                     <span class="merchant-shop-cart-hint">Drag something in to sell it.</span>

@@ -110,8 +110,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
 
     // tokenUuid -> Map(itemId -> quantity), for things being sold TO the merchant.
-    // Same shape and same reasoning as the cart; kept apart because a basket holds the
-    // seller's own possessions and a cart holds the shop's.
+    // Same shape and same reasoning as the buying side; kept apart because this holds
+    // the seller's own possessions and that holds the shop's.
+    //
+    // The two together are what the window calls the **slate**. Internally they stay
+    // `cart` and `basket`: renaming fields to match a label is churn with no reader,
+    // and "cart" is still the clearest word for what the code is doing.
     static _baskets = new Map();
 
     // tokenUuid -> Map(itemId -> quantity). Per client, so naturally per user.
@@ -327,9 +331,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * with the button they pressed.
      */
     async _askQuantity(label, max, {
-        title = `Add ${label} to the cart`,
-        confirmLabel = 'Add to cart',
-        confirmIcon = 'fa-solid fa-cart-plus'
+        title = `Add ${label} to the slate`,
+        confirmLabel = 'Add to slate',
+        confirmIcon = 'fa-solid fa-plus'
     } = {}) {
         if (max <= 1) return max;
         const blacksmith = _blacksmith();
@@ -424,7 +428,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const max = this._maxFor(context.token?.actor, context.item);
         if (max < 1) {
             ui.notifications?.warn(inCart
-                ? `Your cart already holds every ${context.item.name} in stock.`
+                ? `Your slate already holds every ${context.item.name} in stock.`
                 : `${context.item.name} is out of stock.`);
             return;
         }
@@ -440,7 +444,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    /** One cart, so one thing empties it. */
+    /** One slate, so one thing wipes it. */
     async clearAll() {
         this.cart.clear();
         this.basket.clear();
@@ -458,7 +462,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async settle() {
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
         if (!cart.length && !basket.length) {
-            ui.notifications?.info('There is nothing in the cart yet.');
+            ui.notifications?.info('There is nothing on the slate yet.');
             return;
         }
 
@@ -905,7 +909,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'TARGET_ACTOR_NOT_FOUND': return 'One side of that trade could not be found.';
             case 'SOURCE_ITEM_NOT_FOUND': return 'That is no longer where it was.';
             case 'SAME_ACTOR': return 'That would be trading with yourself.';
-            case 'DUPLICATE_ITEM': return 'That item is in the cart twice. Clear it and try again.';
+            case 'DUPLICATE_ITEM': return 'That item is on the slate twice. Wipe it and try again.';
             case 'EXCHANGE_EMPTY': return 'There was nothing to settle.';
             // The doc asks for these to be surfaced rather than swallowed: whether
             // the row was created or grown, and by how much, is what a GM needs to
@@ -1004,7 +1008,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         qtyTooltip: stock.unlimited
                             ? 'Unlimited stock'
                             : (held
-                                ? `${stock.available} in stock, ${held} in your cart`
+                                ? `${stock.available} in stock, ${held} on your slate`
                                 : (out ? 'Out of stock' : `${stock.available} in stock, restocks to ${stock.par}`)),
                         outOfStock: out && !allInCart,
                         reserved: allInCart,
@@ -1016,12 +1020,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // players ask about, so the tooltip carries the reason.
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
-                        cartTooltip: allInCart ? 'Every one of these is already in your cart'
+                        cartTooltip: allInCart ? 'Every one of these is already on your slate'
                             : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
                             : price === null ? 'This has no price set'
-                            : 'Add to cart',
+                            : 'Add to the slate',
                         canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
                         isBarter
                     };
@@ -1125,7 +1129,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const hasAnything = cartLines.length > 0 || basketLines.length > 0;
         const settleLabel = this._settleLabel(cartLines, basketLines);
         const net = cartTotal - basketTotal;
-        const settleTooltip = !hasAnything ? 'Nothing in the cart yet'
+        const settleTooltip = !hasAnything ? 'Nothing on the slate yet'
             : net > 0 ? `You pay ${formatBase(net)}`
                 : net < 0 ? `You receive ${formatBase(-net)}`
                     : 'An even trade';
@@ -1146,8 +1150,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             toolFooterRight: `
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-clear"
                         data-action="clearAll" ${hasAnything ? '' : 'disabled'}
-                        data-tooltip="Empty the cart">
-                    <i class="fa-solid fa-trash"></i> Clear
+                        data-tooltip="Wipe the slate">
+                    <i class="fa-solid fa-trash"></i> Wipe
                 </button>
                 <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
                         data-action="settle" data-tooltip="${settleTooltip}">

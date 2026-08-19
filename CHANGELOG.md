@@ -327,6 +327,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   background did not follow the radius; and rows had no room between them and the frame, or between them and
   the scrollbar the gutter reserves but does not pad away from.
 
+- **The cart is a slate** (`scripts/window-shop.js`, `templates/window-shop.hbs`): a slate is a running
+  reckoning you settle and then wipe, which is exactly what this is — and "put it on the slate" is the phrase
+  a shopkeeper would actually use. **Clear** is **Wipe**. Considered and rejected: *ledger*, which is a
+  record of transactions already made rather than a list of ones being considered, and *tally*, which fits
+  but reads colder. Internally the fields stay `cart` and `basket`; renaming code to match a label is churn
+  with no reader.
+- **The row button is a plain plus** rather than a cart-plus, since there is no cart to add to any more.
+- **The merchant card puts identity across the top and prose beneath** (`templates/window-shop.hbs`): the
+  description used to share the portrait's column, so a sentence wrapped in a narrow gutter beside a face. It
+  spans the card now, where a paragraph can be one.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
