@@ -16,12 +16,20 @@
             <section class="merchant-shop-section merchant-shop-subject">
                 <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
                 <div class="merchant-shop-subject-copy">
-                    <div class="merchant-shop-kicker">Merchant</div>
+                    <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
                     <div class="merchant-shop-title">{{shopName}}</div>
                     <div class="merchant-shop-description">
                         {{itemCount}} in stock
                         {{#if hoursLabel}}<span class="merchant-shop-hours"><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
                     </div>
+                    {{#if hasDescription}}
+                        {{!-- Triple-stache: this is enriched HTML, and it is GM-written
+                              by construction — the field only exists in a GM-only
+                              window. A failed enrich yields nothing rather than the raw
+                              string, so there is no path where unescaped input lands
+                              here. --}}
+                        <div class="merchant-shop-blurb">{{{description}}}</div>
+                    {{/if}}
                     {{#if overridden}}
                         {{!-- GM only. A shop disagreeing with its own schedule is
                               deliberate, but it should never be a mystery. --}}

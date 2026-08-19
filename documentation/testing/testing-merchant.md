@@ -211,6 +211,21 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Prices are re-checked at checkout: change a markup with a cart open and the new price applies.
 - [ ] The cart survives closing and reopening the window, and is per-player.
 
+## 2g. Kind, description, and the shelf menu
+
+- [ ] Merchant Settings shows **The Shop** with a kind dropdown and a description box.
+- [ ] The kind dropdown is wide enough to read its longest option without an ellipsis.
+- [ ] Pick a kind → the shop window's kicker changes from "General Store" to that, with its icon.
+- [ ] Type a description, click away → it saves, and **the caret does not jump** while typing.
+- [ ] The description appears under the shop name for a player, in italics.
+- [ ] A description containing `@UUID[...]` renders as a working link rather than as raw text.
+- [ ] Clearing the description removes the block rather than leaving an empty bordered strip.
+- [ ] The **+** on the Shelves header opens a menu of the five presets, each with its artwork and hint.
+- [ ] Picking one adds that shelf; the old row of five buttons is gone.
+- [ ] Shelf artwork is the Foundry container icons — a crate, two chests, a basket, a sack.
+- [ ] The trading-hours **opening** handle is green and the **closing** handle red, and the readout labels
+      match. Drag either; the colours stay put.
+
 ## 2f. Searching the shop
 
 The filter itself is covered by `tests/test-search.mjs` against the real templates. What is left is whether

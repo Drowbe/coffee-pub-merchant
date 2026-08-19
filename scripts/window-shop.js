@@ -1,5 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, ITEM_CATEGORIES, formatHour } from './const.js';
+import { MODULE, ITEM_CATEGORIES, formatHour, shopKind } from './const.js';
 import { resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment } from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
@@ -17,6 +17,31 @@ let _lastRecipientUuid = null;
 
 function _blacksmith() {
     return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
+}
+
+/**
+ * Run a GM-written description through Foundry's enricher.
+ *
+ * So `@UUID[...]` links, inline rolls and the rest work in a shop description the
+ * same way they do anywhere else — a shopkeeper's blurb linking the price list is
+ * an obvious thing to want.
+ *
+ * Only ever GM-authored: it is written in a GM-only window and stored on the Actor.
+ * Falling back to the raw string on failure would be an injection path, so a failed
+ * enrich yields nothing rather than unescaped input.
+ */
+async function _enrich(text) {
+    const value = String(text ?? '').trim();
+    if (!value) return '';
+    const ns = globalThis.foundry?.applications?.ux?.TextEditor;
+    const TextEditorImpl = ns?.implementation ?? ns ?? globalThis.TextEditor;
+    if (typeof TextEditorImpl?.enrichHTML !== 'function') return '';
+    try {
+        return String(await TextEditorImpl.enrichHTML(value, { async: true }));
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not enrich the shop description:`, error);
+        return '';
+    }
 }
 
 /**
@@ -893,12 +918,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        const descriptionHtml = missing ? '' : await _enrich(config?.description);
         const cartLines = missing ? [] : await this._cartLines();
         const cartTotal = cartLines.reduce((sum, line) => sum + line.total, 0);
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
+            // The kind replaces the word "Merchant" above the name, which was telling
+            // the player something they could already see.
+            kindLabel: shopKind(config?.kind).label,
+            kindIcon: shopKind(config?.kind).icon,
+            description: descriptionHtml,
+            hasDescription: Boolean(descriptionHtml),
             portraitImg: merchant?.img ?? 'icons/svg/mystery-man.svg',
             shelves,
             hasShelves: shelves.length > 0,

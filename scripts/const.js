@@ -76,6 +76,41 @@ export function secondsPerDay() {
 }
 
 // ==================================================================
+// ===== SHOP KIND ==================================================
+// ==================================================================
+//
+// What sort of shop this is. Flavour rather than mechanism — nothing keys off it,
+// and a weaponsmith with a shelf of potions is a perfectly good shop. It replaces
+// the word "Merchant" above the name, which was telling the player something they
+// could already see.
+//
+// Deliberately a short list. Anything longer becomes a taxonomy nobody agrees with,
+// and the GM already has a free-text description for "and also a fence".
+
+export const SHOP_KINDS = Object.freeze([
+    { key: 'general', label: 'General Store', icon: 'fa-solid fa-shop' },
+    { key: 'weapons', label: 'Weaponsmith', icon: 'fa-solid fa-gavel' },
+    { key: 'armor', label: 'Armorer', icon: 'fa-solid fa-shield-halved' },
+    { key: 'alchemy', label: 'Apothecary', icon: 'fa-solid fa-flask' },
+    { key: 'magic', label: 'Arcanist', icon: 'fa-solid fa-wand-sparkles' },
+    { key: 'provisions', label: 'Provisioner', icon: 'fa-solid fa-wheat-awn' },
+    { key: 'tools', label: 'Smith & Tools', icon: 'fa-solid fa-screwdriver-wrench' },
+    { key: 'jewelry', label: 'Jeweller', icon: 'fa-solid fa-gem' },
+    { key: 'books', label: 'Bookseller', icon: 'fa-solid fa-book' },
+    { key: 'tavern', label: 'Tavern', icon: 'fa-solid fa-beer-mug-empty' },
+    { key: 'stable', label: 'Stables', icon: 'fa-solid fa-horse' },
+    { key: 'exotic', label: 'Curiosities', icon: 'fa-solid fa-hat-wizard' }
+]);
+
+export const DEFAULT_SHOP_KIND = 'general';
+
+/** The kind's label and icon, falling back to the default rather than to nothing. */
+export function shopKind(key) {
+    return SHOP_KINDS.find((kind) => kind.key === key)
+        ?? SHOP_KINDS.find((kind) => kind.key === DEFAULT_SHOP_KIND);
+}
+
+// ==================================================================
 // ===== SHELVES ====================================================
 // ==================================================================
 //
@@ -102,40 +137,44 @@ export const SHELF_MODE = Object.freeze({
  * weighs nothing however much is on it. Both are real dnd5e behaviours rather than
  * workarounds: `computeCapacity` starts at Infinity unless a capacity is set, and
  * `weightlessContents` makes a container report only its own weight.
+ *
+ * Artwork is Foundry's own container icons rather than the monochrome `icons/svg`
+ * set: a shelf is a physical thing in the shop and reads better as one, and these
+ * ship with core so there is nothing to install.
  */
 export const SHELF_PRESETS = Object.freeze({
     storefront: {
         key: 'storefront',
         name: 'Storefront',
-        img: 'icons/svg/chest.svg',
+        img: 'icons/containers/boxes/crate-wooden-beige.webp',
         hint: 'Ordinary stock, on display to everyone.',
         shelf: { label: 'Storefront', order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     backroom: {
         key: 'backroom',
         name: 'Back Room',
-        img: 'icons/svg/padlock.svg',
+        img: 'icons/containers/chest/chest-reinforced-box-brown.webp',
         hint: 'Hidden from players until you move it out front.',
         shelf: { label: 'Back Room', order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     premium: {
         key: 'premium',
         name: 'Premium',
-        img: 'icons/svg/coins.svg',
+        img: 'icons/containers/chest/chest-steel-purple.webp',
         hint: 'On display, priced above the going rate.',
         shelf: { label: 'Premium', order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5, stock: null }
     },
     barter: {
         key: 'barter',
         name: 'Barter',
-        img: 'icons/svg/card-hand.svg',
+        img: 'icons/containers/misc/basket-handle-woven-yellow.webp',
         hint: 'No fixed price. Settle it at the table.',
         shelf: { label: 'Barter', order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
     },
     buyback: {
         key: 'buyback',
         name: 'Buyback',
-        img: 'icons/svg/item-bag.svg',
+        img: 'icons/containers/bags/sack-cloth-tan.webp',
         hint: 'Where things bought from the party end up.',
         shelf: { label: 'Buyback', order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5, stock: STOCK.FINITE }
     }

@@ -56,8 +56,32 @@
         </section>
 
         <section class="merchant-config-section">
+            <h3><span><i class="fa-solid fa-store"></i> The Shop</span></h3>
+            <label class="merchant-config-markup merchant-config-field">
+                <span>
+                    <strong>Kind of shop</strong>
+                    <small>Flavour only &mdash; nothing is restricted by it. Shown above the name.</small>
+                </span>
+                <select data-merchant-kind>
+                    {{#each kindOptions}}
+                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                    {{/each}}
+                </select>
+            </label>
+
+            <div class="merchant-config-description">
+                <span>
+                    <strong>Description</strong>
+                    <small>Optional. Shown to players under the shop name. Links and rolls work.</small>
+                </span>
+                <textarea data-merchant-description rows="3"
+                          placeholder="A cramped shop that smells of oil and iron filings.">{{description}}</textarea>
+            </div>
+        </section>
+
+        <section class="merchant-config-section">
             <h3><span><i class="fa-solid fa-boxes-stacked"></i> Stock</span></h3>
-            <label class="merchant-config-markup">
+            <label class="merchant-config-markup merchant-config-field">
                 <span>
                     <strong>When something is bought</strong>
                     <small>The shop's default. Any shelf may say otherwise &mdash; Buyback always runs out.</small>
@@ -84,7 +108,13 @@
         <section class="merchant-config-section">
             <h3>
                 <span><i class="fa-solid fa-layer-group"></i> Shelves</span>
-                <span class="merchant-config-count">{{shelfCount}}</span>
+                <span class="merchant-config-head-actions">
+                    <button type="button" class="merchant-config-shelf-add" data-action="addShelf"
+                            data-tooltip="Add a shelf">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <span class="merchant-config-count">{{shelfCount}}</span>
+                </span>
             </h3>
 
             {{#if hasShelves}}
@@ -142,16 +172,6 @@
                 <div class="merchant-config-empty">No shelves yet. Add one to start stocking this merchant.</div>
             {{/if}}
 
-            {{!-- Created here rather than dragged from a compendium: a pack is a thing
-                  to maintain and its items can be edited into something malformed. --}}
-            <div class="merchant-config-add">
-                {{#each presets}}
-                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-add-btn"
-                            data-action="addShelf" data-preset="{{key}}" data-tooltip="{{hint}}">
-                        <img src="{{img}}" alt=""> {{name}}
-                    </button>
-                {{/each}}
-            </div>
         </section>
     {{/if}}
 

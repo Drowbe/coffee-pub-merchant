@@ -1,8 +1,14 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS } from './const.js';
+import {
+    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND
+} from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
+
+function _blacksmith() {
+    return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
+}
 
 const STOCK_LABELS = {
     [STOCK.INFINITE]: 'Never runs out',
@@ -43,7 +49,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
-        addShelf: (_event, target, win) => void win.addShelf(target.dataset.preset),
+        addShelf: (event, target, win) => void win.openShelfMenu(event, target),
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
@@ -100,6 +106,22 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             markup.addEventListener('change', (event) => void this._setMarkup(event.target.value));
         }
 
+        const kind = this.element?.querySelector('[data-merchant-kind]');
+        if (kind && kind.dataset.merchantBound !== 'true') {
+            kind.dataset.merchantBound = 'true';
+            kind.addEventListener('change', (event) => void this._setField({ kind: event.target.value }));
+        }
+
+        const description = this.element?.querySelector('[data-merchant-description]');
+        if (description && description.dataset.merchantBound !== 'true') {
+            description.dataset.merchantBound = 'true';
+            // On blur rather than input: a description is a paragraph, and writing to
+            // a flag per keystroke would be a write per keystroke to every client.
+            description.addEventListener('change', (event) => {
+                void this._setField({ description: event.target.value ?? '' }, { redraw: false });
+            });
+        }
+
         const stock = this.element?.querySelector('[data-merchant-stock]');
         if (stock && stock.dataset.merchantBound !== 'true') {
             stock.dataset.merchantBound = 'true';
@@ -130,6 +152,26 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 });
             });
         }
+    }
+
+    /**
+     * Write one or more config fields.
+     *
+     * `redraw: false` for anything the user is still typing in — re-rendering under a
+     * textarea would take the caret with it, and the field already shows what was
+     * saved.
+     */
+    async _setField(changes, { redraw = true } = {}) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            await MerchantManager.setConfig(actor, changes);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not update this merchant:`, error);
+            ui.notifications?.error('Could not update this merchant.');
+        }
+        if (redraw) await this.render(false);
     }
 
     /** The shop-wide default. A shelf may still say otherwise. */
@@ -252,6 +294,58 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    /**
+     * Which kind of shelf, asked on click.
+     *
+     * A menu rather than the row of five buttons this replaced: adding a shelf happens
+     * roughly once per shop, and a permanent row of presets was paying for that in
+     * window height every time the window was open for anything else.
+     */
+    openShelfMenu(event, target) {
+        const blacksmith = _blacksmith();
+        const presets = Object.values(SHELF_PRESETS);
+
+        const items = presets.map((preset) => ({
+            name: preset.name,
+            description: preset.hint,
+            // Raw HTML is an injection path, so it is only ever safe for strings we
+            // own. These are module constants; nothing here comes from a document.
+            icon: `<img src="${preset.img}" alt="">`,
+            callback: () => this.addShelf(preset.key)
+        }));
+
+        if (typeof blacksmith?.uiContextMenu?.show !== 'function') {
+            // No menu API: fall back to the picker rather than losing the ability to
+            // add a shelf at all.
+            void this._pickShelfPreset(presets);
+            return;
+        }
+
+        const rect = target?.getBoundingClientRect();
+        blacksmith.uiContextMenu.show({
+            id: `merchant-add-shelf-${this.actorUuid}`,
+            // Anchored under the button rather than at the pointer, so a keyboard
+            // activation with no coordinates still lands somewhere sensible.
+            x: rect ? rect.left : (event?.clientX ?? 0),
+            y: rect ? rect.bottom + 4 : (event?.clientY ?? 0),
+            root: this.element ?? document.body,
+            className: 'merchant-shelf-menu',
+            zones: items
+        });
+    }
+
+    async _pickShelfPreset(presets) {
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.choose !== 'function') return;
+        const picked = await blacksmith.dialog.choose({
+            title: 'Add a shelf',
+            classes: ['merchant-dialog'],
+            content: '<p>What kind of shelf?</p>',
+            choices: presets.map((preset) => ({ id: preset.key, label: preset.name }))
+        });
+        if (picked?.action === 'submit' && picked.value) await this.addShelf(picked.value);
+    }
+
     async addShelf(presetKey) {
         const actor = await this._resolveActor();
         if (!actor || !presetKey) return;
@@ -367,6 +461,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             enabled,
             hasHours: Boolean(hours),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
+            description: MerchantManager.getConfig(actor)?.description ?? '',
+            kindOptions: SHOP_KINDS.map((option) => ({
+                value: option.key,
+                label: option.label,
+                selected: option.key === (MerchantManager.getConfig(actor)?.kind ?? DEFAULT_SHOP_KIND)
+            })),
             // The shop-wide default has no "same as the shop" to inherit from.
             merchantStockOptions: STOCK_OPTIONS.filter((option) => option.value).map((option) => ({
                 ...option,
@@ -382,8 +482,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             overridden: enabled && MerchantManager.isOverridden(actor),
             shelves,
             shelfCount: shelves.length,
-            hasShelves: shelves.length > 0,
-            presets: Object.values(SHELF_PRESETS)
+            hasShelves: shelves.length > 0
         });
 
         return {

@@ -5,7 +5,7 @@
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
 import {
-    MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS,
+    MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import { grantItem, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
@@ -57,6 +57,10 @@ export class MerchantManager {
         return {
             enabled: true,
             name: null,
+            kind: DEFAULT_SHOP_KIND,
+            // Free text, GM-authored, optional. Enriched when shown, so a GM can put
+            // a journal link or an inline roll in it.
+            description: '',
             stock: STOCK.INFINITE,
             // Open for business. A closed shop still opens for browsing — you can
             // look through the window — but nothing changes hands.

@@ -75,6 +75,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an exported pure function of markup and query, which is what lets `tests/test-search.mjs` run it against
   the real compiled templates.
 
+- **A shop has a kind and a description** (`scripts/const.js`, `scripts/window-merchant-config.js`): twelve
+  kinds — General Store, Weaponsmith, Apothecary, and so on — replacing the word "Merchant" above the name,
+  which was telling the player something they could already see. Flavour only; nothing is restricted by it,
+  and a weaponsmith with a shelf of potions is a perfectly good shop. The description is optional free text
+  shown under the name, run through Foundry's enricher so journal links and inline rolls work. It is
+  GM-written by construction and a failed enrich yields nothing rather than the raw string, so there is no
+  path where unescaped input reaches a player's window.
+- **Adding a shelf is a menu, not a row of buttons** (`scripts/window-merchant-config.js`): a **+** on the
+  Shelves header opens Blacksmith's context menu with the five presets. Adding a shelf happens about once per
+  shop, and a permanent row of five buttons was paying for that in window height every time the window was
+  open for anything else. Falls back to a picker dialog where the menu API is unavailable.
+- **Shelf artwork is Foundry's container icons** rather than the monochrome `icons/svg` set: a crate, a
+  reinforced chest, a steel chest, a woven basket and a cloth sack. A shelf is a physical thing in the shop
+  and reads better as one, and these ship with core.
+- **The trading-hours handles are coloured** (`styles/default.css`): the opening handle green, the closing
+  handle red, and the readout labels to match. The band between them says the same thing, but four pixels of
+  dark green over a sunken track is nearly invisible on the light themes — so the colour that has to read is
+  on the thing you grab. The band is thicker and lighter for the same reason.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
