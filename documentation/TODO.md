@@ -148,12 +148,19 @@ nothing in the money path is blocked any more.
   purses and refuse negatives, so "this shop now holds 40 when it holds 250" is not expressible. It is a GM
   editing an NPC's own purse rather than a transaction, so it may be correct to sit outside — but if that
   boundary should hold absolutely, the ask to Blacksmith is a `setCurrency` with no counterparty.
-- **The Blacksmith asks are sent, 2026-08-19.** Four of them, in one note: the blocking
-  `INSUFFICIENT_QUANTITY` defect in the grant paths (they are on it), forwarding the verified caller on the
-  query envelope, a `setCurrency` with no counterparty, and the four extractions below. **This is a
-  relationship, not a file** — somebody has to own the reply, take the answer, and delete our side of it
-  when each lands. All four resolve to *deletions* here rather than rewrites. If nobody owns it, the
-  workarounds quietly become the design.
+- **The Blacksmith asks were sent and answered, 2026-08-19.** Where each stands:
+  - **Grant quantity ceiling — DONE and reverted here.** `_resolveQuantity` takes `drawsDown`.
+    `_withinLimits` is back to one entry per row. A leftover `INSUFFICIENT_QUANTITY` now diagnoses itself as
+    an out-of-date Blacksmith, because the symptom otherwise looks like a Merchant bug.
+  - **Caller identity — open, and agreed as a known hole.** Nothing to build. `gm-request.js` is a deletion
+    when it lands. **Do not build a mitigation.**
+  - **`setCurrency` — accepted, not yet built.** Blacksmith identified a sharper reason than the one asked
+    with: the till takes part in locked operations, so the direct write races `exchange`. Treat
+    `setTillGold` as a known race until the primitive ships, then switch.
+  - **Extractions — (c) and (d) agreed, (a) has an open question, see `plans/plan-extraction.md`.**
+
+  **This is a relationship, not a file.** Somebody has to own the reply, take the answer, and delete our
+  side of it when each lands. If nobody owns it, workarounds quietly become the design.
 - **Four extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
   Re-measured after `dialog.wait()` gained `controls`: the helpers shrank but got *more* alike, so they still
   qualify. Nothing is blocked on them.

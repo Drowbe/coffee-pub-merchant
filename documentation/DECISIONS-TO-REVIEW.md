@@ -294,7 +294,7 @@ What survives of the idea is narrower and correct — **stackability is read off
 **Reversing:** `STOCK_DEPTH_BANDS` in `const.js` is tunable data; `stockDepth` in `merchant-pricing.js` is
 twenty lines and fully covered by tests.
 
-### D-F2. Working around `INSUFFICIENT_QUANTITY` rather than waiting for the fix. **CLOSED — shipped.**
+### D-F2. Working around `INSUFFICIENT_QUANTITY` rather than waiting for the fix. **CLOSED — reverted 2026-08-19, the day after.**
 
 `grantItems` validates a requested quantity against the source document's own — for a compendium template
 that is 1 — so asking for five crowbars was refused. It is a defect (a grant draws nothing down) and is
@@ -307,7 +307,20 @@ sum them. **Rejected:** switching to `itemData`, which dodges the check but lose
 The coalescing behaviour was verified in Blacksmith's source before being relied on, not taken from the doc
 alone. Cost is one entry per unit on a batch that can reach a few hundred.
 
-**Reversing:** one marked loop in `_withinLimits`, back to a single entry, the day the fix lands.
+**Reversing:** done. Blacksmith took the fix — `_resolveQuantity` now takes `drawsDown`, false from the
+grant path and the copy leg, true from the three transfer paths — and `_withinLimits` is back to one entry
+carrying `depth`.
+
+**What is left behind, deliberately.** A refusal carrying `INSUFFICIENT_QUANTITY` now names its own cause
+in the console and to the GM: it can only mean Blacksmith is out of date. The symptom without that message
+— every row arriving at one, or not at all — looks exactly like a Merchant bug, and cost a full debugging
+round the first time. The workaround is gone; the diagnosis stays.
+
+**The lesson, which outlived the bug.** The report that got this fixed in a day did not argue for a new
+rule. It pointed out that `api-inventory.md` had already published the right reasoning for `copy` legs and
+never applied it to itself, so nobody had to be persuaded of anything — only to be consistent. That is the
+most persuasive shape a bug report can take against a well-documented API, and it is worth reaching for
+before writing a workaround.
 
 ### D-F3. Restocking progress uses core's notification, not a Blacksmith or Merchant component. **CLOSED.**
 

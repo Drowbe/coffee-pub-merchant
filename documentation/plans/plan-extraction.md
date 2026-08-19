@@ -112,3 +112,49 @@ eventually answer it differently. Better as `blacksmith.entityList.partyCharacte
 `gm-request.js` has no Curator counterpart to compare against — Curator predates the query API. It is
 already marked in `TODO.md` as a file that should be a deletion rather than a rewrite once Blacksmith owns
 the envelope, which is the same conclusion by a different route.
+
+---
+
+## Blacksmith's reply, 2026-08-19
+
+**(c) window construction — agreed and theirs.** `static openFor(target, options)` on
+`BlacksmithToolWindowBaseV2` with the registry behind it. They called a base class needing thirty identical
+lines per subclass their defect rather than our duplication, which it is.
+
+**(d) party resolution — agreed, and it is two policies, not one.** Rest uses `party.system.creatures`;
+Merchant uses `playerCharacters` with a fallback. Familiars and mounts rest and cannot shop. Both will be
+named, and the no-primary-party fallback exposed too, since that is the part every consumer reinvents
+slightly differently. This is the outcome the entry hoped for: the policy question got asked once, out
+loud, instead of two modules drifting apart quietly.
+
+**(b) `_pickActor`** — no objection raised.
+
+**(a) `_askQuantity` — one question back, and it may move the number.**
+
+> Is the bind-or-read-the-form fallback still doing anything? It existed because binding was unreliable,
+> and `controls` made binding reliable. If it is vestigial in both modules, `_askQuantity` loses the part
+> you called the subtle bit, and what is left is a label-parameterised dialog. That might be the difference
+> between a helper and a documented recipe.
+
+They asked for this to be tested rather than reasoned about. **Reading says it is narrow but not dead**, and
+reading is not the test they asked for:
+
+- `attachControls` runs synchronously inside DialogV2's `render` callback, before `onRender` and before
+  focusing (`api-dialog.js:270-277`). Nothing is interactive before render, so by the time a button can be
+  pressed, `attach()` has run. That kills the case the fallback was originally written for.
+- **But `attachControls` swallows what `attach()` throws** — `try { control.attach(root) } catch { log }`
+  (`api-dialog.js:203`). A control can fail to bind, be logged, and leave the dialog fully interactive with
+  an unbound input. That path is real, and it is the one the fallback still covers.
+
+So the honest reading is that the fallback survives on error paths only. That probably *does* put
+`_askQuantity` under the bar — four lines of error handling is not a shared abstraction.
+
+**The better answer, and worth raising back:** if the fallback is only reachable when `attach()` failed,
+then every consumer is compensating for a failure the hub already caught and swallowed. That belongs in
+Blacksmith rather than in each consumer — either `attach()` reports failure to the caller, or the controls
+expose a `readFrom(root)` that works whether or not binding succeeded. Then the fallback leaves both modules
+and does not need a home.
+
+**Still to do:** the empirical check they asked for. Delete the fallback in one module, use the dialog, and
+see whether anything changes. That needs a running world.
+

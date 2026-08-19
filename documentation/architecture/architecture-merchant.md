@@ -307,9 +307,20 @@ which is the shortest document here and the one most worth reading before writin
 ## 11. Known seams
 
 - **`gm-request.js`** — a bridge. Deletion, not a rewrite, when Blacksmith forwards caller identity. §8.
-- **`setTillGold`** writes currency directly, outside `api.inventory`. The primitives move deltas between
-  purses and refuse negatives, so "this shop now holds 40 when it holds 250" is not expressible. It is a GM
-  editing an NPC's own purse rather than a transaction, so it may be correct to sit outside.
+  **The contract is settled**: the envelope hands handlers the resolved User, and consumers must never read
+  an identity out of a payload. Our `userId` field comes out in the same change that adds it.
+- **`setTillGold`** writes currency directly, outside `api.inventory`, and **this is a live race, not a
+  stylistic question.** The boundary that matters is not "does it have a counterparty" — it is *does this
+  Actor take part in locked operations*, and a shop does. A raw `actor.update()` bypasses the inventory
+  mutex, so a GM editing the till while a purchase settles interleaves: `exchange` reads the balance under
+  the lock, the raw write lands, `exchange` then writes `current + delta` from a read that is now stale.
+  The GM's edit disappears or the shop's money is wrong, and neither leaves a trace. Survivable before
+  `exchange` existed; not now.
+
+  Blacksmith has agreed to `setCurrency(actorUuid, { gp: 250 })` — no counterparty, no affordability check,
+  absolute values, inside the same lock. An absolute write is not the shape the other primitives refuse:
+  deltas exist because a total computed from a stale read *outside* a lock races, and a GM typing 250 has no
+  read to go stale. **Switch to it the day it ships**; until then this is a known race, not a preference.
 - **Four extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
   Nothing is blocked on them.
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.

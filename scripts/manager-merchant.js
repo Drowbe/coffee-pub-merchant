@@ -755,6 +755,24 @@ export class MerchantManager {
                     reason: entry?.code ?? entry?.error ?? entry?.reason ?? entry
                 }))
             );
+
+            // One cause is worth naming outright, because no amount of looking at this
+            // module explains it. Grant paths used to validate a requested quantity
+            // against the source document's own -- 1, for a compendium template -- so a
+            // shelf asking for five of anything was refused wholesale. Fixed upstream;
+            // an install still carrying the old primitive fails here and nowhere else,
+            // and the symptom (every row arrives at one, or not at all) looks exactly
+            // like a Merchant bug.
+            if (failures.some(({ entry }) => entry?.code === 'INSUFFICIENT_QUANTITY')) {
+                console.error(
+                    `${MODULE.TITLE} | Those refusals mean Blacksmith is out of date. A grant takes nothing `
+                    + 'from its source, so a compendium entry\'s own quantity is not a ceiling — update '
+                    + 'Coffee Pub Blacksmith and restock again.'
+                );
+                ui.notifications?.error(
+                    'Stock could not be delivered because Coffee Pub Blacksmith is out of date. Update it and restock.'
+                );
+            }
         } else if (!result?.ok) {
             console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from its tables:`, result);
         }
@@ -810,20 +828,7 @@ export class MerchantManager {
             if (!held.has(k)) rows++;
             held.set(k, (held.get(k) ?? 0) + depth);
 
-            // **One entry per unit, not one entry asking for the units.** `grantItems`
-            // validates a requested quantity against the *source* document's own
-            // quantity, which for a compendium template is 1 -- so asking for five
-            // crowbars is refused with INSUFFICIENT_QUANTITY even though a grant draws
-            // nothing down and there is no source to be insufficient. Duplicate entries
-            // in one batch are documented to coalesce into a single row holding the
-            // summed quantity, and both the merge and create paths do sum, so five
-            // entries of one arrive as a row of five. Still one call and still two
-            // writes; `itemUuid` is kept rather than switching to `itemData`, which
-            // would lose the compendium provenance the uuid path preserves.
-            //
-            // Raised with Blacksmith -- a grant has no ceiling to check. When that
-            // lands this collapses back to a single entry carrying `depth`.
-            for (let unit = 0; unit < depth; unit++) allowed.push({ itemUuid: uuid, quantity: 1 });
+            allowed.push({ itemUuid: uuid, quantity: depth });
         }
 
         if (clipped) {
