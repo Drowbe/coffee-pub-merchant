@@ -655,24 +655,58 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
 
         const blacksmith = _blacksmith();
-        if (typeof blacksmith?.dialog?.choose !== 'function') {
-            ui.notifications?.warn('The Blacksmith dialog API is unavailable.');
+        if (typeof blacksmith?.entityList?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
+            ui.notifications?.warn('The Blacksmith entity list is unavailable.');
             return;
         }
 
-        const picked = await blacksmith.dialog.choose({
-            title: 'Sell to the merchant',
-            content: '<p>What is ' + seller.name + ' selling?</p>',
-            classes: ['merchant-dialog'],
-            choices: sellable.map((item) => ({
+        // A list rather than a grid of buttons. `dialog.choose` renders one button per
+        // choice, which is fine for three destinations and unusable for a full
+        // inventory — a hundred rows of wrapped text with no images and no scroll.
+        //
+        // Multi-select, because this fills a basket: picking a haul one item at a time
+        // is one dialog per item, which is the thing the basket exists to avoid.
+        const list = blacksmith.entityList.create({
+            entities: sellable.map((item) => ({
                 id: item.id,
-                label: item.name + ' \u2014 ' + formatBase(this._offerFor(merchant, buyback, item)),
-                icon: 'fa-solid fa-hand-holding-dollar'
-            }))
+                name: item.name,
+                img: item.img,
+                type: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                badges: [{ label: formatBase(this._offerFor(merchant, buyback, item)) }]
+            })),
+            mode: 'multi',
+            inputName: 'merchant-sell',
+            listClass: 'merchant-sell-list'
         });
-        if (picked?.action !== 'submit' || !picked.value) return;
 
-        await this.addToBasket(seller.items.get(picked.value));
+        let chosen = [];
+        const outcome = await blacksmith.dialog.wait({
+            title: `What is ${seller.name} selling?`,
+            content: `<div class="blacksmith-field">${list.html}</div>`,
+            classes: ['merchant-dialog', 'merchant-sell-dialog'],
+            controls: list,
+            buttons: [
+                { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
+                {
+                    action: 'add',
+                    label: 'Add to basket',
+                    icon: 'fa-solid fa-hand-holding-dollar',
+                    default: true,
+                    callback: () => { chosen = list.getSelectedIds() ?? []; }
+                }
+            ],
+            closeValue: null,
+            cancelValue: null
+        });
+        list.destroy();
+        if (outcome?.value !== 'add' || !chosen.length) return;
+
+        // A stack asks how many; a single item does not, so picking twenty ordinary
+        // things costs no prompts at all.
+        for (const itemId of chosen) {
+            await this.addToBasket(seller.items.get(itemId), { silent: true });
+        }
+        await this.render(false);
     }
 
     /**
@@ -681,7 +715,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * Shared by the picker and the drop zone, so a dragged item and a chosen one land
      * the same way and are refused for the same reasons.
      */
-    async addToBasket(item) {
+    async addToBasket(item, { silent = false } = {}) {
         const seller = this.recipient;
         const token = await this._resolveToken();
         const merchant = token?.actor;
@@ -722,7 +756,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!amount) return;
 
         this.basket.set(item.id, held + amount);
-        await this.render(false);
+        // The picker adds several and renders once at the end; a drop adds one and
+        // renders here.
+        if (!silent) await this.render(false);
     }
 
     async removeFromBasket(itemId) {

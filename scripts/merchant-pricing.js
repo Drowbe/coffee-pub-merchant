@@ -48,6 +48,28 @@ export function purseValue(actor) {
     return denominations().reduce((total, d) => total + toBase(Math.trunc(Number(currency[d.key]) || 0), d.key), 0);
 }
 
+/**
+ * Which denominations a *price* is written in.
+ *
+ * Not all of them. Spelling every price across the full set gives "102 pp 5 gp" for
+ * a healing potion and "1 pp 2 gp 1 ep" for a crossbow — exact, and unreadable, and
+ * not how anybody at a table says it. Prices are quoted in gold, silver and copper.
+ *
+ * Payment is unaffected: `planPayment` spends whatever coin a purse actually holds,
+ * platinum and electrum included. This governs how a number is written down, not
+ * which coins change hands.
+ *
+ * Falls back to every denomination on a system that has none of these, so a
+ * non-dnd5e currency table still renders something.
+ */
+const PRICE_DENOMINATIONS = ['gp', 'sp', 'cp'];
+
+function priceDenominations() {
+    const all = denominations();
+    const preferred = all.filter((d) => PRICE_DENOMINATIONS.includes(d.key));
+    return preferred.length ? preferred : all;
+}
+
 /** Base units rendered as "3 gp 4 sp", largest coin first, zeroes omitted. */
 export function formatBase(base) {
     const amount = Math.max(0, Math.round(Number(base) || 0));
@@ -55,12 +77,14 @@ export function formatBase(base) {
     const baseUnit = baseDenomination();
     const parts = [];
     let remaining = amount;
-    for (const d of denominations()) {
+    for (const d of priceDenominations()) {
         const perCoin = Math.round(baseUnit.conversion / d.conversion);
         if (perCoin <= 0) continue;
         const count = Math.floor(remaining / perCoin);
         if (count > 0) {
-            parts.push(`${count} ${d.abbreviation.toLowerCase()}`);
+            // Thousands separated, because "1025 gp" and "10250 gp" are a glance
+            // apart and a price list is read at a glance.
+            parts.push(`${count.toLocaleString()} ${d.abbreviation.toLowerCase()}`);
             remaining -= count * perCoin;
         }
     }

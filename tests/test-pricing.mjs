@@ -31,8 +31,15 @@ assert.strictEqual(P.purseValue(purse({ gp: 3, sp: 4, cp: 2 })), 342);
 console.log('ok  denominations and purse value');
 
 // --- formatting ---------------------------------------------------------
+// Prices are quoted in gold, silver and copper only. Spelling them across the full
+// set gives "102 pp 5 gp" for a healing potion: exact, unreadable, and not how
+// anyone at a table says it. Payment is unaffected — planPayment still spends
+// platinum and electrum, because that is what a purse holds.
 assert.strictEqual(P.formatBase(342), '3 gp 4 sp 2 cp');
-assert.strictEqual(P.formatBase(1000), '1 pp');
+assert.strictEqual(P.formatBase(1000), '10 gp', 'platinum is written as gold');
+assert.strictEqual(P.formatBase(50), '5 sp', 'electrum is written as silver');
+assert.strictEqual(P.formatBase(102500), '1,025 gp', 'thousands are separated');
+assert.strictEqual(P.formatBase(1250), '12 gp 5 sp', 'and no fractions of a coin');
 assert.strictEqual(P.formatBase(0), '\u2014');
 assert.strictEqual(P.formatBase(1), '1 cp');
 console.log('ok  formatting');

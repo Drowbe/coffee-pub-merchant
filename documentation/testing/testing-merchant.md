@@ -353,6 +353,18 @@ The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
       than trying to sell them.
 - [ ] Sell an item you are holding in the cart's shop at the same time — cart and basket do not interfere.
 
+## 2j. Reading prices, and the sell picker
+
+- [ ] A 2,050 gp potion offers **1,025 gp**, not "102 pp 5 gp".
+- [ ] A 25 gp crossbow offers **12 gp 5 sp**, not "1 pp 2 gp 1 ep".
+- [ ] Nothing anywhere shows a price in **pp** or **ep**.
+- [ ] A character holding only platinum can still buy things — display changed, payment did not.
+- [ ] *Or choose from your pack* on a full inventory shows a **scrolling list** with artwork, kind and
+      offer — not a wall of buttons.
+- [ ] Tick several rows and confirm → all of them land in the basket in one pass.
+- [ ] Items you hold exactly one of add **without** a quantity prompt; stacks ask.
+- [ ] Cancel adds nothing.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.

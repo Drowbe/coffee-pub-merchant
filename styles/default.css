@@ -353,3 +353,9 @@
 /* The till's total sits in the header pill, so the number field below can be just
    the gold without having to carry the whole purse. */
 .merchant-config-till-total { border-radius: 5px; font-variant-numeric: tabular-nums; }
+
+/* --- Sell picker -------------------------------------------------------- */
+/* A full inventory is a hundred rows, so the list scrolls inside the dialog
+   rather than growing the dialog past the screen. */
+.merchant-sell-dialog .merchant-sell-list { max-height: min(52vh, 460px); overflow-y: auto; }
+.merchant-sell-dialog .blacksmith-field { min-width: min(560px, 70vw); }
