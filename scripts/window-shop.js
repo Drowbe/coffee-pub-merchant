@@ -284,7 +284,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     label: confirmLabel,
                     icon: confirmIcon,
                     default: true,
-                    callback: () => { chosen = list.getSelectedIds()?.[0] ?? null; }
+                    callback: (_event, _button, dialog) => {
+                        chosen = this._readSelectedIds(list, dialog, 'merchant-actor')[0] ?? null;
+                    }
                 }
             ],
             closeValue: null,
@@ -585,6 +587,35 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
+     * Read an entity list's selection out of the dialog, not out of the control.
+     *
+     * `getSelectedIds()` shares `getSelection()`'s fallback: when `attach` did not find
+     * its input it hands back **the selection the caller passed in**, so a player who
+     * picks a different character gets the one they did not pick, and nothing anywhere
+     * says so. That is a plausible wrong answer in a shape where the caller cannot tell
+     * it apart from a right one.
+     *
+     * Reading the DOM is correct either way, because only *binding* can fail — the
+     * checked inputs are the truth whether or not anything is listening to them.
+     *
+     * **Interim.** Blacksmith is shipping `entityList.readIdsFrom(root)`, which is this
+     * with the input name it already knows. Replace this with that call and delete the
+     * helper; do not keep both.
+     */
+    _readSelectedIds(list, dialog, inputName) {
+        const root = dialog?.element;
+        if (root) {
+            const checked = root.querySelectorAll(`input[name="${CSS.escape(inputName)}"]:checked`);
+            if (checked.length) return [...checked].map((input) => String(input.value));
+            // No boxes ticked is a real answer -- but so is markup that never rendered,
+            // and they look identical from here. The control can tell them apart once
+            // `attached` ships; until then, falling through costs nothing when the
+            // honest answer really was "none".
+        }
+        return list?.getSelectedIds?.() ?? [];
+    }
+
+    /**
      * Pick something to sell from a list.
      *
      * The no-drag path to the same basket. Dragging between two windows is fiddly and
@@ -662,7 +693,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     label: 'Add to basket',
                     icon: 'fa-solid fa-hand-holding-dollar',
                     default: true,
-                    callback: () => { chosen = list.getSelectedIds() ?? []; }
+                    callback: (_event, _button, dialog) => {
+                        chosen = this._readSelectedIds(list, dialog, 'merchant-sell');
+                    }
                 }
             ],
             closeValue: null,

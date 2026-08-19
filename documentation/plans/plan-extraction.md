@@ -172,6 +172,18 @@ a *better* fallback rather than stop writing one.
 They also let us off the empirical check, and were right to: a silently no-op `attach()` is a defect on its
 own terms, so the fix stands whether or not our fallback is currently reachable.
 
+**We were exposed, via a getter their note did not name.** Their audit checked `getValue()` and
+`getSelection()`; Merchant uses **`getSelectedIds()`**, which routes through the same `readSelection()` and
+the same `if (!root) return [...initial]`. Two call sites, and the severity differed sharply:
+
+- `_pickActor` passes `selected: <current character>`, so a failed bind returns **the character the player
+  was already on** — they pick somebody else and are silently handed back the original. A wrong answer.
+- `sell` passes no initial selection, so a failed bind returns `[]` — picking six things and having nothing
+  happen. Confusing rather than wrong.
+
+Both now read the checked inputs from the dialog directly, pending `readIdsFrom`. Worth reporting back: the
+exposure survey should cover every getter that calls `readSelection()`, not the two that were named.
+
 **When `readFrom` lands:** delete the fallback from `_askQuantity` in both modules and re-measure. What is
 left is a label-parameterised dialog, which may well be a documented recipe rather than a helper — and that
 is a fine place for this to land. An extraction that dissolves because the underlying defect was fixed is a
