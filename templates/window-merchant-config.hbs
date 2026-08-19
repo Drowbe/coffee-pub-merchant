@@ -185,6 +185,18 @@
                                 {{#if inherited}}
                                     <span class="merchant-config-shelf-inherited">{{stockLabel}}</span>
                                 {{/if}}
+                                <label class="merchant-config-shelf-cap"
+                                       data-tooltip="How many different things this shelf will hold. Not the total quantity.">
+                                    <input type="number" min="1" max="500" step="1" value="{{maxProducts}}"
+                                           data-shelf-max-products="{{id}}" aria-label="Most products on this shelf">
+                                    products
+                                </label>
+                                <label class="merchant-config-shelf-cap"
+                                       data-tooltip="The most of any one thing. Stops a restocking shelf building toward thousands of rations.">
+                                    <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
+                                           data-shelf-max-per-item="{{id}}" aria-label="Most of any one product">
+                                    each
+                                </label>
                                 {{#if restocking}}
                                     <label class="merchant-config-shelf-days" data-tooltip="In-world days between refills">
                                         every

@@ -71,6 +71,22 @@ export const DEFAULT_TILL = Object.freeze({ gp: 250 });
 export const DEFAULT_RESTOCK_DAYS = 1;
 
 /**
+ * How much a shelf will hold, unless it says otherwise.
+ *
+ * Two different ceilings, because they answer two different runaway conditions.
+ * `PRODUCTS` counts distinct rows: a shelf rolling a table every week would
+ * otherwise grow a longer and longer list of one-offs until the shop window is
+ * unreadable. `PER_ITEM` caps any single row: without it a shelf that keeps
+ * restocking rations builds toward thousands of them.
+ *
+ * A hundred rows totalling three hundred items is a fine shop. A hundred rows
+ * totalling twenty thousand is a warehouse, and one row of twenty thousand is a
+ * bug that took a fortnight of game time to show itself.
+ */
+export const DEFAULT_MAX_PRODUCTS = 25;
+export const DEFAULT_MAX_PER_ITEM = 20;
+
+/**
  * Seconds in an in-world day, from the calendar rather than assumed.
  *
  * Foundry calendars may define something other than 24/60/60, and a shop on a

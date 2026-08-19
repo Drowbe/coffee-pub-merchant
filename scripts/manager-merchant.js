@@ -6,6 +6,7 @@
 
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
+    DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
@@ -462,8 +463,30 @@ export class MerchantManager {
         }
         const available = Math.max(0, Math.trunc(Number(item?.system?.quantity ?? 0)));
         const stored = Number(item?.getFlag(MODULE.ID, PAR_FLAG));
-        const par = Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : available;
+
+        // No par flag means "as many as are there", which is right for something a GM
+        // dropped on a shelf and never thought about again -- and is why a row that
+        // only ever arrived by table roll creeps upward: each delivery raises the
+        // quantity, which raises the target, which the next restock then protects.
+        // The per-item ceiling is what bounds that.
+        const raw = Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : available;
+        const par = Math.min(raw, this.getShelfLimits(config).maxPerItem);
         return { policy, unlimited: false, available, par };
+    }
+
+    /**
+     * What a shelf will hold: distinct rows, and how many of any one thing.
+     *
+     * Per shelf rather than per shop, because a storefront and a back room are
+     * different sizes in every shop that has both.
+     */
+    static getShelfLimits(shelfConfig) {
+        const products = Math.trunc(Number(shelfConfig?.maxProducts));
+        const perItem = Math.trunc(Number(shelfConfig?.maxPerItem));
+        return {
+            maxProducts: Number.isFinite(products) && products > 0 ? products : DEFAULT_MAX_PRODUCTS,
+            maxPerItem: Number.isFinite(perItem) && perItem > 0 ? perItem : DEFAULT_MAX_PER_ITEM
+        };
     }
 
     /**
@@ -643,19 +666,19 @@ export class MerchantManager {
 
         // Resolved once per distinct uuid: several tables rolling the same row should
         // cost one lookup, and only physical items can sit on a shelf.
-        const sellable = new Map();
+        const resolved = new Map();
         for (const uuid of drawn) {
-            if (sellable.has(uuid)) continue;
+            if (resolved.has(uuid)) continue;
             let item = null;
             try {
                 item = await fromUuid(uuid);
             } catch (_error) {
                 item = null;
             }
-            sellable.set(uuid, item?.documentName === 'Item' && isPhysical(item.type));
+            resolved.set(uuid, item?.documentName === 'Item' && isPhysical(item.type) ? item : null);
         }
 
-        const items = drawn.filter((uuid) => sellable.get(uuid)).map((uuid) => ({ itemUuid: uuid, quantity: 1 }));
+        const items = this._withinLimits(actor, shelf, drawn, resolved);
         if (!items.length) return 0;
 
         // One call for every table on the shelf, so the same potion rolled by two of
@@ -665,6 +688,55 @@ export class MerchantManager {
             console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from its tables:`, result);
         }
         return items.length;
+    }
+
+    /**
+     * Trim a set of rolled results to what the shelf will actually hold.
+     *
+     * Two ceilings, checked against what is already there plus what this delivery has
+     * allocated so far. Without them a shelf rolling weekly grows an ever longer list
+     * of one-offs, and a shelf that keeps rolling rations builds toward thousands of
+     * them — neither of which announces itself until a fortnight of game time has
+     * passed.
+     *
+     * Rows are matched by name and type. That is the dominant part of the merge
+     * identity `grantItems` uses, and a cap that is approximately right is worth far
+     * more than one that reimplements the predicate and drifts from it.
+     */
+    static _withinLimits(actor, shelf, drawn, resolved) {
+        const config = this.getShelfConfig(shelf);
+        const { maxProducts, maxPerItem } = this.getShelfLimits(config);
+        const key = (name, type) => `${name}\u0000${type}`;
+
+        const held = new Map();
+        for (const item of this.getShelfContents(actor, shelf)) {
+            held.set(key(item.name, item.type), Math.max(0, Math.trunc(Number(item.system?.quantity ?? 1))));
+        }
+        let rows = held.size;
+
+        const allowed = [];
+        let clipped = 0;
+        for (const uuid of drawn) {
+            const item = resolved.get(uuid);
+            if (!item) continue;
+
+            const k = key(item.name, item.type);
+            if (held.has(k)) {
+                if (held.get(k) >= maxPerItem) { clipped++; continue; }
+                held.set(k, held.get(k) + 1);
+            } else {
+                // A new row costs one of the shelf's slots, and there may be none.
+                if (rows >= maxProducts) { clipped++; continue; }
+                held.set(k, 1);
+                rows++;
+            }
+            allowed.push({ itemUuid: uuid, quantity: 1 });
+        }
+
+        if (clipped) {
+            console.debug(`${MODULE.TITLE} | ${shelf.name} is at its limit; ${clipped} rolled result${clipped === 1 ? '' : 's'} not stocked.`);
+        }
+        return allowed;
     }
 
     /**

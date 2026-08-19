@@ -465,6 +465,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back to its quantities and rolls all its tables.
 - **The compendium search is a magnifying glass** rather than a plus, which is what it does.
 
+- **A shelf has two ceilings** (`scripts/const.js`, `scripts/manager-merchant.js`): **products**, the number
+  of distinct things it will carry (25 by default), and **each**, the most of any one of them (20). Per shelf,
+  because a storefront and a back room are different sizes in every shop that has both.
+
+  They answer two different runaways. Without the first, a shelf rolling a table weekly grows an ever longer
+  list of one-offs until the window is unreadable. Without the second, a shelf that keeps restocking rations
+  builds toward thousands of them. Neither announces itself until a fortnight of game time has passed.
+
+  Rolled results are matched to existing rows by name and type — the dominant part of the merge identity
+  `grantItems` uses. A cap that is approximately right is worth more than one that reimplements the predicate
+  and drifts from it.
+- **The per-item ceiling also bounds a restock target.** An item with no par flag restocks to whatever
+  quantity it currently has, which is right for something dropped on a shelf and forgotten — but means a row
+  that only ever arrived by table roll creeps upward, each delivery raising the target the next restock then
+  protects. `par` is now read through the ceiling.
+- **A GM can take something off a shelf** (`templates/partial-shop-row.hbs`): an **×** on each row, through
+  dnd5e's own delete prompt so a container asks about its contents. Setting a quantity to zero says *sold
+  out*, and a restocking shelf brings it back; this says the shelf no longer carries it.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

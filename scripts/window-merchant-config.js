@@ -174,6 +174,20 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        for (const [attribute, field, ceiling] of [
+            ['data-shelf-max-products', 'maxProducts', 500],
+            ['data-shelf-max-per-item', 'maxPerItem', 999]
+        ]) {
+            for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
+                if (input.dataset.merchantBound === 'true') continue;
+                input.dataset.merchantBound = 'true';
+                input.addEventListener('change', (event) => {
+                    const value = Math.min(ceiling, Math.max(1, Math.trunc(Number(event.target.value) || 1)));
+                    void this._commitShelfStock(input.getAttribute(attribute), { [field]: value });
+                });
+            }
+        }
+
         for (const box of this.element?.querySelectorAll('[data-shelf-table-auto]') ?? []) {
             if (box.dataset.merchantBound === 'true') continue;
             box.dataset.merchantBound = 'true';
@@ -583,6 +597,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 const count = MerchantManager.getShelfContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);
+                const limits = MerchantManager.getShelfLimits(config);
                 return {
                     id: item.id,
                     img: item.img,
@@ -605,6 +620,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // that counts its stock can be refilled by hand.
                     countable: policy !== STOCK.INFINITE,
                     restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
+                    maxProducts: limits.maxProducts,
+                    maxPerItem: limits.maxPerItem,
                     tables: MerchantManager.getShelfTables(item).map((entry) => ({
                         uuid: entry.uuid,
                         // A uuid that no longer resolves is named as missing rather

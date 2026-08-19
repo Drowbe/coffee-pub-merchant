@@ -197,6 +197,25 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
+#### Shelf ceilings
+
+- [ ] A new shelf shows **25 products** and **20 each**.
+- [ ] Fill a shelf to its product ceiling, then restock from a table → no new rows appear, and existing rows
+      can still top up.
+- [ ] Lower the ceiling below what is already there → nothing is deleted; it simply stops growing.
+- [ ] A row at the per-item ceiling stops receiving from table rolls.
+- [ ] Hover a row's quantity → its restock target never reads higher than the per-item ceiling.
+- [ ] Both are per shelf: set the Back Room to 5 products and the Storefront stays at 25.
+
+#### Removing stock
+
+- [ ] A GM sees an **×** on each shop row; a player does not.
+- [ ] It opens dnd5e's delete prompt and removes the row entirely.
+- [ ] Removing a **container** asks about its contents.
+- [ ] Cancelling the prompt leaves the row alone.
+- [ ] Setting a quantity to 0 instead leaves the row in place, marked out of stock, and a restock brings it
+      back. *These are two different statements and must stay so.*
+
 #### Rerolling, and restocking from the shop
 
 - [ ] A newly dropped table has **reroll off**.

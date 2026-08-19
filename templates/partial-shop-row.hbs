@@ -59,6 +59,15 @@
             <span class="merchant-shop-blocked" data-tooltip="No fixed price; ask the merchant">
                 <i class="fa-solid fa-comments"></i> Ask
             </span>
+            {{#if canRemove}}
+                {{!-- GM only. Zero is out of stock, which is a state a shop is in;
+                      this is the shelf no longer carrying the thing at all. --}}
+                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-remove"
+                        data-action="removeStock" data-item-id="{{id}}"
+                        data-tooltip="Take this off the shelf entirely">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            {{/if}}
         </div>
     {{else}}
         <div class="merchant-shop-row-actions">
@@ -71,6 +80,15 @@
                     {{#unless canCart}}disabled{{/unless}} data-tooltip="{{cartTooltip}}">
                 <i class="fa-solid fa-plus"></i>
             </button>
+            {{#if canRemove}}
+                {{!-- GM only. Zero is out of stock, which is a state a shop is in;
+                      this is the shelf no longer carrying the thing at all. --}}
+                <button type="button" class="blacksmith-window-btn-secondary merchant-shop-remove"
+                        data-action="removeStock" data-item-id="{{id}}"
+                        data-tooltip="Take this off the shelf entirely">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            {{/if}}
         </div>
     {{/if}}
 </div>

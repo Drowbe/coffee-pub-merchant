@@ -702,3 +702,8 @@
 .merchant-config-shelf-reroll { display: inline-flex; gap: 5px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; white-space: nowrap; cursor: pointer; }
 .merchant-config-shelf-reroll > input { margin: 0; }
 .merchant-config-shelf-rolls { margin-left: auto; }
+
+/* The two ceilings, beside the policy they bound. */
+.merchant-config-shelf-cap { display: flex; align-items: center; gap: 5px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; white-space: nowrap; }
+.merchant-config-shelf-cap > input { width: 50px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+.merchant-config-shelf-stock { flex-wrap: wrap; }

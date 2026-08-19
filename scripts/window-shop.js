@@ -155,7 +155,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch(),
-        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId)
+        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
+        removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
     };
 
     constructor(tokenDocument, options = {}) {
@@ -872,6 +873,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                             : price === null ? 'This has no price set'
                             : 'Add to the slate',
                         canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
+                        // Setting a quantity to zero says "sold out"; this says "we do
+                        // not carry that". Different statements, so different controls.
+                        canRemove: isGM,
                         isBarter
                     };
                 });
@@ -1327,6 +1331,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * they notice a shelf is bare. A press is deliberate, so every table on the shelf
      * rolls — the reroll flag governs the clock, not the button.
      */
+    /**
+     * Take something off a shelf for good.
+     *
+     * Not the same as setting it to zero: zero is a shop that has sold out of
+     * something it carries, and a restocking shelf brings it back. This is the shelf
+     * no longer carrying it.
+     *
+     * Through dnd5e's own delete prompt, so a container asks about its contents and
+     * the system owns the recursion — the same reasoning as removing a shelf.
+     */
+    async removeStock(itemId) {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        const item = token?.actor?.items?.get(itemId);
+        if (!item) return;
+        try {
+            await item.deleteDialog();
+            MerchantManager.broadcastActorRefresh(token.actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not remove ${item.name}:`, error);
+        }
+    }
+
     async restockShelf(shelfId) {
         const token = await this._resolveToken();
         const merchant = token?.actor;
