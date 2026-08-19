@@ -130,6 +130,28 @@ check, and it reverses what this file said before 2026-08-18.
 - [ ] Every disabled control names *why* on hover, and the reason is the true one: closed shop, no character,
       no price, out of stock, or waiting on Blacksmith. A disabled button with a generic tooltip is a bug.
 
+`exchange` shipped on 2026-08-18, so everything below is live.
+
+#### Nothing half-happens
+
+- [ ] Buy something the merchant has **no change for** — a 10 gp item paid with a platinum piece, till empty.
+      Refused, naming the change owed, and **the item does not arrive**.
+      *This was the bug: the goods went across and the payment failed. If you end up holding it, stop and
+      report — that is the defect returning.*
+- [ ] Top the till up, buy it again → goods, payment and change all land together.
+- [ ] Buy the last one of a finite item twice in a row: the second is refused and **nothing moves**.
+- [ ] Checkout a cart where one line has gone out of stock → the **whole** cart is refused, and none of the
+      other lines arrive.
+- [ ] No error message anywhere reads "That could not be completed" — every refusal names its reason.
+
+#### Stock policy through a purchase
+
+- [ ] Buy from an **infinite** shelf → the merchant's row is untouched, same quantity as before.
+- [ ] Buy 3 from an infinite shelf whose row reads 1 → all 3 arrive. The row is a template, not a count.
+- [ ] Buy from a **finite** shelf → the count comes down by what you bought.
+- [ ] Buy the last one → the row stays at 0 rather than disappearing.
+- [ ] Restock that shelf → the row comes back to its par, which is why it had to survive.
+
 Once `exchange` ships:
 
 - [ ] Buy asks **how many**, then **who it is for**, then confirms with the price. Three prompts, that order.

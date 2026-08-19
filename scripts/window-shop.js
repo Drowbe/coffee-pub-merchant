@@ -758,13 +758,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             if (successMessage) ui.notifications?.info(successMessage);
             return;
         }
-        // Goods first, coin second — so a payment that fails leaves the player
-        // holding the item. Saying so is the difference between a puzzle and a
-        // thing they can tell their GM about.
-        const suffix = result?.delivered
-            ? ' The goods were already handed over — tell your GM.'
-            : '';
-        ui.notifications?.error(this._explain(result?.code, result) + suffix);
+        // No suffix about goods already handed over: a purchase is one `exchange`
+        // now, so a failed payment moves nothing at all.
+        ui.notifications?.error(this._explain(result?.code, result));
     }
 
     _explain(code, result) {
@@ -786,6 +782,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 ? `${result.itemName} is out of stock.`
                 : 'That is out of stock.';
             case 'INSUFFICIENT_STOCK': return `Only ${result?.available ?? 0} left${result?.itemName ? ` of ${result.itemName}` : ''}.`;
+            case 'INSUFFICIENT_QUANTITY': return `There are not that many left${result?.itemName ? ` of ${result.itemName}` : ''}.`;
+            // Not the player's fault and not something they can work around: the
+            // coins they hand over are chosen for them, smallest first. Say whose
+            // problem it is.
+            case 'NO_CHANGE': return `The merchant has not got the change for that — they owe ${formatBase(result?.changeBase)} back and the till cannot cover it.`;
+            case 'INSUFFICIENT_CURRENCY': return 'Somebody is short of the coins that were meant to change hands, and nothing moved.';
+            case 'INVALID_CURRENCY': return 'That payment did not add up. Nothing moved.';
+            case 'SOURCE_ACTOR_NOT_FOUND':
+            case 'TARGET_ACTOR_NOT_FOUND': return 'One side of that trade could not be found.';
+            case 'SOURCE_ITEM_NOT_FOUND': return 'That is no longer where it was.';
+            case 'SAME_ACTOR': return 'That would be trading with yourself.';
+            case 'DUPLICATE_ITEM': return 'That item is in the cart twice. Clear it and try again.';
+            case 'EXCHANGE_EMPTY': return 'There was nothing to settle.';
+            case 'SOURCE_UPDATE_FAILED': return 'The merchant’s stock could not be updated, so nothing moved.';
+            case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
             case 'THIRD_PARTY_DELIVERY': return 'Buying on behalf of someone else is waiting on a Blacksmith update.';

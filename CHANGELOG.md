@@ -134,6 +134,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needs to tell them apart. The reservation is soft and local: another player's cart is neither visible nor
   blocked, and the GM re-checks every line at checkout, which is where a genuine race is settled.
 
+- **`blacksmith.inventory.exchange` shipped, and buying is now one atomic call**
+  (`scripts/manager-merchant.js`): goods out, coin in and change back settle together or not at all. Both
+  primitives asked for arrived with it — `copy` for an infinite shelf, whose row is a template the sale must
+  not touch, and `preserveEmptySource` for a finite one, which brings the count down and leaves the row at
+  zero. The stock policy is now two flags on a transfer and nothing else.
+
+  **This fixes a real defect rather than tidying one.** While delivery was a separate grant, a purchase whose
+  payment failed left the player holding goods the merchant had not been paid for — reported from a table as
+  *"That could not be completed. The goods were already handed over."* There is no order to get right any
+  more, so that failure cannot happen.
+
+  It also deletes the per-line stock checks in checkout and the merchant-side lock around every transaction:
+  `exchange` takes its own locks over every Actor named and validates each leg against the state at the start
+  of the call, so two players racing for the last item are settled inside it. Our lock now guards only
+  restocking, which is genuinely our own read-modify-write.
+- **A shop that cannot make change says so** (`scripts/manager-merchant.js`, `scripts/window-shop.js`): the
+  side owing change has to hold the coins for it, and an empty till could not. That surfaced as a generic
+  *"That could not be completed"* because `INSUFFICIENT_CURRENCY` had no message. Checked before anything is
+  attempted now, and named: the merchant has not got the change, and it says how much they owe. Every code
+  `exchange` can return is mapped, so nothing else falls through to the generic line.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

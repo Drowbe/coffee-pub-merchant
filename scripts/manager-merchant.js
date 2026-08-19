@@ -9,7 +9,7 @@ import {
     SHELF_FLAG, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import { grantItem, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
-import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase } from './merchant-pricing.js';
+import { resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 
@@ -393,9 +393,11 @@ export class MerchantManager {
     /**
      * Serialise everything that reads a count and then writes it.
      *
-     * Infinite stock had no concurrency at all -- the merchant was never mutated, so
-     * two players buying the same thing could not interact. Finite stock brings the
-     * problem back: without this, both could read "1 left" and both succeed.
+     * Only restocking, now that every transaction is a single `exchange`: that
+     * primitive takes its own locks over every Actor named and validates each leg
+     * against the state at the start of the call, so two players racing for the last
+     * item are settled inside it. Restocking is our own read-modify-write and is
+     * still ours to serialise.
      *
      * A promise chain is enough because exactly one client runs this. `activeGM` is
      * deterministic across clients, so every request lands on the same GM and there
@@ -414,26 +416,6 @@ export class MerchantManager {
             if (this._stockLocks.get(key) === tail) this._stockLocks.delete(key);
         });
         return run;
-    }
-
-    /** Take stock off a shelf. Always called inside the lock, never outside it. */
-    static async _consumeStock(item, quantity, stock) {
-        if (stock.unlimited) return { ok: true };
-        if (quantity > stock.available) {
-            return { ok: false, code: 'INSUFFICIENT_STOCK', available: stock.available };
-        }
-        await item.update({ 'system.quantity': stock.available - quantity });
-        return { ok: true };
-    }
-
-    /**
-     * Re-read an item inside the lock.
-     *
-     * The document was resolved before the queue was joined, and a GM may have
-     * deleted it while this request waited its turn.
-     */
-    static _reread(merchant, itemId) {
-        return merchant?.items?.get(itemId) ?? null;
     }
 
     /**
@@ -652,62 +634,91 @@ export class MerchantManager {
     }
 
     /**
-     * Hand goods over and take them off the shelf.
+     * One leg of an exchange: goods leaving the shelf.
      *
-     * **Always `grantItem`, never `transferItem`, whatever the stock policy.** The
-     * merchant's item is a template carrying a count: a sale copies it and adjusts
-     * the number. A transfer would delete the row on the last unit, which loses the
-     * shelf layout and leaves a restocking shelf with nothing to restock.
+     * The stock policy is expressed entirely as two flags on the transfer, which is
+     * what `copy` and `preserveEmptySource` were asked for and built for:
      *
-     * Must be called inside `_withStockLock`, and re-reads the item because the
-     * document was resolved before this request joined the queue.
+     * - **infinite** — `copy`, so the merchant's row is a template and is not touched.
+     *   The primitive deliberately does not treat a copied source's stack as a
+     *   ceiling, so a shelf reading 1 sells three.
+     * - **finite / restocking** — a real transfer with `preserveEmptySource`, so the
+     *   count comes down and the row survives at zero. Availability is enforced by the
+     *   primitive itself, which is why there is no stock check here any more.
+     *
+     * Both live inside the same `exchange` as the payment, so goods and coin commit
+     * together or not at all. Before these flags existed this was a grant followed by
+     * a separate currency exchange, which could and did hand the goods over and then
+     * fail to take the money.
      */
-    static async _deliver(merchant, itemId, shelfConfig, recipientUuid, quantity) {
-        const item = this._reread(merchant, itemId);
-        if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
+    static _goodsTransfer(merchant, item, shelfConfig, recipientUuid, quantity) {
+        const unlimited = this.resolveStockPolicy(merchant, shelfConfig) === STOCK.INFINITE;
+        return {
+            from: merchant.uuid,
+            to: recipientUuid,
+            items: [{ itemId: item.id, quantity }],
+            ...(unlimited ? { copy: true } : { preserveEmptySource: true })
+        };
+    }
 
-        const stock = this.getStock(merchant, item, shelfConfig);
-        if (!stock.unlimited && stock.available < quantity) {
-            return {
-                ok: false,
-                code: stock.available === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK',
-                available: stock.available
-            };
+    /**
+     * The coin legs of a transaction: money one way, change back.
+     *
+     * `payerUuid` hands over `plan.pay` and `payeeUuid` hands back `plan.change`, so
+     * buying and selling are the same call with the two swapped — which is the whole
+     * reason a symmetric primitive was asked for.
+     *
+     * Never netted: the payer must actually hold what they hand over, which is what
+     * happens at a counter, and every leg is validated against the balances at the
+     * start of the call so change arriving cannot fund the payment.
+     *
+     * An empty leg is a no-op rather than an error, so exact money adds nothing.
+     */
+    static _coinTransfers(payerUuid, payeeUuid, plan) {
+        const legs = [];
+        if (Object.keys(plan.pay ?? {}).length) {
+            legs.push({ from: payerUuid, to: payeeUuid, currency: plan.pay });
         }
-
-        const granted = await grantItem({
-            targetActorUuid: recipientUuid,
-            itemUuid: item.uuid,
-            quantity
-        });
-        if (!granted?.ok) return granted;
-
-        const consumed = await this._consumeStock(item, quantity, stock);
-        if (!consumed.ok) {
-            // The goods are already delivered, and grantItem may have merged them
-            // into a stack the recipient already had -- so there is no copy left to
-            // take back, only a stack that would be wrong to delete. The shop's
-            // count is out by this much until a GM notices, which is the cheaper of
-            // the two errors.
-            console.error(
-                `${MODULE.TITLE} | Delivered ${quantity} x ${item.name} but could not adjust the count on ${merchant.name}.`,
-                consumed
-            );
+        if (Object.keys(plan.change ?? {}).length) {
+            legs.push({ from: payeeUuid, to: payerUuid, currency: plan.change });
         }
-        return granted;
+        return legs;
+    }
+
+    /**
+     * Whether the merchant actually holds the coins it owes in change.
+     *
+     * Whichever side owes change has to hold the coins for it. Checked here so the
+     * refusal names the problem: the primitive would refuse it anyway and nothing
+     * would move, but a bare `INSUFFICIENT_CURRENCY` reads as a mysterious failure of
+     * the player's purchase when what it means is that somebody cannot break a large
+     * coin.
+     */
+    /** The change owed, in base units, so a message can name it. */
+    static _changeBase(plan) {
+        return Object.entries(plan.change ?? {})
+            .reduce((total, [denomination, amount]) => total + toBase(amount, denomination), 0);
+    }
+
+    static _canMakeChange(payee, plan) {
+        const purse = payee?.system?.currency ?? {};
+        return Object.entries(plan.change ?? {})
+            .every(([denomination, amount]) => Number(purse[denomination] ?? 0) >= amount);
     }
 
     /**
      * Take without paying.
      *
-     * The GM's stocking-and-testing path, and -- while there is no `exchange` -- the
-     * only path that completes at all.
+     * The GM's stocking-and-testing path. Still an `exchange` rather than a bare
+     * grant, so the stock policy is decided in exactly one place.
      */
     static async _processAcquire(merchant, item, shelf, recipientUuid, payload) {
         const quantity = Math.max(1, Math.trunc(Number(payload.quantity) || 1));
         const shelfConfig = this.getShelfConfig(shelf);
-        return this._withStockLock(merchant, () =>
-            this._deliver(merchant, item.id, shelfConfig, recipientUuid, quantity));
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+        return exchange({
+            transfers: [this._goodsTransfer(merchant, item, shelfConfig, recipientUuid, quantity)]
+        });
     }
 
     /**
@@ -716,21 +727,13 @@ export class MerchantManager {
      * Everything except the mutation is decided here — price, affordability, and
      * which coins change hands.
      *
-     * **The goods and the coin are two writes, for now.** A single `exchange` carrying
-     * both would be atomic, which is better, but `exchange` *moves* what it is given
-     * and a shop's stock is a count rather than a document — so it would sell the
-     * template itself and empty the shelf on the first purchase. Until a transfer can
-     * say *copy*, delivery is a grant and payment is a currency-only exchange.
+     * **One exchange: goods out, coin in, change back.** All three commit or none do,
+     * so there is no longer any order to get right and no failure that leaves a player
+     * holding goods they did not pay for. That was a real defect while delivery was a
+     * separate grant, and it is gone rather than mitigated.
      *
-     * The order is deliberate too: goods first, so a failed payment leaves the player
-     * holding the item and the shop out of pocket. The reverse leaves a player who
-     * paid for nothing. In a game the shop should eat it.
-     *
-     * Payment and change are **two transfers, never netted**. Netting would let a
-     * payer hand over coin they do not have, and `exchange` validates every transfer
-     * against the state at the start of the call — so change arriving cannot fund the
-     * payment. That is the counter model rather than a limitation: you put money down
-     * and money comes back.
+     * Payment and change are two legs and are never netted, because the payer must
+     * actually hold what they hand over.
      */
     static async _processBuy(merchant, item, shelf, buyerUuid, payload, user) {
         const shelfConfig = this.getShelfConfig(shelf);
@@ -752,25 +755,19 @@ export class MerchantManager {
             return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
         }
 
-        // Checked before the queue is joined so a shop with no exchange refuses
-        // immediately rather than after taking a lock it cannot use.
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+        if (!this._canMakeChange(merchant, plan)) {
+            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
+        }
 
-        return this._withStockLock(merchant, async () => {
-            const delivered = await this._deliver(merchant, item.id, shelfConfig, buyerUuid, quantity);
-            if (!delivered?.ok) return delivered;
-
-            const paid = await exchange({
-                transfers: [
-                    { from: payerCheck.actor.uuid, to: merchant.uuid, currency: plan.pay },
-                    { from: merchant.uuid, to: payerCheck.actor.uuid, currency: plan.change }
-                ]
-            });
-            if (!paid?.ok) {
-                return { ...paid, delivered: true, price: total };
-            }
-            return { ...paid, price: total, paid: plan.pay, change: plan.change };
+        const result = await exchange({
+            transfers: [
+                this._goodsTransfer(merchant, item, shelfConfig, buyerUuid, quantity),
+                ...this._coinTransfers(payerCheck.actor.uuid, merchant.uuid, plan)
+            ]
         });
+
+        return result?.ok ? { ...result, price: total, paid: plan.pay, change: plan.change } : result;
     }
 
     /**
@@ -781,8 +778,8 @@ export class MerchantManager {
      * change, which is both more writes and worse arithmetic for the player.
      *
      * Delivery is still per line, because stock is a count and each line grants a
-     * copy — see `_deliver`. Every line's stock is checked before any of it moves, so
-     * a cart that cannot be filled fails whole rather than half.
+     * copy — see `_goodsTransfer`. Every line and both coin legs are in one call, so
+     * a cart that cannot be filled writes nothing rather than half of it.
      *
      * Every line is re-priced here rather than trusting what the cart was built
      * against: a GM may have changed a markup, removed stock, or closed the shop
@@ -816,7 +813,7 @@ export class MerchantManager {
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
-            lines.push({ itemId: item.id, quantity, shelfConfig, name: item.name });
+            lines.push({ item, quantity, shelfConfig, name: item.name });
         }
 
         const payerCheck = this._validatePayer(payload.payerUuid ?? check.actorUuid, check.actorUuid, user);
@@ -826,47 +823,20 @@ export class MerchantManager {
         if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+        if (!this._canMakeChange(merchant, plan)) {
+            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
+        }
 
-        return this._withStockLock(merchant, async () => {
-            // Every line is checked for stock before any of it is delivered, so a
-            // cart that cannot be filled fails whole rather than half.
-            for (const line of lines) {
-                const item = this._reread(merchant, line.itemId);
-                if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
-                const stock = this.getStock(merchant, item, line.shelfConfig);
-                if (!stock.unlimited && stock.available < line.quantity) {
-                    return {
-                        ok: false,
-                        code: stock.available === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK',
-                        available: stock.available,
-                        itemName: line.name
-                    };
-                }
-            }
-
-            const delivered = [];
-            for (const line of lines) {
-                const result = await this._deliver(
-                    merchant, line.itemId, line.shelfConfig, check.actorUuid, line.quantity
-                );
-                // Checked above, so this is a genuine failure rather than a race.
-                // Whatever already went across stays: it may have merged into stacks
-                // the buyer already had, so there is nothing safe to take back.
-                if (!result?.ok) {
-                    return { ...result, partial: delivered.length > 0, delivered: delivered.length };
-                }
-                delivered.push(line);
-            }
-
-            const paid = await exchange({
-                transfers: [
-                    { from: payerCheck.actor.uuid, to: merchant.uuid, currency: plan.pay },
-                    { from: merchant.uuid, to: payerCheck.actor.uuid, currency: plan.change }
-                ]
-            });
-            if (!paid?.ok) return { ...paid, delivered: true, price: total };
-            return { ...paid, price: total };
-        });
+        // One call for the whole cart: every line and both coin legs commit together,
+        // so a cart that cannot be filled writes nothing rather than half of it. The
+        // per-line stock check that used to run first is the primitive's job now.
+        return exchange({
+            transfers: [
+                ...lines.map((line) =>
+                    this._goodsTransfer(merchant, line.item, line.shelfConfig, check.actorUuid, line.quantity)),
+                ...this._coinTransfers(payerCheck.actor.uuid, merchant.uuid, plan)
+            ]
+        }).then((result) => (result?.ok ? { ...result, price: total } : result));
     }
 
     /**
@@ -910,6 +880,10 @@ export class MerchantManager {
         if (!plan) return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: total, held: purseValue(merchant) };
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+        // The merchant is paying, so it is the seller who owes change back.
+        if (!this._canMakeChange(seller, plan)) {
+            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
+        }
 
         // Three arrows, not two sides. Selling genuinely does move the goods — the
         // party's sword becomes the merchant's — so this is a transfer rather than the
@@ -926,8 +900,7 @@ export class MerchantManager {
                     // about where these items arrive.
                     container: shelf.item.id
                 },
-                { from: merchant.uuid, to: seller.uuid, currency: plan.pay },
-                { from: seller.uuid, to: merchant.uuid, currency: plan.change }
+                ...this._coinTransfers(merchant.uuid, seller.uuid, plan)
             ]
         });
 
