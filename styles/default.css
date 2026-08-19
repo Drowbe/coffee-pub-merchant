@@ -423,18 +423,22 @@
  * Label chip, value chip, three identical rows. Nothing distinguishes the total
  * except sitting first and being called Total.
  *
- * Colours are the theme's own text mixed into transparency rather than into a
- * surface, so the pair works on an opaque light panel, an opaque dark one, and a
- * translucent one — a mix into `transparent` composites over whatever is behind
- * it instead of assuming a backdrop.
+ * White on a warm translucent fill, and a paler wash of the same for the value.
+ * Both are alpha over whatever is behind them rather than a mix into a named
+ * surface, so they hold up on a light panel, a dark one, and glass — and white
+ * stays legible on all three, which theme-coloured text did not.
  */
 .merchant-shop-cart-sums { display: grid; grid-template-columns: auto minmax(0, 1fr); row-gap: 3px; margin: 0; padding: 0; }
 .merchant-shop-cart-sum { display: contents; }
 
 .merchant-shop-cart-sum > dt,
 .merchant-shop-cart-sum > dd { margin: 0; padding: 4px 9px; font-size: .76rem; line-height: 1.4; }
-.merchant-shop-cart-sum > dt { border-radius: 4px 0 0 4px; background: color-mix(in srgb, var(--blacksmith-tool-text) 26%, transparent); color: var(--blacksmith-tool-text); text-align: right; white-space: nowrap; }
-.merchant-shop-cart-sum > dd { border-radius: 0 4px 4px 0; background: color-mix(in srgb, var(--blacksmith-tool-text) 9%, transparent); font-variant-numeric: tabular-nums; }
+.merchant-shop-cart-sum > dt { border-radius: 4px 0 0 4px; background: rgba(92, 80, 66, .62); color: #fff; text-align: right; white-space: nowrap; }
+.merchant-shop-cart-sum > dd { border-radius: 0 4px 4px 0; background: rgba(92, 80, 66, .12); font-variant-numeric: tabular-nums; }
+/* Foundry puts a text-shadow on a good deal of its typography and it inherits.
+   On a filled chip it reads as emboss. */
+.merchant-shop-cart-sum > dt,
+.merchant-shop-cart-sum > dd { text-shadow: none; }
 
 .merchant-shop-cart-headline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
 .merchant-shop-cart-title { display: inline-flex; gap: 7px; align-items: center; color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
