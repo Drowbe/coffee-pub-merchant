@@ -519,7 +519,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     + `<strong>${actor.name}</strong> back to their quantities, and roll every table on them.</p>`
                     + '<p>Rolled stock is added, not replaced.</p>',
                 confirmLabel: 'Restock Everything',
-                confirmIcon: 'fa-solid fa-truck-fast'
+                confirmIcon: 'fa-solid fa-arrows-rotate'
             });
             if (!confirmed) return;
         }
@@ -743,7 +743,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 <button type="button" class="blacksmith-window-btn-primary merchant-config-restock-all"
                         data-action="restockAll"
                         data-tooltip="Bring every shelf back to its quantities and roll all of its tables">
-                    <i class="fa-solid fa-truck-fast"></i> Restock Everything
+                    <i class="fa-solid fa-arrows-rotate"></i> Restock Everything
                 </button>`
                 : ''
         };

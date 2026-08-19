@@ -802,3 +802,11 @@
 }
 .merchant-config-hours-slider input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
 .merchant-config-hours-slider input[type="range"]:active::-moz-range-thumb { cursor: grabbing; }
+
+/* The total is the answer and the three above are what it is made of, so it is the
+   one that is bold and the one that carries a colour: red when the purse goes down,
+   green when it goes up. */
+.merchant-shop-cart-sum-net > dt,
+.merchant-shop-cart-sum-net > dd { font-weight: 700; }
+.merchant-shop-cart-net-pay > dd { color: #a4432f; }
+.merchant-shop-cart-net-receive > dd { color: #2f6b33; }

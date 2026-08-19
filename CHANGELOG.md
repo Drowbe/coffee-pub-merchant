@@ -540,10 +540,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already declare a **shared** key deliberately — a shop is a shop wherever it is opened. Two shops open at
   once now stack, which is rare and one drag apart; every shop resetting was every time.
 
-- **Three actions stop sharing one icon**: switching which character you are shopping as was a circular
-  arrow, which is also what Refresh and Restock were. It is a **person** now, because it is about who rather
-  than about repeating. Restock is a **delivery**, because that is what it is; Refresh keeps the circular
-  arrow, which is what that means everywhere.
+- **Switching character has its own icon**: it was a circular arrow, which is what Refresh and Restock are.
+  It is a person now, because it is about who rather than about repeating.
+- **The slate's sums show the purse and which way each moves it** (`templates/window-shop.hbs`): a **Funds**
+  row above the rest, carrying what the shopper holds — a total is a change to something, and it means little
+  without the number it acts on. **Buying** is signed −, **Selling** +, because that is the direction each
+  moves that purse. The **Total** is bold, red when the purse goes down and green when it goes up.
 
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.

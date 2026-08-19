@@ -100,7 +100,7 @@
                 {{#if hasRecipientChoice}}
                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
                             data-action="changeRecipient" data-tooltip="Buy as a different character">
-                        <i class="fa-solid fa-user-group"></i>
+                        <i class="fa-solid fa-user-group-simple"></i>
                     </button>
                 {{/if}}
             </section>
@@ -148,7 +148,7 @@
                                 <button type="button" class="merchant-shop-shelf-add" data-action="restockShelf"
                                         data-shelf-id="{{id}}"
                                         data-tooltip="Restock: bring it back to its quantities and roll its tables">
-                                    <i class="fa-solid fa-truck-fast"></i>
+                                    <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
                                 <button type="button" class="merchant-shop-shelf-add" data-action="addToShelf" data-shelf-id="{{id}}"
                                         data-tooltip="Search the compendiums — drag a result onto this shelf">
@@ -231,15 +231,23 @@
                                   The total is the answer and sits apart from its two
                                   workings. --}}
                             <dl class="merchant-shop-cart-sums">
+                                {{!-- What is in the purse before any of this, so the
+                                      total below can be read against something. --}}
+                                <div class="merchant-shop-cart-sum">
+                                    <dt>Funds</dt>
+                                    <dd>{{fundsLabel}}</dd>
+                                </div>
+                                {{!-- Signed the way they act on that purse: buying
+                                      takes, selling gives. --}}
                                 <div class="merchant-shop-cart-sum">
                                     <dt>Buying</dt>
-                                    <dd>{{cartTotalLabel}}</dd>
+                                    <dd>&minus;{{cartTotalLabel}}</dd>
                                 </div>
                                 <div class="merchant-shop-cart-sum">
                                     <dt>Selling</dt>
-                                    <dd>{{basketTotalLabel}}</dd>
+                                    <dd>+{{basketTotalLabel}}</dd>
                                 </div>
-                                <div class="merchant-shop-cart-sum">
+                                <div class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
                                     <dt>Total</dt>
                                     <dd>{{netTotalLabel}}</dd>
                                 </div>

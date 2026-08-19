@@ -962,8 +962,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // work out which one a bare number is.
             // A total you are owed is written with a sign rather than a colour, so
             // the direction survives every theme and does not depend on seeing one.
-            netTotalLabel: (cartTotal - basketTotal < 0 ? '+' : '')
+            netTotalLabel: (cartTotal - basketTotal < 0 ? '+' : '\u2212')
                 + formatBase(Math.abs(cartTotal - basketTotal)),
+            // Paying out and taking in are different events, and the colour says
+            // which before the figure is read.
+            netDirection: cartTotal - basketTotal > 0 ? 'pay'
+                : cartTotal - basketTotal < 0 ? 'receive'
+                    : 'even',
+            // The shopper's purse as it stands, which is what the total is a change
+            // to. A number that big is meaningless without the number it acts on.
+            fundsLabel: recipient ? formatBase(purseValue(recipient)) : formatBase(0),
             basket: basketLines.map((line) => ({
                 ...line,
                 totalLabel: formatBase(line.total),
