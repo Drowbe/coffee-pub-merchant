@@ -61,6 +61,36 @@ It also raises delivery: does an ordered item arrive immediately, at the next re
 the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
 it is built.
 
+## Canvas marker for merchant tokens (idea, not scheduled)
+
+A merchant token should be visibly a merchant, and visibly *what kind* of merchant, without anyone having to
+double-click it to find out. The shop kind already exists and already carries an icon
+(`SHOP_KINDS` in `scripts/const.js`), so the data is there — what is missing is putting it on the canvas.
+
+The value is that a player walking into a market square can tell the weaponsmith from the apothecary from the
+NPC who is just standing there. Right now the only way to know a token is a shop at all is to try
+double-clicking it, which is a poor way to learn that most tokens are not.
+
+Things to settle before building it, none of them obvious:
+
+- **Where the marker is drawn.** A child of the Token, a separate canvas layer, or a `Token` HUD element.
+  A child sprite moves and hides with its token for free, which is most of the work; a separate layer means
+  reimplementing visibility, elevation and hidden-token rules that already exist.
+- **Whether players see it at all.** A GM's hidden shop, a closed shop, and a shop the party has not yet
+  found are three different cases. "Closed" probably still shows the marker — a shuttered shop is still
+  visibly a shop — but a token the GM has hidden must not, and that has to hold for the marker as much as
+  for the token.
+- **Scale and clutter.** Markers that are legible on a 100px token are noise on a 40px one, and a market
+  square with twelve merchants must not become a wall of badges. Likely wants a zoom threshold, which is a
+  design decision rather than a constant.
+- **Whether this is Merchant's to own.** Blacksmith already draws on tokens, and Curator marks lootable
+  corpses — which is the same problem with a different icon. **Two consumers is the bar**, and that is
+  exactly the situation `plans/plan-extraction.md` says to hand over rather than write twice. Check what
+  Blacksmith has before drawing anything.
+
+That last point is the reason this is recorded rather than started: the honest first step is a conversation
+with Blacksmith, not a sprite.
+
 ## Caller identity: waiting on the envelope, not on us
 
 Foundry **does** know who called, and knows it in a way no client can forge — `#handleUserQuery` resolves the
