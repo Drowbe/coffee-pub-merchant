@@ -290,8 +290,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     // bound, and this one is created with the current character — so a
                     // player switching to somebody else would be handed back the one
                     // they started on, indistinguishably from having chosen it.
-                    callback: (_event, _button, dialog) => {
-                        chosen = list.readIdsFrom(dialog?.element)[0] ?? null;
+                    // **`wait()` hands the callback the dialog's FORM, and runs it
+                    // after the dialog has closed.** Not `(event, button, dialog)` --
+                    // that is DialogV2's own shape, which `wait` wraps rather than
+                    // passes through. Reaching for `dialog.element` here got
+                    // `undefined`, so the read came back empty and the whole gesture
+                    // did nothing, silently. The form is captured before close for
+                    // exactly this reason.
+                    callback: (form) => {
+                        chosen = list.readIdsFrom(form)[0] ?? null;
                     }
                 }
             ],
@@ -693,8 +700,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     // See `_pickActor`. This list is created empty, so the same defect
                     // reads as "nothing selected" rather than as a wrong answer — quieter,
                     // and no more correct.
-                    callback: (_event, _button, dialog) => {
-                        chosen = list.readIdsFrom(dialog?.element);
+                    // **`wait()` hands the callback the dialog's FORM, and runs it
+                    // after the dialog has closed.** Not `(event, button, dialog)` --
+                    // that is DialogV2's own shape, which `wait` wraps rather than
+                    // passes through. Reaching for `dialog.element` here got
+                    // `undefined`, so the read came back empty and the whole gesture
+                    // did nothing, silently. The form is captured before close for
+                    // exactly this reason.
+                    callback: (form) => {
+                        chosen = list.readIdsFrom(form);
                     }
                 }
             ],
