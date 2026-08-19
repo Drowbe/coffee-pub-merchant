@@ -10,27 +10,85 @@ records intent and reasoning, `documentation/testing/` holds verification checkl
 before changing anything, and change it in the same commit as the thing it describes. A map that lies is
 worse than no map.
 
-## Critical — couplings and hand-rolls, found 2026-08-19
+## Critical — rescanned 2026-08-19, after Blacksmith shipped three surfaces
 
-Found by reading Merchant against `coffee-pub-blacksmith/documentation/api/` rather than by playing, so
-**none of these is a bug the table would see** and none is urgent in the way a wrong price is. They are
-listed together because they share one shape: Merchant doing for itself something the hub owns, which is the
-condition every entry under *Inherited lessons* was written about after it had already cost time.
+Two halves. The first is **three APIs that landed the same day this was written**, each of which deletes
+code here — those are the ones to act on. The second is four couplings found by reading Merchant against
+`coffee-pub-blacksmith/documentation/api/`; none is a bug the table would see, and they are listed because
+they share the shape every entry under *Inherited lessons* was written about after it had already cost time.
 
-Dated because this file now asks for that. If you are reading it much later, check each against the code
-before believing it.
+Dated because this file asks for that. Check each against the code before believing it.
+
+### The three that landed — and none of them is committed yet
+
+`api-gm-request.md`, `api-party.md` and the `openFor` registry in `api-window.md` all appeared on
+2026-08-19. In Blacksmith's working tree `scripts/api-gm-request.js` and `scripts/api-party.js` are
+**untracked**, and `scripts/window-tool-base.js` and `scripts/blacksmith.js` are **modified** — so all three
+are live in this world and none is committed.
+
+The rule this file already set for `setCurrency` applies unchanged: **plan against them, do not call them
+until Drowbe has committed.** Re-check `git status` in `coffee-pub-blacksmith` rather than trusting this
+paragraph, which was true at the hour it was written.
+
+- **`blacksmith.gmRequest` — `gm-request.js` becomes a deletion, as promised.** This is the surface
+  `architecture-merchant.md` §8 and §11 have been waiting for, and it arrived with the contract those
+  sections predicted: `registerOp({ op, module, handler })`, `request(op, payload, { timeout })`, and a
+  handler invoked as `(payload, user)` where **`user` is a verified `User` the caller could not have
+  forged**.
+
+  What changes here. `_process(op, payload, userId)` takes the User it is handed instead of resolving one
+  from `game.users.get(userId)`; the `userId` field comes out of every request payload **in the same
+  change**, because leaving it in is the hole rather than a redundancy; op routing stops being our
+  `if (op !== 'settle')` and becomes their registration. The local-GM shortcut becomes theirs — a GM runs
+  the handler locally, no round trip — so ours goes with the file.
+
+  Four things to get right, all stated in `api-gm-request.md` and none of them guessable. Ops must be
+  **module-prefixed** (`coffee-pub-merchant.settle`). Registration happens on **every** client, not only the
+  GM's — one that registered nothing answers `UNKNOWN_OP`, and `MerchantManager.initialize()` already runs
+  for everyone, so this is satisfied by not "optimising" it later. Re-registering an existing op is
+  **refused rather than overwritten**, so any path that registers twice needs `unregisterOp`. And
+  `IDENTITY_UNVERIFIED` is a refusal to **report, not to work around** — the envelope will not answer from a
+  claimed identity, which is the whole point of it.
+
+  `_explain` needs the three codes we cannot currently say: `UNKNOWN_OP`, `QUERY_UNAVAILABLE`,
+  `IDENTITY_UNVERIFIED`. `NO_ACTIVE_GM`, `NO_QUERY_PERMISSION`, `TIMEOUT` and `HANDLER_ERROR` already match
+  ours exactly — which is what writing `gm-request.js` against the eventual shape was for.
+
+- **`blacksmith.party` — extraction (d) landed, and it names the distinction we never had to make.**
+  `party.acting()` is ours: `system.playerCharacters`, with the no-primary-party fallback to player-owned
+  actors that `getPartyCharacters` reinvents at `manager-merchant.js:1080`. `party.resting()` is Rest's
+  `system.creatures`, which includes familiars and companions. A familiar rests with the party and cannot
+  buy a sword, so **reaching for the wrong one gives a roster that looks right in testing** — take
+  `acting()`, never `resting()`.
+
+  `party.actor()` replaces `getPartyActor`. Two things stay ours, and their doc says so: it returns facts
+  rather than decisions, so the ownership filtering in `getEligibleRecipients` and `canActAs` is not theirs
+  to take. And `hasPrimaryParty()` is worth surfacing in Merchant Settings — *"no primary party set"*
+  explains an odd Buying-as list far better than the list does.
+
+- **`BlacksmithToolWindowBaseV2.openFor` — extraction (c) landed; both windows drop their registries.**
+  `static openFor(target, options)`, plus `isOpenFor`, `openWindowFor`, `openWindows`, `closeFor`, and a
+  `static keyFor(target)` keyed on `uuid` by default. Windows deregister themselves on close.
+
+  That deletes `ShopWindow._windows` with its `static open`, `closeForToken` and `_onClose` bookkeeping
+  (`window-shop.js:116-227` and `:1899`) and the same again in `MerchantConfigWindow` (`:38-88`, `:885`).
+  `refreshForToken` and `refreshForActor` become filters over `openWindows()` rather than map walks.
+  **Registries are per subclass**, so a Shop and Curator's Loot opened against one token do not evict each
+  other — the case a shared registry would have got wrong. Do this in the same sitting as the item below:
+  it is the same file.
+
+### Four couplings, unchanged since the first scan
 
 - **Both windows deep-link a Blacksmith script file.** `window-shop.js:1` and `window-merchant-config.js:1`
   import `BlacksmithToolWindowBaseV2` from `/modules/coffee-pub-blacksmith/scripts/window-tool-base.js`.
-  `api-window.md` is explicit that the base classes are reached through `module.api` and that **file paths
-  are not the stable contract** — and the same page records that the old `window-base-v2.js` re-export shim
-  has already been removed, so this is a path that has moved once already.
+  `api-window.md` is explicit that base classes come from `module.api` and that **file paths are not the
+  stable contract** — and its own version history records the `window-base-v2.js` re-export shim already
+  being removed, so this is a path that has moved once.
 
-  This is not a fork and nothing drifts, which is why it has been invisible. The cost is all in one moment:
-  the day that file is renamed, both imports throw at module evaluation, and a failed ESM import takes the
-  **whole module** down rather than one window. `module.api.BlacksmithToolWindowBaseV2` is populated as soon
-  as Blacksmith's script finishes loading — before `init`, and before us, since we declare the dependency —
-  so a top-level resolve is available and is what the doc says to use.
+  This is not a fork and nothing drifts, which is why it has stayed invisible. The cost is all in one
+  moment: the day that file is renamed, both imports throw at module evaluation and a failed ESM import
+  takes the **whole module** down rather than one window. That file is under active edit right now — it is
+  where `openFor` just arrived — which is the argument, live.
 
   `merchant.js:6` is a different case and stays: `/modules/coffee-pub-blacksmith/api/blacksmith-api.js` is
   the documented bridge, shown that way in `api-core.md` and `api-sockets.md` both.
@@ -40,43 +98,41 @@ before believing it.
   exactly this and states the reason: `updateWorldTime` only says the number moved, and the edge cases *are*
   the job — a rest advancing eight hours, a GM winding the clock back, one jump crossing the same daily
   boundary several times. It hands over a `crossings` count rather than resolving it, which is the same
-  judgement our restock cadence already makes in its own way ("a shop is full again, it does not accumulate
-  seven days of stock").
+  judgement our restock cadence already makes in its own way.
 
-  **Evaluate rather than adopt on sight.** Two things have to survive it. `isOpen` stays *derived* — that
-  was the fix in `7fd1267`, and a scheduler is precisely the thing that tempts somebody back into storing
-  the state it fires about; a schedule here would trigger a refresh and a restock, never a write of
-  open/closed. And `dailyAt` is per-shop, so each merchant wants its own registration keyed by uuid and
-  re-registered whenever its hours change — which may well be worse than one watcher over every merchant.
-  The question is whether their jump handling is worth that bookkeeping, and it should be answered by
-  reading their implementation, not guessed at here.
+  **Evaluate rather than adopt on sight.** Two things must survive it. `isOpen` stays *derived* — that was
+  the fix in `7fd1267`, and a scheduler is precisely what tempts somebody back into storing the state it
+  fires about; a schedule here triggers a refresh and a restock, never a write of open/closed. And `dailyAt`
+  is per-shop, so each merchant wants its own registration keyed by uuid and re-registered whenever its
+  hours change — which may well be worse than one watcher over every merchant. Answer that by reading their
+  implementation, not by guessing here.
 
 - **Three raw `Hooks.on` registrations, none of them disposable.** `_registerStockWatcher` binds
   `updateItem`, `createItem` and `deleteItem`; `_registerScheduleWatcher` binds `updateWorldTime`.
   `BlacksmithHookManager.registerHook` gives context-based cleanup — the same shape as
   `tokens.disposeByContext`, which `teardown()` already uses for the interaction claim, so half of teardown
-  currently disposes cleanly and half cannot be undone at all.
+  disposes cleanly today and half cannot be undone at all.
 
-  The item watchers also want throttling, which is the practical half of this: a GM dragging a stack between
-  shelves fires `updateItem` per document, and every one of those broadcasts a refresh to every connected
-  client. `api-hookmanager.md` names two combinations that fail silently — `throttleMs` with `debounceMs`
-  discards the debounce, and `once` with `debounceMs` never runs the callback at all.
+  The item watchers also want throttling, which is the practical half: a GM dragging a stack between shelves
+  fires `updateItem` per document, and every one of those broadcasts a refresh to every connected client.
+  `api-hookmanager.md` names two combinations that fail silently — `throttleMs` with `debounceMs` discards
+  the debounce, and `once` with `debounceMs` never runs the callback at all.
 
 - **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
   `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
   wraps SocketLib with a native fallback and a `waitForReady()`.
 
-  Nothing authoritative rides on this traffic — it tells open windows to redraw, and every mutation goes
-  through the GM query envelope — which is why it has been fine and why it is last on this list. The reason
-  to move is the standing one: it is the only place left where Merchant talks to core directly on a surface
-  Blacksmith owns, and "it is only a redraw" is how a second transport gets a second consumer.
+  Nothing authoritative rides on it — it tells open windows to redraw, and every mutation goes through the
+  envelope — which is why it has been fine and why it is last. But once `gmRequest` lands, this is the
+  **only** place left where Merchant talks to core directly on a surface Blacksmith owns, and "it is only a
+  redraw" is how a second transport acquires a second consumer.
 
 - **Two small ones, while anyone is in these files.** `window-merchant-config.js` declares `removeShelf`
-  twice in `ACTION_HANDLERS` (lines 59 and 65). The two are identical so nothing misbehaves, but the second
-  silently wins, and an edit to the first would do nothing at all — which is a bad half-hour. And the
-  comment above `_broadcastRefresh` still reads *"Stock is infinite, so a refresh is only for the GM
-  changing what is on offer"*, which has been false since phase 5. A comment lying about the stock model, on
-  the function that tells every client to redraw, is one a reader has every reason to trust.
+  twice in `ACTION_HANDLERS` (lines 59 and 65). They are identical so nothing misbehaves, but the second
+  silently wins and an edit to the first would do nothing — a bad half-hour. And the comment above
+  `_broadcastRefresh` (`manager-merchant.js:1521`) still reads *"Stock is infinite, so a refresh is only for
+  the GM changing what is on offer"*, false since phase 5. A comment lying about the stock model, on the
+  function that tells every client to redraw, is one a reader has every reason to trust.
 
 ## Inherited lessons
 

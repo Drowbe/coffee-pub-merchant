@@ -1576,6 +1576,18 @@ export class MerchantManager {
 
     static _registerRefreshListener() {
         game.socket.on(`module.${MODULE.ID}`, (data) => {
+            // Slates travel peer to peer and are display only -- settling re-derives
+            // every line and every price on the GM, so the worst a bad message can do
+            // is show somebody a wrong list.
+            if (data?.action === 'slate') {
+                ShopWindow.receiveSlate(data);
+                return;
+            }
+            if (data?.action === 'slateRequest') {
+                if (data.userId === game.user.id) return;
+                ShopWindow.publishSlatesFor(data.tokenUuid);
+                return;
+            }
             if (data?.action !== 'shopRefresh') return;
             if (data.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
             else ShopWindow.refreshForToken(data.tokenUuid);

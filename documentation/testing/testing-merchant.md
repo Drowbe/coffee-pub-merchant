@@ -212,6 +212,19 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Nobody is ever handed **electrum** they did not already have.
 - [ ] A genuinely broke character is still refused, and the message is about money, not coins.
 
+## 2d-ix. Shared slates
+
+- [ ] As a **player**, put things on the slate. As the **GM**, open the same shop and switch "Buying as" to
+      that character → you see **their** slate, not an empty one.
+- [ ] The character picker **badges** characters who have lines on the slate.
+- [ ] Add a line as the player → the GM's view updates without a refresh, and the other way round.
+- [ ] As GM, **negotiate a price** on their slate line → the player sees the price appear.
+- [ ] As GM, **complete the transaction** on their behalf → it settles against that character.
+- [ ] Switch "Buying as" to a different character → the slate **changes** to that character's.
+- [ ] Open the shop window *after* a player has filled a slate → you still see it (the ping on open).
+- [ ] Two clients on the same character do not bounce the slate back and forth endlessly.
+- [ ] Reload → slates are gone, which is intended. They are a half-formed intention, not a document.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

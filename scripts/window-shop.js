@@ -124,11 +124,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // and "cart" is still the clearest word for what the code is doing.
     static _baskets = new Map();
 
-    // tokenUuid -> Map(itemId -> quantity). Per client, so naturally per user.
-    // Kept in memory rather than on a document: a cart is a half-formed intention,
-    // and persisting one would mean deciding when somebody else's abandoned cart
-    // expires. It survives closing the window within a session and no longer.
+    // `tokenUuid|shopperUuid` -> Map(itemId -> quantity).
+    //
+    // **Keyed by the character, not by the client**, and mirrored to every client that
+    // can act as that character. A slate belongs to whoever is shopping: switching
+    // "Buying as" switches slate, and a GM switching to a player's character sees the
+    // slate that player is actually looking at, live, with everything on it editable.
+    //
+    // That is not a nicety. Prices are negotiated *on slate lines* by the GM, and
+    // before this the GM could not see a player's slate at all -- so the entire
+    // negotiate workflow only worked if the GM did the shopping, which is not what it
+    // is for.
+    //
+    // Still **in memory, still not persisted**. A slate is a half-formed intention and
+    // persisting one means deciding when an abandoned one expires; a session-scoped
+    // mirror expires by itself. Permission needs no special handling either: the only
+    // characters you can switch to are the ones you can act as, so a player sees their
+    // own slates and a GM sees everyone's, for free.
     static _carts = new Map();
+
+    // `tokenUuid|shopperUuid` -> the last snapshot this client sent or received.
+    // Set on both, which is what stops two clients bouncing the same slate back and
+    // forth: a slate that arrives is already "published" as far as we are concerned.
+    static _published = new Map();
 
     static DEFAULT_OPTIONS = foundry.utils.mergeObject(
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
@@ -263,7 +281,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!actors.length) return null;
 
         const list = blacksmith.entityList.create({
-            entities: actors.map((actor) => ({ id: actor.uuid, uuid: actor.uuid, name: actor.name, img: actor.img })),
+            entities: actors.map((actor) => {
+                // A GM has to know somebody is mid-purchase before it occurs to them to
+                // switch and look. Without this the shared slate is technically visible
+                // and practically invisible.
+                const lines = this._slateSizeFor(actor.uuid);
+                return {
+                    id: actor.uuid,
+                    uuid: actor.uuid,
+                    name: actor.name,
+                    img: actor.img,
+                    badges: lines
+                        ? [{ label: `${lines} on the slate` }]
+                        : []
+                };
+            }),
             mode: 'single',
             inputName: 'merchant-actor',
             selected: selectedUuid ?? actors[0].uuid
@@ -386,14 +418,103 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available - (this.cart.get(item.id) ?? 0));
     }
 
+    /** How many lines that character has on the slate in *this* shop, mine or theirs. */
+    _slateSizeFor(shopperUuid) {
+        const key = `${this.tokenUuid}|${shopperUuid}`;
+        return (ShopWindow._carts.get(key)?.size ?? 0) + (ShopWindow._baskets.get(key)?.size ?? 0);
+    }
+
+    /** One shop, one character. Switching who you are shopping as switches slate. */
+    get slateKey() {
+        return `${this.tokenUuid}|${this.recipient?.uuid ?? 'nobody'}`;
+    }
+
     get cart() {
-        if (!ShopWindow._carts.has(this.tokenUuid)) ShopWindow._carts.set(this.tokenUuid, new Map());
-        return ShopWindow._carts.get(this.tokenUuid);
+        const key = this.slateKey;
+        if (!ShopWindow._carts.has(key)) ShopWindow._carts.set(key, new Map());
+        return ShopWindow._carts.get(key);
     }
 
     get basket() {
-        if (!ShopWindow._baskets.has(this.tokenUuid)) ShopWindow._baskets.set(this.tokenUuid, new Map());
-        return ShopWindow._baskets.get(this.tokenUuid);
+        const key = this.slateKey;
+        if (!ShopWindow._baskets.has(key)) ShopWindow._baskets.set(key, new Map());
+        return ShopWindow._baskets.get(key);
+    }
+
+    /**
+     * Publish this slate if it has changed since the last thing sent or received.
+     *
+     * Called from `_onRender`, which is the one place every slate change passes
+     * through -- there are sixteen mutation sites and a rule that says "remember to
+     * broadcast" at each of them is a rule that gets forgotten once. Comparing
+     * snapshots also makes it idempotent, so rendering for an unrelated reason costs
+     * nothing.
+     */
+    _syncSlate() {
+        const key = this.slateKey;
+        const snapshot = JSON.stringify([[...this.cart], [...this.basket]]);
+        if (ShopWindow._published.get(key) === snapshot) return;
+        ShopWindow._published.set(key, snapshot);
+        this._publishSlate();
+    }
+
+    /**
+     * Tell every other client what this slate now holds.
+     *
+     * Sent after the change rather than as a request to make one: the slate is not
+     * authoritative over anything -- settling re-derives every line and every price on
+     * the GM -- so the worst a bad message can do is show somebody a wrong list.
+     *
+     * Last write wins. Two people driving one character's slate at the same moment is a
+     * conversation to have at the table, not a conflict to resolve in code.
+     */
+    _publishSlate() {
+        const [tokenUuid, shopperUuid] = this.slateKey.split('|');
+        game.socket.emit(`module.${MODULE.ID}`, {
+            action: 'slate',
+            tokenUuid,
+            shopperUuid,
+            cart: [...this.cart],
+            basket: [...this.basket]
+        });
+    }
+
+    /**
+     * Ask everyone already in this shop to say what is on their slate.
+     *
+     * A window opening late otherwise sees an empty room until somebody happens to add
+     * something. Curator's loot presence does the same thing for the same reason, and
+     * for the same reason it is peer to peer rather than GM-brokered: nothing
+     * authoritative hangs off a slate, and routing it through the GM would make an
+     * absent GM look like nobody is shopping.
+     */
+    _requestSlates() {
+        game.socket.emit(`module.${MODULE.ID}`, {
+            action: 'slateRequest',
+            tokenUuid: this.tokenUuid,
+            userId: game.user.id
+        });
+    }
+
+    /** Answer a `slateRequest` with every slate this client is actually driving. */
+    static publishSlatesFor(tokenUuid) {
+        for (const window of ShopWindow._windows.values()) {
+            if (window.tokenUuid === tokenUuid) window._publishSlate();
+        }
+    }
+
+    /** Apply a slate published elsewhere, and redraw anyone looking at it. */
+    static receiveSlate({ tokenUuid, shopperUuid, cart = [], basket = [] } = {}) {
+        if (!tokenUuid || !shopperUuid) return;
+        const key = `${tokenUuid}|${shopperUuid}`;
+        ShopWindow._carts.set(key, new Map(cart));
+        ShopWindow._baskets.set(key, new Map(basket));
+        // Recorded as published, so receiving a slate never bounces it back.
+        ShopWindow._published.set(key, JSON.stringify([cart, basket]));
+
+        for (const window of ShopWindow._windows.values()) {
+            if (window.slateKey === key) void window.render(false);
+        }
     }
 
     /**
@@ -1244,6 +1365,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         super._onRender?.(context, options);
 
         this._keepScroll();
+        // Every slate change ends in a render, so this is the one place that has to
+        // remember to broadcast. Asking one shop for its slates is likewise done once,
+        // on the first render, which is when a window can first be looked at.
+        this._syncSlate();
+        if (!this._askedForSlates) {
+            this._askedForSlates = true;
+            this._requestSlates();
+        }
+
         void this._applyItemTooltips();
         this._bindQuantityEdits();
         this._bindSearch();

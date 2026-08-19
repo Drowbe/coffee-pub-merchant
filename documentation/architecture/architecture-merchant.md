@@ -269,8 +269,16 @@ identity into a client-supplied one. **Do not build a mitigation for this.** Whe
 and micro-titlebar folding. One window per token, held in a static map, so double-clicking twice focuses
 rather than duplicates.
 
-**The slate** is two `Map`s of `itemId → quantity` — `cart` (buying) and `basket` (selling) — held on the
-window instance, never persisted. `_cartLines()` and `_basketLines()` turn them into render context, and
+**The slate** is two `Map`s of `itemId → quantity` — `cart` (buying) and `basket` (selling) — keyed by
+`tokenUuid|shopperUuid` and **mirrored to every client that can act as that character**, never persisted.
+
+Keyed by the *character*, not the client: switching "Buying as" switches slate, and a GM switching to a
+player's character sees the slate that player is looking at. That is what makes negotiation work at all,
+since prices are agreed on slate lines. Mirrored peer to peer and display-only — settling re-derives
+everything on the GM — with a `ping` on open so a late window sees the room. Published from `_onRender`
+rather than from the sixteen mutation sites, and snapshot-compared so it cannot echo.
+
+Permissions fall out for free: the only characters you can switch to are the ones you can act as. `_cartLines()` and `_basketLines()` turn them into render context, and
 that is where stock trimming, TBD lines and totals happen. Both re-resolve from documents on every render,
 so a shelf emptied out from under a standing slate trims the line instead of failing the checkout.
 
