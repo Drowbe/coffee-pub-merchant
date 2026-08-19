@@ -130,10 +130,30 @@
 
             <div class="merchant-shop-stock">
         {{#if hasShelves}}
+                {{!-- Which side of the counter you are on. It was a Sell button inside
+                      the slate header, which put a control that changes what the *stock*
+                      column shows into the panel that shows the result -- and left no
+                      way back except pressing it again and knowing that it toggled.
+                      Two buttons, one of them lit, says where you are as well as what
+                      you can do. --}}
+                {{#if canSell}}
+                    <section class="merchant-shop-section merchant-shop-sides">
+                        <button type="button" class="merchant-shop-side{{#unless sell.open}} is-on{{/unless}}"
+                                data-action="showBuy" data-tooltip="Browse what this shop sells">
+                            <i class="fa-solid fa-basket-shopping"></i> Buy
+                        </button>
+                        <button type="button" class="merchant-shop-side{{#if sell.open}} is-on{{/if}}"
+                                data-action="showSell" {{#unless sellEnabled}}disabled{{/unless}}
+                                data-tooltip="{{sellTooltip}}">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> Sell
+                        </button>
+                    </section>
+                {{/if}}
+
                 {{!-- Pinned to the top of the stock column: it belongs to the list it
                       filters, not to the window, and stays put while that list scrolls
                       under it. --}}
-                <section class="merchant-shop-section merchant-shop-search">
+                <section class="merchant-shop-section merchant-shop-search{{#if sell.open}} is-hidden{{/if}}">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="search" placeholder="Search this shop" aria-label="Search stock"
                            data-shop-search autocomplete="off" spellcheck="false">
@@ -185,7 +205,7 @@
                 </section>
             {{/if}}
 
-                <div class="merchant-shop-shelves">
+                <div class="merchant-shop-shelves{{#if sell.open}} is-hidden{{/if}}">
             {{#each shelves}}
                 <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
                     <h3>
@@ -295,16 +315,6 @@
                                         <i class="fa-solid fa-scroll"></i> <span>Slate</span>
                                     {{/if}}
                                 </span>
-                                {{#if canSell}}
-                                    {{!-- The picker was only reachable from the empty
-                                          state, so putting one thing on the slate hid
-                                          the only way to add a second without dragging. --}}
-                                    <button type="button" class="merchant-shop-slate-sell"
-                                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
-                                            data-tooltip="Sell something from your pack">
-                                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
-                                    </button>
-                                {{/if}}
                             </div>
 
                             {{!-- Labels in one column, figures in another, so the eye

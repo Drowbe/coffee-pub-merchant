@@ -192,7 +192,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
-        sell: (_event, _target, win) => win.toggleSell(),
+        showBuy: (_event, _target, win) => win.showSide(false),
+        showSell: (_event, _target, win) => win.showSide(true),
         sortSell: (_event, _target, win) => win.cycleSellSort(),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
@@ -463,10 +464,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return ShopWindow.SELL_SORTS.find((s) => s.key === this._sellSort) ?? ShopWindow.SELL_SORTS[0];
     }
 
-    /** Open the pack, or put it away. Drag-and-drop into the slate still works either way. */
-    toggleSell() {
-        this._selling = !this._selling;
-        if (this._selling) playFeedback(SOUND.SLATE_ADD);
+    /**
+     * Show the shop's stock, or your own pack. One column, two sides of a counter.
+     *
+     * Set rather than toggled: the buttons say which side you are on, so pressing the
+     * one already lit should do nothing rather than flip you to the other.
+     */
+    showSide(selling) {
+        if (this._selling === selling) return;
+        this._selling = selling;
         void this.render(false);
     }
 
@@ -586,7 +592,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** Add one from the pack. The row already knows it is the selling side. */
     async addToBasketRow(itemId) {
         const item = this.recipient?.items?.get(itemId);
-        if (item) await this.addToBasket(item, { silent: true });
+        if (item) await this.addToBasket(item);
     }
 
     /**
@@ -1051,7 +1057,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * Shared by the picker and the drop zone, so a dragged item and a chosen one land
      * the same way and are refused for the same reasons.
      */
-    async addToBasket(item, { silent = false } = {}) {
+    async addToBasket(item) {
         playFeedback(SOUND.SLATE_ADD);
         const seller = this.recipient;
         const token = await this._resolveToken();
@@ -1085,9 +1091,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
 
         this.basket.set(item.id, held + 1);
-        // The picker adds several and renders once at the end; a drop adds one and
-        // renders here.
-        if (!silent) await this.render(false);
+        await this.render(false);
     }
 
     async removeFromBasket(itemId) {
