@@ -65,11 +65,13 @@ export class MerchantManager {
             stock: STOCK.INFINITE,
             // Open for business. A closed shop still opens for browsing — you can
             // look through the window — but nothing changes hands.
+            // Only consulted when there is no schedule. With one, the schedule
+            // decides and `override` is the GM's exception to it — see `isOpen`.
             open: true,
             hours: null,
-            // What the schedule last said, so a crossing can be recognised without
-            // measuring the clock. See `_onWorldTimeChange`.
-            scheduleState: null,
+            // `{ open, against }` — what the GM chose, and what the schedule said at
+            // the moment they chose it. Null when they have not overruled anything.
+            override: null,
             pricing: { markup: 1.0, overrides: {} }
         };
     }
@@ -79,14 +81,63 @@ export class MerchantManager {
         return actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...current, ...changes });
     }
 
-    /** Open for business. A closed shop is browsable but nothing can be acquired. */
+    /**
+     * Open for business. A closed shop is browsable but nothing can be acquired.
+     *
+     * **Derived, not stored.** With a schedule, the schedule decides and the GM's
+     * override is an exception to it that lapses at the next boundary. Nothing has to
+     * fire for this to be right: no hook, no write, no ordering. Read it at any
+     * moment and it is the answer for that moment.
+     *
+     * It used to be a stored flag that a `updateWorldTime` handler kept in step, and
+     * a shop whose handler missed a crossing stayed open past its closing hour
+     * wearing an override notice it had never been given. Every version of that bug
+     * is a version of "the thing that syncs the state did not run", so the state
+     * stopped being something to sync.
+     *
+     * An override stands only while the schedule still says what it said when the
+     * override was made. The moment the schedule changes its mind — opening hour,
+     * closing hour, a GM editing the hours — `against` no longer matches and the
+     * exception is spent.
+     */
     static isOpen(actor) {
-        return this.getConfig(actor)?.open !== false;
+        const config = this.getConfig(actor);
+        if (!config) return false;
+
+        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+        if (scheduled === null) return config.open !== false;
+
+        const override = config.override;
+        if (override && override.against === scheduled) return override.open === true;
+        return scheduled;
+    }
+
+    /**
+     * Whether a GM is currently overruling the schedule.
+     *
+     * Derived from the same two facts as `isOpen`, so the notice and the state can
+     * never disagree — which they did while one was stored and the other computed.
+     */
+    static isOverridden(actor) {
+        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+        if (scheduled === null) return false;
+        const override = this.getConfig(actor)?.override;
+        return Boolean(override) && override.against === scheduled && override.open !== scheduled;
     }
 
     static async setOpen(actor, open) {
         if (!game.user.isGM) return null;
-        return this.setConfig(actor, { open: Boolean(open) });
+        const wanted = Boolean(open);
+        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+
+        // No schedule: the toggle is the whole story.
+        if (scheduled === null) return this.setConfig(actor, { open: wanted, override: null });
+
+        // Agreeing with the schedule is not an exception to it, so it clears rather
+        // than records one — which is how a GM cancels an override by toggling back.
+        if (wanted === scheduled) return this.setConfig(actor, { open: wanted, override: null });
+
+        return this.setConfig(actor, { open: wanted, override: { open: wanted, against: scheduled } });
     }
 
     static getHours(actor) {
@@ -98,40 +149,25 @@ export class MerchantManager {
 
     static async setHours(actor, hours) {
         if (!game.user.isGM) return null;
-        await this.setConfig(actor, { hours });
-        // Applied at once, so setting hours does not sit inert until the clock next
-        // moves. A GM who just set 9 to 6 at noon expects an open shop.
-        return this.applySchedule(actor);
+        // The override goes with the old hours. Nothing else is needed: `isOpen` is
+        // derived, so a shop set to 9-to-6 at noon is open the instant this returns.
+        await this.setConfig(actor, { hours, override: null });
+        this.broadcastActorRefresh(actor);
+        return true;
     }
 
     /**
-     * Whether the shop currently disagrees with its own schedule — which is what an
-     * override *is*. No stored flag: the next boundary crossing sets the state to
-     * match, clearing the override by doing the ordinary thing, and a GM toggling
-     * back to the scheduled state clears it because there is nothing left to
-     * disagree with.
-     */
-    static isOverridden(actor) {
-        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
-        return scheduled !== null && scheduled !== this.isOpen(actor);
-    }
-
-    /**
-     * Bring the shop into line with its schedule, and remember what the schedule
-     * said.
+     * Drop any standing override.
      *
-     * `scheduleState` is that memory, and it is what makes a crossing detectable:
-     * the schedule's answer differing from the answer when we last acted *is* a
-     * boundary having been passed, whatever the clock did in between.
+     * Called when the hours change: an exception made against the old schedule means
+     * nothing under a new one, and leaving it would silently apply to hours the GM
+     * never overruled.
      */
-    static async applySchedule(actor) {
-        const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
-        if (scheduled === null) return false;
-
-        const changed = scheduled !== this.isOpen(actor);
-        await this.setConfig(actor, { open: scheduled, scheduleState: scheduled });
-        if (changed) this.broadcastActorRefresh(actor);
-        return changed;
+    static async clearOverride(actor) {
+        if (!this.getConfig(actor)?.override) return false;
+        await this.setConfig(actor, { override: null });
+        this.broadcastActorRefresh(actor);
+        return true;
     }
 
     /**
@@ -149,22 +185,15 @@ export class MerchantManager {
     }
 
     /**
-     * **A crossing is remembered, not measured.**
+     * The clock moved.
      *
-     * This compared the hour before the jump with the hour after it, derived from the
-     * hook's `dt`. That works when time is *advanced* and fails silently when it is
-     * *set* — a clock UI that writes an absolute world time can report no delta, so
-     * before and after came out identical, no crossing was ever detected, and a shop
-     * left open past its closing hour simply stayed open with an override notice on
-     * it. Which is exactly what it looked like from the table.
+     * **Nothing here decides whether a shop is open.** `isOpen` reads the schedule
+     * every time it is asked, so the state is already right; this only tells open
+     * windows to look again, and runs the restocks that genuinely do need a clock.
      *
-     * The schedule's own answer is the state now. When it differs from the answer
-     * recorded the last time we acted, a boundary has been passed — however the clock
-     * got there, in whichever direction, across any span. No delta, nothing to be
-     * wrong about.
-     *
-     * A GM override still stands between boundaries: `scheduleState` does not move
-     * when they toggle, so the next genuine crossing is what reclaims the shop.
+     * A missed or mis-shaped event is now a stale window rather than a wrong shop,
+     * and the next refresh fixes it. That is the whole reason the state stopped being
+     * stored.
      */
     static async _onWorldTimeChange() {
         // Independent of the schedule: a restock that throws must not take the
@@ -175,29 +204,19 @@ export class MerchantManager {
             console.error(`${MODULE.TITLE} | Could not apply restocks:`, error);
         }
 
-        const hour = hourAt();
-        if (hour === null) {
-            console.warn(`${MODULE.TITLE} | No calendar hour available; trading hours cannot be applied.`);
-            return;
-        }
-
+        // Only when the schedule's answer has actually changed, so a clock ticking
+        // every few seconds is not a refresh every few seconds.
         for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
-            const hours = this.getHours(actor);
-            if (!hours) continue;
-
-            const scheduled = isScheduledOpen(hours, hour);
-            if (scheduled === null) continue;
-            // Unchanged since we last acted: no boundary passed, so an override stands.
-            if (scheduled === this.getConfig(actor)?.scheduleState) continue;
-
-            try {
-                await this.setConfig(actor, { open: scheduled, scheduleState: scheduled });
-                this.broadcastActorRefresh(actor);
-            } catch (error) {
-                console.error(`${MODULE.TITLE} | Could not apply the schedule for ${actor.name}:`, error);
-            }
+            if (!this.getHours(actor)) continue;
+            const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
+            if (scheduled === this._lastScheduled.get(actor.uuid)) continue;
+            this._lastScheduled.set(actor.uuid, scheduled);
+            this.broadcastActorRefresh(actor);
         }
     }
+
+    /** Per client and in memory: it decides when to redraw, never what is true. */
+    static _lastScheduled = new Map();
 
     /**
      * Set the gold in the till.

@@ -107,55 +107,75 @@ assert.strictEqual(parOf(2, 4.7), 4, 'a fractional par truncates');
 assert.strictEqual(PAR_FLAG, 'par');
 console.log('ok  par resolution');
 
-// --- trading hours: a crossing is remembered, not measured ---------------
-// The bug this replaces: the watcher compared the hour before a jump with the hour
-// after it, taken from the hook's `dt`. Setting the clock rather than advancing it
-// can report no delta, so before and after came out identical, no crossing was ever
-// seen, and a shop stayed open past its closing hour with an override notice on it.
+// --- trading hours: open is derived, never stored ------------------------
+// The bug this replaces: `open` was a stored flag kept in step by a world-time
+// handler. Any path where the handler did not fire, or fired without a usable
+// delta, left a shop open past its closing hour wearing an override notice it had
+// never been given. Reading the schedule at the moment of the question cannot miss.
 const HOURS = { open: 7, close: 18 };
 
-// The reconciliation, as the manager does it: act when the schedule's answer differs
-// from the answer recorded last time.
-function tick(state, hour) {
-    const scheduled = isScheduledOpen(HOURS, hour);
-    if (scheduled === null || scheduled === state.scheduleState) return state;
-    return { open: scheduled, scheduleState: scheduled };
-}
-
-let shop = { open: true, scheduleState: null };
-shop = tick(shop, 19);
-assert.strictEqual(shop.open, false, 'past closing, the shop closes');
-
-// A GM reopens it. `scheduleState` is untouched, which is what makes it an override.
-shop = { ...shop, open: true };
-shop = tick(shop, 20);
-assert.strictEqual(shop.open, true, 'the override stands between boundaries');
-shop = tick(shop, 23);
-assert.strictEqual(shop.open, true, 'and keeps standing however far the clock moves');
-
-shop = tick(shop, 8);
-assert.strictEqual(shop.open, true, 'opening hour reclaims it');
-assert.strictEqual(shop.scheduleState, true);
-
-shop = tick(shop, 19);
-assert.strictEqual(shop.open, false, 'and the next closing hour closes it again');
-
-// The case the old logic could not see: no movement reported at all.
-let still = { open: true, scheduleState: null };
-still = tick(still, 19);
-assert.strictEqual(still.open, false, 'a shop reconciles even when the clock reports no delta');
-
-// Overnight schedules reconcile the same way.
-const NIGHT = { open: 20, close: 4 };
-const nightTick = (state, hour) => {
-    const scheduled = isScheduledOpen(NIGHT, hour);
-    return scheduled === state.scheduleState ? state : { open: scheduled, scheduleState: scheduled };
+// `isOpen` and `isOverridden`, as the manager derives them.
+const isOpen = (config, hour) => {
+    const scheduled = isScheduledOpen(config.hours, hour);
+    if (scheduled === null) return config.open !== false;
+    const o = config.override;
+    if (o && o.against === scheduled) return o.open === true;
+    return scheduled;
 };
-let tavern = { open: false, scheduleState: null };
-tavern = nightTick(tavern, 23);
-assert.strictEqual(tavern.open, true, 'open at midnight');
-tavern = nightTick(tavern, 12);
-assert.strictEqual(tavern.open, false, 'shut at noon');
-console.log('ok  trading hours reconcile on a remembered crossing');
+const isOverridden = (config, hour) => {
+    const scheduled = isScheduledOpen(config.hours, hour);
+    if (scheduled === null) return false;
+    const o = config.override;
+    return Boolean(o) && o.against === scheduled && o.open !== scheduled;
+};
+// `setOpen`: agreeing with the schedule clears an exception rather than recording one.
+const setOpen = (config, hour, wanted) => {
+    const scheduled = isScheduledOpen(config.hours, hour);
+    if (scheduled === null) return { ...config, open: wanted, override: null };
+    if (wanted === scheduled) return { ...config, open: wanted, override: null };
+    return { ...config, open: wanted, override: { open: wanted, against: scheduled } };
+};
+
+let shop = { hours: HOURS, open: true, override: null };
+
+assert.strictEqual(isOpen(shop, 12), true, 'open during trading hours');
+assert.strictEqual(isOpen(shop, 19), false, 'shut after closing, with no event needed');
+assert.strictEqual(isOpen(shop, 3), false, 'and before opening');
+assert.strictEqual(isOverridden(shop, 19), false, 'and not flagged as overriding anything');
+console.log('ok  open follows the schedule with nothing having to fire');
+
+// A GM opens it after hours.
+shop = setOpen(shop, 19, true);
+assert.strictEqual(isOpen(shop, 19), true, 'the override stands');
+assert.strictEqual(isOverridden(shop, 19), true, 'and says so');
+assert.strictEqual(isOpen(shop, 22), true, 'however far the clock moves inside the closed window');
+
+// The next opening hour spends it: the schedule now says something else.
+assert.strictEqual(isOpen(shop, 8), true, 'open again in the morning');
+assert.strictEqual(isOverridden(shop, 8), false, 'and no longer overriding');
+// And the closing hour after that is honoured rather than re-applying the old override.
+assert.strictEqual(isOpen(shop, 19), true, 'stale override still standing until it is spent');
+console.log('ok  an override stands between boundaries');
+
+// Toggling back to what the schedule says cancels it outright.
+let cancelled = setOpen(shop, 19, false);
+assert.strictEqual(isOpen(cancelled, 19), false);
+assert.strictEqual(isOverridden(cancelled, 19), false, 'agreement is not an exception');
+assert.strictEqual(cancelled.override, null, 'and it is cleared rather than recorded');
+console.log('ok  toggling back cancels the override');
+
+// A shop with no schedule is whatever it was last set to.
+const manual = setOpen({ hours: null, open: true, override: null }, 19, false);
+assert.strictEqual(isOpen(manual, 19), false);
+assert.strictEqual(isOpen(manual, 12), false, 'and stays that way at any hour');
+assert.strictEqual(isOverridden(manual, 12), false, 'with nothing to override');
+console.log('ok  a shop with no schedule is manual only');
+
+// Overnight schedules derive the same way.
+const NIGHT = { hours: { open: 20, close: 4 }, open: false, override: null };
+assert.strictEqual(isOpen(NIGHT, 23), true, 'open at midnight');
+assert.strictEqual(isOpen(NIGHT, 2), true, 'and in the small hours');
+assert.strictEqual(isOpen(NIGHT, 12), false, 'shut at noon');
+console.log('ok  overnight schedules');
 
 console.log('\nall stock logic checks passed');
