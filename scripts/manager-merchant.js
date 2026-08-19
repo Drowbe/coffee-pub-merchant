@@ -67,6 +67,9 @@ export class MerchantManager {
             // look through the window — but nothing changes hands.
             open: true,
             hours: null,
+            // What the schedule last said, so a crossing can be recognised without
+            // measuring the clock. See `_onWorldTimeChange`.
+            scheduleState: null,
             pricing: { markup: 1.0, overrides: {} }
         };
     }
@@ -113,12 +116,22 @@ export class MerchantManager {
         return scheduled !== null && scheduled !== this.isOpen(actor);
     }
 
+    /**
+     * Bring the shop into line with its schedule, and remember what the schedule
+     * said.
+     *
+     * `scheduleState` is that memory, and it is what makes a crossing detectable:
+     * the schedule's answer differing from the answer when we last acted *is* a
+     * boundary having been passed, whatever the clock did in between.
+     */
     static async applySchedule(actor) {
         const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
-        if (scheduled === null || scheduled === this.isOpen(actor)) return false;
-        await this.setConfig(actor, { open: scheduled });
-        this.broadcastActorRefresh(actor);
-        return true;
+        if (scheduled === null) return false;
+
+        const changed = scheduled !== this.isOpen(actor);
+        await this.setConfig(actor, { open: scheduled, scheduleState: scheduled });
+        if (changed) this.broadcastActorRefresh(actor);
+        return changed;
     }
 
     /**
@@ -129,33 +142,56 @@ export class MerchantManager {
      * so advancing eight hours at once still lands on the right state.
      */
     static _registerScheduleWatcher() {
-        Hooks.on('updateWorldTime', (worldTime, dt) => {
+        Hooks.on('updateWorldTime', () => {
             if (!game.user.isGM) return;
-            void this._onWorldTimeChange(worldTime, dt);
+            void this._onWorldTimeChange();
         });
     }
 
-    static async _onWorldTimeChange(worldTime, dt) {
-        // Restocking rides the same watcher rather than registering a second one.
-        // One clock, one hook, one thing to remember.
-        await this._applyRestocks(worldTime);
+    /**
+     * **A crossing is remembered, not measured.**
+     *
+     * This compared the hour before the jump with the hour after it, derived from the
+     * hook's `dt`. That works when time is *advanced* and fails silently when it is
+     * *set* — a clock UI that writes an absolute world time can report no delta, so
+     * before and after came out identical, no crossing was ever detected, and a shop
+     * left open past its closing hour simply stayed open with an override notice on
+     * it. Which is exactly what it looked like from the table.
+     *
+     * The schedule's own answer is the state now. When it differs from the answer
+     * recorded the last time we acted, a boundary has been passed — however the clock
+     * got there, in whichever direction, across any span. No delta, nothing to be
+     * wrong about.
+     *
+     * A GM override still stands between boundaries: `scheduleState` does not move
+     * when they toggle, so the next genuine crossing is what reclaims the shop.
+     */
+    static async _onWorldTimeChange() {
+        // Independent of the schedule: a restock that throws must not take the
+        // opening hours down with it, which sharing one try did.
+        try {
+            await this._applyRestocks(game.time.worldTime);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not apply restocks:`, error);
+        }
 
-        const previousHour = hourAt(worldTime - (Number(dt) || 0));
-        const currentHour = hourAt(worldTime);
-        if (previousHour === null || currentHour === null) return;
+        const hour = hourAt();
+        if (hour === null) {
+            console.warn(`${MODULE.TITLE} | No calendar hour available; trading hours cannot be applied.`);
+            return;
+        }
 
         for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
             const hours = this.getHours(actor);
             if (!hours) continue;
 
-            const before = isScheduledOpen(hours, previousHour);
-            const after = isScheduledOpen(hours, currentHour);
-            // Only a crossing acts. Between boundaries a GM override stands.
-            if (before === after) continue;
-            if (after === this.isOpen(actor)) continue;
+            const scheduled = isScheduledOpen(hours, hour);
+            if (scheduled === null) continue;
+            // Unchanged since we last acted: no boundary passed, so an override stands.
+            if (scheduled === this.getConfig(actor)?.scheduleState) continue;
 
             try {
-                await this.setConfig(actor, { open: after });
+                await this.setConfig(actor, { open: scheduled, scheduleState: scheduled });
                 this.broadcastActorRefresh(actor);
             } catch (error) {
                 console.error(`${MODULE.TITLE} | Could not apply the schedule for ${actor.name}:`, error);

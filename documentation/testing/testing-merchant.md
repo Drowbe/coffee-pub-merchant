@@ -102,6 +102,10 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Setting hours applies immediately: set 9–6 during the day and the shop opens without touching the clock.
 - [ ] The shop's merchant box shows the hours beside the stock count.
 - [ ] Advance the world clock past the closing hour → the shop closes on its own, for players too.
+- [ ] **Set** the clock rather than advancing it — drag a scrubber, type a time — and it still closes.
+      *This is what was broken: a clock that reports no delta left the shop open with an override notice.*
+- [ ] Nudge the clock repeatedly inside the closed window → it stays closed, and does not fight a GM who
+      reopens it.
 - [ ] Advance past the opening hour → it opens again.
 - [ ] Jump **eight hours at once** across a boundary → it still lands on the right state.
 - [ ] Manually open a shop the schedule says is closed → both windows say it is overriding the schedule.

@@ -412,6 +412,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved into the facts row to stop it reserving a column, which fixed the squeeze but buried a piece of state
   worth seeing first.
 
+- **Trading hours: a crossing is remembered, not measured** (`scripts/manager-merchant.js`): the watcher
+  compared the hour before a jump with the hour after it, derived from the `updateWorldTime` hook's delta.
+  That works when time is *advanced* and fails silently when it is *set* — a clock writing an absolute world
+  time can report no delta, so before and after came out identical, no crossing was ever detected, and a shop
+  left open past its closing hour stayed open with an override notice on it. Reported from the table as *"the
+  store never closes, it just gives me the red message."*
+
+  The schedule's own answer is now compared against the answer recorded the last time the shop acted on it
+  (`scheduleState`). A difference **is** a boundary having been passed — however the clock got there, in
+  whichever direction, across any span, with no delta to be wrong about. A GM override still stands between
+  boundaries, because toggling by hand does not move that record.
+
+  Restocking also came off the same `try` as the schedule: a restock that threw used to take the opening
+  hours down with it.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
