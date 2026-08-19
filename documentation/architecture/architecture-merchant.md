@@ -335,18 +335,22 @@ which is the shortest document here and the one most worth reading before writin
 - **`gm-request.js`** — a bridge. Deletion, not a rewrite, when Blacksmith forwards caller identity. §8.
   **The contract is settled**: the envelope hands handlers the resolved User, and consumers must never read
   an identity out of a payload. Our `userId` field comes out in the same change that adds it.
-- **`setTillGold`** writes currency directly, outside `api.inventory`, and **this is a live race, not a
-  stylistic question.** The boundary that matters is not "does it have a counterparty" — it is *does this
+- ~~**`setTillGold`** writes currency directly~~ — **closed.** It goes through `inventory.setCurrency`,
+  which takes the lock. The historical reasoning is kept below because the boundary it establishes still
+  governs: **the question is not whether an operation has a counterparty, it is whether the Actor takes
+  part in locked operations.** A shop does.
+
+  The raw write survives only as a fallback for a Blacksmith without the primitive. The boundary that matters is not "does it have a counterparty" — it is *does this
   Actor take part in locked operations*, and a shop does. A raw `actor.update()` bypasses the inventory
   mutex, so a GM editing the till while a purchase settles interleaves: `exchange` reads the balance under
   the lock, the raw write lands, `exchange` then writes `current + delta` from a read that is now stale.
   The GM's edit disappears or the shop's money is wrong, and neither leaves a trace. Survivable before
   `exchange` existed; not now.
 
-  Blacksmith has agreed to `setCurrency(actorUuid, { gp: 250 })` — no counterparty, no affordability check,
-  absolute values, inside the same lock. An absolute write is not the shape the other primitives refuse:
-  deltas exist because a total computed from a stale read *outside* a lock races, and a GM typing 250 has no
-  read to go stale. **Switch to it the day it ships**; until then this is a known race, not a preference.
+  An absolute write is not the shape the other primitives refuse: deltas exist because a total computed
+  from a stale read *outside* a lock races, and a GM typing 250 has no read to go stale. Only `gp` is
+  named, so the rest of the purse is left alone rather than zeroed — the field is "gold to spend", not
+  "the whole purse".
 - **Four extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
   Nothing is blocked on them.
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.

@@ -23,6 +23,29 @@ export function physicalTypes() {
     return Array.isArray(types) ? types : [...types];
 }
 
+/**
+ * Set an Actor's coin to absolute values, under the inventory lock.
+ *
+ * The till is the only place Merchant writes currency without a counterparty, and it
+ * used to do it with a raw `actor.update()`. That takes no lock, so since `exchange`
+ * shipped a GM adjusting a till mid-session could have their edit silently discarded:
+ * the settlement reads the balance under the lock, the raw write lands, the settlement
+ * writes `stale + delta` over the top of it.
+ *
+ * Only the denominations named are written; omitted ones are left alone rather than
+ * zeroed. No permission check, like every primitive here — we gate it.
+ */
+export async function setCurrency(options) {
+    const api = inventoryApi();
+    if (typeof api?.setCurrency !== 'function') return { ok: false, code: 'SET_CURRENCY_UNAVAILABLE' };
+    return api.setCurrency(options);
+}
+
+/** Whether the running Blacksmith has `setCurrency`. */
+export function hasSetCurrency() {
+    return typeof inventoryApi()?.setCurrency === 'function';
+}
+
 export function isPhysical(type) {
     return physicalTypes().includes(type);
 }

@@ -222,7 +222,7 @@ nothing in the money path is blocked any more.
     an out-of-date Blacksmith, because the symptom otherwise looks like a Merchant bug.
   - **Caller identity — open, and agreed as a known hole.** Nothing to build. `gm-request.js` is a deletion
     when it lands. **Do not build a mitigation.**
-  - **`setCurrency` — approved, being built. Shape known; do not use until Drowbe has committed.**
+  - **`setCurrency` — DONE, adopted 2026-08-19.** `setTillGold` goes through it, keeping our own GM gate.
 
     ```js
     await blacksmith.inventory.setCurrency({ targetActorUuid, currency: { gp: 250 } });
@@ -241,7 +241,7 @@ nothing in the money path is blocked any more.
     Until it ships, `setTillGold` is a **known race**, not a preference: the raw write bypasses the
     inventory mutex, so a GM editing the till while a purchase settles can have their edit silently
     overwritten by `exchange` writing `current + delta` from a read taken before it.
-  - **`omitFlags` — approved, being built. Fixes a live leak of ours.**
+  - **`omitFlags` — DONE, adopted 2026-08-19**, with `ignoreFlags` alongside it for the migration.
 
     ```js
     await blacksmith.inventory.exchange({ transfers: [...], omitFlags: ['coffee-pub-merchant.par'] });

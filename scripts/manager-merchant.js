@@ -9,7 +9,9 @@ import {
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, SHELF_FLAG, SHELF_MODE, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
-import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
+import {
+    grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
+} from './merchant-inventory.js';
 import {
     resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase, fromBase, stockDepth
 } from './merchant-pricing.js';
@@ -237,6 +239,26 @@ export class MerchantManager {
     static async setTillGold(actor, gold) {
         if (!game.user.isGM || !actor) return null;
         const value = Math.max(0, Math.trunc(Number(gold) || 0));
+
+        // Through the primitive, so the write takes the inventory lock. A raw
+        // `actor.update()` takes none, and since `exchange` shipped that is a live race
+        // rather than a stylistic point: a settlement reads the till under the lock, an
+        // unlocked edit lands in between, and the settlement then writes `stale + delta`
+        // straight over it. The GM's edit is gone and nothing says so.
+        //
+        // Only `gp` is named, so silver and copper are left alone rather than zeroed --
+        // this field is "gold to spend", not "the whole purse".
+        if (hasSetCurrency()) {
+            const result = await setCurrency({ targetActorUuid: actor.uuid, currency: { gp: value } });
+            if (!result?.ok) {
+                console.error(`${MODULE.TITLE} | Could not set the till on ${actor.name}:`, result);
+                return null;
+            }
+            return actor;
+        }
+
+        // A Blacksmith without the primitive still has to be able to set a till. The
+        // race is real but rare, and refusing outright would be worse than running it.
         await actor.update({ 'system.currency.gp': value });
         return actor;
     }
@@ -1413,7 +1435,19 @@ export class MerchantManager {
                 ...this._goodsTransfers(merchant, shopper.uuid, bought.lines),
                 ...goodsIn,
                 ...coin
-            ]
+            ],
+            // `par` describes a shelf, not an item, and has no business travelling with
+            // one. `registerTransientFlag` hides it from merge comparison but leaves it
+            // in the payload, so without this it lands in a buyer's inventory and rides
+            // back in if they sell it — see the buyback guard in `getStock`.
+            omitFlags: [`${MODULE.ID}.${PAR_FLAG}`],
+            // **And the same path in `ignoreFlags`, for the migration.** Anything bought
+            // before this landed carries `par` on the buyer's row, so an arrival without
+            // it would compare as different and create a second stack rather than
+            // merging. That is a silent, self-inflicted duplicate-row bug with a long
+            // tail; the transient registry covers our own writes but not the rows that
+            // already exist in somebody's world.
+            ignoreFlags: [`${MODULE.ID}.${PAR_FLAG}`]
         });
 
         // An agreement covers the trade it was made for. Left standing, a haggled
