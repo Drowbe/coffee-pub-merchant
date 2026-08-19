@@ -70,8 +70,14 @@ export function stockDepth(item, { maxPerItem = Infinity, random = Math.random }
     const ceiling = Math.max(1, Math.trunc(Number(maxPerItem)) || 1);
     if (!item) return 1;
 
+    // Whether a thing stacks is **read off the document, never assumed** -- the same
+    // rule `api-inventory` states for itself, and the reason there is no type list
+    // here any more. An item with no `system.quantity` at all has no stack to deepen,
+    // and asking for two of it is not a shop with two of them, it is a wrong number.
+    if (typeof item?.system?.quantity !== 'number') return 1;
+
     // 1. The author already answered.
-    const authored = Math.trunc(Number(item?.system?.quantity));
+    const authored = Math.trunc(Number(item.system.quantity));
     if (Number.isFinite(authored) && authored > 1) return Math.min(authored, ceiling);
 
     // 2. The band caps it; the die fills it.

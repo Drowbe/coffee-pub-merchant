@@ -209,6 +209,12 @@ for (const bad of [null, undefined, {}, goods('consumable', 1, 0), goods('consum
     const d = P.stockDepth(bad, { maxPerItem: 5, random: minRoll });
     assert.ok(Number.isInteger(d) && d >= 1, `depth stays a positive integer for ${JSON.stringify(bad)}`);
 }
+// Stackability is read off the document, never assumed -- the same rule the
+// inventory API states for itself. No `system.quantity` means no stack to deepen.
+assert.strictEqual(P.stockDepth({ type: 'loot', system: { price: { value: 0.1, denomination: 'gp' } } },
+    { maxPerItem: 99, random: maxRoll }), 1, 'an item with no quantity field does not stack');
+assert.strictEqual(P.stockDepth({ type: 'loot', system: { quantity: '3' } },
+    { maxPerItem: 99, random: maxRoll }), 1, 'and a quantity that is a string is not a quantity');
 console.log('ok  how deep a rolled row stacks');
 
 console.log('\nall pricing checks passed');

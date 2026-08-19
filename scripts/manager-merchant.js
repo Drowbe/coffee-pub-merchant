@@ -746,7 +746,7 @@ export class MerchantManager {
 
         if (failures.length) {
             console.error(
-                `${MODULE.TITLE} | ${failures.length} of ${items.length} rolled result`
+                `${MODULE.TITLE} | ${failures.length} of ${items.length} item`
                 + `${items.length === 1 ? '' : 's'} did not reach ${shelf.name}:`,
                 failures.map(({ entry, item }) => ({
                     uuid: item?.itemUuid,
@@ -809,7 +809,21 @@ export class MerchantManager {
             const depth = Math.min(stockDepth(item, { maxPerItem }), room);
             if (!held.has(k)) rows++;
             held.set(k, (held.get(k) ?? 0) + depth);
-            allowed.push({ itemUuid: uuid, quantity: depth });
+
+            // **One entry per unit, not one entry asking for the units.** `grantItems`
+            // validates a requested quantity against the *source* document's own
+            // quantity, which for a compendium template is 1 -- so asking for five
+            // crowbars is refused with INSUFFICIENT_QUANTITY even though a grant draws
+            // nothing down and there is no source to be insufficient. Duplicate entries
+            // in one batch are documented to coalesce into a single row holding the
+            // summed quantity, and both the merge and create paths do sum, so five
+            // entries of one arrive as a row of five. Still one call and still two
+            // writes; `itemUuid` is kept rather than switching to `itemData`, which
+            // would lose the compendium provenance the uuid path preserves.
+            //
+            // Raised with Blacksmith -- a grant has no ceiling to check. When that
+            // lands this collapses back to a single entry carrying `depth`.
+            for (let unit = 0; unit < depth; unit++) allowed.push({ itemUuid: uuid, quantity: 1 });
         }
 
         if (clipped) {
