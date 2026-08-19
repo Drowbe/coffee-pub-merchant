@@ -234,6 +234,26 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The same with the GM's free-take, and with one player buying while another checks out a cart.
 - [ ] Neither player's window is left showing a stale count afterwards.
 
+### Settling
+
+One button in the footer settles the whole visit. Its label is part of the design, not decoration.
+
+- [ ] Nothing in either panel → **no** button in the footer.
+- [ ] Cart only → the button reads **Checkout** and shows what you pay.
+- [ ] Basket only → it reads **Sell** and shows what you receive.
+- [ ] Both → it reads **Trade**. *The label must change before you press it, not in the confirm.*
+- [ ] Neither panel has a button of its own any more; both are just lists with a total.
+- [ ] The confirm itemises **Buying** and **Selling** separately and states the direction of the difference.
+- [ ] Buy 100 gp of goods while selling 60 gp of goods → you pay **40 gp**, once. Not 100 out and 60 back.
+- [ ] An even trade → the confirm says no coin changes hands, and none does.
+- [ ] **Buy something you could not otherwise afford, funded by what you are selling** → it goes through.
+      *This is the case that does not exist as two transactions.*
+- [ ] Buy more than you sell from a merchant with an **empty till** → it works. The shop receives; it needs
+      no coin.
+- [ ] Sell more than you buy from a merchant with an empty till → refused, and nothing moves.
+- [ ] Any refusal leaves **both** panels untouched — no half-settled visit.
+- [ ] A successful settle empties both panels.
+
 ### Cart
 
 The cart is a column to the right of the stock, sticky, and always present.

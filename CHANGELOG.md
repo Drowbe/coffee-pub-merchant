@@ -236,6 +236,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Checkout and Sell sit below their total** rather than beside it, so the button reads as the conclusion of
   the sum instead of its neighbour.
 
+- **One press settles the visit** (`scripts/manager-merchant.js`, `scripts/window-shop.js`): buying and
+  selling are a single transaction, and the button that does it sits in the footer, right-justified, the way
+  the rest of the suite does one main action.
+
+  A counter transaction *is* one transaction. Trading a sword towards a suit of armour is a swap and a
+  difference, not a sale followed by a purchase — and as two it costs two lots of change, has an order that
+  matters, and cannot fund the purchase with the sale. `exchange` was built for exactly this and we were
+  making two round trips through it.
+
+  Three things follow. **"I can afford this if I sell that" works.** A visit that buys more than it sells
+  needs **no coin in the till at all**, because the shop receives. And there is one ordering, one atomicity
+  story and one refusal path instead of two of each.
+
+  Netting the price is not netting payment against change: the difference is worked out before anything
+  moves and whoever owes it must hold it, which is the counter model the primitive already enforces.
+
+  The label follows the state — **Checkout**, **Sell** or **Trade** — and carries the running net. A cart
+  outlives the moment it was filled, so somebody returning to sell one thing has to see "Trade" *before*
+  pressing rather than discovering it in the confirm. Both panels are pure lists now, since an action
+  settling both belongs to neither.
+
+  The GM handler is down to one operation. It was four this morning.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
