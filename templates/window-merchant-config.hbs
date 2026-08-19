@@ -203,7 +203,7 @@
                                         every
                                         <input type="number" min="1" step="1" value="{{restockDays}}"
                                                data-shelf-restock-days="{{id}}" aria-label="Days between restocks">
-                                        day{{#unless oneDay}}s{{/unless}}
+                                        days
                                     </label>
                                 {{/if}}
                             </div>
@@ -221,7 +221,11 @@
                                             <input type="number" min="1" max="20" step="1" value="{{rolls}}"
                                                    data-shelf-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
                                                    aria-label="Rolls per restock">
-                                            roll{{#unless oneRoll}}s{{/unless}}
+                                            {{!-- Always plural: "roll" and "rolls" are
+                                                  different widths, so pluralising it
+                                                  moved the box every time the number
+                                                  crossed one. --}}
+                                            rolls
                                         </label>
                                         {{!-- Off means the table furnishes the shelf when
                                               a GM asks and never again. On means it also

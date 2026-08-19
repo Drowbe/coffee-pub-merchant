@@ -603,7 +603,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     })),
                     stockLabel: STOCK_LABELS[policy] ?? policy,
                     inherited: !config.stock,
-                    oneDay: (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS) === 1,
                     restocking: policy === STOCK.RESTOCKING,
                     // Restocking is the only policy with a cadence, but every shelf
                     // that counts its stock can be refilled by hand.
@@ -617,7 +616,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         // than left blank, so a GM can see which one to remove.
                         name: this._tableName(entry.uuid) ?? 'Missing table',
                         rolls: entry.rolls,
-                        oneRoll: entry.rolls === 1,
                         auto: entry.auto
                     })),
                     hasTables: MerchantManager.getShelfTables(item).length > 0
