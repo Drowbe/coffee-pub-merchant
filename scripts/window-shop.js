@@ -119,9 +119,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
         {
             classes: ['merchant-shop-window'],
-            position: { width: 520, height: 560 },
+            // Wide enough for the stock and the cart side by side: 300 + 220 for the
+            // two flex bases, plus the gap and the content padding. Narrower than this
+            // and the cart wraps underneath, which is correct but is not the layout
+            // the shop should open in.
+            position: { width: 660, height: 600 },
             window: { title: 'Shop', resizable: true, minimizable: true },
-            windowSizeConstraints: { minWidth: 420, minHeight: 320, maxWidth: 900, maxHeight: 'calc(100vh - 40px)' },
+            windowSizeConstraints: { minWidth: 380, minHeight: 320, maxWidth: 1040, maxHeight: 'calc(100vh - 40px)' },
             toolTitlebar: 'full',
             rememberPosition: false,
             windowPositionKey: 'merchant-shop'
@@ -1044,6 +1048,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _onRender(context, options) {
         super._onRender?.(context, options);
 
+        this._measurePinned();
         this._bindSearch();
         // Re-applied after every render, because a refresh, a GM stocking a shelf, or
         // another player's purchase all rebuild the list underneath a standing search.
@@ -1119,6 +1124,32 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // So the query lives on the window, the filter is one pass over rendered rows, and
     // `_onRender` re-applies it. Typing never re-renders; a render never loses the
     // search.
+
+    /**
+     * Publish the pinned header's height so the cart can stick below it.
+     *
+     * The cart is `position: sticky`, and sticking it to the top of the scroller
+     * would park it *behind* the header, which is sticky there too. The offset has
+     * to be the header's real height: it changes with the shop description, the
+     * closed-for-browsing notice, and the schedule-override line, so it cannot be a
+     * constant in the stylesheet.
+     *
+     * Observed rather than measured once, because those three appear and disappear
+     * without a re-render — a GM toggling the shop open is a socket refresh away.
+     */
+    _measurePinned() {
+        const root = this.element;
+        const pinned = root?.querySelector('.merchant-shop-pinned');
+        if (!root || !pinned) return;
+
+        const publish = () => root.style.setProperty('--merchant-pinned-h', `${pinned.offsetHeight}px`);
+        publish();
+
+        this._pinnedObserver?.disconnect();
+        if (typeof ResizeObserver !== 'function') return;
+        this._pinnedObserver = new ResizeObserver(publish);
+        this._pinnedObserver.observe(pinned);
+    }
 
     /** Bound once per element. Re-render replaces the node, hence the guard. */
     _bindSearch() {
@@ -1246,6 +1277,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     _onClose(options) {
         this.constructor._windows.delete(this.tokenUuid);
+        // An observer outlives the element it watches unless it is told not to.
+        this._pinnedObserver?.disconnect();
+        this._pinnedObserver = null;
         super._onClose?.(options);
     }
 }

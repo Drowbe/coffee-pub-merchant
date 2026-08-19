@@ -194,7 +194,10 @@
 /* --- Cart ------------------------------------------------------------- */
 .merchant-shop-cart { border-color: color-mix(in srgb, #2f6b33 30%, var(--blacksmith-tool-divider)); }
 .merchant-shop-cart-list { display: flex; flex-direction: column; gap: 3px; }
-.merchant-shop-cart-line { display: grid; grid-template-columns: 24px minmax(0,1fr) 34px 88px 24px; gap: 8px; align-items: center; padding: 3px 5px; border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-shop-cart-line { display: grid; grid-template-columns: 24px minmax(0,1fr) 20px; gap: 4px 7px; align-items: center; padding: 4px 5px; border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
+/* Quantity and price on a second line spanning the name and the bin, because a
+   narrow column cannot hold five columns of anything legibly. */
+.merchant-shop-cart-meta { grid-column: 2 / 4; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .merchant-shop-cart-line > img { display: block; width: 24px !important; height: 24px !important; max-width: 24px !important; object-fit: cover; border-radius: 3px; border: 0; }
 .merchant-shop-cart-name { min-width: 0; overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-cart-qty { color: var(--blacksmith-tool-text-muted); font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
@@ -203,9 +206,9 @@
 .merchant-shop-cart-clear { padding: 1px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .62rem; cursor: pointer; }
 .merchant-shop-cart-remove:hover,
 .merchant-shop-cart-clear:hover { border-color: #a4432f; color: #a4432f; }
-.merchant-shop-cart-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); font-size: .8rem; }
+.merchant-shop-cart-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); font-size: .8rem; }
 .merchant-shop-cart-foot strong { font-variant-numeric: tabular-nums; }
-.merchant-shop-checkout { min-height: 28px; margin: 0; padding: 3px 14px; font-size: .74rem; white-space: nowrap; }
+.merchant-shop-checkout { flex: 1 1 auto; min-height: 28px; margin: 0; padding: 3px 12px; font-size: .74rem; white-space: nowrap; }
 .merchant-cart-confirm { margin: 0 0 8px; padding-left: 18px; }
 
 /* Dialog hint: says why a choice may be refused before it is made. */
@@ -306,3 +309,31 @@
 .merchant-shop-blurb p { margin: 0 0 .4em; }
 .merchant-shop-blurb p:last-child { margin-bottom: 0; }
 .merchant-shop-blurb a { font-style: normal; }
+
+/* --- Stock and cart, side by side -------------------------------------- */
+/*
+ * Two columns rather than a cart stacked in the header, because that is where a
+ * shopper looks for one.
+ *
+ * `flex-wrap` rather than a media query: this is a resizable window, so what
+ * matters is how wide the *window* is, and a media query asks about the viewport.
+ * Both columns carry a flex-basis, so when the window is narrowed past roughly the
+ * sum of them the cart wraps underneath at full width on its own.
+ */
+.merchant-shop-columns { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; min-width: 0; }
+.merchant-shop-stock { flex: 4 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* Grows a quarter as fast as the stock, so a wide window spends its room on the
+   thing being browsed. When the window narrows past the two bases the cart wraps
+   onto its own row, where it is the only item and grows to full width — which is
+   why there is no max-width to undo. */
+.merchant-shop-cart-column { flex: 1 1 220px; min-width: 0; }
+
+/* Sticky under the pinned header rather than at the top of the scroller, which is
+   *behind* it. The offset is the header's measured height — it varies with the
+   description, the browsing notice and the override line, so it cannot be a
+   constant. Set from _onRender; the fallback keeps this sane if that never runs. */
+.merchant-shop-cart-column { position: sticky; top: calc(var(--merchant-pinned-h, 0px) + 8px); }
+
+.merchant-shop-cart-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 14px 6px; }
+.merchant-shop-cart-empty > i { font-size: 1.1rem; opacity: .5; }
+.merchant-shop-cart-clear { line-height: 1; }
