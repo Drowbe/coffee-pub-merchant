@@ -218,3 +218,13 @@
 .merchant-config-shelf-inherited { color: var(--blacksmith-tool-text-muted); font-size: .7rem; font-style: italic; }
 .merchant-config-shelf-days { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
 .merchant-config-shelf-days > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+
+/* --- Merchant Settings, resizable -------------------------------------- */
+/* Height stays `auto` so it opens fitted to its content; dragging the handle
+   sets a real height from there. The chain below is what makes that shrink into
+   a scroll rather than a clip — each level has to give up min-height: auto, or
+   a flex child refuses to be smaller than its content and the overflow never
+   engages. Same three rules as the shop window, for the same reason. */
+.merchant-config-window .window-content { min-height: 0; overflow: hidden; }
+.merchant-config-window .blacksmith-window-tool-root { min-height: 0; max-height: 100%; }
+.merchant-config-window .blacksmith-window-tool-body { min-height: 0; overflow: auto; }

@@ -33,8 +33,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         {
             classes: ['merchant-config-window'],
             position: { width: 420, height: 'auto' },
-            window: { title: 'Merchant Settings', resizable: false, minimizable: true },
-            windowSizeConstraints: { minWidth: 360, maxWidth: 560, maxHeight: 'calc(100vh - 80px)' },
+            window: { title: 'Merchant Settings', resizable: true, minimizable: true },
+            windowSizeConstraints: { minWidth: 360, minHeight: 260, maxWidth: 720, maxHeight: 'calc(100vh - 80px)' },
             toolTitlebar: 'full',
             rememberPosition: false,
             windowPositionKey: 'merchant-config'
