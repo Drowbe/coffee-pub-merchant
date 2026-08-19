@@ -184,7 +184,17 @@ the same `if (!root) return [...initial]`. Two call sites, and the severity diff
 Both now read the checked inputs from the dialog directly, pending `readIdsFrom`. Worth reporting back: the
 exposure survey should cover every getter that calls `readSelection()`, not the two that were named.
 
-**When `readFrom` lands:** delete the fallback from `_askQuantity` in both modules and re-measure. What is
+**The remeasure is moot: `_askQuantity` has only one consumer now.** Merchant deleted its copy in
+`a02058e` — *"Quantity is edited in place, as the loot window does it"* — when the slate replaced per-item
+quantity dialogs. Merchant has no `quantitySplit` call anywhere today; the `window-shop.js:249` reference at
+the top of this entry is stale.
+
+So (a) fails the bar on its own terms, before any argument about the fallback. **Two consumers is the bar**,
+and there is one. Recommend dropping it, and revisiting only if a second consumer appears — at which point
+the fallback question will have been settled by `readFrom` anyway.
+
+Worth noting how it went: three separate remeasures were queued for this entry, and what actually decided it
+was a consumer disappearing. The measurement was never going to answer the question. What is
 left is a label-parameterised dialog, which may well be a documented recipe rather than a helper — and that
 is a fine place for this to land. An extraction that dissolves because the underlying defect was fixed is a
 better outcome than the helper.
