@@ -250,23 +250,21 @@ export class MerchantManager {
      * Put an item on a shelf from a UUID — a compendium entry, a sidebar item, or
      * anything else Foundry hands over in a drop payload.
      *
-     * Two writes, because `grantItem` has no way to say which container the new item
-     * lands in. Worth asking Blacksmith for a `container` option; until then this is
-     * grant-then-place.
+     * One write. `grantItem` takes the container itself, so the item arrives on the
+     * shelf rather than landing at the root and being moved.
      */
     static async addToShelf(actor, shelfId, itemUuid, quantity) {
         if (!game.user.isGM) return { ok: false, code: 'NOT_ALLOWED' };
         const shelf = actor?.items?.get(shelfId);
         if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
 
-        // `container` is honoured by the accessor today and by grantItem itself once
-        // Blacksmith's staged change ships, at which point this is one write.
         const result = await grantItem({
             targetActorUuid: actor.uuid,
             itemUuid,
             quantity,
-            // A merge landed on an existing row, which may already sit on another
-            // shelf; relocating it would move stock the GM never touched.
+            // Container membership is part of merge identity, so a merge can only
+            // land on a row already on this shelf — stock the GM put elsewhere is
+            // never relocated by a restock.
             container: shelfId
         });
 
@@ -489,6 +487,18 @@ export class MerchantManager {
     // ===== INTERACTION ============================================
     // ==============================================================
 
+    /**
+     * Claim left double-click on merchant tokens.
+     *
+     * The rules this has to obey — a synchronous, stable `matches`, and why
+     * `bypassPermission` is needed at all — are Blacksmith's, and are in
+     * `coffee-pub-blacksmith/documentation/api/api-tokens.md`. They were restated
+     * here as comments until 2026-08-18; a doc copied into a call site drifts exactly
+     * like code copied into one.
+     *
+     * What is ours: `openSafely`, because a throwing handler is a dead gesture once
+     * permission has been relaxed and Blacksmith will not fall through to Foundry.
+     */
     static _registerTokenInteraction() {
         const tokens = game.modules.get('coffee-pub-blacksmith')?.api?.tokens;
         if (typeof tokens?.registerInteraction !== 'function') {
@@ -502,16 +512,8 @@ export class MerchantManager {
                 module: MODULE.ID,
                 gesture: 'clickLeft2',
                 priority: 2,
-                // MUST stay synchronous and MUST return the same answer twice in a
-                // row. Foundry's permission predicate is synchronous and a promise is
-                // truthy, so an async matcher would grant every double-click
-                // unconditionally. Keep it a plain flag read.
                 matches: (tokenDocument) => this.isMerchantToken(tokenDocument),
-                // Players do not have LIMITED permission on a shopkeeper's Actor, and
-                // Foundry's predicate runs before the handler.
                 bypassPermission: true,
-                // A throwing handler is a dead gesture by design: Blacksmith will not
-                // fall through to Foundry once permission has been relaxed.
                 handler: (token) => this.openSafely(token?.document),
                 context: CONTEXT
             });
@@ -692,16 +694,21 @@ export class MerchantManager {
      * Everything except the mutation is decided here — price, affordability, and
      * which coins change hands.
      *
-     * **The goods and the coin are two writes, deliberately.** A single `exchange`
-     * carrying both would be atomic, which is better, but `exchange` *moves* what it
-     * is given and a shop's stock is a count rather than a document — so it would
-     * sell the template itself and empty the shelf on the first purchase. Until an
-     * exchange side can say *copy*, delivery is a grant and payment is a currency-only
-     * exchange.
+     * **The goods and the coin are two writes, for now.** A single `exchange` carrying
+     * both would be atomic, which is better, but `exchange` *moves* what it is given
+     * and a shop's stock is a count rather than a document — so it would sell the
+     * template itself and empty the shelf on the first purchase. Until a transfer can
+     * say *copy*, delivery is a grant and payment is a currency-only exchange.
      *
      * The order is deliberate too: goods first, so a failed payment leaves the player
      * holding the item and the shop out of pocket. The reverse leaves a player who
      * paid for nothing. In a game the shop should eat it.
+     *
+     * Payment and change are **two transfers, never netted**. Netting would let a
+     * payer hand over coin they do not have, and `exchange` validates every transfer
+     * against the state at the start of the call — so change arriving cannot fund the
+     * payment. That is the counter model rather than a limitation: you put money down
+     * and money comes back.
      */
     static async _processBuy(merchant, item, shelf, buyerUuid, payload, user) {
         const shelfConfig = this.getShelfConfig(shelf);
@@ -732,8 +739,10 @@ export class MerchantManager {
             if (!delivered?.ok) return delivered;
 
             const paid = await exchange({
-                actorA: { uuid: merchant.uuid, items: [], currency: plan.change },
-                actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
+                transfers: [
+                    { from: payerCheck.actor.uuid, to: merchant.uuid, currency: plan.pay },
+                    { from: merchant.uuid, to: payerCheck.actor.uuid, currency: plan.change }
+                ]
             });
             if (!paid?.ok) {
                 return { ...paid, delivered: true, price: total };
@@ -827,8 +836,10 @@ export class MerchantManager {
             }
 
             const paid = await exchange({
-                actorA: { uuid: merchant.uuid, items: [], currency: plan.change },
-                actorB: { uuid: payerCheck.actor.uuid, items: [], currency: plan.pay }
+                transfers: [
+                    { from: payerCheck.actor.uuid, to: merchant.uuid, currency: plan.pay },
+                    { from: merchant.uuid, to: payerCheck.actor.uuid, currency: plan.change }
+                ]
             });
             if (!paid?.ok) return { ...paid, delivered: true, price: total };
             return { ...paid, price: total };
@@ -877,13 +888,24 @@ export class MerchantManager {
 
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
 
+        // Three arrows, not two sides. Selling genuinely does move the goods — the
+        // party's sword becomes the merchant's — so this is a transfer rather than the
+        // copy a purchase needs, and it is the one direction the primitive already
+        // suits without a new option.
         const result = await exchange({
-            actorA: { uuid: seller.uuid, items: [{ itemId: item.id, quantity }], currency: plan.change },
-            // `container` belongs to the side the goods arrive at, reading as "items
-            // arriving here land in this container" — Blacksmith's correction to the
-            // top-level form we first proposed, which carried a uuid that could
-            // disagree with the side's own.
-            actorB: { uuid: merchant.uuid, items: [], currency: plan.pay, container: shelf.item.id }
+            transfers: [
+                {
+                    from: seller.uuid,
+                    to: merchant.uuid,
+                    items: [{ itemId: item.id, quantity }],
+                    // Bought stock lands on the buyback shelf rather than loose on the
+                    // NPC. `container` belongs to the transfer, so it is unambiguously
+                    // about where these items arrive.
+                    container: shelf.item.id
+                },
+                { from: merchant.uuid, to: seller.uuid, currency: plan.pay },
+                { from: seller.uuid, to: merchant.uuid, currency: plan.change }
+            ]
         });
 
         return result?.ok ? { ...result, price: total } : result;

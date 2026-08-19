@@ -95,9 +95,13 @@ not ours to finish.
   - **Three parties.** The shopper pays, but the goods may go to another character or to the party.
     `{ actorA, actorB }` cannot express it; Merchant refuses it as `THIRD_PARTY_DELIVERY` rather than
     charging the wrong purse.
-  - **Copy rather than move on a side's items.** A shop's stock is a count, so the goods half of a purchase
-    is a grant. Merchant therefore uses `exchange` for the coin only and delivers separately, which loses the
-    atomicity the primitive exists to provide.
+  - **Copy rather than move on a transfer.** A shop's stock is a count, so the goods half of a purchase is a
+    grant. Merchant uses `exchange` for the coin only and delivers separately, which loses the atomicity the
+    primitive exists to provide. **Blacksmith has asked which of two primitives we want and is blocked on the
+    answer** — `copy: true` (source untouched) or `preserveEmptySource` (a real transfer that leaves the row
+    behind at zero). Our answer is *both, and `copy` first*: the count lives in `system.quantity`, so
+    `preserveEmptySource` gives finite shelves the better implementation, but only `copy` covers infinite
+    shelves — which are the default.
 - **Waiting on Blacksmith — the query envelope does not forward the caller.** See *Caller identity* above.
   The payload assertion is a bridge, and the fix is one deletion on our side once it lands.
 - **Four extractions to Blacksmith, with two consumers each proving the shape** — `plans/plan-extraction.md`,

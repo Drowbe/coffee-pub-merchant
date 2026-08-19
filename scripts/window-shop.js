@@ -19,26 +19,6 @@ function _blacksmith() {
     return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
 }
 
-/**
- * Attach an embedded Blacksmith control once its markup is in the document.
- *
- * Attaching to a detached wrapper does not work, and the failure is silent: the
- * inputs still render and still report a value, so an unbound entity list hands back
- * its initial selection rather than what the user picked. dialog.wait() exposes no
- * render hook, so poll a few frames for the input instead.
- */
-async function _attachWhenRendered(control, inputName, frames = 20) {
-    for (let i = 0; i < frames; i++) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        const live = document.querySelector(`[name="${inputName}"]`);
-        if (!live) continue;
-        control.attach(live.closest('.application') ?? document.body);
-        return true;
-    }
-    console.warn(`${MODULE.TITLE} | Control "${inputName}" never rendered; falling back to form values.`);
-    return false;
-}
-
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
 
@@ -161,23 +141,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
         if (!actors.length) return null;
 
-        const inputName = 'merchant-actor';
         const list = blacksmith.entityList.create({
             entities: actors.map((actor) => ({ id: actor.uuid, uuid: actor.uuid, name: actor.name, img: actor.img })),
             mode: 'single',
-            inputName,
+            inputName: 'merchant-actor',
             selected: selectedUuid ?? actors[0].uuid
         });
 
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = `<div class="blacksmith-field">${list.html}</div>`;
-
         let chosen = null;
-        let bound = false;
-        const pending = blacksmith.dialog.wait({
+        const outcome = await blacksmith.dialog.wait({
             title,
-            content: wrapper,
+            content: `<div class="blacksmith-field">${list.html}</div>`,
             classes: ['merchant-dialog'],
+            // Bound after render by the dialog itself. Controls are not destroyed on
+            // close, so the callback can still read the selection out of one.
+            controls: list,
             // Secondary action left, primary right.
             buttons: [
                 { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
@@ -186,17 +164,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     label: confirmLabel,
                     icon: confirmIcon,
                     default: true,
-                    callback: (form) => {
-                        chosen = bound ? list.getSelectedIds()?.[0] ?? null : form?.elements?.[inputName]?.value ?? null;
-                    }
+                    callback: () => { chosen = list.getSelectedIds()?.[0] ?? null; }
                 }
             ],
             closeValue: null,
             cancelValue: null
         });
-
-        bound = await _attachWhenRendered(list, inputName);
-        const outcome = await pending;
         list.destroy();
 
         return outcome?.value === 'select' ? chosen : null;
@@ -253,25 +226,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             return max;
         }
 
-        const inputName = 'merchant-quantity';
         const control = blacksmith.quantitySplit.create({
             max,
             value: 1,
-            inputName,
+            inputName: 'merchant-quantity',
             giveLabel: 'Take',
             keepLabel: 'Leave',
             amountLabel: `How many ${label}?`
         });
 
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = `<div class="blacksmith-field">${control.html}</div>`;
-
         let chosen = null;
-        let bound = false;
-        const pending = blacksmith.dialog.wait({
+        const outcome = await blacksmith.dialog.wait({
             title: `Acquire ${label}`,
-            content: wrapper,
+            content: `<div class="blacksmith-field">${control.html}</div>`,
             classes: ['merchant-dialog'],
+            controls: control,
             buttons: [
                 { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
                 {
@@ -279,17 +248,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     label: 'Acquire',
                     icon: 'fa-solid fa-hand',
                     default: true,
-                    callback: (form) => {
-                        chosen = bound ? control.getValue() : Number(form?.elements?.[inputName]?.value ?? 1);
-                    }
+                    // getValue() is integer-clamped and DOM-independent.
+                    callback: () => { chosen = control.getValue(); }
                 }
             ],
             closeValue: null,
             cancelValue: null
         });
-
-        bound = await _attachWhenRendered(control, inputName);
-        const outcome = await pending;
         control.destroy();
 
         if (outcome?.value !== 'take') return null;

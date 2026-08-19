@@ -19,7 +19,12 @@ Compared: `window-shop.js` / `manager-merchant.js` / `merchant-inventory.js` / `
 
 ## Findings
 
-### 1. `_askQuantity` — 82% identical over 49 lines. **Extract.**
+### 1. `_askQuantity` — 87% identical over 38 lines. **Extract.**
+
+> **Re-measured 2026-08-18, after `dialog.wait()` gained `controls`.** Blacksmith asked whether the attach
+> workaround was most of what these helpers were. It was not. Both shrank — 49 lines to 38 — and both got
+> *more* identical, not less, because what came out was the part that differed slightly between them. What
+> is left is the shared shape.
 
 `window-shop.js:249` and `window-loot.js:381`. A dialog wrapping `blacksmith.quantitySplit` with
 `blacksmith.dialog.wait`, plus the bind-or-read-the-form fallback and integer clamping.
@@ -32,7 +37,7 @@ independently.
 **Shape:** `blacksmith.dialog.quantity({ max, value, title, label, confirmLabel, confirmIcon })` returning a
 clamped integer or `null`. It belongs beside `dialog.confirm` and `dialog.choose`, which already exist.
 
-### 2. `_pickActor` — 87% identical over 30 lines. **Extract.**
+### 2. `_pickActor` — 83% identical over 35 lines. **Extract.**
 
 `window-shop.js:186` and `window-loot.js:349`. An entity-list picker: build a Blacksmith entity list of
 actors, put it in a dialog, read the selection back.
@@ -44,18 +49,27 @@ is exactly the signal this exercise looks for.
 **Shape:** `blacksmith.dialog.pickActor({ title, actors, confirmLabel, confirmIcon })` returning a uuid or
 `null`.
 
-### 3. `_attachWhenRendered` — same ~10 lines of logic, differently commented. **Fix upstream, do not extract.**
+### 3. `_attachWhenRendered` — **fixed upstream 2026-08-18. Both copies deleted.**
 
 `window-shop.js:22` and `window-loot.js:22`. Poll animation frames until an embedded control's input is in
 the document, then `attach()` it.
 
-This is not a helper both modules happened to need. It is a **workaround for the same gap**: `dialog.wait()`
-takes markup and exposes no render hook, so a control handed to it is never attached, and the failure is
-silent — the inputs still render and still report a value, so an unbound entity list hands back its initial
-selection rather than the user's.
+This was not a helper both modules happened to need. It was a **workaround for the same gap**, and the
+conclusion held: `dialog.wait()`, `prompt()` and `choose()` now take `controls` and bind anything exposing
+`attach(root)` after every render. Both copies were deleted rather than moved.
 
-Extracting the workaround would bless it. The fix is for `dialog.wait()` to attach controls it was given, at
-which point both copies delete rather than move. **Raised with Blacksmith.**
+The cause turned out to be worse than a missing feature. Blacksmith's documentation said passing an
+`HTMLElement` as `content` preserved its identity and listeners. It does not: DialogV2 reads
+`options.content.innerHTML`, keeps only the string, and builds the dialog by assigning `innerHTML` to a fresh
+form — so the node handed over is never inserted and any control attached to it is bound to an orphan. Two
+modules wrote the same workaround against a documented claim neither of them checked.
+
+There was also an `onRender(element, dialog)` hook on `wait()` the whole time, simply undocumented. Both are
+documented now.
+
+**The lesson is not "check the docs".** It is that a silent failure and a confident doc together will produce
+the same wrong workaround in every consumer, and the tell was two modules writing it independently — which is
+the same signal this whole exercise looks for, pointing at a defect rather than at a missing helper.
 
 ### 4. Window construction boilerplate — 80% identical over ~36 lines. **Extract into the base class.**
 
@@ -84,10 +98,12 @@ eventually answer it differently. Better as `blacksmith.entityList.partyCharacte
 - **`_validateRecipient`** — 62% similar, and the difference is the point. Loot gates on two settings that
   Merchant does not have; Merchant accepts a party Group Actor that Loot does not. Parallel evolution of
   genuinely different rules, not duplication.
-- **`registerInteraction` blocks** — 19 identical lines including comments, but they are a *call site*, not a
-  helper: the same API used the same correct way twice. Worth noting that the identical comments are both
-  warnings (the matcher must be synchronous and stable; `bypassPermission` is required because Foundry's
-  predicate runs first), which suggests the warnings belong in `api-tokens.md` rather than in each caller.
+- **`registerInteraction` blocks** — 19 identical lines including comments, but they are a *call site*, not
+  a helper: the same API used the same correct way twice. The comments were the interesting part, and the
+  answer came back that both warnings **were already in `api-tokens.md`** — the synchronous-and-stable rule
+  under "matches", the predicate-runs-first reasoning under "bypassPermission". So this was not a
+  documentation gap but a discoverability one: two modules wrote out by hand what the doc already said.
+  Both call sites now point at the doc and keep only what is theirs. **Deleted 2026-08-18.**
 - **`const.js` MODULE scaffold** — every Coffee Pub module has it, and it is the one file that must not
   depend on anything else.
 

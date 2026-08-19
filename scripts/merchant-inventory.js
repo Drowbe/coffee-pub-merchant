@@ -38,6 +38,12 @@ export function isPhysical(type) {
  *
  * What finite stock does reintroduce is the race — two buyers reading the same count
  * — which `MerchantManager._withStockLock` answers rather than this file.
+ *
+ * `container` names the shelf the copy lands on. Honoured by the primitive itself
+ * since 2026-08-18: it always writes `system.container` rather than inheriting the
+ * source's, and container membership is part of merge identity, so a merge can only
+ * land on a row already on that shelf. Merchant carried a post-write correction for
+ * this until then; it is gone.
  */
 export async function grantItem(request) {
     const api = inventoryApi();
@@ -45,50 +51,28 @@ export async function grantItem(request) {
         console.error(`${MODULE.TITLE} | api.inventory is unavailable; grantItem refused.`);
         return { ok: false, code: 'INVENTORY_UNAVAILABLE' };
     }
-
-    const result = await api.grantItem(request);
-    // Never on a merge: the target row already existed and may sit on another shelf,
-    // so normalising it would relocate stock nobody touched.
-    if (result?.ok && !result.merged) {
-        await _normaliseContainer(result.targetItemId, request.targetActorUuid, request.container);
-    }
-    return result;
+    return api.grantItem(request);
 }
 
 /**
- * TEMPORARY — remove when `grantItem` clears `container` on arrival.
+ * A list of directed transfers, all committing or none.
  *
- * `RESET_PATHS` covers `equipped`, `attuned` and `prepared` but not
- * `system.container`, and the payload is built from `toObject()` verbatim. Stock on
- * a merchant shelf carries a container id, so a granted copy arrives on the buyer
- * still pointing at a shelf that is not on their sheet — and container membership is
- * part of merge identity, so it cannot stack with what they already carry either.
+ * `{ transfers: [{ from, to, items, currency, container }, ...] }`. Directed rather
+ * than two-sided because a shop transaction is not reliably two-party: the shopper
+ * pays, but the goods may go to another character or to the party, and a list of what
+ * each party *gives* does not say where any of it goes once there are three of them.
+ * Two-sidedness was silently carrying the routing.
  *
- * Blacksmith has this as a defect with a fix attached; the same change adds a
- * `container` option, at which point this whole function goes away and the caller's
- * `container` is honoured by the primitive instead.
- */
-async function _normaliseContainer(itemId, targetActorUuid, container = null) {
-    if (!itemId) return;
-    try {
-        const actor = await fromUuid(targetActorUuid);
-        const item = actor?.items?.get(itemId);
-        const current = item?.system?.container ?? null;
-        if (!item || current === (container ?? null)) return;
-        await item.update({ 'system.container': container ?? null });
-    } catch (error) {
-        console.warn(`${MODULE.TITLE} | Could not normalise container membership:`, error);
-    }
-}
-
-/**
- * A two-sided exchange: goods one way, coin the other, both committing or neither.
+ * **Not built yet** — designed and planned, not shipped. Orchestrating it here would
+ * mean writing rollback across two primitives holding separate locks, which is exactly
+ * what api.inventory exists to prevent, so Merchant asks for it and refuses cleanly
+ * until it exists rather than approximating it.
  *
- * **Not built yet.** Blacksmith has accepted it in principle and will build it on
- * their existing internal cores when this phase is real. Orchestrating it here would
- * mean writing rollback across two primitives holding separate locks, which is
- * exactly what api.inventory exists to prevent — so Merchant asks for it and refuses
- * cleanly until it exists, rather than approximating it.
+ * Three rules of the planned primitive that this module is written against:
+ * `from === to` is refused per transfer, though an Actor may appear in several;
+ * payment and change between the same pair are never netted, since netting would let a
+ * payer hand over coin they do not have; and every transfer validates against the
+ * state at the start of the call, so change arriving cannot fund the payment.
  */
 export async function exchange(request) {
     const api = inventoryApi();

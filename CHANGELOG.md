@@ -50,6 +50,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   template field, which is most of what goes wrong in a Foundry module; they catch the half where reading the
   code is a bad way to find a bug and a wrong answer is silent.
 
+- **Two workarounds deleted** (`scripts/window-shop.js`, `scripts/merchant-inventory.js`): the frame-polling
+  control attach is gone, because `blacksmith.dialog.wait()` now takes `controls` and binds them after every
+  render; and the post-grant container correction is gone, because `grantItem` takes a `container` and always
+  writes `system.container` rather than inheriting the source's. Container membership is part of merge
+  identity, so a merge can only land on a row already on that shelf — which was the case the workaround was
+  carefully skipping.
+- **`exchange` is a list of directed transfers, not two sides** (`scripts/manager-merchant.js`): the shape is
+  decided — `{ transfers: [{ from, to, items, currency, container }, ...] }` — and Merchant is written
+  against it. A shop transaction is not reliably two-party, and a list of what each party *gives* does not
+  say where any of it goes once there are three of them; two-sidedness was silently carrying the routing.
+  Selling is one transfer of goods and two of coin, payment and change never netted, because netting would
+  let a payer hand over coin they do not have.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
