@@ -362,6 +362,12 @@
 .merchant-shop-columns { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; min-width: 0; min-height: 0; overflow-y: auto; }
 .merchant-shop-stock { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 .merchant-shop-shelves { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* Same shape as the stock column: a fixed head, and the rows scrolling under it.
+   Without this the pack simply ran off the bottom -- the scroll rules below name
+   their regions explicitly, and a new region has to say it is one. */
+.merchant-shop-sell { display: flex; flex-direction: column; gap: 0; min-height: 0; padding: 0; }
+.merchant-shop-sell > h3 { flex: 0 0 auto; }
+.merchant-shop-sell > .merchant-shop-sell-search { flex: 0 0 auto; }
 /* Grows a quarter as fast as the stock, so a wide window spends its room on the
    thing being browsed. When the window narrows past the two bases the cart wraps
    onto its own row, where it is the only item and grows to full width — which is
@@ -392,7 +398,13 @@
     /* `scrollbar-gutter` so a row's right edge never sits under the bar, and the
        layout does not shift the moment a list grows long enough to need one. */
     .merchant-shop-shelves,
+    .merchant-shop-sell,
     .merchant-shop-cart-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+
+    /* The pack scrolls its rows rather than the whole panel, so its search stays put
+       exactly as the shop's does. */
+    .merchant-shop-sell { overflow: hidden; }
+    .merchant-shop-sell > .merchant-shop-shelf-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 }
 
 .merchant-shop-cart-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 14px 6px; }

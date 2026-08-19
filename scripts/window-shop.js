@@ -1747,7 +1747,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _keepScroll() {
         this._scroll ??= {};
-        for (const [key, selector] of [['stock', '.merchant-shop-shelves'], ['cart', '.merchant-shop-cart-body']]) {
+        for (const [key, selector] of [
+            ['stock', '.merchant-shop-shelves'],
+            ['pack', '.merchant-shop-sell > .merchant-shop-shelf-body'],
+            ['cart', '.merchant-shop-cart-body']
+        ]) {
             const region = this.element?.querySelector(selector);
             if (!region) continue;
 
