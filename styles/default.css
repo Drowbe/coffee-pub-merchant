@@ -175,7 +175,6 @@
 /* --- Prices and coin -------------------------------------------------- */
 .merchant-shop-price { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-style: normal; font-variant-numeric: tabular-nums; }
 .merchant-shop-unpriced { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: #a4432f; font-style: normal; }
-.merchant-shop-buy { display: inline-flex; gap: 5px; align-items: center; min-height: 28px; margin: 0; padding: 2px 10px; font-size: .68rem; font-variant-numeric: tabular-nums; text-transform: none; white-space: nowrap; }
 .merchant-shop-purse { display: inline-flex; gap: 5px; align-items: center; padding: 2px 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .merchant-shop-sell { min-height: 26px; margin: 0; padding: 2px 10px; font-size: .68rem; text-transform: none; white-space: nowrap; }
 .merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
@@ -189,7 +188,6 @@
 .merchant-shop-item-price strong { font-size: .86rem; color: var(--blacksmith-tool-accent); }
 .merchant-shop-item-price em { font-size: .68rem; font-style: normal; color: var(--blacksmith-tool-text-muted); }
 .merchant-shop-item-price .merchant-shop-unpriced { color: #a4432f; }
-.merchant-shop-free { opacity: .75; }
 
 /* --- Cart ------------------------------------------------------------- */
 .merchant-shop-cart { border-color: color-mix(in srgb, #2f6b33 30%, var(--blacksmith-tool-divider)); }
