@@ -591,3 +591,14 @@
 .merchant-shop-slate-sell { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: uppercase; cursor: pointer; }
 .merchant-shop-slate-sell:hover:not(:disabled) { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 .merchant-shop-slate-sell:disabled { opacity: .45; cursor: default; }
+
+/* --- Inline quantity, as the loot window does it ------------------------- */
+/* A number you double-click, not a form field sitting in every row. The caption
+   labels the column so the figure does not have to explain itself. */
+.merchant-shop-item-qty { display: flex; flex-direction: column; gap: 1px; align-items: center; line-height: 1.1; }
+.merchant-shop-item-qty > small { color: var(--blacksmith-tool-text-muted); font-size: .52rem; letter-spacing: .08em; text-transform: uppercase; }
+.merchant-shop-item-qty > strong { font-size: .8rem; font-variant-numeric: tabular-nums; }
+.merchant-shop-qty-editable { cursor: text; }
+.merchant-shop-qty-editable:hover { color: var(--blacksmith-tool-accent); }
+.merchant-shop-qty-input { width: 46px; height: 20px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-accent); border-radius: 3px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .76rem; text-align: center; }
+.merchant-shop-cart-qty .merchant-shop-qty-input { width: 38px; height: 18px; font-size: .7rem; }

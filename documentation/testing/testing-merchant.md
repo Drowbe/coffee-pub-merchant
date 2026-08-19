@@ -475,7 +475,21 @@ The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
 
 ---
 
-## 4. Quantity prompts
+## 4. Quantity, edited in place
+
+Curator's loot window settled this pattern; the shop uses the same one.
+
+- [ ] **No quantity dialog anywhere.** Adding to the slate adds one, immediately.
+- [ ] Double-click a slate line's quantity → it becomes an input, focused and selected.
+- [ ] Enter commits; clicking away commits; **Escape** abandons.
+- [ ] Setting a slate line to **0 removes it**.
+- [ ] Setting one above what is in stock is clamped rather than accepted.
+- [ ] As GM, double-click a shelf row's **QTY** → same behaviour, and it sets the restock target too.
+- [ ] A player double-clicking a shelf row's QTY does nothing; only a GM gets an editable stock cell.
+- [ ] The stock cell is a **number with a QTY caption**, not a form field sitting in every row.
+- [ ] Editing while a request is in flight is refused rather than racing it.
+
+## 4b. Old quantity prompts (removed)
 
 One dialog serves four actions, and it must name the one you pressed.
 

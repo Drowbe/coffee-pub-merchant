@@ -322,61 +322,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    /**
-     * Ask how many, only when there is a choice to make.
-     *
-     * The caller names the action, because this one dialog serves three of them and
-     * "Acquire" was standing in for all three. A player clicking the cart icon is
-     * adding to a cart, not acquiring something, and the confirm button should agree
-     * with the button they pressed.
-     */
-    async _askQuantity(label, max, {
-        title = `Add ${label} to the slate`,
-        confirmLabel = 'Add to slate',
-        confirmIcon = 'fa-solid fa-plus'
-    } = {}) {
-        if (max <= 1) return max;
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.quantitySplit?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
-            return max;
-        }
-
-        const control = blacksmith.quantitySplit.create({
-            max,
-            value: 1,
-            inputName: 'merchant-quantity',
-            giveLabel: 'Yours',
-            keepLabel: 'Left on the shelf',
-            amountLabel: `How many ${label}?`
-        });
-
-        let chosen = null;
-        const outcome = await blacksmith.dialog.wait({
-            title,
-            content: `<div class="blacksmith-field">${control.html}</div>`,
-            classes: ['merchant-dialog'],
-            controls: control,
-            buttons: [
-                { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
-                {
-                    action: 'take',
-                    label: confirmLabel,
-                    icon: confirmIcon,
-                    default: true,
-                    // getValue() is integer-clamped and DOM-independent.
-                    callback: () => { chosen = control.getValue(); }
-                }
-            ],
-            closeValue: null,
-            cancelValue: null
-        });
-        control.destroy();
-
-        if (outcome?.value !== 'take') return null;
-        const amount = Math.trunc(Number(chosen));
-        return Number.isFinite(amount) && amount >= 1 ? Math.min(amount, max) : null;
-    }
-
     async _itemContext(itemId) {
         const token = await this._resolveToken();
         const item = token?.actor?.items?.get(itemId);
@@ -420,22 +365,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return ShopWindow._baskets.get(this.tokenUuid);
     }
 
+    /**
+     * Add one, and let the slate line be edited from there.
+     *
+     * No quantity dialog. Curator's loot window settled this: the amount is a number
+     * on the row you double-click, not a modal you answer before the thing exists.
+     * Adding six of something is one click and one edit rather than a dialog every
+     * time, and adding one — which is most of the time — is a single click with
+     * nothing to dismiss.
+     */
     async addToCart(itemId) {
         const context = await this._itemContext(itemId);
         if (!context) return;
 
         const inCart = this.cart.get(itemId) ?? 0;
-        const max = this._maxFor(context.token?.actor, context.item);
-        if (max < 1) {
+        if (this._maxFor(context.token?.actor, context.item) < 1) {
             ui.notifications?.warn(inCart
                 ? `Your slate already holds every ${context.item.name} in stock.`
                 : `${context.item.name} is out of stock.`);
             return;
         }
 
-        const amount = await this._askQuantity(context.item.name, max);
-        if (!amount) return;
-        this.cart.set(itemId, inCart + amount);
+        this.cart.set(itemId, inCart + 1);
         await this.render(false);
     }
 
@@ -795,20 +746,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const held = this.basket.get(item.id) ?? 0;
         const available = Number(item.system?.quantity ?? 1);
-        const max = (Number.isFinite(available) ? available : 1) - held;
-        if (max < 1) {
-            ui.notifications?.warn(`Every ${item.name} you have is already in the basket.`);
+        if ((Number.isFinite(available) ? available : 1) - held < 1) {
+            ui.notifications?.warn(`Every ${item.name} you have is already on the slate.`);
             return;
         }
 
-        const amount = await this._askQuantity(item.name, max, {
-            title: `Sell ${item.name}`,
-            confirmLabel: 'Add to basket',
-            confirmIcon: 'fa-solid fa-hand-holding-dollar'
-        });
-        if (!amount) return;
-
-        this.basket.set(item.id, held + amount);
+        this.basket.set(item.id, held + 1);
         // The picker adds several and renders once at the end; a drop adds one and
         // renders here.
         if (!silent) await this.render(false);
@@ -1015,7 +958,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // A GM sets the count by hand here, and that also sets what a
                         // restocking shelf refills to.
                         canEditStock: isGM && !stock.unlimited,
-                        stockValue: stock.unlimited ? null : stock.available,
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         // A disabled button with no reason on it is the thing
@@ -1227,30 +1169,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         super._onRender?.(context, options);
 
         this._keepScroll();
+        this._bindQuantityEdits();
         this._bindSearch();
         this._bindSellDrop();
         // Re-applied after every render, because a refresh, a GM stocking a shelf, or
         // another player's purchase all rebuild the list underneath a standing search.
         this._applyFilter();
 
+        // Below here is GM-only. Quantity editing is bound for everyone, because a
+        // slate line belongs to whoever is shopping; only the shop's own stock cells
+        // carry `data-edit-stock`, and only a GM is given those.
         if (!game.user.isGM) return;
-
-        // A number input rather than a data-action: the value is what matters, and
-        // an action handler only knows that something was clicked.
-        for (const input of this.element?.querySelectorAll('[data-stock-item]') ?? []) {
-            if (input.dataset.merchantBound === 'true') continue;
-            input.dataset.merchantBound = 'true';
-            input.addEventListener('change', () => {
-                void this._commitStock(input.getAttribute('data-stock-item'), input.value);
-            });
-            // Enter should commit and leave the field, not submit anything.
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    input.blur();
-                }
-            });
-        }
 
         for (const zone of this.element?.querySelectorAll('[data-drop-shelf]') ?? []) {
             if (zone.dataset.merchantBound === 'true') continue;
@@ -1267,28 +1196,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 zone.classList.remove('is-dropping');
                 void this._onDropToShelf(event, shelfId);
             });
-        }
-    }
-
-    /**
-     * A GM setting a count by hand.
-     *
-     * Written directly rather than through the request handler: this is the GM
-     * curating their own shop, the same as showing or hiding a shelf. It also sets
-     * what a restocking shelf refills to — see `setStockQuantity`.
-     */
-    async _commitStock(itemId, value) {
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
-        if (!merchant || !itemId) return;
-
-        try {
-            await MerchantManager.setStockQuantity(merchant, itemId, value);
-            MerchantManager.broadcastActorRefresh(merchant);
-        } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);
-            ui.notifications?.error('Could not set that quantity.');
-            await this.render(false);
         }
     }
 
@@ -1329,6 +1236,85 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             if (region.dataset.merchantBound === 'true') continue;
             region.dataset.merchantBound = 'true';
             region.addEventListener('scroll', () => { this._scroll[key] = region.scrollTop; }, { passive: true });
+        }
+    }
+
+    /**
+     * Double-click a quantity to change it in place.
+     *
+     * Curator's loot window, verbatim in behaviour: Enter or clicking away commits,
+     * Escape abandons, and on a slate line 0 takes it off. Three cells use it — a
+     * shop's stock, a line being bought, a line being sold — and they differ only in
+     * what the committed number is written to.
+     */
+    _bindQuantityEdits() {
+        for (const cell of this.element?.querySelectorAll('[data-edit-stock], [data-edit-line]') ?? []) {
+            if (cell.dataset.merchantBound === 'true') continue;
+            cell.dataset.merchantBound = 'true';
+            cell.addEventListener('dblclick', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this._beginQuantityEdit(cell);
+            });
+        }
+    }
+
+    _beginQuantityEdit(cell) {
+        if (this.busy || cell.querySelector('input')) return;
+        const value = cell.querySelector('strong');
+        if (!value) return;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = '1';
+        input.value = value.textContent.trim().replace(/[^0-9]/g, '') || '0';
+        input.className = 'merchant-shop-qty-input';
+
+        value.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let settled = false;
+        const finish = async (commit) => {
+            if (settled) return;
+            settled = true;
+            const next = Math.trunc(Number(input.value));
+            input.replaceWith(value);
+            if (commit && Number.isFinite(next) && next >= 0) await this._commitQuantity(cell, next);
+            await this.render(false);
+        };
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); void finish(true); }
+            else if (event.key === 'Escape') { event.preventDefault(); void finish(false); }
+        });
+        // Clicking away commits, matching the rest of the suite.
+        input.addEventListener('blur', () => void finish(true));
+    }
+
+    async _commitQuantity(cell, next) {
+        const lineId = cell.getAttribute('data-edit-line');
+        if (lineId) {
+            const map = cell.getAttribute('data-line-side') === 'basket' ? this.basket : this.cart;
+            // Zero is how a line is removed, which is the same rule the loot window
+            // uses and means the bin is a shortcut rather than the only way.
+            if (next < 1) map.delete(lineId);
+            else map.set(lineId, next);
+            return;
+        }
+
+        const stockId = cell.getAttribute('data-edit-stock');
+        if (!stockId) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant) return;
+        try {
+            await MerchantManager.setStockQuantity(merchant, stockId, next);
+            MerchantManager.broadcastActorRefresh(merchant);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);
+            ui.notifications?.error('Could not set that quantity.');
         }
     }
 

@@ -30,12 +30,14 @@
           not move between stock policies. A GM edits the number in place, which sets
           both what is there and what a restocking shelf refills to. --}}
     {{#if canEditStock}}
-        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
-            <input type="number" min="0" step="1" value="{{stockValue}}"
-                   data-stock-item="{{id}}" aria-label="Quantity in stock">
+        <div class="merchant-shop-item-qty merchant-shop-qty-editable" data-edit-stock="{{id}}"
+             data-tooltip="{{qtyTooltip}} — double-click to change">
+            <small>QTY</small><strong>{{qtyLabel}}</strong>
         </div>
     {{else}}
-        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">{{qtyLabel}}</div>
+        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
+            <small>QTY</small><strong>{{qtyLabel}}</strong>
+        </div>
     {{/if}}
 
     <div class="merchant-shop-item-price">

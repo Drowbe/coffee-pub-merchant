@@ -361,6 +361,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The empty slate no longer repeats the Sell button**: it is in the slate header now, reachable whether the
   slate is empty or not, so the empty state offering a second one was two buttons for one thing.
 
+- **Quantity is edited in place, the way the loot window does it** (`scripts/window-shop.js`,
+  `templates/`): double-click a number, Enter or click away to commit, Escape to abandon, and **0 removes a
+  slate line**. Three cells share one editor — a shop's stock, a line being bought, a line being sold — and
+  they differ only in where the committed number is written.
+
+  **The quantity dialog is gone entirely.** Adding is one click that adds one, and the amount is changed on
+  the slate afterwards. That is fewer prompts in both directions: adding one thing — which is most of the
+  time — no longer opens a modal to confirm the obvious, and adding six is a click and an edit rather than a
+  dialog every time. It also removes the always-visible number input the GM's stock cell used to be, which
+  put a form field in every row of the shop.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

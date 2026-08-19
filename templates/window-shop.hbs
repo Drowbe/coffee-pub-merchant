@@ -243,7 +243,9 @@
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
                                                 <span class="merchant-shop-cart-meta">
-                                                    <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                                    <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
+                                                          data-edit-line="{{id}}" data-line-side="cart"
+                                                          data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
                                                     <span class="merchant-shop-cart-total">{{totalLabel}}</span>
                                                 </span>
                                             </div>
@@ -265,7 +267,9 @@
                                                     <i class="fa-solid fa-trash"></i>
                                                 </button>
                                                 <span class="merchant-shop-cart-meta">
-                                                    <span class="merchant-shop-cart-qty">&times;{{quantity}}</span>
+                                                    <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
+                                                          data-edit-line="{{id}}" data-line-side="basket"
+                                                          data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
                                                     <span class="merchant-shop-cart-total">{{totalLabel}}</span>
                                                 </span>
                                             </div>
