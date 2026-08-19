@@ -191,26 +191,40 @@
                               gets. A total you have to scroll to find is a total you
                               stop trusting. --}}
                         <header class="merchant-shop-cart-head">
-                            {{!-- Title and the number that matters on one line, the two
-                                  it is made of beneath. Emptying lives in the footer
-                                  beside the action it undoes. --}}
                             <div class="merchant-shop-cart-headline">
                                 <span class="merchant-shop-cart-title">
                                     <i class="fa-solid fa-scroll"></i> Slate
                                 </span>
-                                <span class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
-                                    <span>{{netLabel}}</span>
-                                    <strong>{{netTotalLabel}}</strong>
-                                </span>
+                                {{#if canSell}}
+                                    {{!-- The picker was only reachable from the empty
+                                          state, so putting one thing on the slate hid
+                                          the only way to add a second without dragging. --}}
+                                    <button type="button" class="merchant-shop-slate-sell"
+                                            data-action="sell" {{#unless sellEnabled}}disabled{{/unless}}
+                                            data-tooltip="Sell something from your pack">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
+                                    </button>
+                                {{/if}}
                             </div>
-                            <div class="merchant-shop-cart-sum">
-                                <span>Buying</span>
-                                <strong>{{cartTotalLabel}}</strong>
-                            </div>
-                            <div class="merchant-shop-cart-sum">
-                                <span>Selling</span>
-                                <strong>{{basketTotalLabel}}</strong>
-                            </div>
+
+                            {{!-- Labels in one column, figures in another, so the eye
+                                  runs down each rather than zig-zagging between them.
+                                  The total is the answer and sits apart from its two
+                                  workings. --}}
+                            <dl class="merchant-shop-cart-sums merchant-shop-cart-net-{{netDirection}}">
+                                <div class="merchant-shop-cart-sum merchant-shop-cart-sum-net">
+                                    <dt>{{netLabel}}</dt>
+                                    <dd>{{netTotalLabel}}</dd>
+                                </div>
+                                <div class="merchant-shop-cart-sum">
+                                    <dt>Buying</dt>
+                                    <dd>{{cartTotalLabel}}</dd>
+                                </div>
+                                <div class="merchant-shop-cart-sum">
+                                    <dt>Selling</dt>
+                                    <dd>{{basketTotalLabel}}</dd>
+                                </div>
+                            </dl>
                         </header>
 
                         {{!-- Likewise: the scroller starts below the total. --}}

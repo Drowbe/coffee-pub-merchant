@@ -338,6 +338,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description used to share the portrait's column, so a sentence wrapped in a narrow gutter beside a face. It
   spans the card now, where a paragraph can be one.
 
+- **The slate's totals line up** (`templates/window-shop.hbs`, `styles/default.css`): they were three
+  right-aligned label-and-value pairs, so every label began at a different x and the block read as three
+  unrelated notes rather than a sum. Two right-aligned columns now — labels down one edge, figures down the
+  other — on a tinted panel, with a rule under the total separating the answer from its working, the way it
+  would be on paper.
+- **Buying and Selling are headed like shelves are**: they do the same job — telling you which list you are
+  looking at — and were set several sizes smaller than the headings they sit opposite.
+- **Sell is reachable from the slate header**: the picker was only offered in the empty state, so putting one
+  thing on the slate hid the only way to add a second without dragging.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

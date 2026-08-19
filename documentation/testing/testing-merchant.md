@@ -289,6 +289,16 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Scroll the cart → the search does not move either; they are separate scrollers.
 - [ ] It does not sit in the window header any more, so a shop with a long description does not push it down.
 
+### The slate header
+
+- [ ] Labels line up down one edge and figures down the other; the block reads as a sum.
+- [ ] The rule under the total runs unbroken across both columns.
+- [ ] The totals sit on a tinted panel distinct from the lists below.
+- [ ] **Buying** and **Selling** headings are the same size and weight as a shelf heading.
+- [ ] A small **Sell** button in the slate header opens the picker — **with items already on the slate**,
+      not only when it is empty.
+- [ ] That button is absent on a merchant with no Buyback shelf, and disabled with no character to sell as.
+
 ### Settling
 
 One button in the footer settles the whole visit. Its label is part of the design, not decoration.

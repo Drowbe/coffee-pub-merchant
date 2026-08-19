@@ -413,26 +413,36 @@
 /* Title and the number that matters on one line; the two numbers it is made of
    beneath it, right-aligned under it so the eye reads down the column of figures
    rather than across three labels. */
-.merchant-shop-cart-headline { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.merchant-shop-cart-headline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
 .merchant-shop-cart-title { display: inline-flex; gap: 7px; align-items: center; color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 
-.merchant-shop-cart-sum { display: flex; align-items: baseline; justify-content: flex-end; gap: 7px; font-size: .72rem; }
-.merchant-shop-cart-sum > span { color: var(--blacksmith-tool-text-muted); letter-spacing: .03em; text-transform: uppercase; }
-.merchant-shop-cart-sum > strong { min-width: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-/* The subtotals are the working; the total is the answer. */
-.merchant-shop-cart-sum-net > span { font-size: .7rem; }
-.merchant-shop-cart-sum-net > strong { font-size: 1rem; }
-.merchant-shop-cart-sum:not(.merchant-shop-cart-sum-net) { opacity: .78; }
+/* Two columns, both right-aligned, so labels line up down one edge and figures
+   down the other. Right-aligned pairs put every label at a different x, which is
+   what made the block read as three unrelated notes rather than a sum. */
+/* The gap lives in the label's padding rather than in `column-gap`, so the rule
+   under the total runs unbroken across both columns instead of stopping in the
+   gutter between them. */
+.merchant-shop-cart-sums { display: grid; grid-template-columns: auto auto; justify-content: end; row-gap: 2px; margin: 0; padding: 6px 8px; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-shop-cart-sum { display: contents; }
+.merchant-shop-cart-sum > dt { padding-right: 12px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
+.merchant-shop-cart-sum > dd { margin: 0; font-size: .76rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+
+/* The total is the answer; the two beneath are the working, and a rule separates
+   them the way it would on paper. */
+.merchant-shop-cart-sum-net > dt { align-self: baseline; padding-bottom: 4px; font-size: .68rem; }
+.merchant-shop-cart-sum-net > dd { padding-bottom: 4px; font-size: 1.05rem; }
+.merchant-shop-cart-sum-net > dt,
+.merchant-shop-cart-sum-net > dd { border-bottom: 1px solid var(--blacksmith-tool-divider); margin-bottom: 4px; }
 /* Paying out and taking in are different events; the colour says which before the
    words are read. */
-.merchant-shop-cart-net-pay > strong { color: var(--blacksmith-tool-accent); }
-.merchant-shop-cart-net-receive > strong { color: #3f8a45; }
-.merchant-shop-cart-net-even > strong { color: var(--blacksmith-tool-text-muted); }
+.merchant-shop-cart-net-pay .merchant-shop-cart-sum-net > dd { color: var(--blacksmith-tool-accent); }
+.merchant-shop-cart-net-receive .merchant-shop-cart-sum-net > dd { color: #3f8a45; }
+.merchant-shop-cart-net-even .merchant-shop-cart-sum-net > dd { color: var(--blacksmith-tool-text-muted); }
 
 /* Segments, not buckets: one cart that happens to run in two directions. */
 .merchant-shop-cart-segment + .merchant-shop-cart-segment { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
-.merchant-shop-cart-segment > h4 { margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.merchant-shop-cart-segment > h4 > span { display: inline-flex; gap: 5px; align-items: center; }
+.merchant-shop-cart-segment > h4 { margin: 0 0 6px; padding: 4px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 5px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-accent); font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.merchant-shop-cart-segment > h4 > span { display: inline-flex; gap: 6px; align-items: center; }
 .merchant-shop-cart-selling .merchant-shop-cart-line { background: color-mix(in srgb, #8a6a2f 12%, var(--blacksmith-tool-surface-sunken)); }
 
 .merchant-shop-cart-hint { font-size: .72rem; opacity: .8; }
@@ -549,3 +559,9 @@
 .merchant-shop-subject-head { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
 .merchant-shop-subject-copy { flex: 1 1 auto; }
 .merchant-shop-blurb { margin-top: 9px; padding-top: 8px; }
+
+/* Sell from the slate's own header. It was reachable only from the empty state,
+   so putting one thing on the slate hid the way to add a second without dragging. */
+.merchant-shop-slate-sell { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: uppercase; cursor: pointer; }
+.merchant-shop-slate-sell:hover:not(:disabled) { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-slate-sell:disabled { opacity: .45; cursor: default; }
