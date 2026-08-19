@@ -43,7 +43,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             window: { title: 'Merchant Settings', resizable: true, minimizable: true },
             windowSizeConstraints: { minWidth: 360, minHeight: 260, maxWidth: 720, maxHeight: 'calc(100vh - 80px)' },
             toolTitlebar: 'full',
-            rememberPosition: false,
+            // One saved position for every merchant's settings, for the reason the
+            // shop shares one: it is the same window about a different shop.
+            rememberPosition: true,
             windowPositionKey: 'merchant-config'
         }
     );

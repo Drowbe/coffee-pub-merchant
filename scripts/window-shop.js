@@ -137,7 +137,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             window: { title: 'Shop', resizable: true, minimizable: true },
             windowSizeConstraints: { minWidth: 380, minHeight: 320, maxWidth: 1040, maxHeight: 'calc(100vh - 40px)' },
             toolTitlebar: 'full',
-            rememberPosition: false,
+            // On, with a key shared by every shop. A shop is a shop wherever it is
+            // opened, so where you last dragged one is where the next should appear,
+            // at the size you last gave it.
+            //
+            // `api-window.md` recommends `false` for multi-instance tools because
+            // siblings sharing a key overwrite each other's position — which is the
+            // documented cost here, and the right trade: two shops open at once is
+            // rare and one drag apart, while every shop resetting is every time.
+            rememberPosition: true,
             windowPositionKey: 'merchant-shop'
         }
     );

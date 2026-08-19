@@ -357,6 +357,14 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The single clear button empties **both** segments.
 - [ ] Empty, the panel says so and offers *Or choose from your pack*.
 
+### Position memory
+
+- [ ] Move and resize the shop, close it, open it again → it comes back where and how you left it.
+- [ ] Open a **different** merchant's shop → same place and size. One shop's position serves all of them.
+- [ ] Same for Merchant Settings.
+- [ ] Two shops open at once stack on each other. *Known and accepted: they share one saved position.*
+- [ ] A window dragged partly off-screen still comes back reachable.
+
 ### Layout
 
 - [ ] The cart is level with the **merchant card**, not with the first shelf — it runs the full height of the

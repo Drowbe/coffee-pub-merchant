@@ -531,6 +531,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different Actors — what you are buying is the merchant's, what you are selling is yours. Falls back to the
   plain name where `richTooltip` is absent, which a truncated row needs whatever else is missing.
 
+- **Both windows remember where you put them** (`scripts/window-shop.js`,
+  `scripts/window-merchant-config.js`): they were opting out of the window base's position memory, so a shop
+  dragged and resized reset on the next open.
+
+  `api-window.md` recommends opting out for multi-instance tools, because siblings sharing a position key
+  overwrite each other's. We had taken the recommendation without the reasoning behind it: both windows
+  already declare a **shared** key deliberately — a shop is a shop wherever it is opened. Two shops open at
+  once now stack, which is rare and one drag apart; every shop resetting was every time.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
