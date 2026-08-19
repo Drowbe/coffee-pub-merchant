@@ -337,3 +337,8 @@
 .merchant-shop-cart-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 14px 6px; }
 .merchant-shop-cart-empty > i { font-size: 1.1rem; opacity: .5; }
 .merchant-shop-cart-clear { line-height: 1; }
+
+/* Every one of these is in your own cart: dimmed like an empty shelf, but tinted
+   rather than greyed, because the stock is not gone — it is spoken for by you. */
+.merchant-shop-item.is-reserved { opacity: .7; }
+.merchant-shop-item.is-reserved .merchant-shop-item-qty { color: var(--blacksmith-tool-accent); font-weight: 600; }

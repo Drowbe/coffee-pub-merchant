@@ -10,7 +10,7 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE } from './const.js';
+import { MODULE, SHELF_MODE } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -88,15 +88,29 @@ export function resolvePrice(merchantConfig, shelfConfig, item) {
     const value = Number(price?.value);
     if (!Number.isFinite(value) || value <= 0) return null;
 
-    const markup = Number.isFinite(Number(shelfConfig?.markup))
-        ? Number(shelfConfig.markup)
+    // A buyback shelf's `markup` is what the shop *pays*, not what it charges — see
+    // resolveBuybackPrice. Reading it here too would have the shop buy a sword at half
+    // price and resell it at half price: no profit, and a permanent half-price
+    // second-hand rack. Second-hand stock is sold at the shop's ordinary rate.
+    const shelfMarkup = shelfConfig?.mode === SHELF_MODE.BUYBACK ? null : shelfConfig?.markup;
+    const markup = Number.isFinite(Number(shelfMarkup))
+        ? Number(shelfMarkup)
         : Number(merchantConfig?.pricing?.markup);
 
     const multiplier = Number.isFinite(markup) && markup > 0 ? markup : 1;
     return Math.max(1, Math.round(toBase(value, price?.denomination ?? 'gp') * multiplier));
 }
 
-/** What a merchant pays for an item the party sells, in base units. */
+/**
+ * What a merchant pays for an item the party sells, in base units.
+ *
+ * A fraction of what the thing is worth, not a fraction of the shop's asking price —
+ * hence the blanked overrides and the `null` shelf. A shop marking everything up 2x
+ * should not therefore pay double.
+ *
+ * The buyback shelf's `markup` is that fraction. It is the only place that reads it
+ * as a rate paid rather than a rate charged.
+ */
 export function resolveBuybackPrice(merchantConfig, shelfConfig, item) {
     const price = resolvePrice({ ...merchantConfig, pricing: { ...merchantConfig?.pricing, overrides: {} } }, null, item);
     if (price === null) return null;

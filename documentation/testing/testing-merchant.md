@@ -184,6 +184,24 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] It appears on **finite** shelves too, and says "already full" when there is nothing to do.
 - [ ] An item already at or above its target is left alone rather than being trimmed down to it.
 
+#### The cart reserves stock
+
+- [ ] A finite row showing 5, add 2 to the cart → the row shows **3**.
+- [ ] Hover the quantity → it reads "5 in stock, 2 in your cart".
+- [ ] Add-to-cart again offers at most 3, not 5.
+- [ ] Buy now on that row offers at most 3.
+- [ ] Put all 5 in the cart → the row reads 0 and says **"Every one of these is already in your cart"**,
+      *not* "Out of stock". The row is tinted rather than greyed.
+- [ ] Remove the line from the cart → the row goes back to 5 and the controls come back.
+- [ ] Checkout, then look at the row → it now genuinely reads 0 and says "Out of stock".
+- [ ] On an infinite shelf the cart changes nothing: the row still reads ∞.
+
+#### Buyback resale price
+
+- [ ] Merchant markup 2, Buyback rate 0.5, an item worth 10 gp: the shop offers **5 gp** for it.
+- [ ] Sell it, then look at it on the Buyback shelf: it is priced at **20 gp**, the shop's ordinary markup —
+      *not* 5 gp. Selling something and buying it straight back must not be free.
+
 #### Two buyers, one item
 
 **The race infinite stock did not have.** Finite stock means two clients can read the same count.

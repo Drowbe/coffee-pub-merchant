@@ -122,6 +122,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   height rather than a constant: the header grows and shrinks with the shop description, the browsing notice
   and the override line, all of which can appear on a socket refresh with no re-render.
 
+- **A buyback shelf resells at the shop's own rate** (`scripts/merchant-pricing.js`): its `markup` is what
+  the shop *pays* the party, and it was being read as what the shop charges as well — so a sword bought at
+  half price went back on sale at half price. No profit, and a permanent half-price second-hand rack you
+  could sell into and buy straight back out of. Second-hand stock now carries the merchant's ordinary markup;
+  the shelf's rate stays what it always meant, the fraction paid.
+- **The cart reserves stock** (`scripts/window-shop.js`): a shelf shows what is still available to take, so
+  two of five in your cart leaves three on the row. Quantity dialogs, Buy and the GM's free-take all respect
+  it, which is what stops you being offered a quantity that would make your own checkout fail. A row whose
+  whole stock is in your cart says so rather than saying "out of stock" — different sentences, and a player
+  needs to tell them apart. The reservation is soft and local: another player's cart is neither visible nor
+  blocked, and the GM re-checks every line at checkout, which is where a genuine race is settled.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

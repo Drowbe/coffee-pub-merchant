@@ -376,13 +376,18 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * How many of this a buyer may ask for.
      *
-     * On an infinite shelf that is the slider cap; on a finite one it is what is
-     * actually there, so the dialog cannot offer a quantity the GM will refuse.
+     * On an infinite shelf that is the slider cap; on a finite one it is what is left
+     * **after what the cart already holds**, so no dialog offers a quantity that would
+     * make the eventual checkout fail.
+     *
+     * A soft reservation, and only yours: another player's cart is not visible here
+     * and is not blocked. The GM re-checks every line at checkout, which is where a
+     * genuine race is settled — this only stops you outbidding yourself.
      */
     _maxFor(merchant, item) {
         const stock = MerchantManager.getStock(merchant, item);
         if (stock.unlimited) return ShopWindow.MAX_PER_ACQUISITION;
-        return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available);
+        return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available - (this.cart.get(item.id) ?? 0));
     }
 
     get cart() {
@@ -394,10 +399,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const context = await this._itemContext(itemId);
         if (!context) return;
 
-        // What is already in the cart is spoken for, so the dialog offers what is
-        // left rather than the whole shelf twice over.
         const inCart = this.cart.get(itemId) ?? 0;
-        const max = this._maxFor(context.token?.actor, context.item) - inCart;
+        const max = this._maxFor(context.token?.actor, context.item);
         if (max < 1) {
             ui.notifications?.warn(inCart
                 ? `Your cart already holds every ${context.item.name} in stock.`
@@ -831,6 +834,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!missing) {
             const busyRow = this._busy?.row ?? null;
             const isGM = game.user.isGM;
+            const cart = this.cart;
 
             // A closed shop is browsable but nothing changes hands. The GM is
             // exempt, so they can stock and test outside opening hours.
@@ -845,9 +849,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => {
                     const price = resolvePrice(config0, config, item);
                     const stock = MerchantManager.getStock(merchant, item, config);
-                    const out = !stock.unlimited && stock.available < 1;
-                    // Selling from an empty shelf is refused on the GM too; this is
-                    // the honest path, not the guard.
+                    // What the cart holds is spoken for, so the shelf shows what is
+                    // still available to take rather than what is physically there.
+                    const held = cart.get(item.id) ?? 0;
+                    const left = stock.unlimited ? Infinity : Math.max(0, stock.available - held);
+                    const out = left < 1;
+                    // "None left" and "you have taken them all" are different sentences
+                    // and a player needs to be able to tell them apart.
+                    const allInCart = out && held > 0;
+                    // Refused on the GM too; this is the honest path, not the guard.
                     const inStock = !out;
 
                     return {
@@ -865,11 +875,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // Unlimited reads as a symbol; anything else is a number in
                         // the same column, so the layout does not move between
                         // policies.
-                        qtyLabel: stock.unlimited ? '\u221e' : String(stock.available),
+                        qtyLabel: stock.unlimited ? '\u221e' : String(left),
                         qtyTooltip: stock.unlimited
                             ? 'Unlimited stock'
-                            : (out ? 'Out of stock' : `${stock.available} in stock, restocks to ${stock.par}`),
-                        outOfStock: out,
+                            : (held
+                                ? `${stock.available} in stock, ${held} in your cart`
+                                : (out ? 'Out of stock' : `${stock.available} in stock, restocks to ${stock.par}`)),
+                        outOfStock: out && !allInCart,
+                        reserved: allInCart,
                         // A GM sets the count by hand here, and that also sets what a
                         // restocking shelf refills to.
                         canEditStock: isGM && !stock.unlimited,
@@ -877,17 +890,22 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         buyTooltip: !buying ? 'Buying is waiting on a Blacksmith update'
+                            : allInCart ? 'Every one of these is already in your cart'
                             : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
                             : price === null ? 'This has no price set'
                             : 'Buy now',
-                        cartTooltip: out ? 'Out of stock' : 'Add to cart',
+                        cartTooltip: allInCart ? 'Every one of these is already in your cart'
+                            : out ? 'Out of stock'
+                            : 'Add to cart',
                         canBuy: trading && Boolean(recipient) && !isBarter && price !== null && buying && inStock,
                         canCart: trading && Boolean(recipient) && !isBarter && price !== null && inStock,
                         // Stocking and testing should not require a purse.
                         canTakeFree: isGM && !isBarter,
-                        takeFreeTooltip: out ? 'Out of stock' : 'Take without paying (GM)',
+                        takeFreeTooltip: allInCart ? 'Every one of these is already in your cart'
+                            : out ? 'Out of stock'
+                            : 'Take without paying (GM)',
                         canTakeFreeNow: isGM && !isBarter && inStock,
                         isBarter
                     };

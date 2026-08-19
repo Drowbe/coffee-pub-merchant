@@ -14,7 +14,7 @@
 {{!-- `data-search` is built in the context rather than read back out of the
       markup: the filter then never depends on what the row happens to render, and
       matching stays a substring test on a string that is already lowercased. --}}
-<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}" data-item-id="{{id}}"
+<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}{{#if reserved}} is-reserved{{/if}}" data-item-id="{{id}}"
      data-search="{{searchKey}}">
     <img src="{{img}}" alt="">
 
