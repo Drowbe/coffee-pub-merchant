@@ -228,3 +228,22 @@
 .merchant-config-window .window-content { min-height: 0; overflow: hidden; }
 .merchant-config-window .blacksmith-window-tool-root { min-height: 0; max-height: 100%; }
 .merchant-config-window .blacksmith-window-tool-body { min-height: 0; overflow: auto; }
+
+/* --- Search ------------------------------------------------------------ */
+/* `hidden` is a UA rule of `display: none`, and any explicit `display` on an
+   element beats it on specificity — `.merchant-shop-item` is `display: grid`, so
+   without this the filter would set the attribute and change nothing visible.
+   Stated for every element the filter touches, not just the grid one, so a later
+   `display` on any of them cannot quietly break searching. */
+.merchant-shop-window [hidden] { display: none !important; }
+
+.merchant-shop-search { display: flex; align-items: center; gap: 8px; padding: 5px 8px; }
+.merchant-shop-search > i { color: var(--blacksmith-tool-text-muted); font-size: .76rem; }
+.merchant-shop-search > input { flex: 1; min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .78rem; }
+.merchant-shop-search > input:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
+/* The browser's own clear affordance is inconsistent across platforms and does not
+   fire our handler, so it is suppressed in favour of the button beside it. */
+.merchant-shop-search > input::-webkit-search-cancel-button { display: none; }
+.merchant-shop-search-clear { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .62rem; cursor: pointer; }
+.merchant-shop-search-clear:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-no-matches { border-style: dashed; }

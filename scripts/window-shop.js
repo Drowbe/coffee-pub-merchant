@@ -19,6 +19,68 @@ function _blacksmith() {
     return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
 }
 
+/**
+ * Hide what does not match, and everything left holding nothing.
+ *
+ * Three levels, bottom up: a row matches or it does not; a category with no visible
+ * row is a heading over nothing; a shelf with no visible category is a section over
+ * nothing. Collapsing all three is what stops a search returning one potion under
+ * five empty headings.
+ *
+ * Exported rather than kept as a method because it reads nothing but the markup and
+ * the query — which is what makes it the one piece of the window that can be run
+ * outside Foundry, and it is the piece most likely to be quietly wrong.
+ *
+ * @param {HTMLElement} root
+ * @param {string} query
+ * @returns {number} how many rows are visible
+ */
+export function filterShopList(root, query) {
+    if (!root) return 0;
+    const needle = (query ?? '').trim().toLowerCase();
+
+    const clear = root.querySelector('[data-shop-search-clear]');
+    if (clear) clear.hidden = !needle;
+
+    let visibleTotal = 0;
+
+    for (const shelf of root.querySelectorAll('.merchant-shop-shelf')) {
+        let shelfVisible = 0;
+
+        for (const category of shelf.querySelectorAll('.merchant-shop-category')) {
+            let categoryVisible = 0;
+            for (const row of category.querySelectorAll('.merchant-shop-item')) {
+                const hit = !needle || (row.dataset.search ?? '').includes(needle);
+                row.hidden = !hit;
+                if (hit) categoryVisible++;
+            }
+            category.hidden = categoryVisible === 0;
+            shelfVisible += categoryVisible;
+        }
+
+        // An empty shelf keeps its "nothing on this shelf" line when nobody is
+        // searching, and gets out of the way when somebody is.
+        const empty = shelf.querySelector('.merchant-shop-empty');
+        if (empty) empty.hidden = Boolean(needle);
+
+        shelf.hidden = Boolean(needle) && shelfVisible === 0;
+        visibleTotal += shelfVisible;
+
+        // The badge counts what is in front of you, and remembers the real total so
+        // clearing the search puts it back.
+        const count = shelf.querySelector('.merchant-shop-count');
+        if (count) {
+            count.dataset.total ??= count.textContent.trim();
+            count.textContent = needle ? String(shelfVisible) : count.dataset.total;
+        }
+    }
+
+    const none = root.querySelector('[data-shop-no-matches]');
+    if (none) none.hidden = !needle || visibleTotal > 0;
+
+    return visibleTotal;
+}
+
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static _windows = new Map();
 
@@ -70,6 +132,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         super(opts);
         this.tokenUuid = tokenDocument.uuid;
         this.busy = false;
+        // Per window and not persisted: a search is a thing you are doing right now,
+        // and reopening a shop to find yesterday's filter still hiding most of the
+        // stock would be a puzzle.
+        this._search = '';
     }
 
     static async open(tokenDocument) {
@@ -761,6 +827,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         name: item.name,
                         img: item.img,
                         typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                        // Name and kind both, so "potion" finds a Potion of Healing
+                        // and "consumable" finds the whole category.
+                        searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
                         busy: item.id === busyRow,
                         price,
                         priceLabel: price === null ? null : formatBase(price),
@@ -942,6 +1011,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _onRender(context, options) {
         super._onRender?.(context, options);
+
+        this._bindSearch();
+        // Re-applied after every render, because a refresh, a GM stocking a shelf, or
+        // another player's purchase all rebuild the list underneath a standing search.
+        this._applyFilter();
+
         if (!game.user.isGM) return;
 
         // A number input rather than a data-action: the value is what matters, and
@@ -999,6 +1074,57 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ui.notifications?.error('Could not set that quantity.');
             await this.render(false);
         }
+    }
+
+    // ==============================================================
+    // ===== SEARCH =================================================
+    // ==============================================================
+    //
+    // Filtered in the DOM rather than in the context, and deliberately.
+    //
+    // Filtering in `getData` would mean a render per keystroke — which is async,
+    // rebuilds the markup, and takes the caret out of the box the user is typing in.
+    // So the query lives on the window, the filter is one pass over rendered rows, and
+    // `_onRender` re-applies it. Typing never re-renders; a render never loses the
+    // search.
+
+    /** Bound once per element. Re-render replaces the node, hence the guard. */
+    _bindSearch() {
+        const input = this.element?.querySelector('[data-shop-search]');
+        if (input && input.dataset.merchantBound !== 'true') {
+            input.dataset.merchantBound = 'true';
+            input.value = this._search ?? '';
+            input.addEventListener('input', () => {
+                this._search = input.value;
+                this._applyFilter();
+            });
+            // A search box that cannot be escaped is a small trap.
+            input.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                this._clearSearch();
+            });
+        }
+
+        const clear = this.element?.querySelector('[data-shop-search-clear]');
+        if (clear && clear.dataset.merchantBound !== 'true') {
+            clear.dataset.merchantBound = 'true';
+            clear.addEventListener('click', () => this._clearSearch());
+        }
+    }
+
+    _clearSearch() {
+        this._search = '';
+        const input = this.element?.querySelector('[data-shop-search]');
+        if (input) input.value = '';
+        this._applyFilter();
+        input?.focus();
+    }
+
+    /** One pass over the rendered list. See `filterShopList`. */
+    _applyFilter() {
+        if (this.element) filterShopList(this.element, this._search);
     }
 
     async _onDropToShelf(event, shelfId) {

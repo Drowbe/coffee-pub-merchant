@@ -119,6 +119,20 @@
                     </div>
                 </section>
             {{/if}}
+
+            {{#if hasShelves}}
+                {{!-- Last in the pinned block, so it reads as "filter what is below"
+                      and stays put while the stock scrolls under it. --}}
+                <section class="merchant-shop-section merchant-shop-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" placeholder="Search this shop" aria-label="Search stock"
+                           data-shop-search autocomplete="off" spellcheck="false">
+                    <button type="button" class="merchant-shop-search-clear" data-shop-search-clear
+                            data-tooltip="Clear the search" hidden>
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </section>
+            {{/if}}
         </div>
 
         {{#if hasShelves}}
@@ -174,6 +188,11 @@
                     </div>
                 </section>
             {{/each}}
+            {{!-- Shown by the filter, never by the context: whether a search matches
+                  is a question about the rendered list, not about the merchant. --}}
+            <section class="merchant-shop-section merchant-shop-no-matches" data-shop-no-matches hidden>
+                <div class="merchant-shop-empty">Nothing here matches that.</div>
+            </section>
         {{else}}
             <section class="merchant-shop-section">
                 <div class="merchant-shop-empty">This merchant has no shelves set up.</div>

@@ -5,9 +5,9 @@ Working checklist for the shop feature. Tick as you go; note failures inline.
 `../plans/plan-merchant.md` records intent; `../architecture/architecture-merchant.md` will describe what
 the system actually does once behaviour is verified.
 
-**Run the logic checks first** — `node tests/test-pricing.mjs` and `node tests/test-stock.mjs`, no
-dependencies. They cover making change, stock policy, the restock cadence and the lock, which are the parts
-where reading the code is a bad way to find a bug. Everything below needs a table; those do not.
+**Run the logic checks first** — see `tests/README.md`. They cover making change, stock policy, the restock
+cadence, the lock, and the search filter against the real templates. Everything below needs a table; those do
+not.
 
 ---
 
@@ -210,6 +210,26 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Checkout is refused **whole** if any line is short, rather than delivering part of it.
 - [ ] Prices are re-checked at checkout: change a markup with a cart open and the new price applies.
 - [ ] The cart survives closing and reopening the window, and is per-player.
+
+## 2f. Searching the shop
+
+The filter itself is covered by `tests/test-search.mjs` against the real templates. What is left is whether
+it is wired to the box and survives the things that redraw the window.
+
+- [ ] Type into the search box — the list narrows as you type, with **no flicker and no lost caret**.
+      *A re-render per keystroke would show as the cursor jumping to the end. That is the bug this design
+      exists to avoid.*
+- [ ] A shelf with nothing matching disappears, heading and all; so does an empty category heading.
+- [ ] The count on each shelf header shows how many are showing, and goes back to the real total on clear.
+- [ ] No matches at all → "Nothing here matches that."
+- [ ] The **×** clears the search and puts focus back in the box; **Escape** does the same.
+- [ ] Searching by kind works: "weapon" finds the weapons, "consumable" the consumables.
+- [ ] With a search active, hit titlebar **Refresh** → the search survives and still applies.
+- [ ] With a search active, have a GM add stock → the list updates and the search still applies to it.
+- [ ] With a search active, buy something → the row updates and the search is still there.
+- [ ] Search, then buy the only visible item on a finite shelf → it goes out of stock rather than vanishing.
+- [ ] A GM searching still sees hidden shelves among the results, still marked hidden.
+- [ ] Close and reopen the shop → the search is **empty**, not yesterday's filter.
 
 ## 3. The window
 

@@ -63,6 +63,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Selling is one transfer of goods and two of coin, payment and change never netted, because netting would
   let a payer hand over coin they do not have.
 
+- **Search** (`scripts/window-shop.js`, `templates/window-shop.hbs`): a box in the pinned header filters the
+  stock by name or kind, so "potion" finds a Potion of Healing and "consumable" finds the category. A shelf
+  or a category with nothing matching collapses entirely rather than leaving a heading over nothing, and each
+  shelf's count shows what is in front of you until the search is cleared.
+
+  **Filtered in the DOM rather than in the context, deliberately.** Filtering in `getData` would mean an
+  async render per keystroke, which rebuilds the markup and takes the caret out of the box being typed in.
+  Instead the query lives on the window and `_onRender` re-applies it — so typing never re-renders, and a
+  refresh, a GM stocking a shelf, or another player's purchase never drops a standing search. The filter is
+  an exported pure function of markup and query, which is what lets `tests/test-search.mjs` run it against
+  the real compiled templates.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

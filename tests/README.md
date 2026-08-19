@@ -3,11 +3,17 @@
 ```
 node tests/test-pricing.mjs
 node tests/test-stock.mjs
+
+npm install --no-save jsdom handlebars   # once, for the third
+node tests/test-search.mjs
 ```
 
-No dependencies, no test runner, no build step — plain Node and `node:assert`. They stub the handful of
-Foundry globals the modules under test actually touch (`CONFIG.DND5E.currencies`, `game.time.calendar`) and
-run the real code.
+No test runner and no build step — plain Node and `node:assert`. The first two have no dependencies at all;
+they stub the handful of Foundry globals the modules under test actually touch
+(`CONFIG.DND5E.currencies`, `game.time.calendar`) and run the real code. The third needs jsdom and
+handlebars, and **skips with a message rather than failing** when they are absent, so it is safe to run the
+lot without setting anything up. Neither is a module dependency; `--no-save` keeps them out of the manifest
+and `node_modules/` is already ignored.
 
 ## What these are for
 
@@ -23,6 +29,11 @@ way to find a bug and where a wrong answer is silent:
   returned equals the price exactly, and that no plan ever spends a coin the buyer does not hold. Making
   change is Merchant's permanently — `api.inventory` does not convert denominations — so nobody else is
   going to catch this being wrong.
+- **`test-search.mjs`** — the shop search, run against **the real templates**. It compiles
+  `window-shop.hbs` and `partial-shop-row.hbs`, renders a shop with three shelves, and calls the actual
+  `filterShopList`. That makes it the only check here that would catch a selector no longer matching the
+  markup — which is the way this particular feature breaks, and which reads as a search that quietly returns
+  too little rather than as an error.
 - **`test-stock.mjs`** — calendar arithmetic, policy inheritance, the restock cadence, par resolution, and
   the lock. The lock cases are the point: two buyers racing for the last item, a queue surviving a callback
   that throws, and the key being released rather than leaking. Finite stock reintroduced a race that
