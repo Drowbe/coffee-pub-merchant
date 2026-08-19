@@ -217,4 +217,79 @@ assert.strictEqual(P.stockDepth({ type: 'loot', system: { quantity: '3' } },
     { maxPerItem: 99, random: maxRoll }), 1, 'and a quantity that is a string is not a quantity');
 console.log('ok  how deep a rolled row stacks');
 
+// --- settling without change ---------------------------------------------
+// The refusal this replaces: a merchant holding 20,001 gp and 1 sp could not pay
+// 5 gp 6 sp 3 cp of change, because change had to come out of coins already held
+// and nothing guarantees a shop sitting on gold has silver in the drawer. Now the
+// payer re-cuts their own money first and hands over the exact coins.
+const TILL = { gp: 20001, sp: 1, cp: 3 };
+
+{
+    const plan = P.planSettlement(TILL, 563);
+    assert.ok(plan, 'a till full of gold can pay five gold six silver threepence');
+    assert.deepStrictEqual(plan.pay, { gp: 5, sp: 6, cp: 3 }, 'and pays it exactly');
+    assert.ok(plan.remint, 'having broken a coin to do it');
+    // The whole point: re-cutting invents nothing.
+    assert.strictEqual(P.poolValue(plan.remint), P.poolValue(TILL), 're-cutting is value-neutral');
+}
+
+// Coins already held are used untouched, which is the common case.
+assert.deepStrictEqual(
+    P.planSettlement({ gp: 6695, sp: 6, cp: 3 }, 563),
+    { pay: { gp: 5, sp: 6, cp: 3 }, remint: null },
+    'a purse that can already pay exactly is not re-cut');
+
+// Platinum is a store of value, not small change: left alone unless it is needed.
+{
+    const plan = P.planSettlement({ pp: 10 }, 563);
+    assert.ok(plan, 'platinum is drawn on when nothing else will cover it');
+    assert.strictEqual(P.poolValue(plan.remint, ['pp', 'gp', 'sp', 'cp']), 10000, 'and still nets out');
+    assert.ok(!('ep' in plan.pay), 'electrum is never handed to somebody who had none');
+}
+assert.strictEqual(
+    P.planSettlement({ gp: 100, pp: 5 }, 1000).remint, null,
+    'platinum stays put while the working coin can cover it');
+
+// Refusals are about not having the money, and nothing else now.
+assert.strictEqual(P.planSettlement({ cp: 5 }, 563), null, 'too poor is still too poor');
+assert.deepStrictEqual(P.planSettlement({ gp: 1 }, 0), { pay: {}, remint: null }, 'nothing owed moves nothing');
+
+// Exhaustive: every purse shape against every price must either refuse for want of
+// money, or hand over coins worth exactly the price, having created none.
+let settled = 0;
+for (const gp of [0, 1, 3, 20, 500]) {
+    for (const sp of [0, 1, 7]) {
+        for (const cp of [0, 3, 9]) {
+            const purse = { gp, sp, cp };
+            const pool = P.poolValue(purse);
+            for (const owed of [1, 3, 13, 63, 100, 563, 1999, 50000]) {
+                const plan = P.planSettlement(purse, owed);
+                if (pool < owed) {
+                    assert.strictEqual(plan, null, `${JSON.stringify(purse)} should not afford ${owed}`);
+                    continue;
+                }
+                assert.ok(plan, `${JSON.stringify(purse)} holds ${pool} and should afford ${owed}`);
+                assert.strictEqual(P.poolValue(plan.pay), owed,
+                    `${JSON.stringify(purse)} @ ${owed}: payment is not exact`);
+                if (plan.remint) {
+                    assert.strictEqual(P.poolValue(plan.remint), pool,
+                        `${JSON.stringify(purse)} @ ${owed}: re-cutting changed the total`);
+                    // Every coin handed over must exist in the re-cut purse.
+                    for (const [d, n] of Object.entries(plan.pay)) {
+                        assert.ok((plan.remint[d] ?? 0) >= n,
+                            `${JSON.stringify(purse)} @ ${owed}: paying ${n} ${d} it does not hold`);
+                    }
+                } else {
+                    for (const [d, n] of Object.entries(plan.pay)) {
+                        assert.ok((purse[d] ?? 0) >= n,
+                            `${JSON.stringify(purse)} @ ${owed}: paying ${n} ${d} it does not hold`);
+                    }
+                }
+                settled++;
+            }
+        }
+    }
+}
+console.log(`ok  ${settled} settlements pay exactly, and none invent money`);
+
 console.log('\nall pricing checks passed');

@@ -2,7 +2,7 @@ import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scrip
 import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
 import { startProgress } from './merchant-progress.js';
 import {
-    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment, toBase, fromBase,
+    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planSettlement, toBase, fromBase,
     negotiatedPrice
 } from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
@@ -475,7 +475,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         // Checked here so a player learns they cannot cover it from the confirm rather
         // than from a refusal. The GM re-checks regardless.
-        if (net > 0 && !planPayment(shopper, net)) {
+        if (net > 0 && !planSettlement(shopper.system?.currency ?? {}, net)) {
             notify.warn(
                 `${shopper.name} cannot cover that \u2014 ${formatBase(net)} needed, `
                 + `${purseValue(shopper) ? formatBase(purseValue(shopper)) : 'nothing'} held.`
@@ -849,21 +849,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // Not the player's fault and not something they can work around: the
             // coins they hand over are chosen for them, smallest first. Say whose
             // problem it is.
-            // Names the side that is actually short, and what of. The old wording blamed
-            // the till in both directions, including the one where the *shopper* owes the
-            // change back -- and it said "cannot cover it" of a till holding twenty
-            // thousand gold, when what it lacked was six silver.
-            case 'NO_CHANGE': {
-                const owed = formatBase(result?.changeBase);
-                const missing = Object.entries(result?.shortfall ?? {})
-                    .map(([denomination, count]) => `${count} ${denomination}`)
-                    .join(', ');
-                const who = result?.side === 'shopper'
-                    ? 'You would owe'
-                    : 'The merchant would owe';
-                return `${who} ${owed} in change, and has not got the coins for it`
-                    + (missing ? ` — short ${missing}.` : '.');
-            }
+            // `NO_CHANGE` is gone: money now moves as one exact leg, with the payer
+            // re-cutting their own coins if they must, so there is no change for
+            // anybody to be unable to make.
+            case 'CANNOT_MAKE_CHANGE': return 'The right coins could not be counted out. Nothing moved.';
             case 'INSUFFICIENT_CURRENCY': return 'Somebody is short of the coins that were meant to change hands, and nothing moved.';
             case 'INVALID_CURRENCY': return 'That payment did not add up. Nothing moved.';
             case 'SOURCE_ACTOR_NOT_FOUND':

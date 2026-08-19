@@ -13,7 +13,7 @@ import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
 } from './merchant-inventory.js';
 import {
-    resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase, fromBase, stockDepth
+    resolvePrice, resolveBuybackPrice, planSettlement, purseValue, formatBase, toBase, fromBase, stockDepth
 } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -1214,53 +1214,30 @@ export class MerchantManager {
      *
      * An empty leg is a no-op rather than an error, so exact money adds nothing.
      */
-    static _coinTransfers(payerUuid, payeeUuid, plan) {
-        const legs = [];
-        if (Object.keys(plan.pay ?? {}).length) {
-            legs.push({ from: payerUuid, to: payeeUuid, currency: plan.pay });
-        }
-        if (Object.keys(plan.change ?? {}).length) {
-            legs.push({ from: payeeUuid, to: payerUuid, currency: plan.change });
-        }
-        return legs;
-    }
-
     /**
-     * Whether the merchant actually holds the coins it owes in change.
+     * Re-cut a purse into the coins a payment needs. Same money, different coins.
      *
-     * Whichever side owes change has to hold the coins for it. Checked here so the
-     * refusal names the problem: the primitive would refuse it anyway and nothing
-     * would move, but a bare `INSUFFICIENT_CURRENCY` reads as a mysterious failure of
-     * the player's purchase when what it means is that somebody cannot break a large
-     * coin.
-     */
-    /** The change owed, in base units, so a message can name it. */
-    static _changeBase(plan) {
-        return Object.entries(plan.change ?? {})
-            .reduce((total, [denomination, amount]) => total + toBase(amount, denomination), 0);
-    }
-
-    /**
-     * Which coins are missing, and how many, so a refusal can say something useful.
+     * Absolute, and through `setCurrency` so it takes the inventory lock -- a raw write
+     * here would race the very settlement it is preparing for, which is the exact bug
+     * that made `setCurrency` necessary in the first place.
      *
-     * "The till cannot cover it" is not actionable when the till holds twenty thousand
-     * gold. What it actually lacks is *small change* -- six silver, say -- and that is
-     * a different problem with a different fix.
+     * Without the primitive there is nothing safe to do, so the trade is refused rather
+     * than attempted: an unlocked re-cut of somebody's purse is worse than a refusal.
      */
-    static _changeShortfall(payee, plan) {
-        const purse = payee?.system?.currency ?? {};
-        const missing = {};
-        for (const [denomination, amount] of Object.entries(plan?.change ?? {})) {
-            const held = Number(purse[denomination] ?? 0);
-            if (held < amount) missing[denomination] = amount - held;
+    static async _remint(actor, currency) {
+        if (!hasSetCurrency()) {
+            console.warn(
+                `${MODULE.TITLE} | ${actor.name} needs coins broken to pay exactly, and this `
+                + 'Blacksmith has no setCurrency to do it safely. Update Blacksmith.'
+            );
+            return false;
         }
-        return missing;
-    }
-
-    static _canMakeChange(payee, plan) {
-        const purse = payee?.system?.currency ?? {};
-        return Object.entries(plan.change ?? {})
-            .every(([denomination, amount]) => Number(purse[denomination] ?? 0) >= amount);
+        const result = await setCurrency({ targetActorUuid: actor.uuid, currency });
+        if (!result?.ok) {
+            console.error(`${MODULE.TITLE} | Could not break coins for ${actor.name}:`, result);
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -1406,31 +1383,42 @@ export class MerchantManager {
         }
 
         const net = bought.total - sold.total;
-        let plan = { pay: {}, change: {} };
         let coin = [];
 
-        if (net > 0) {
-            plan = planPayment(shopper, net);
-            if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: net, held: purseValue(shopper) };
-            if (!this._canMakeChange(merchant, plan)) {
-                return {
-                    ok: false, code: 'NO_CHANGE', side: 'merchant', price: net,
-                    changeBase: this._changeBase(plan), shortfall: this._changeShortfall(merchant, plan)
-                };
-            }
-            coin = this._coinTransfers(shopper.uuid, merchant.uuid, plan);
-        } else if (net < 0) {
-            plan = planPayment(merchant, -net);
+        // **One leg, always exact, so there is no change to be unable to make.**
+        //
+        // Money used to move as a payment plus change back, which meant the *other*
+        // side had to hold particular coins -- and nothing guarantees a shop sitting on
+        // twenty thousand gold has six silver in the drawer. That refusal was the most
+        // common way a perfectly ordinary purchase failed, and it was unfixable from the
+        // player's side and baffling from the GM's.
+        //
+        // Now the payer's own purse is re-cut first when it has to be, so the exact
+        // coins exist to hand over. Breaking a gold piece into ten silver is what a
+        // person does at a counter without thinking about it, and it is value-neutral:
+        // the same money in different coins. See `planSettlement`.
+        if (net !== 0) {
+            const payer = net > 0 ? shopper : merchant;
+            const payee = net > 0 ? merchant : shopper;
+            const owed = Math.abs(net);
+
+            const plan = planSettlement(payer.system?.currency ?? {}, owed);
             if (!plan) {
-                return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: -net, held: purseValue(merchant) };
+                return net > 0
+                    ? { ok: false, code: 'CANNOT_AFFORD', price: owed, held: purseValue(shopper) }
+                    : { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: owed, held: purseValue(merchant) };
             }
-            if (!this._canMakeChange(shopper, plan)) {
-                return {
-                    ok: false, code: 'NO_CHANGE', side: 'shopper', price: -net,
-                    changeBase: this._changeBase(plan), shortfall: this._changeShortfall(shopper, plan)
-                };
+
+            // Re-cut before anything moves. This is the payer's own money changing
+            // shape, so a failure here or after it leaves them exactly as rich as they
+            // were and nothing else has happened -- which is why it can sit outside the
+            // atomic part without reintroducing the half-completed trade.
+            if (plan.remint) {
+                const recut = await this._remint(payer, plan.remint);
+                if (!recut) return { ok: false, code: 'CANNOT_MAKE_CHANGE', price: owed };
             }
-            coin = this._coinTransfers(merchant.uuid, shopper.uuid, plan);
+
+            coin = [{ from: payer.uuid, to: payee.uuid, currency: plan.pay }];
         }
         // net === 0 moves no coin at all, which is what an even trade is.
 

@@ -201,6 +201,17 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] With Blacksmith's sound list unavailable at load, the dropdowns still populate once it arrives.
 - [ ] A sound plays **only on the client that acted** — a second player hears nothing.
 
+## 2d-viii. Making change
+
+- [ ] Give a merchant **20,000 gp and no silver or copper**. Buy something costing an odd amount
+      (5 gp 6 sp 3 cp). It **completes** — no "cannot make change".
+- [ ] Check the till afterwards: the total is right, and it now holds silver it did not before.
+- [ ] Sell something to a shop whose till is mostly gold → the same, in the other direction.
+- [ ] A character holding **only platinum** can still buy a 1 cp candle.
+- [ ] A character holding gold *and* platinum spends the **gold**; the platinum is untouched.
+- [ ] Nobody is ever handed **electrum** they did not already have.
+- [ ] A genuinely broke character is still refused, and the message is about money, not coins.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

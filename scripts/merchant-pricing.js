@@ -100,6 +100,134 @@ export function fromBase(base, denomination) {
     return (amount / baseUnit.conversion) * to.conversion;
 }
 
+/**
+ * The coins a shop and its customers actually settle in.
+ *
+ * Platinum and electrum are left out on purpose. Electrum is vestigial and nobody
+ * wants their gold turned into it; platinum is a *store of value* somebody chose to
+ * hold, and quietly breaking it to buy a candle would be a worse surprise than the
+ * refusal this whole mechanism exists to remove. They are only drawn on when the
+ * working coin genuinely cannot cover the price.
+ */
+const SETTLEMENT_DENOMINATIONS = ['gp', 'sp', 'cp'];
+
+/** The tidiest set of coins worth exactly `base`, largest denomination first. */
+export function coinsFor(base, { keys = SETTLEMENT_DENOMINATIONS } = {}) {
+    let left = Math.max(0, Math.round(Number(base) || 0));
+    const baseUnit = baseDenomination();
+    const coins = {};
+    for (const d of denominations()) {
+        if (!keys.includes(d.key)) continue;
+        const perCoin = Math.round(baseUnit.conversion / d.conversion);
+        if (perCoin <= 0) continue;
+        const count = Math.floor(left / perCoin);
+        if (count > 0) {
+            coins[d.key] = count;
+            left -= count * perCoin;
+        }
+    }
+    return coins;
+}
+
+/** What a subset of a purse is worth, in base units. */
+export function poolValue(currency, keys = SETTLEMENT_DENOMINATIONS) {
+    const baseUnit = baseDenomination();
+    return denominations().reduce((total, d) => {
+        if (!keys.includes(d.key)) return total;
+        const held = Math.trunc(Number(currency?.[d.key]) || 0);
+        if (held <= 0) return total;
+        return total + held * Math.round(baseUnit.conversion / d.conversion);
+    }, 0);
+}
+
+/**
+ * Coins that come to exactly `base`, taken from what is actually held, or null.
+ *
+ * Greedy from the largest coin down, which is exact for a system where each
+ * denomination divides the next -- gold, silver, copper. It is not a general
+ * coin-change solver and does not need to be: when it cannot hit the number, the
+ * caller re-mints and asks again.
+ */
+export function exactPayment(currency, base, { keys = SETTLEMENT_DENOMINATIONS } = {}) {
+    let left = Math.max(0, Math.round(Number(base) || 0));
+    if (!left) return {};
+
+    const baseUnit = baseDenomination();
+    const pay = {};
+    for (const d of denominations()) {
+        if (!keys.includes(d.key)) continue;
+        const perCoin = Math.round(baseUnit.conversion / d.conversion);
+        if (perCoin <= 0) continue;
+        const held = Math.trunc(Number(currency?.[d.key]) || 0);
+        if (held <= 0) continue;
+        const spend = Math.min(held, Math.floor(left / perCoin));
+        if (spend > 0) {
+            pay[d.key] = spend;
+            left -= spend * perCoin;
+        }
+    }
+    return left === 0 ? pay : null;
+}
+
+/**
+ * A purse re-expressed so that exactly `base` can be handed over.
+ *
+ * **This is what "shops break coins" means, and it is value-neutral.** Nothing is
+ * created or destroyed: the same money is re-cut into the coins needed to pay `base`
+ * exactly, plus the tidiest form of whatever is left. A purse of one gold piece
+ * becomes ten silver when six silver is owed, which is what a person does at a
+ * counter without thinking about it.
+ *
+ * Doing it this way -- rather than letting the payer overshoot and the payee hand
+ * change back -- is what removes the whole class of "cannot make change" refusals. A
+ * change leg needs the *other* side to hold particular coins, and nothing guarantees
+ * a shop holding twenty thousand gold has six silver in the drawer.
+ *
+ * Returns null when the pool cannot cover it even after re-cutting.
+ */
+export function remintFor(currency, base, { keys = SETTLEMENT_DENOMINATIONS } = {}) {
+    const owed = Math.max(0, Math.round(Number(base) || 0));
+    const pool = poolValue(currency, keys);
+    if (pool < owed) return null;
+
+    const minted = coinsFor(owed, { keys });
+    for (const [denomination, count] of Object.entries(coinsFor(pool - owed, { keys }))) {
+        minted[denomination] = (minted[denomination] ?? 0) + count;
+    }
+    // Denominations outside the pool are somebody's savings and are handed back
+    // untouched -- this returns a whole purse, so leaving them out would spend them.
+    for (const d of denominations()) {
+        if (keys.includes(d.key)) continue;
+        const held = Math.trunc(Number(currency?.[d.key]) || 0);
+        if (held > 0) minted[d.key] = held;
+    }
+    return minted;
+}
+
+/**
+ * Everything needed to settle `base` out of this purse, breaking coins if it must.
+ *
+ * `remint` is null when the coins already held will do, which is the common case and
+ * costs nothing. When it is set, the payer's purse is rewritten to it first and the
+ * payment then comes out exactly.
+ */
+export function planSettlement(currency, base) {
+    const owed = Math.max(0, Math.round(Number(base) || 0));
+    if (!owed) return { pay: {}, remint: null };
+
+    // Working coin first, so platinum stays where its owner put it; platinum only when
+    // the working coin genuinely will not cover the price. Electrum is in neither list:
+    // handing somebody electrum they did not have is a worse surprise than the refusal.
+    for (const keys of [SETTLEMENT_DENOMINATIONS, ['pp', ...SETTLEMENT_DENOMINATIONS]]) {
+        const held = exactPayment(currency, owed, { keys });
+        if (held) return { pay: held, remint: null };
+
+        const minted = remintFor(currency, owed, { keys });
+        if (minted) return { pay: coinsFor(owed, { keys }), remint: minted };
+    }
+    return null;
+}
+
 /** An actor's whole purse, in base units. */
 export function purseValue(actor) {
     const currency = actor?.system?.currency ?? {};
