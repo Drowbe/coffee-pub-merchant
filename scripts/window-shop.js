@@ -313,8 +313,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    /** Ask how many only when there is a choice to make. */
-    async _askQuantity(label, max) {
+    /**
+     * Ask how many, only when there is a choice to make.
+     *
+     * The caller names the action, because this one dialog serves three of them and
+     * "Acquire" was standing in for all three. A player clicking the cart icon is
+     * adding to a cart, not acquiring something, and the confirm button should agree
+     * with the button they pressed.
+     */
+    async _askQuantity(label, max, {
+        title = `Add ${label} to the cart`,
+        confirmLabel = 'Add to cart',
+        confirmIcon = 'fa-solid fa-cart-plus'
+    } = {}) {
         if (max <= 1) return max;
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.quantitySplit?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
@@ -325,14 +336,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             max,
             value: 1,
             inputName: 'merchant-quantity',
-            giveLabel: 'Take',
-            keepLabel: 'Leave',
+            giveLabel: 'Yours',
+            keepLabel: 'Left on the shelf',
             amountLabel: `How many ${label}?`
         });
 
         let chosen = null;
         const outcome = await blacksmith.dialog.wait({
-            title: `Acquire ${label}`,
+            title,
             content: `<div class="blacksmith-field">${control.html}</div>`,
             classes: ['merchant-dialog'],
             controls: control,
@@ -340,8 +351,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
                 {
                     action: 'take',
-                    label: 'Acquire',
-                    icon: 'fa-solid fa-hand',
+                    label: confirmLabel,
+                    icon: confirmIcon,
                     default: true,
                     // getValue() is integer-clamped and DOM-independent.
                     callback: () => { chosen = control.getValue(); }
@@ -617,7 +628,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ui.notifications?.warn(`${context.item.name} is out of stock.`);
             return;
         }
-        const amount = await this._askQuantity(context.item.name, max);
+        const amount = await this._askQuantity(context.item.name, max, {
+            title: `Buy ${context.item.name}`,
+            confirmLabel: 'Buy',
+            confirmIcon: 'fa-solid fa-coins'
+        });
         if (!amount) return;
 
         // Where the goods go is asked here rather than encoded in three icons.
@@ -718,7 +733,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const item = seller.items.get(picked.value);
         const available = Number(item?.system?.quantity ?? 1);
-        const amount = await this._askQuantity(item?.name ?? 'item', Number.isFinite(available) ? available : 1);
+        const amount = await this._askQuantity(item?.name ?? 'item', Number.isFinite(available) ? available : 1, {
+            title: `Sell ${item?.name ?? 'item'}`,
+            confirmLabel: 'Sell',
+            confirmIcon: 'fa-solid fa-hand-holding-dollar'
+        });
         if (!amount) return;
 
         this._report(
@@ -744,12 +763,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ui.notifications?.warn(`${context.item.name} is out of stock.`);
             return;
         }
-        const amount = await this._askQuantity(context.item.name, max);
+        const amount = await this._askQuantity(context.item.name, max, {
+            title: `Give ${context.item.name}`,
+            confirmLabel: 'Give',
+            confirmIcon: 'fa-solid fa-hand-holding-heart'
+        });
         if (!amount) return;
         this._report(
             await this._send({ itemId, quantity: amount, recipientUuid: recipient.uuid },
-                { row: itemId, label: `Acquiring ${context.item.name}` }),
-            `${recipient.name} acquired ${amount > 1 ? `${amount} ` : ''}${context.item.name}.`);
+                { row: itemId, label: `Giving ${context.item.name}` }),
+            `The shopkeeper gave ${recipient.name} ${amount > 1 ? `${amount} ` : ''}${context.item.name}.`);
     }
 
     /** `ok: true, merged: false` is success — the item arrived as its own row. */

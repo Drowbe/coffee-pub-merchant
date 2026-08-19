@@ -331,10 +331,18 @@ it is wired to the box and survives the things that redraw the window.
 
 ---
 
-## 4. Acquiring
+## 4. Quantity prompts
 
-- [ ] Acquire an item → a quantity prompt appears; **dragging the slider updates the numbers**.
-- [ ] Dialog buttons read `[ Cancel ]` left, `[ Acquire ]` right.
+One dialog serves four actions, and it must name the one you pressed.
+
+- [ ] Cart icon → title "Add {item} to the cart", confirm reads **Add to cart**.
+- [ ] Buy → title "Buy {item}", confirm reads **Buy**.
+- [ ] Sell → title "Sell {item}", confirm reads **Sell**.
+- [ ] The GM's give → title "Give {item}", confirm reads **Give**.
+- [ ] The word "Acquire" appears nowhere.
+- [ ] The slider ends read "Yours" and "Left on the shelf", not "Take" and "Leave".
+- [ ] **Dragging the slider updates the numbers.**
+- [ ] Dialog buttons are `[ Cancel ]` left, the action right.
 - [ ] The item arrives on the buying character.
 - [ ] **On an infinite shelf the merchant still has it, at the same quantity.** If the count drops, or the
       row vanishes, `transferItem` semantics have crept in where `grantItem` belongs.
