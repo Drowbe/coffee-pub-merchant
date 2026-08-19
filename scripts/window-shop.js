@@ -410,6 +410,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * towards a suit of armour is not a sale followed by a purchase — it is a swap
      * and a difference, and doing it as two means two lots of change, an order that
      * matters, and a purchase you cannot make until the sale has landed.
+     *
+     * **No destination is asked for.** Whoever you are shopping as pays and receives,
+     * and the party is one of the things you can shop as — which is what "buy it for
+     * the party" means, and removes the three-party transaction the primitive cannot
+     * express along with the dialog that used to offer it.
      */
     async settle() {
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
@@ -427,15 +432,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const spent = cart.reduce((sum, line) => sum + line.total, 0);
         const earned = basket.reduce((sum, line) => sum + line.total, 0);
         const net = spent - earned;
-
-        // Only asked when something is actually being bought. A pure sale has nowhere
-        // else for goods to go.
-        let destination = { uuid: shopper.uuid, label: shopper.name };
-        if (cart.length) {
-            const picked = await this._askDestination('Complete Transaction', { paid: true });
-            if (!picked) return;
-            destination = picked;
-        }
 
         // Checked here so a player learns they cannot cover it from the confirm rather
         // than from a refusal. The GM re-checks regardless.
@@ -465,12 +461,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const confirmed = await blacksmith.dialog.confirm({
                 title: 'Complete Transaction',
                 classes: ['merchant-dialog'],
-                content: side('Buying', cart) + side('Selling', basket)
-                    + `<p>${outcome}`
-                    + (cart.length && destination.uuid !== shopper.uuid
-                        ? `, and the goods go to ${destination.label ?? 'them'}`
-                        : '')
-                    + '.</p>',
+                content: side('Buying', cart) + side('Selling', basket) + `<p>${outcome}.</p>`,
                 confirmLabel: 'Complete Transaction',
                 confirmIcon: 'fa-solid fa-scale-balanced'
             });
@@ -481,8 +472,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             {
                 buy: cart.map((line) => ({ itemId: line.id, quantity: line.quantity })),
                 sell: basket.map((line) => ({ itemId: line.id, quantity: line.quantity })),
-                recipientUuid: destination.uuid,
-                payerUuid: shopper.uuid
+                shopperUuid: shopper.uuid
             },
             { label: 'Settling up' },
             'settle'
@@ -539,58 +529,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
         return lines;
-    }
-
-    /**
-     * Who the goods are for: the acting character, another party member, or the
-     * party itself. Asked once here rather than encoded in three icons per row.
-     */
-    async _askDestination(title, { paid = false } = {}) {
-        const recipient = this.recipient;
-        const party = MerchantManager.getPartyActor();
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.dialog?.choose !== 'function') {
-            return recipient ? { uuid: recipient.uuid, label: recipient.name } : null;
-        }
-
-        const choices = [];
-        if (recipient) choices.push({ id: 'self', label: recipient.name, icon: 'fa-solid fa-user' });
-        choices.push({ id: 'other', label: 'Another party member', icon: 'fa-solid fa-hand-holding-heart' });
-        if (party) choices.push({ id: 'party', label: party.name, icon: 'fa-solid fa-users' });
-        if (!choices.length) return null;
-
-        const picked = await blacksmith.dialog.choose({
-            title,
-            classes: ['merchant-dialog'],
-            content: '<p>Who is this for?</p>'
-                // Paid delivery elsewhere is three-party \u2014 the shopper's coin, someone
-                // else's goods \u2014 and `exchange` is two-sided. Said here rather than
-                // discovered at the refusal.
-                + (paid && (recipient || party)
-                    ? '<p class="merchant-shop-hint">' + (recipient?.name ?? 'You') + ' pays either way.'
-                        + ' Buying for someone else is waiting on a Blacksmith update.</p>'
-                    : ''),
-            choices
-        });
-        if (picked?.action !== 'submit') return null;
-
-        if (picked.value === 'self' && recipient) return { uuid: recipient.uuid, label: recipient.name };
-        if (picked.value === 'party' && party) return { uuid: party.uuid, label: party.name };
-
-        const token = await this._resolveToken();
-        const others = MerchantManager.getGiftRecipients(token?.actor?.uuid);
-        if (!others.length) {
-            ui.notifications?.warn('There is nobody else in the party.');
-            return null;
-        }
-        const chosen = await this._pickActor({
-            title: 'Who receives it?',
-            actors: others,
-            confirmLabel: 'Choose',
-            confirmIcon: 'fa-solid fa-hand-holding-heart'
-        });
-        if (!chosen) return null;
-        return { uuid: chosen, label: others.find((a) => a.uuid === chosen)?.name };
     }
 
     /**
@@ -848,19 +786,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
-            case 'THIRD_PARTY_DELIVERY': return 'Buying on behalf of someone else is waiting on a Blacksmith update.';
             case 'BARTER_ONLY': return result?.itemName
                 ? `${result.itemName} is a conversation, not a purchase.`
                 : 'That one is a conversation, not a purchase.';
             case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
-            case 'NO_PAYER': return 'Nobody was named to pay for that.';
-            case 'NOT_YOUR_COIN': return 'You can only spend your own character\u2019s coin.';
             case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
                 : 'That container cannot be sold while it holds anything.';
-            case 'RECIPIENT_NOT_ALLOWED': return 'That character cannot receive this.';
+            case 'RECIPIENT_NOT_ALLOWED': return 'You cannot shop as that character.';
             case 'RECIPIENT_NOT_FOUND': return 'That character could not be found.';
             case 'INVALID_QUANTITY': return 'That is not a valid amount.';
             case 'LOCK_TIMEOUT': return 'That character is busy. Try again.';

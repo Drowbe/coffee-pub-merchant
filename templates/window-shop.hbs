@@ -31,19 +31,29 @@
                                   its billing. --}}
                             <div class="merchant-shop-title">{{shopName}}</div>
                             {{#if hasKeeper}}<div class="merchant-shop-keeper">{{keeperName}}</div>{{/if}}
+                            {{!-- Open or closed is a fact about the shop, so it sits with
+                                  the other facts rather than reserving a column of its
+                                  own down the side of the card. For a GM it is also the
+                                  switch; for everyone else it is the sign in the
+                                  window. --}}
                             <div class="merchant-shop-description">
+                                {{#if isGM}}
+                                    <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
+                                            data-action="toggleOpen"
+                                            data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
+                                        <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
+                                        {{#if isOpen}}Open{{else}}Closed{{/if}}
+                                    </button>
+                                {{else}}
+                                    <span class="merchant-shop-open-state{{#unless isOpen}} is-closed{{/unless}}">
+                                        <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
+                                        {{#if isOpen}}Open{{else}}Closed{{/if}}
+                                    </span>
+                                {{/if}}
                                 <span><i class="{{kindIcon}}"></i> {{kindLabel}}</span>
                                 {{#if hoursLabel}}<span><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
                             </div>
                         </div>
-                        {{#if isGM}}
-                            <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
-                                    data-action="toggleOpen"
-                                    data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
-                                <i class="fa-solid {{#if isOpen}}fa-door-open{{else}}fa-door-closed{{/if}}"></i>
-                                {{#if isOpen}}Open{{else}}Closed{{/if}}
-                            </button>
-                        {{/if}}
                     </div>
 
                     {{#if hasDescription}}

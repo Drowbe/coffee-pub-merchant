@@ -598,15 +598,48 @@ export class MerchantManager {
         return game.actors.filter((actor) => actor.type === 'character' && actor.hasPlayerOwner);
     }
 
-    /** Who this user may acquire *as*. A GM may act as any party character. */
+    /**
+     * Who this user may shop *as*.
+     *
+     * **The party is one of them.** Shopping on the party's behalf used to be a
+     * destination you picked at the end — which made the shopper's coin pay for
+     * somebody else's goods, a three-party transaction the exchange primitive cannot
+     * express and which was refused. Being the party instead makes payer and
+     * recipient the same actor again: the party's purse pays and the party's
+     * inventory receives, which is what "buying it for the party" always meant.
+     */
     static getEligibleRecipients() {
-        if (game.user.isGM) return this.getPartyCharacters();
-        return game.actors.filter((actor) => actor.type === 'character' && actor.isOwner);
+        const characters = game.user.isGM
+            ? this.getPartyCharacters()
+            : game.actors.filter((actor) => actor.type === 'character' && actor.isOwner);
+
+        const party = this.getPartyActor();
+        // Offered to anyone who has a stake in it: a GM, or a player with a character
+        // in the party. Ownership of the Group Actor itself is not usually granted.
+        return party && (game.user.isGM || characters.some((actor) => actor.hasPlayerOwner && actor.isOwner))
+            ? [...characters, party]
+            : characters;
     }
 
-    /** Who this user may send an item *to*. */
-    static getGiftRecipients(excludeUuid) {
-        return this.getPartyCharacters().filter((actor) => actor.uuid !== excludeUuid);
+    /**
+     * Whether this user may act as that Actor — spend its coin and fill its packs.
+     *
+     * One check for both halves of a transaction, because they are the same Actor
+     * now. Mirrors `getEligibleRecipients` on the GM side, since a window offering a
+     * choice is only the honest path.
+     */
+    static canActAs(actor, user) {
+        if (!actor) return false;
+
+        const party = this.getPartyActor();
+        if (party && actor.uuid === party.uuid) {
+            if (user.isGM) return true;
+            return this.getPartyCharacters().some((member) => member.testUserPermission(user, 'OWNER'));
+        }
+
+        if (actor.type !== 'character') return false;
+        if (user.isGM) return this.getPartyCharacters().some((member) => member.uuid === actor.uuid);
+        return actor.testUserPermission(user, 'OWNER');
     }
 
     // ==============================================================
@@ -809,18 +842,11 @@ export class MerchantManager {
         const selling = Array.isArray(payload.sell) ? payload.sell : [];
         if (!buying.length && !selling.length) return { ok: false, code: 'NOTHING_TO_SETTLE' };
 
-        // The shopper is the one constant: they pay, they are paid, and they are who
-        // the sold goods come from.
-        const payerCheck = this._validatePayer(payload.payerUuid, payload.recipientUuid, user);
-        if (!payerCheck.ok) return payerCheck;
-        const shopper = payerCheck.actor;
-
-        let recipientUuid = shopper.uuid;
-        if (buying.length) {
-            const check = this._validateRecipient(payload.recipientUuid, user);
-            if (!check.ok) return check;
-            recipientUuid = check.actorUuid;
-        }
+        // One Actor throughout: it pays, it is paid, it receives what is bought, and
+        // it is where what is sold comes from.
+        const check = this._validateShopper(payload.shopperUuid, user);
+        if (!check.ok) return check;
+        const shopper = check.actor;
 
         const bought = buying.length ? this._priceBuying(merchant, buying, user) : { ok: true, lines: [], total: 0 };
         if (!bought.ok) return bought;
@@ -872,7 +898,7 @@ export class MerchantManager {
 
         const result = await exchange({
             transfers: [
-                ...this._goodsTransfers(merchant, recipientUuid, bought.lines),
+                ...this._goodsTransfers(merchant, shopper.uuid, bought.lines),
                 ...goodsIn,
                 ...coin
             ]
@@ -884,57 +910,24 @@ export class MerchantManager {
     }
 
     /**
-     * Who is paying, and may they.
+     * The Actor this transaction is for: it pays, and it receives.
      *
-     * The payer is always the shopper, never the destination: buying for the party
-     * or for another character is a gift, and a gift comes out of the giver's purse.
-     * That makes a delivery elsewhere a **three-party** transaction — merchant,
-     * payer, recipient — which the two-sided `exchange` shape cannot express. Refused
-     * explicitly rather than silently charging the wrong purse.
+     * There was a payer and a recipient, and a rule that they had to match — which is
+     * all that is left of the destination picker. Shopping for the party is being the
+     * party now, so there is one Actor and one check.
      */
-    static _validatePayer(payerUuid, recipientUuid, user) {
-        if (!payerUuid) return { ok: false, code: 'NO_PAYER' };
-
-        let payer = null;
-        try {
-            payer = fromUuidSync(payerUuid);
-        } catch (_error) {
-            return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
-        }
-        if (!payer || payer.type !== 'character') return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
-        // Spending someone else's coin is not a thing a shop should enable.
-        if (!user.isGM && !payer.testUserPermission(user, 'OWNER')) return { ok: false, code: 'NOT_YOUR_COIN' };
-
-        if (recipientUuid && recipientUuid !== payerUuid) {
-            return { ok: false, code: 'THIRD_PARTY_DELIVERY' };
-        }
-        return { ok: true, actor: payer };
-    }
-
-    /**
-     * A recipient is valid when the requester owns it, it is a party character, or it
-     * is the party Group Actor. Ownership alone is too narrow, because sending to
-     * another player's character is a supported action.
-     */
-    static _validateRecipient(recipientUuid, user) {
-        if (!recipientUuid) return { ok: false, code: 'NO_RECIPIENT' };
-
-        const party = this.getPartyActor();
-        if (party?.uuid === recipientUuid) return { ok: true, actorUuid: recipientUuid };
+    static _validateShopper(uuid, user) {
+        if (!uuid) return { ok: false, code: 'NO_RECIPIENT' };
 
         let actor = null;
         try {
-            actor = fromUuidSync(recipientUuid);
+            actor = fromUuidSync(uuid);
         } catch (_error) {
             return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
         }
-        if (!actor || actor.type !== 'character') return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
-        if (user.isGM) return { ok: true, actorUuid: recipientUuid };
-        if (actor.testUserPermission(user, 'OWNER')) return { ok: true, actorUuid: recipientUuid };
-        if (this.getPartyCharacters().some((member) => member.uuid === recipientUuid)) {
-            return { ok: true, actorUuid: recipientUuid };
-        }
-        return { ok: false, code: 'RECIPIENT_NOT_ALLOWED' };
+        if (!actor) return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
+        if (!this.canActAs(actor, user)) return { ok: false, code: 'RECIPIENT_NOT_ALLOWED' };
+        return { ok: true, actor };
     }
 
     // Stock is infinite, so a refresh is only for the GM changing what is on offer.

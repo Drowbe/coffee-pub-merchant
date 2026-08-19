@@ -389,6 +389,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The shopkeeper's own name appears on the meta line **only when the two differ**: "Bob" written over a shop
   called Bob is a line of nothing.
 
+- **The party is somebody you shop as** (`scripts/manager-merchant.js`, `scripts/window-shop.js`): the party
+  Group Actor is in the **Buying as** list, and the destination question is gone entirely. Whoever you are
+  shopping as pays and receives.
+
+  That dissolves the three-party problem rather than working around it. Buying for the party used to be a
+  destination picked at checkout, which made the shopper's coin pay for the party's goods — merchant, payer,
+  recipient, which `exchange` cannot express and which was refused as `THIRD_PARTY_DELIVERY`. Being the party
+  makes payer and recipient the same Actor again, which is what "buying it for the party" always meant. The
+  refusal, the payer/recipient split, and the picker that offered the impossible choice are all gone.
+- **Open or closed is a fact, not a column** (`templates/window-shop.hbs`): the toggle reserved a fixed
+  column down the side of the merchant card, which squeezed the copy beside it onto four lines. It is a chip
+  on the facts row now — a switch for a GM, the sign in the window for everyone else — and the card reads in
+  three.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

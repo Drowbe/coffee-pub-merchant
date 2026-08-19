@@ -35,7 +35,7 @@
 .merchant-shop-subject-image > img,
 .merchant-shop-actor-image > img,
 .merchant-config-image > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
-.merchant-shop-subject-image { width: 70px; height: 70px; flex: 0 0 70px; }
+.merchant-shop-subject-image { width: 64px; height: 64px; flex: 0 0 64px; }
 .merchant-shop-actor-image { width: 34px; height: 34px; flex: 0 0 34px; }
 .merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
 
@@ -141,7 +141,13 @@
 
 /* --- Open for business ----------------------------------------------- */
 .merchant-shop-subject { grid-template-columns: 58px minmax(0,1fr) auto; }
-.merchant-shop-open-toggle { display: inline-flex; gap: 6px; align-items: center; min-height: 26px; padding: 3px 11px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 5px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .7rem; white-space: nowrap; cursor: pointer; }
+.merchant-shop-open-toggle,
+.merchant-shop-open-state { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 999px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .68rem; white-space: nowrap; }
+.merchant-shop-open-toggle { cursor: pointer; }
+.merchant-shop-open-state.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
+/* A chip is a fact, not a fact plus a rule, so the separator skips it. */
+.merchant-shop-description > .merchant-shop-open-toggle + span::before,
+.merchant-shop-description > .merchant-shop-open-state + span::before { content: none; }
 .merchant-shop-open-toggle:hover { background: color-mix(in srgb, #2f6b33 14%, transparent); }
 .merchant-shop-open-toggle.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
 .merchant-shop-open-toggle.is-closed:hover { background: color-mix(in srgb, #8c2f22 14%, transparent); }

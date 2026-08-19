@@ -299,6 +299,23 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
       not only when it is empty.
 - [ ] That button is absent on a merchant with no Buyback shelf, and disabled with no character to sell as.
 
+### Shopping as the party
+
+- [ ] The **Buying as** list includes the party alongside your characters.
+- [ ] A player with no character in the party is **not** offered it.
+- [ ] Shop as the party → the party's purse pays and the goods land in the party's inventory.
+- [ ] Sell as the party → the party's things are what the picker lists, and the party is paid.
+- [ ] **No destination is asked at any point.** One question fewer, and no refusal about third parties.
+- [ ] A crafted request naming an Actor you cannot act as is refused with "You cannot shop as that character."
+- [ ] With no party set for the world, the list is just your characters and nothing errors.
+
+### Open and closed
+
+- [ ] The Open/Closed chip sits on the facts row with the kind and the hours, not in a column of its own.
+- [ ] A GM clicking it toggles the shop; a player sees it as a plain chip and cannot click it.
+- [ ] Closed shows red; open shows green.
+- [ ] The merchant card reads in three lines: name, keeper, facts.
+
 ### Settling
 
 One button in the footer settles the whole visit. Its label is part of the design, not decoration.
