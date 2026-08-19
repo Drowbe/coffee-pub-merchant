@@ -12,7 +12,17 @@
 /* The merchant and the buyer stay put while the stock scrolls under them. */
 .merchant-shop-pinned { position: sticky; top: 0; z-index: 3; display: flex; flex-direction: column; gap: 10px; margin: 0 -8px; padding: 8px 8px 10px; background: var(--blacksmith-tool-background); }
 
-/* One shared portrait treatment; only the size differs, so restyling moves all. */
+/* One shared thumbnail treatment, in two forms.
+ *
+ * The wrapper form below is for a portrait that must fill a fixed box whatever its
+ * aspect ratio. The bare-image form after it is for artwork sitting inline, where a
+ * wrapper would be markup for nothing.
+ *
+ * Both frame the image, and they have to: these are photographic webp assets, not
+ * the flat monochrome `icons/svg` set they replaced. A line-art glyph looks
+ * deliberate unframed; a photograph of a crate looks like a mistake. The backing
+ * fill matters as much as the border, because container artwork is often
+ * transparent and loses its edges against the panel. */
 .merchant-shop-subject-image,
 .merchant-shop-actor-image,
 .merchant-config-image { overflow: hidden; border: 1px solid var(--blacksmith-tool-border); border-radius: 6px; box-shadow: 0 2px 7px rgba(0,0,0,.22); }
@@ -22,6 +32,13 @@
 .merchant-shop-subject-image { width: 58px; height: 58px; flex: 0 0 58px; }
 .merchant-shop-actor-image { width: 34px; height: 34px; flex: 0 0 34px; }
 .merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
+
+/* Artwork sitting inline: the shelf rows in Settings and the shelf headings in the
+   shop. The same border and radius as the stock rows, which is the treatment that
+   appears most often and is therefore the one to match. No shadow: a drop shadow on
+   a 20px thumbnail is soot. */
+.merchant-config-shelf > img,
+.merchant-shop-shelf-icon { display: block; object-fit: cover; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
 
 /* Blue for the merchant, green for the buyer, so the pair reads as who is trading
    with whom. Mixed into the theme surfaces rather than painted over them, so the
@@ -82,7 +99,7 @@
 
 /* --- Shelves --------------------------------------------------------- */
 .merchant-shop-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
-.merchant-shop-shelf-icon { width: 18px !important; height: 18px !important; max-width: 18px !important; object-fit: contain; border: 0; opacity: .85; }
+.merchant-shop-shelf-icon { width: 20px !important; height: 20px !important; max-width: 20px !important; }
 .merchant-shop-head-actions { display: flex; gap: 6px; align-items: center; }
 .merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
 
@@ -100,9 +117,9 @@
 .merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
 
 .merchant-config-shelf-list { display: flex; flex-direction: column; gap: 4px; }
-.merchant-config-shelf { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-shelf { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
 .merchant-config-shelf:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
-.merchant-config-shelf > img { display: block; width: 30px !important; height: 30px !important; max-width: 30px !important; object-fit: contain; border: 0; }
+.merchant-config-shelf > img { width: 32px !important; height: 32px !important; max-width: 32px !important; }
 .merchant-config-shelf-copy { min-width: 0; }
 .merchant-config-shelf-copy strong, .merchant-config-shelf-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-config-shelf-copy strong { font-size: .8rem; }
