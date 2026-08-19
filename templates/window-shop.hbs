@@ -91,11 +91,21 @@
                 {{#if hasShoppers}}
                     <div class="merchant-shop-shoppers">
                         {{#each shoppers}}
-                            <button type="button" class="merchant-shop-shopper"
-                                    data-action="switchTo" data-actor-uuid="{{uuid}}"
-                                    data-tooltip="{{name}} &mdash; {{lines}} on the slate. Click to take it over.">
-                                <img src="{{img}}" alt="{{name}}">
-                            </button>
+                            {{#if canSwitch}}
+                                <button type="button" class="merchant-shop-shopper{{#if lines}} has-slate{{/if}}"
+                                        data-action="switchTo" data-actor-uuid="{{uuid}}"
+                                        data-tooltip="{{tooltip}}">
+                                    <img src="{{img}}" alt="{{name}}">
+                                </button>
+                            {{else}}
+                                {{!-- A face you cannot act as is a portrait, not a
+                                      control. Everybody sees who is here; only somebody
+                                      who could shop as them can take the slate over. --}}
+                                <div class="merchant-shop-shopper is-static{{#if lines}} has-slate{{/if}}"
+                                     data-tooltip="{{tooltip}}">
+                                    <img src="{{img}}" alt="{{name}}">
+                                </div>
+                            {{/if}}
                         {{/each}}
                     </div>
                     <div class="merchant-shop-shoppers-divider" aria-hidden="true"></div>
@@ -135,6 +145,46 @@
 
                 {{!-- The scrolling region starts here, below the search, so the
                       scrollbar does not run up behind a box that never moves. --}}
+            {{!-- Your own pack, in the same column and the same row layout as the
+                  shelves. It was a modal picker: you could not see the slate you were
+                  filling, could not search, and added one thing per opening. The shop
+                  already answered all three for buying, so selling uses the answer
+                  rather than a second one. --}}
+            {{#if sell.open}}
+                <section class="merchant-shop-section merchant-shop-sell">
+                    <h3>
+                        <span><i class="fa-solid fa-hand-holding-dollar"></i> {{sell.title}}</span>
+                        <span class="merchant-shop-head-actions">
+                            <button type="button" class="merchant-shop-shelf-add"
+                                    data-action="sortSell" data-tooltip="{{sell.sortTooltip}}">
+                                <i class="{{sell.sortIcon}}"></i>
+                            </button>
+                            <span class="merchant-shop-count">{{sell.count}}</span>
+                        </span>
+                    </h3>
+                    <div class="merchant-shop-sell-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search" placeholder="Search your pack" data-sell-search value="{{sell.search}}">
+                    </div>
+                    <div class="merchant-shop-shelf-body">
+                        {{#if sell.hasItems}}
+                            {{#each sell.groups}}
+                                <div class="merchant-shop-category">
+                                    {{#if label}}<h4><i class="{{icon}}"></i> {{label}}</h4>{{/if}}
+                                    <div class="merchant-shop-item-list">
+                                        {{#each items}}
+                                            {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                                        {{/each}}
+                                    </div>
+                                </div>
+                            {{/each}}
+                        {{else}}
+                            <div class="merchant-shop-empty">{{sell.emptyMessage}}</div>
+                        {{/if}}
+                    </div>
+                </section>
+            {{/if}}
+
                 <div class="merchant-shop-shelves">
             {{#each shelves}}
                 <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">

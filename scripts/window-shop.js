@@ -148,6 +148,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // forth: a slate that arrives is already "published" as far as we are concerned.
     static _published = new Map();
 
+    // tokenUuid -> Map(userId -> { actorUuid, name, img }). Who is standing in this
+    // shop, as seen by everybody.
+    //
+    // **Separate from the slates, and it has to be.** A slate is keyed by character and
+    // mirrored only to clients that can act as that character — which is right for the
+    // slate and useless for this: a player would see an empty room, because the only
+    // characters they can act as are their own. Presence is about the *room*, so it
+    // goes to everyone, and only what you may do with a face is gated.
+    //
+    // Peer to peer, for Curator's reason: nothing authoritative hangs off it, and
+    // routing it through the GM would make an absent GM look like an empty shop.
+    static _presence = new Map();
+
     static DEFAULT_OPTIONS = foundry.utils.mergeObject(
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
         {
@@ -179,7 +192,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
-        sell: (_event, _target, win) => win.run(() => win.sell()),
+        sell: (_event, _target, win) => win.toggleSell(),
+        sortSell: (_event, _target, win) => win.cycleSellSort(),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearAll: (_event, _target, win) => void win.clearAll(),
@@ -420,23 +434,197 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Everyone else mid-purchase in this shop, for the faces on the bar.
+     * How the pack is ordered, and what the button says it will do next.
      *
-     * Drawn from the slates rather than from a separate presence protocol: a slate with
-     * something on it *is* somebody shopping, and it is the thing a click needs to land
-     * on. Curator tracks presence separately because looting has no slate to stand in
-     * for it.
+     * Three orders because three questions get asked of an inventory: what is worth
+     * most, where is the thing I can name, and what have I got of a kind. A cycle
+     * rather than a dropdown -- three options do not earn a menu, and the icon can
+     * carry the current state on its own.
+     */
+    static SELL_SORTS = [
+        {
+            key: 'price', icon: 'fa-solid fa-arrow-down-9-1',
+            label: 'Most valuable first', grouped: false
+        },
+        {
+            key: 'name', icon: 'fa-solid fa-arrow-down-a-z',
+            label: 'By name', grouped: false
+        },
+        {
+            key: 'category', icon: 'fa-solid fa-layer-group',
+            label: 'By kind, then name', grouped: true
+        }
+    ];
+
+    get sellSort() {
+        return ShopWindow.SELL_SORTS.find((s) => s.key === this._sellSort) ?? ShopWindow.SELL_SORTS[0];
+    }
+
+    /** Open the pack, or put it away. Drag-and-drop into the slate still works either way. */
+    toggleSell() {
+        this._selling = !this._selling;
+        if (this._selling) playFeedback(SOUND.SLATE_ADD);
+        void this.render(false);
+    }
+
+    cycleSellSort() {
+        const order = ShopWindow.SELL_SORTS;
+        const at = order.findIndex((s) => s.key === this.sellSort.key);
+        this._sellSort = order[(at + 1) % order.length].key;
+        void this.render(false);
+    }
+
+    /**
+     * The seller's own goods, as shop rows.
+     *
+     * Deliberately the *same* row partial the shelves use: a thing you are selling and
+     * a thing you are buying are both a picture, a name, a price and a way to put it on
+     * the slate, and giving them two layouts would be inventing a difference that is
+     * not there. `addAction` is the only thing that changes.
+     */
+    _sellContext(merchant) {
+        const seller = this.recipient;
+        const buyback = merchant ? this._buyback(merchant) : null;
+        const sort = this.sellSort;
+
+        if (!this._selling) return { open: false };
+        if (!seller || !buyback) {
+            return {
+                open: true,
+                title: seller ? `${seller.name}'s pack` : 'Your pack',
+                count: 0,
+                hasItems: false,
+                search: this._sellSearch ?? '',
+                sortIcon: sort.icon,
+                sortTooltip: `Sorted: ${sort.label}. Click to change.`,
+                emptyMessage: buyback ? 'No character able to sell.' : 'This merchant does not buy anything.'
+            };
+        }
+
+        const query = (this._sellSearch ?? '').trim().toLowerCase();
+        const rows = seller.items
+            .filter((item) => this._wouldTake(item))
+            .map((item) => {
+                const offer = this._offerFor(merchant, buyback, item);
+                const held = Math.max(0, Math.trunc(Number(item.system?.quantity ?? 1)));
+                const promised = this.basket.get(item.id) ?? 0;
+                const left = held - promised;
+                return {
+                    id: item.id,
+                    type: item.type,
+                    name: item.name,
+                    img: item.img,
+                    typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                    searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
+                    offer: offer ?? -1,
+                    // A negotiate-shelf price is not published, and neither is an offer
+                    // for something nobody has priced yet. TBD says the same thing here.
+                    priceLabel: offer === null ? null : formatBase(offer),
+                    isBarter: offer === null,
+                    negotiateTooltip: null,
+                    qtyLabel: String(left),
+                    qtyTooltip: promised
+                        ? `${held} carried, ${promised} already on the slate`
+                        : `${held} carried`,
+                    outOfStock: left < 1,
+                    reserved: left < 1 && promised > 0,
+                    canCart: left > 0,
+                    canEditStock: false,
+                    canRemove: false,
+                    addAction: 'addToBasketRow',
+                    cartTooltip: left > 0
+                        ? 'Put it on the slate to sell'
+                        : 'Every one of these is already on the slate'
+                };
+            })
+            .filter((row) => !query || row.searchKey.includes(query));
+
+        rows.sort((a, b) => {
+            if (sort.key === 'price') return b.offer - a.offer || a.name.localeCompare(b.name);
+            if (sort.key === 'category') {
+                return (a.typeLabel ?? '').localeCompare(b.typeLabel ?? '') || a.name.localeCompare(b.name);
+            }
+            return a.name.localeCompare(b.name);
+        });
+
+        // Grouped or not, the template walks groups — one unlabelled group is a flat
+        // list, which keeps a single shape rather than two.
+        const groups = [];
+        if (sort.grouped) {
+            for (const row of rows) {
+                const category = ITEM_CATEGORIES.find((c) => c.type === row.type);
+                const label = category?.label ?? row.typeLabel ?? 'Other';
+                let group = groups.find((g) => g.label === label);
+                if (!group) {
+                    group = { label, icon: category?.icon ?? 'fa-solid fa-box', items: [] };
+                    groups.push(group);
+                }
+                group.items.push(row);
+            }
+        } else if (rows.length) {
+            groups.push({ label: null, icon: null, items: rows });
+        }
+
+        return {
+            open: true,
+            title: `${seller.name}'s pack`,
+            count: rows.length,
+            hasItems: rows.length > 0,
+            groups,
+            search: this._sellSearch ?? '',
+            sortIcon: sort.icon,
+            sortTooltip: `Sorted: ${sort.label}. Click to change.`,
+            emptyMessage: query
+                ? 'Nothing in the pack matches that.'
+                : `${seller.name} has nothing this merchant would buy.`
+        };
+    }
+
+    /** Add one from the pack. The row already knows it is the selling side. */
+    async addToBasketRow(itemId) {
+        const item = this.recipient?.items?.get(itemId);
+        if (item) await this.addToBasket(item, { silent: true });
+    }
+
+    /**
+     * Everyone else standing in this shop, for the faces on the bar.
+     *
+     * **From presence, not from the slates.** Drawing them from slates looked right and
+     * was wrong for the person it mattered most to: slates are mirrored only to clients
+     * that can act as that character, so a player saw an empty room however busy the
+     * shop was. A shop with three people in it should look like one to all three.
+     *
+     * Everyone *sees* every face. Only a face you could act as is a button — in
+     * practice the GM's, which is the point: they see who is mid-purchase and take the
+     * slate over. For everybody else it is a portrait saying who else is here.
      */
     _otherShoppers() {
-        const current = this.recipient?.uuid;
-        return this.recipients
-            .filter((actor) => actor.uuid !== current && this._slateSizeFor(actor.uuid) > 0)
-            .map((actor) => ({
-                uuid: actor.uuid,
-                name: actor.name,
-                img: actor.img || 'icons/svg/mystery-man.svg',
-                lines: this._slateSizeFor(actor.uuid)
-            }));
+        const room = ShopWindow._presence.get(this.tokenUuid);
+        if (!room?.size) return [];
+
+        const mine = this.recipient?.uuid;
+        const faces = [];
+        for (const [userId, entry] of room) {
+            if (userId === game.user.id) continue;
+            if (entry.actorUuid && entry.actorUuid === mine) continue;
+
+            const lines = entry.actorUuid ? this._slateSizeFor(entry.actorUuid) : 0;
+            const actor = entry.actorUuid ? this.recipients.find((a) => a.uuid === entry.actorUuid) : null;
+            faces.push({
+                uuid: entry.actorUuid,
+                name: entry.name,
+                img: entry.img || 'icons/svg/mystery-man.svg',
+                lines,
+                // Switchable only if this client could act as them anyway. The check is
+                // the same one the "Buying as" list is built from, so a face can never
+                // offer something the picker would refuse.
+                canSwitch: Boolean(actor),
+                tooltip: lines
+                    ? `${entry.name} — ${lines} on the slate${actor ? '. Click to take it over.' : ''}`
+                    : `${entry.name} is in this shop`
+            });
+        }
+        return faces;
     }
 
     /** How many lines that character has on the slate in *this* shop, mine or theirs. */
@@ -498,6 +686,76 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             cart: [...this.cart],
             basket: [...this.basket]
         });
+    }
+
+    /** What this client is showing, for the room to see. */
+    _selfPresence() {
+        const actor = this.recipient;
+        return {
+            actorUuid: actor?.uuid ?? null,
+            name: actor?.name ?? game.user.name,
+            img: actor?.img ?? game.user.avatar ?? 'icons/svg/mystery-man.svg'
+        };
+    }
+
+    /** Announce, and ask anyone already here to announce back. */
+    announcePresence() {
+        const self = this._selfPresence();
+        ShopWindow._setPresence(this.tokenUuid, game.user.id, self);
+        game.socket.emit(`module.${MODULE.ID}`, {
+            action: 'shopPresence', state: 'open', tokenUuid: this.tokenUuid, userId: game.user.id, ...self
+        });
+        game.socket.emit(`module.${MODULE.ID}`, {
+            action: 'shopPresence', state: 'ping', tokenUuid: this.tokenUuid, userId: game.user.id
+        });
+    }
+
+    clearPresence() {
+        ShopWindow._presence.get(this.tokenUuid)?.delete(game.user.id);
+        game.socket.emit(`module.${MODULE.ID}`, {
+            action: 'shopPresence', state: 'close', tokenUuid: this.tokenUuid, userId: game.user.id
+        });
+    }
+
+    static _setPresence(tokenUuid, userId, entry) {
+        if (!ShopWindow._presence.has(tokenUuid)) ShopWindow._presence.set(tokenUuid, new Map());
+        ShopWindow._presence.get(tokenUuid).set(userId, entry);
+    }
+
+    /** Apply a presence message and redraw anyone looking at that shop. */
+    static receivePresence({ state, tokenUuid, userId, actorUuid, name, img } = {}) {
+        if (!tokenUuid || !userId || userId === game.user.id) return;
+
+        if (state === 'close') {
+            ShopWindow._presence.get(tokenUuid)?.delete(userId);
+        } else if (state === 'ping') {
+            // Somebody just arrived and cannot see the room. Say we are here.
+            for (const window of ShopWindow._windows.values()) {
+                if (window.tokenUuid === tokenUuid) {
+                    const self = window._selfPresence();
+                    game.socket.emit(`module.${MODULE.ID}`, {
+                        action: 'shopPresence', state: 'open', tokenUuid, userId: game.user.id, ...self
+                    });
+                }
+            }
+            return;
+        } else {
+            ShopWindow._setPresence(tokenUuid, userId, { actorUuid, name, img });
+        }
+
+        for (const window of ShopWindow._windows.values()) {
+            if (window.tokenUuid === tokenUuid) void window.render(false);
+        }
+    }
+
+    /** Drop a departing user's face rather than leaving a ghost in the room. */
+    static dropUser(userId) {
+        for (const [tokenUuid, room] of ShopWindow._presence) {
+            if (!room.delete(userId)) continue;
+            for (const window of ShopWindow._windows.values()) {
+                if (window.tokenUuid === tokenUuid) void window.render(false);
+            }
+        }
     }
 
     /**
@@ -759,113 +1017,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _wouldTake(item) {
         return Boolean(item) && isPhysical(item.type);
-    }
-
-    /**
-     * Pick something to sell from a list.
-     *
-     * The no-drag path to the same basket. Dragging between two windows is fiddly and
-     * some people simply will not, so the button has to reach everything the drop zone
-     * does rather than being a lesser version of it.
-     */
-    async sell() {
-        const seller = this.recipient;
-        if (!seller) {
-            notify.warn('You have no character able to sell.');
-            return;
-        }
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
-        const buyback = this._buyback(merchant);
-        if (!buyback) {
-            notify.warn('This merchant does not buy anything.');
-            return;
-        }
-
-        // What is already in the basket is spoken for, so an item wholly promised does
-        // not appear again as though it were still on the shelf.
-        const sellable = seller.items.filter((item) => {
-            if (!this._wouldTake(item)) return false;
-            const available = Number(item.system?.quantity ?? 1);
-            const held = this.basket.get(item.id) ?? 0;
-            return (Number.isFinite(available) ? available : 1) - held > 0;
-        });
-        if (!sellable.length) {
-            notify.warn(this.basket.size
-                ? `Everything ${seller.name} can sell here is already in the basket.`
-                : `${seller.name} has nothing this merchant would buy.`);
-            return;
-        }
-
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.entityList?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
-            notify.warn('The Blacksmith entity list is unavailable.');
-            return;
-        }
-
-        // A list rather than a grid of buttons. `dialog.choose` renders one button per
-        // choice, which is fine for three destinations and unusable for a full
-        // inventory — a hundred rows of wrapped text with no images and no scroll.
-        //
-        // Multi-select, because this fills a basket: picking a haul one item at a time
-        // is one dialog per item, which is the thing the basket exists to avoid.
-        const list = blacksmith.entityList.create({
-            entities: sellable.map((item) => ({
-                id: item.id,
-                name: item.name,
-                img: item.img,
-                type: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
-                badges: [{
-                    label: this._offerFor(merchant, buyback, item) === null
-                        ? 'TBD'
-                        : formatBase(this._offerFor(merchant, buyback, item))
-                }]
-            })),
-            mode: 'multi',
-            inputName: 'merchant-sell',
-            listClass: 'merchant-sell-list'
-        });
-
-        let chosen = [];
-        const outcome = await blacksmith.dialog.wait({
-            title: `What is ${seller.name} selling?`,
-            content: `<div class="blacksmith-field">${list.html}</div>`,
-            classes: ['merchant-dialog', 'merchant-sell-dialog'],
-            controls: list,
-            buttons: [
-                { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
-                {
-                    action: 'add',
-                    label: 'Add to basket',
-                    icon: 'fa-solid fa-hand-holding-dollar',
-                    default: true,
-                    // See `_pickActor`. This list is created empty, so the same defect
-                    // reads as "nothing selected" rather than as a wrong answer — quieter,
-                    // and no more correct.
-                    // **`wait()` hands the callback the dialog's FORM, and runs it
-                    // after the dialog has closed.** Not `(event, button, dialog)` --
-                    // that is DialogV2's own shape, which `wait` wraps rather than
-                    // passes through. Reaching for `dialog.element` here got
-                    // `undefined`, so the read came back empty and the whole gesture
-                    // did nothing, silently. The form is captured before close for
-                    // exactly this reason.
-                    callback: (form) => {
-                        chosen = list.readIdsFrom(form);
-                    }
-                }
-            ],
-            closeValue: null,
-            cancelValue: null
-        });
-        list.destroy();
-        if (outcome?.value !== 'add' || !chosen.length) return;
-
-        // A stack asks how many; a single item does not, so picking twenty ordinary
-        // things costs no prompts at all.
-        for (const itemId of chosen) {
-            await this.addToBasket(seller.items.get(itemId), { silent: true });
-        }
-        await this.render(false);
     }
 
     /**
@@ -1218,6 +1369,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // a face that means "this person once opened the shop" is noise.
             shoppers,
             hasShoppers: shoppers.length > 0,
+            sell: this._sellContext(merchant),
             cart: cartLines.map((line) => ({
                 ...line,
                 totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
@@ -1398,11 +1550,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!this._askedForSlates) {
             this._askedForSlates = true;
             this._requestSlates();
+            this.announcePresence();
         }
 
         void this._applyItemTooltips();
         this._bindQuantityEdits();
         this._bindSearch();
+        this._bindSellSearch();
         this._bindSellDrop();
         // Re-applied after every render, because a refresh, a GM stocking a shelf, or
         // another player's purchase all rebuild the list underneath a standing search.
@@ -1746,6 +1900,32 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
+    /**
+     * The pack's own search, kept apart from the shop's.
+     *
+     * Two boxes because they filter two different piles, and one box filtering both
+     * would mean typing "rope" to find yours and hiding half the shop as a side
+     * effect. Debounced through a re-render rather than filtered in the DOM: the pack
+     * is tens of rows, not hundreds, and re-rendering keeps the sort honest.
+     */
+    _bindSellSearch() {
+        const input = this.element?.querySelector('[data-sell-search]');
+        if (!input || input.dataset.merchantBound === 'true') return;
+        input.dataset.merchantBound = 'true';
+        input.addEventListener('input', () => {
+            this._sellSearch = input.value;
+            clearTimeout(this._sellSearchTimer);
+            // Long enough that typing does not re-render per keystroke, short enough
+            // that it never feels like waiting.
+            this._sellSearchTimer = setTimeout(() => {
+                void this.render(false).then(() => {
+                    const again = this.element?.querySelector('[data-sell-search]');
+                    if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+                });
+            }, 200);
+        });
+    }
+
     /** Bound once per element. Re-render replaces the node, hence the guard. */
     _bindSearch() {
         const input = this.element?.querySelector('[data-shop-search]');
@@ -2052,6 +2232,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     _onClose(options) {
+        // Leave the room before leaving the map, or the face stays behind.
+        this.clearPresence();
+        clearTimeout(this._sellSearchTimer);
         this.constructor._windows.delete(this.tokenUuid);
         super._onClose?.(options);
     }

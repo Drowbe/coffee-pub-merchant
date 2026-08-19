@@ -70,8 +70,11 @@
                   outright, and it was never fewer prompts than the cart: pick a
                   quantity, pick a destination, confirm, either way. Two paths through
                   the same money, and two places for them to disagree. --}}
+            {{!-- `addAction` so a row can serve both sides: the shelves add to the
+                  buying half, your own pack adds to the selling half. Same row, same
+                  gesture, one word different. --}}
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-cart-add"
-                    data-action="addToCart" data-item-id="{{id}}"
+                    data-action="{{#if addAction}}{{addAction}}{{else}}addToCart{{/if}}" data-item-id="{{id}}"
                     {{#unless canCart}}disabled{{/unless}} data-tooltip="{{cartTooltip}}">
                 <i class="fa-solid fa-plus"></i>
             </button>

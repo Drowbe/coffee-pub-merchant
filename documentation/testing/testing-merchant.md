@@ -229,6 +229,26 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] A character with an **empty** slate gets no face. Faces mean "mid-purchase", not "has been here".
 - [ ] Your own character never appears in the row; they are already named beside it.
 - [ ] The bar no longer shows a coin total — that lives on the slate as **FUNDS**.
+- [ ] As a **player**, with another player in the same shop → you see **their** face. This is the case that
+      was broken when faces came from slates.
+- [ ] A player's face is a **portrait**, not a button — no pointer cursor, no hover border.
+- [ ] The GM's view of that same face **is** clickable and switches to their slate.
+- [ ] A character with something on the slate is marked; one merely browsing is not.
+- [ ] Close the shop → your face leaves everyone else's bar.
+- [ ] Disconnect a player → their face leaves too, rather than standing there forever.
+
+## 2d-x. Selling from the pack
+
+- [ ] **SELL** opens your pack as a panel in the stock column, not a modal.
+- [ ] Rows look like shelf rows: picture, name, price, `+`.
+- [ ] The slate is **visible while you add**, and updates as you press `+`.
+- [ ] Add several things without reopening anything.
+- [ ] The pack has its **own search**; typing in it does not filter the shop's shelves, and vice versa.
+- [ ] The sort button cycles **value → name → kind**, and says which it is on.
+- [ ] Sorting by kind groups rows under headings.
+- [ ] Something already wholly on the slate shows as unavailable rather than being addable twice.
+- [ ] An item the merchant has no price for shows as **negotiate**, and can still be added at TBD.
+- [ ] Dragging from your sheet into the slate still works — the panel is an addition, not a replacement.
 
 ## 2e. Prices, buying and selling
 

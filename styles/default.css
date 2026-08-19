@@ -203,6 +203,17 @@
 .merchant-shop-shopper { overflow: hidden; width: 34px; height: 34px; flex: 0 0 34px; padding: 0; border: 1px solid var(--blacksmith-tool-border); border-radius: 6px; background: none; box-shadow: 0 2px 7px rgba(0,0,0,.22); cursor: pointer; }
 .merchant-shop-shopper > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
 .merchant-shop-shopper:hover { border-color: var(--blacksmith-tool-text); }
+/* A face you cannot act as is a portrait, not a control -- so it does not invite a
+   click it would not honour. */
+.merchant-shop-shopper.is-static { cursor: default; }
+.merchant-shop-shopper.is-static:hover { border-color: var(--blacksmith-tool-border); }
+/* Somebody mid-purchase reads differently from somebody browsing. */
+.merchant-shop-shopper.has-slate { border-color: #2f6b33; box-shadow: 0 0 0 1px rgba(47,107,51,.35), 0 2px 7px rgba(0,0,0,.22); }
+
+/* The pack: its own search, because it filters a different pile from the shop's. */
+.merchant-shop-sell-search { display: flex; gap: 7px; align-items: center; padding: 5px 9px; }
+.merchant-shop-sell-search > i { color: var(--blacksmith-tool-text-muted); font-size: .78rem; }
+.merchant-shop-sell-search > input { flex: 1 1 auto; min-width: 0; }
 .merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
 .merchant-config-markup small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
 .merchant-config-markup input { width: 100%; padding: 4px 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-variant-numeric: tabular-nums; text-align: center; }

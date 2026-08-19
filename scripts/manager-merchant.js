@@ -1575,12 +1575,21 @@ export class MerchantManager {
     }
 
     static _registerRefreshListener() {
+        // A user who disconnects should not leave a face standing in the shop.
+        Hooks.on('userConnected', (user, connected) => {
+            if (!connected) ShopWindow.dropUser(user.id);
+        });
+
         game.socket.on(`module.${MODULE.ID}`, (data) => {
             // Slates travel peer to peer and are display only -- settling re-derives
             // every line and every price on the GM, so the worst a bad message can do
             // is show somebody a wrong list.
             if (data?.action === 'slate') {
                 ShopWindow.receiveSlate(data);
+                return;
+            }
+            if (data?.action === 'shopPresence') {
+                ShopWindow.receivePresence(data);
                 return;
             }
             if (data?.action === 'slateRequest') {
