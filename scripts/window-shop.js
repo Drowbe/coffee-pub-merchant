@@ -186,6 +186,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch(),
+        switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
         clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
         removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
@@ -416,6 +417,26 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const stock = MerchantManager.getStock(merchant, item);
         if (stock.unlimited) return ShopWindow.MAX_PER_ACQUISITION;
         return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available - (this.cart.get(item.id) ?? 0));
+    }
+
+    /**
+     * Everyone else mid-purchase in this shop, for the faces on the bar.
+     *
+     * Drawn from the slates rather than from a separate presence protocol: a slate with
+     * something on it *is* somebody shopping, and it is the thing a click needs to land
+     * on. Curator tracks presence separately because looting has no slate to stand in
+     * for it.
+     */
+    _otherShoppers() {
+        const current = this.recipient?.uuid;
+        return this.recipients
+            .filter((actor) => actor.uuid !== current && this._slateSizeFor(actor.uuid) > 0)
+            .map((actor) => ({
+                uuid: actor.uuid,
+                name: actor.name,
+                img: actor.img || 'icons/svg/mystery-man.svg',
+                lines: this._slateSizeFor(actor.uuid)
+            }));
     }
 
     /** How many lines that character has on the slate in *this* shop, mine or theirs. */
@@ -1038,6 +1059,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const party = MerchantManager.getPartyActor();
         const options = this.recipients;
         const recipient = this.recipient;
+        const shoppers = this._otherShoppers();
         const config = missing ? null : MerchantManager.getConfig(merchant);
         const hours = missing ? null : MerchantManager.getHours(merchant);
 
@@ -1191,7 +1213,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             hoursLabel: hours && !isAlwaysOpen(hours) && !isAlwaysClosed(hours)
                 ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}`
                 : null,
-            purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
+            // Anyone *else* with lines on a slate here. Excludes the current character,
+            // who is already named beside them, and anyone with nothing on the go --
+            // a face that means "this person once opened the shop" is noise.
+            shoppers,
+            hasShoppers: shoppers.length > 0,
             cart: cartLines.map((line) => ({
                 ...line,
                 totalLabel: line.total === null ? 'TBD' : formatBase(line.total),

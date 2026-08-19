@@ -83,6 +83,23 @@
             {{/if}}
 
             <section class="merchant-shop-section merchant-shop-actor">
+                {{!-- Everyone else with something on a slate in this shop. The same bar
+                      Curator puts looters in, for the same reason: a shop with three
+                      people in it should look like one. Clicking a face switches to
+                      that slate, which is the whole point of the slates being shared --
+                      the GM sees who is mid-purchase and goes straight to them. --}}
+                {{#if hasShoppers}}
+                    <div class="merchant-shop-shoppers">
+                        {{#each shoppers}}
+                            <button type="button" class="merchant-shop-shopper"
+                                    data-action="switchTo" data-actor-uuid="{{uuid}}"
+                                    data-tooltip="{{name}} &mdash; {{lines}} on the slate. Click to take it over.">
+                                <img src="{{img}}" alt="{{name}}">
+                            </button>
+                        {{/each}}
+                    </div>
+                    <div class="merchant-shop-shoppers-divider" aria-hidden="true"></div>
+                {{/if}}
                 <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
                 <div class="merchant-shop-actor-copy">
                     <small>Buying as</small>
@@ -92,11 +109,6 @@
                         <strong class="merchant-shop-warning">No character available</strong>
                     {{/if}}
                 </div>
-                {{#if purseLabel}}
-                    <div class="merchant-shop-purse" data-tooltip="What this character is carrying">
-                        <i class="fa-solid fa-coins"></i> <strong>{{purseLabel}}</strong>
-                    </div>
-                {{/if}}
                 {{#if hasRecipientChoice}}
                     <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
                             data-action="changeRecipient" data-tooltip="Buy as a different character">

@@ -224,6 +224,11 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Open the shop window *after* a player has filled a slate → you still see it (the ping on open).
 - [ ] Two clients on the same character do not bounce the slate back and forth endlessly.
 - [ ] Reload → slates are gone, which is intended. They are a half-formed intention, not a document.
+- [ ] The "Buying as" bar shows a **face for every other character with lines on a slate** here.
+- [ ] Clicking a face switches to that slate — no dialog.
+- [ ] A character with an **empty** slate gets no face. Faces mean "mid-purchase", not "has been here".
+- [ ] Your own character never appears in the row; they are already named beside it.
+- [ ] The bar no longer shows a coin total — that lives on the slate as **FUNDS**.
 
 ## 2e. Prices, buying and selling
 

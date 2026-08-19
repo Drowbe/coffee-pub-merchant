@@ -193,9 +193,16 @@
 /* A figure, not a control. It had a border and a fill and sat next to an actual
    button, so it read as a second one — and there is nothing to press. Plain text
    now, with the coins as the only ornament and the number carrying the emphasis. */
-.merchant-shop-purse { display: inline-flex; gap: 6px; align-items: baseline; padding: 0; border: 0; background: none; color: var(--blacksmith-tool-text-muted); font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.merchant-shop-purse > i { font-size: .72rem; opacity: .7; }
-.merchant-shop-purse > strong { color: var(--blacksmith-tool-text); font-weight: 600; }
+/* The purse used to sit on this bar and now sits on the slate as FUNDS, beside the
+   total it is acted on by. Two places saying the same number is one place too many. */
+
+/* Everyone else mid-purchase. Same shape as Curator's looters, deliberately: a shop
+   and a body being picked over are the same situation wearing different clothes. */
+.merchant-shop-shoppers { display: flex; flex: 0 0 auto; gap: 5px; align-items: center; }
+.merchant-shop-shoppers-divider { flex: 0 0 auto; width: 1px; height: 24px; background: var(--blacksmith-tool-divider, rgba(0,0,0,.25)); }
+.merchant-shop-shopper { overflow: hidden; width: 34px; height: 34px; flex: 0 0 34px; padding: 0; border: 1px solid var(--blacksmith-tool-border); border-radius: 6px; background: none; box-shadow: 0 2px 7px rgba(0,0,0,.22); cursor: pointer; }
+.merchant-shop-shopper > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
+.merchant-shop-shopper:hover { border-color: var(--blacksmith-tool-text); }
 .merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
 .merchant-config-markup small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
 .merchant-config-markup input { width: 100%; padding: 4px 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-variant-numeric: tabular-nums; text-align: center; }
