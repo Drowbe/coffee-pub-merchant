@@ -10,6 +10,74 @@ records intent and reasoning, `documentation/testing/` holds verification checkl
 before changing anything, and change it in the same commit as the thing it describes. A map that lies is
 worse than no map.
 
+## Critical — couplings and hand-rolls, found 2026-08-19
+
+Found by reading Merchant against `coffee-pub-blacksmith/documentation/api/` rather than by playing, so
+**none of these is a bug the table would see** and none is urgent in the way a wrong price is. They are
+listed together because they share one shape: Merchant doing for itself something the hub owns, which is the
+condition every entry under *Inherited lessons* was written about after it had already cost time.
+
+Dated because this file now asks for that. If you are reading it much later, check each against the code
+before believing it.
+
+- **Both windows deep-link a Blacksmith script file.** `window-shop.js:1` and `window-merchant-config.js:1`
+  import `BlacksmithToolWindowBaseV2` from `/modules/coffee-pub-blacksmith/scripts/window-tool-base.js`.
+  `api-window.md` is explicit that the base classes are reached through `module.api` and that **file paths
+  are not the stable contract** — and the same page records that the old `window-base-v2.js` re-export shim
+  has already been removed, so this is a path that has moved once already.
+
+  This is not a fork and nothing drifts, which is why it has been invisible. The cost is all in one moment:
+  the day that file is renamed, both imports throw at module evaluation, and a failed ESM import takes the
+  **whole module** down rather than one window. `module.api.BlacksmithToolWindowBaseV2` is populated as soon
+  as Blacksmith's script finishes loading — before `init`, and before us, since we declare the dependency —
+  so a top-level resolve is available and is what the doc says to use.
+
+  `merchant.js:6` is a different case and stays: `/modules/coffee-pub-blacksmith/api/blacksmith-api.js` is
+  the documented bridge, shown that way in `api-core.md` and `api-sockets.md` both.
+
+- **Trading hours and restocking hand-roll what `api.worldClock` already does.** `_registerScheduleWatcher`,
+  `_onWorldTimeChange` and `_applyRestocks` diff world time themselves. `api-worldclock.md` exists for
+  exactly this and states the reason: `updateWorldTime` only says the number moved, and the edge cases *are*
+  the job — a rest advancing eight hours, a GM winding the clock back, one jump crossing the same daily
+  boundary several times. It hands over a `crossings` count rather than resolving it, which is the same
+  judgement our restock cadence already makes in its own way ("a shop is full again, it does not accumulate
+  seven days of stock").
+
+  **Evaluate rather than adopt on sight.** Two things have to survive it. `isOpen` stays *derived* — that
+  was the fix in `7fd1267`, and a scheduler is precisely the thing that tempts somebody back into storing
+  the state it fires about; a schedule here would trigger a refresh and a restock, never a write of
+  open/closed. And `dailyAt` is per-shop, so each merchant wants its own registration keyed by uuid and
+  re-registered whenever its hours change — which may well be worse than one watcher over every merchant.
+  The question is whether their jump handling is worth that bookkeeping, and it should be answered by
+  reading their implementation, not guessed at here.
+
+- **Three raw `Hooks.on` registrations, none of them disposable.** `_registerStockWatcher` binds
+  `updateItem`, `createItem` and `deleteItem`; `_registerScheduleWatcher` binds `updateWorldTime`.
+  `BlacksmithHookManager.registerHook` gives context-based cleanup — the same shape as
+  `tokens.disposeByContext`, which `teardown()` already uses for the interaction claim, so half of teardown
+  currently disposes cleanly and half cannot be undone at all.
+
+  The item watchers also want throttling, which is the practical half of this: a GM dragging a stack between
+  shelves fires `updateItem` per document, and every one of those broadcasts a refresh to every connected
+  client. `api-hookmanager.md` names two combinations that fail silently — `throttleMs` with `debounceMs`
+  discards the debounce, and `once` with `debounceMs` never runs the callback at all.
+
+- **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
+  `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
+  wraps SocketLib with a native fallback and a `waitForReady()`.
+
+  Nothing authoritative rides on this traffic — it tells open windows to redraw, and every mutation goes
+  through the GM query envelope — which is why it has been fine and why it is last on this list. The reason
+  to move is the standing one: it is the only place left where Merchant talks to core directly on a surface
+  Blacksmith owns, and "it is only a redraw" is how a second transport gets a second consumer.
+
+- **Two small ones, while anyone is in these files.** `window-merchant-config.js` declares `removeShelf`
+  twice in `ACTION_HANDLERS` (lines 59 and 65). The two are identical so nothing misbehaves, but the second
+  silently wins, and an edit to the first would do nothing at all — which is a bad half-hour. And the
+  comment above `_broadcastRefresh` still reads *"Stock is infinite, so a refresh is only for the GM
+  changing what is on offer"*, which has been false since phase 5. A comment lying about the stock model, on
+  the function that tells every client to redraw, is one a reader has every reason to trust.
+
 ## Inherited lessons
 
 These cost Curator real time. They apply here identically and there is no reason to relearn them.
