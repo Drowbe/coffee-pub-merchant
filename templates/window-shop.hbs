@@ -235,20 +235,7 @@
                                     <h4><span><i class="fa-solid fa-basket-shopping"></i> Buying</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each cart}}
-                                            <div class="merchant-shop-cart-line">
-                                                <img src="{{img}}" alt="">
-                                                <span class="merchant-shop-cart-name">{{name}}</span>
-                                                <button type="button" class="merchant-shop-cart-remove" data-action="removeFromCart"
-                                                        data-item-id="{{id}}" data-tooltip="Take it off the slate">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                                <span class="merchant-shop-cart-meta">
-                                                    <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
-                                                          data-edit-line="{{id}}" data-line-side="cart"
-                                                          data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
-                                                    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
-                                                </span>
-                                            </div>
+                                            {{> "modules/coffee-pub-merchant/templates/partial-slate-line.hbs" this}}
                                         {{/each}}
                                     </div>
                                 </div>
@@ -259,20 +246,7 @@
                                     <h4><span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each basket}}
-                                            <div class="merchant-shop-cart-line">
-                                                <img src="{{img}}" alt="">
-                                                <span class="merchant-shop-cart-name">{{name}}</span>
-                                                <button type="button" class="merchant-shop-cart-remove" data-action="removeFromBasket"
-                                                        data-item-id="{{id}}" data-tooltip="Take it off the slate">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                                <span class="merchant-shop-cart-meta">
-                                                    <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
-                                                          data-edit-line="{{id}}" data-line-side="basket"
-                                                          data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
-                                                    <span class="merchant-shop-cart-total">{{totalLabel}}</span>
-                                                </span>
-                                            </div>
+                                            {{> "modules/coffee-pub-merchant/templates/partial-slate-line.hbs" this}}
                                         {{/each}}
                                     </div>
                                 </div>

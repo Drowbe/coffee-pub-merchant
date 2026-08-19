@@ -198,9 +198,6 @@
 .merchant-shop-cart { padding-top: 0; border-color: color-mix(in srgb, #2f6b33 30%, var(--blacksmith-tool-divider)); }
 .merchant-shop-cart-list { display: flex; flex-direction: column; gap: 3px; }
 .merchant-shop-cart-line { display: grid; grid-template-columns: 24px minmax(0,1fr) 20px; gap: 4px 7px; align-items: center; padding: 4px 5px; border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
-/* Quantity and price on a second line spanning the name and the bin, because a
-   narrow column cannot hold five columns of anything legibly. */
-.merchant-shop-cart-meta { grid-column: 2 / 4; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .merchant-shop-cart-line > img { display: block; width: 24px !important; height: 24px !important; max-width: 24px !important; object-fit: cover; border-radius: 3px; border: 0; }
 .merchant-shop-cart-name { min-width: 0; overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-cart-qty { color: var(--blacksmith-tool-text-muted); font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
@@ -603,18 +600,25 @@
 .merchant-shop-qty-input { width: 46px; height: 20px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-accent); border-radius: 3px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .76rem; text-align: center; }
 .merchant-shop-cart-qty .merchant-shop-qty-input { width: 38px; height: 18px; font-size: .7rem; }
 
-/* --- Slate lines, tidied -------------------------------------------------- */
+/* --- Slate lines ---------------------------------------------------------- */
 /*
- * The image sat in the first row only, so every line had a void under it and the
- * two rows of text read as two separate things rather than one entry. It spans
- * both rows now and is sized to fill them, which is what holds the line together.
+ * One line: icon, name, quantity with its delete beside it, price.
  *
- * The second row is quantity and price at either end of the text column, aligned
- * with the name above rather than starting back at the panel edge.
+ * It was two rows, which left a void under the icon and made each entry read as
+ * two things. A different layout from a shelf row is fine — they are different
+ * lists — but it has to be a *simpler* one, and two rows in a narrow column was
+ * not.
+ *
+ * The name takes what is left and ellipsises, with the full text on hover: a
+ * slate is a narrow column and "Cordial of Holiday Insight" will not fit in it
+ * whatever else is done.
  */
-.merchant-shop-cart-line { grid-template-columns: 30px minmax(0, 1fr) 20px; gap: 2px 8px; align-items: center; padding: 5px 6px; }
-.merchant-shop-cart-line > img { grid-row: 1 / 3; align-self: center; width: 30px !important; height: 30px !important; max-width: 30px !important; border-radius: 4px; }
-.merchant-shop-cart-name { grid-column: 2; font-weight: 600; }
-.merchant-shop-cart-remove { grid-column: 3; grid-row: 1; justify-self: end; }
-.merchant-shop-cart-meta { grid-column: 2 / 4; }
-.merchant-shop-cart-qty { text-align: left; }
+.merchant-shop-cart-line { grid-template-columns: 26px minmax(0, 1fr) auto auto auto; gap: 7px; align-items: center; padding: 4px 7px 4px 5px; }
+.merchant-shop-cart-line > img { width: 26px !important; height: 26px !important; max-width: 26px !important; border-radius: 4px; }
+.merchant-shop-cart-name { min-width: 0; overflow: hidden; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-shop-cart-qty { color: var(--blacksmith-tool-text-muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.merchant-shop-cart-qty > strong { color: var(--blacksmith-tool-text); }
+.merchant-shop-cart-total { min-width: 0; font-size: .76rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* Beside the quantity it undoes, and quiet until pointed at. */
+.merchant-shop-cart-remove { padding: 0 3px; font-size: .7rem; line-height: 1; opacity: .55; }
+.merchant-shop-cart-line:hover .merchant-shop-cart-remove { opacity: 1; }

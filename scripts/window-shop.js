@@ -10,6 +10,7 @@ import { MerchantManager } from './manager-merchant.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-shop.hbs';
 const ROW_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-shop-row.hbs';
+const LINE_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-slate-line.hbs';
 let _partialsReady = null;
 
 // Remembered across windows so a player with two characters is not asked twice.
@@ -889,7 +890,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async getData() {
         // Registered once; the row markup is shared by both call sites so it cannot
         // drift between them.
-        _partialsReady ??= foundry.applications.handlebars.loadTemplates([ROW_PARTIAL]);
+        _partialsReady ??= foundry.applications.handlebars.loadTemplates([ROW_PARTIAL, LINE_PARTIAL]);
         await _partialsReady;
 
         const token = await this._resolveToken();
@@ -1025,7 +1026,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
             hoursLabel: hours ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}` : null,
             purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
-            cart: cartLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
+            cart: cartLines.map((line) => ({
+                ...line,
+                totalLabel: formatBase(line.total),
+                side: 'cart',
+                removeAction: 'removeFromCart'
+            })),
             cartCount: cartLines.length,
             hasCart: cartLines.length > 0,
             cartTotalLabel: formatBase(cartTotal),
@@ -1037,7 +1043,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // the direction survives every theme and does not depend on seeing one.
             netTotalLabel: (cartTotal - basketTotal < 0 ? '+' : '')
                 + formatBase(Math.abs(cartTotal - basketTotal)),
-            basket: basketLines.map((line) => ({ ...line, totalLabel: formatBase(line.total) })),
+            basket: basketLines.map((line) => ({
+                ...line,
+                totalLabel: formatBase(line.total),
+                side: 'basket',
+                removeAction: 'removeFromBasket'
+            })),
             basketCount: basketLines.length,
             hasBasket: basketLines.length > 0,
             basketTotalLabel: formatBase(basketTotal),

@@ -372,6 +372,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dialog every time. It also removes the always-visible number input the GM's stock cell used to be, which
   put a form field in every row of the shop.
 
+- **A slate line is one line** (`templates/partial-slate-line.hbs`): icon, name, quantity with its delete
+  beside it, price. It was two rows, which left a void under the icon and made each entry read as two things.
+  A different layout from a shelf row is right — they are different lists — but it has to be a *simpler* one,
+  and two rows in a narrow column was not. The name takes what is left and ellipsises, with the full text on
+  hover, because "Cordial of Holiday Insight" will not fit in that column whatever else is done.
+
+  The markup was duplicated for buying and selling, so it is a partial now. Which side a line is on and what
+  removes it ride on the line itself, the same way the shop row's flags do.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
