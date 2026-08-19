@@ -725,3 +725,6 @@
 
 /* Said rather than offered: the slider covering the day is what makes it true. */
 .merchant-config-hours-always { padding: 1px 8px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 4px; color: #2f6b33; font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; }
+
+/* The one main action in Settings, right-justified like the shop's. */
+.merchant-config-restock-all { display: inline-flex; gap: 7px; align-items: center; }

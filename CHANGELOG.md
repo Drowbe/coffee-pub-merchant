@@ -510,6 +510,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The shop window stops printing hours for a shop open all of them — "midnight to midnight" is a fact about
   the clock rather than about the shop.
 
+- **Restock Everything** (`scripts/window-merchant-config.js`): the main action in Merchant Settings,
+  right-justified like the shop's. Brings every shelf back to its quantities and rolls all of their tables —
+  a press, so every table rolls whether or not it is marked to reroll, the same rule the per-shelf button
+  follows. Setting a shop up means filling all of it, and doing that a shelf at a time is the sort of chore a
+  GM does once and then stops using the feature.
+
+  **Confirmed, unlike the per-shelf button and unlike removing a row.** It touches the whole shop at once,
+  rolls every table on it, and cannot be undone by dragging one thing back — the scale is what makes it worth
+  a question, and the dialog says that rolled stock is added rather than replaced. It reports one total
+  rather than one notification per shelf.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

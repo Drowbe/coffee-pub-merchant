@@ -231,6 +231,16 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Setting a quantity to 0 instead leaves the row in place, marked out of stock, and a restock brings it
       back. *These are two different statements and must stay so.*
 
+#### Restock Everything
+
+- [ ] Merchant Settings shows a green **Restock Everything** in the footer, right-justified.
+- [ ] A merchant with **no shelves** does not show it at all.
+- [ ] It asks first, naming the shop and how many shelves, and says rolled stock is added not replaced.
+- [ ] Cancelling changes nothing.
+- [ ] Confirming brings every shelf to its quantities **and** rolls every table on them, marked or not.
+- [ ] It reports **one** total, not one message per shelf.
+- [ ] Shelf ceilings still apply — it cannot push a shelf past its product or per-item limits.
+
 #### Rerolling, and restocking from the shop
 
 - [ ] A newly dropped table has **reroll off**.

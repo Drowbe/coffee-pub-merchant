@@ -54,6 +54,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
+        restockAll: (_event, _target, win) => void win.restockAll(),
         removeShelfTable: (_event, target, win) =>
             void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId)
@@ -486,6 +487,57 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
+     * Restock every shelf at once.
+     *
+     * A press, so every table rolls whether or not it is marked to reroll — the same
+     * rule the per-shelf button follows. Setting a shop up means filling all of it,
+     * and doing that a shelf at a time is the sort of chore a GM does once and then
+     * stops using the feature.
+     *
+     * Reports the total rather than per shelf: five notifications for five shelves is
+     * a worse answer than one.
+     *
+     * **Confirmed, unlike the per-shelf button.** This one touches the whole shop at
+     * once, rolls every table on it, and cannot be undone by dragging one thing back
+     * — the scale is what makes it worth a question.
+     */
+    async restockAll() {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+
+        const shelves = MerchantManager.getShelves(actor, { includeHidden: true });
+        if (!shelves.length) return;
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            const confirmed = await blacksmith.dialog.confirm({
+                title: 'Restock Everything',
+                classes: ['merchant-dialog'],
+                content: `<p>Bring all ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'} on `
+                    + `<strong>${actor.name}</strong> back to their quantities, and roll every table on them.</p>`
+                    + '<p>Rolled stock is added, not replaced.</p>',
+                confirmLabel: 'Restock Everything',
+                confirmIcon: 'fa-solid fa-arrows-rotate'
+            });
+            if (!confirmed) return;
+        }
+
+        let stocked = 0;
+        for (const { item } of shelves) {
+            try {
+                stocked += await MerchantManager.restockShelf(actor, item.id, { force: true });
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not restock ${item.name}:`, error);
+            }
+        }
+
+        ui.notifications?.info(stocked
+            ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'}.`
+            : 'Every shelf was already full.');
+        await this.render(false);
+    }
+
+    /**
      * Refill a shelf to its par levels now.
      *
      * Offered on finite shelves as well as restocking ones — "the party cleared me
@@ -671,6 +723,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             hasShelves: shelves.length > 0
         });
 
+        const hasShelves = shelves.length > 0;
+
         return {
             appId: this.id,
             bodyContent,
@@ -679,7 +733,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 <button type="button" class="blacksmith-window-btn-secondary" data-action="close">
                     <i class="fa-solid fa-check"></i> Done
                 </button>`,
-            toolFooterRight: ''
+            // The main action, right-justified, and only where there is something to
+            // restock: on a shop with no shelves it would be a button that does
+            // nothing but say so.
+            toolFooterRight: hasShelves
+                ? `
+                <button type="button" class="blacksmith-window-btn-primary merchant-config-restock-all"
+                        data-action="restockAll"
+                        data-tooltip="Bring every shelf back to its quantities and roll all of its tables">
+                    <i class="fa-solid fa-arrows-rotate"></i> Restock Everything
+                </button>`
+                : ''
         };
     }
 
