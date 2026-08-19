@@ -10,7 +10,7 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE, SHELF_MODE } from './const.js';
+import { MODULE, SHELF_MODE, STACKABLE_TYPES, STOCK_DEPTH_BANDS } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -40,6 +40,52 @@ export function toBase(value, denomination) {
     const base = baseDenomination();
     if (!from) return Math.round(amount * base.conversion);
     return Math.round((amount / from.conversion) * base.conversion);
+}
+
+/**
+ * How many of this thing a table roll should put on the shelf.
+ *
+ * Three rules, in order, and the order is the whole design:
+ *
+ * 1. **What the item says it is.** A compendium entry authored as a quiver of twenty
+ *    arrows is a quiver of twenty arrows. We used to hardcode one and stock a single
+ *    arrow, which threw away the only statement anybody had actually made.
+ * 2. **What it costs**, for anything that stacks. Cheap things come in piles and dear
+ *    things come singly, which is what a shop looks like. The band sets a ceiling and
+ *    the depth is rolled inside it, so stocking the same shelf twice does not produce
+ *    the same shop twice.
+ * 3. **One**, for anything else. Nobody has eight suits of plate.
+ *
+ * The shelf's own "each" limit clamps the result, so a ceiling a GM set by hand is
+ * never argued with by a die.
+ *
+ * `random` is injected so this is testable; it is an ordinary integer roll rather
+ * than a `Roll`, because nothing here belongs in chat and a dice animation for
+ * restocking a shelf is not a thing anybody asked for.
+ */
+export function stockDepth(item, { maxPerItem = Infinity, random = Math.random } = {}) {
+    const ceiling = Math.max(1, Math.trunc(Number(maxPerItem)) || 1);
+
+    // 1. The author already answered.
+    const authored = Math.trunc(Number(item?.system?.quantity));
+    if (Number.isFinite(authored) && authored > 1) return Math.min(authored, ceiling);
+
+    if (!isStackable(item)) return 1;
+
+    // 2. The band caps it; the die fills it.
+    const price = item?.system?.price;
+    const base = Number.isFinite(Number(price?.value))
+        ? toBase(Number(price.value), price.denomination ?? 'gp')
+        : 0;
+    const band = STOCK_DEPTH_BANDS.find((entry) => base < entry.under) ?? { cap: 1 };
+    const cap = Math.min(band.cap, ceiling);
+    return cap <= 1 ? 1 : 1 + Math.floor(random() * cap);
+}
+
+/** Whether a shop would keep a pile of this. Ammunition counts; other weapons do not. */
+export function isStackable(item) {
+    if (STACKABLE_TYPES.includes(item?.type)) return true;
+    return item?.type === 'weapon' && item?.system?.type?.value === 'ammo';
 }
 
 /** Base units back out to an amount of one denomination. The inverse of `toBase`. */

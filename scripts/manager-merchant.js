@@ -11,7 +11,7 @@ import {
 } from './const.js';
 import { grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange } from './merchant-inventory.js';
 import {
-    resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase, fromBase
+    resolvePrice, resolveBuybackPrice, planPayment, purseValue, formatBase, toBase, fromBase, stockDepth
 } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
@@ -765,17 +765,24 @@ export class MerchantManager {
             const item = resolved.get(uuid);
             if (!item) continue;
 
+            // A roll is a delivery, not a unit. How deep it goes is the item's own
+            // business first, then what it costs -- see `stockDepth`. Stocking one
+            // arrow because a table rolled "Arrows (20)" was the old behaviour and it
+            // was wrong about the only thing anybody had stated.
             const k = key(item.name, item.type);
-            if (held.has(k)) {
-                if (held.get(k) >= maxPerItem) { clipped++; continue; }
-                held.set(k, held.get(k) + 1);
-            } else {
+            const room = maxPerItem - (held.get(k) ?? 0);
+            if (room < 1) { clipped++; continue; }
+
+            if (!held.has(k) && rows >= maxProducts) {
                 // A new row costs one of the shelf's slots, and there may be none.
-                if (rows >= maxProducts) { clipped++; continue; }
-                held.set(k, 1);
-                rows++;
+                clipped++;
+                continue;
             }
-            allowed.push({ itemUuid: uuid, quantity: 1 });
+
+            const depth = Math.min(stockDepth(item, { maxPerItem }), room);
+            if (!held.has(k)) rows++;
+            held.set(k, (held.get(k) ?? 0) + depth);
+            allowed.push({ itemUuid: uuid, quantity: depth });
         }
 
         if (clipped) {

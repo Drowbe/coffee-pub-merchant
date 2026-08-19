@@ -229,6 +229,35 @@ export const ITEM_CATEGORIES = Object.freeze([
     { type: 'loot', label: 'Goods', icon: 'fa-solid fa-sack-xmark' }
 ]);
 
+/**
+ * Which kinds of thing a shop keeps a pile of.
+ *
+ * Not a dnd5e property -- every physical item carries a quantity, so the system
+ * cannot answer this. It is a statement about shops: an apothecary has a shelf of
+ * identical potions, and nobody has eight identical suits of plate. Ammunition is
+ * the exception among weapons and is handled by sub-type below.
+ */
+export const STACKABLE_TYPES = Object.freeze(['consumable', 'loot']);
+
+/**
+ * How deep a pile of one thing can get, by what it costs.
+ *
+ * The cheaper a thing is, the more of it a shop has -- which is the whole of the
+ * intuition, and the reason a flat "stock depth" setting reads wrong the moment it
+ * puts three suits of plate armour next to three rations.
+ *
+ * These are **caps, not counts**. The depth is rolled within the band, so a shelf
+ * stocked twice does not look stocked twice the same way. Thresholds are in base
+ * units (copper) and are deliberately coarse: this is a shop's character, not a
+ * simulation, and a GM who wants exact numbers sets them by hand.
+ */
+export const STOCK_DEPTH_BANDS = Object.freeze([
+    { under: 100, cap: 10 },     // under 1 gp -- rations, torches, chalk
+    { under: 2500, cap: 5 },     // 1-25 gp -- ordinary consumables
+    { under: 10000, cap: 3 },    // 25-100 gp -- the better potions
+    { under: Infinity, cap: 1 }  // anything dearer is a single item
+]);
+
 // ==================================================================
 // ===== TRADING HOURS ==============================================
 // ==================================================================

@@ -145,6 +145,17 @@ game.modules.get('coffee-pub-merchant').api.merchant
       names what the merchant will pay, and settling moves it.
 - [ ] A **player** sees the price but cannot double-click to change it.
 
+## 2d-iii. How deep table-rolled stock stacks
+
+- [ ] Roll a table onto a shelf → rows are **not all QTY 1**. Cheap consumables arrive several deep.
+- [ ] A compendium item authored as a stack (a quiver of arrows, a pouch of caltrops) arrives at **its own
+      quantity**, not at 1.
+- [ ] Armour, weapons, tools and containers still arrive **one at a time** however cheap they are.
+- [ ] Ammunition stacks, unlike other weapons.
+- [ ] Restock the same shelf twice → the depths **differ**. The band is a ceiling, not a count.
+- [ ] Lower a shelf's **each** limit below a band cap → rolled depth respects the shelf, not the band.
+- [ ] A shelf at its **products** limit still refuses new rows, and says so in the console.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

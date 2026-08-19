@@ -151,4 +151,67 @@ for (const [gp, base] of [[1, 100], [7.5, 750], [0, 0], [200, 20000]]) {
 }
 console.log('ok  gold and base units round-trip');
 
+// --- stock depth ---------------------------------------------------------
+// Why every table-rolled row used to read QTY 1: a roll delivered one of whatever
+// it drew, so twenty rolls made twenty rows of one. The "each" limit was a ceiling
+// and never a target, and par fell back to "as many as are there", which was one.
+const goods = (type, gp, qty, sub) => ({
+    type,
+    system: {
+        quantity: qty,
+        price: gp === null ? undefined : { value: gp, denomination: 'gp' },
+        ...(sub ? { type: { value: sub } } : {})
+    }
+});
+// A die that always rolls its maximum, so the cap is what gets asserted.
+const maxRoll = () => 0.999999;
+const minRoll = () => 0;
+
+// 1. What the item says it is wins outright.
+assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 99, random: minRoll }), 20,
+    'a quiver authored as twenty arrives as twenty');
+assert.strictEqual(P.stockDepth(goods('equipment', 1500, 6), { maxPerItem: 99, random: minRoll }), 6,
+    'and it wins even for something that would not otherwise stack');
+assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 5, random: minRoll }), 5,
+    'but the shelf ceiling still clamps it');
+
+// 2. Then the price band, for things a shop keeps a pile of.
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: maxRoll }), 10,
+    'under a gold piece caps at ten');
+assert.strictEqual(P.stockDepth(goods('consumable', 10, 1), { maxPerItem: 99, random: maxRoll }), 5,
+    'ordinary consumables cap at five');
+assert.strictEqual(P.stockDepth(goods('consumable', 50, 1), { maxPerItem: 99, random: maxRoll }), 3,
+    'the better potions cap at three');
+assert.strictEqual(P.stockDepth(goods('consumable', 500, 1), { maxPerItem: 99, random: maxRoll }), 1,
+    'anything dear is a single item');
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll }), 1,
+    'and the die can always come up one');
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll }), 4,
+    'the shelf ceiling beats the band');
+
+// 3. Everything else is one. Nobody has eight suits of plate.
+for (const type of ['equipment', 'weapon', 'tool', 'container']) {
+    assert.strictEqual(P.stockDepth(goods(type, 0.1, 1), { maxPerItem: 99, random: maxRoll }), 1,
+        `${type} does not come in a pile however cheap it is`);
+}
+assert.strictEqual(P.stockDepth(goods('loot', 0.1, 1), { maxPerItem: 99, random: maxRoll }), 10,
+    'goods do, though');
+assert.strictEqual(P.stockDepth(goods('weapon', 0.05, 1, 'ammo'), { maxPerItem: 99, random: maxRoll }), 10,
+    'and so does ammunition, which is the exception among weapons');
+
+assert.strictEqual(P.isStackable(goods('consumable', 1, 1)), true);
+assert.strictEqual(P.isStackable(goods('weapon', 1, 1)), false);
+assert.strictEqual(P.isStackable(goods('weapon', 1, 1, 'ammo')), true);
+
+// An item with no price at all must not become a pile by default.
+assert.strictEqual(P.stockDepth(goods('consumable', null, 1), { maxPerItem: 99, random: maxRoll }), 10,
+    'an unpriced consumable falls in the cheapest band, which is the honest reading');
+
+// Never zero, never negative, whatever it is handed.
+for (const bad of [null, undefined, {}, goods('consumable', 1, 0), goods('consumable', 1, -3)]) {
+    const d = P.stockDepth(bad, { maxPerItem: 5, random: minRoll });
+    assert.ok(Number.isInteger(d) && d >= 1, `depth stays a positive integer for ${JSON.stringify(bad)}`);
+}
+console.log('ok  how deep a rolled row stacks');
+
 console.log('\nall pricing checks passed');
