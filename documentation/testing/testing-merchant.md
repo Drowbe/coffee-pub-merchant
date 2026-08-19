@@ -196,6 +196,22 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 ### Cart
 
+The cart is a column to the right of the stock, sticky, and always present.
+
+- [ ] The shop opens with the cart to the **right** of the stock, not above it.
+- [ ] Empty, it says so rather than being absent — and adding the first item does **not** shift the stock
+      list sideways.
+- [ ] Scroll a long stock list → the cart **stays in view**, parked just under the header rather than
+      sliding behind it.
+- [ ] That still holds with a shop description set, which makes the header taller.
+- [ ] Toggle the shop closed as GM while a player scrolls → the browsing notice changes the header height and
+      the cart re-parks correctly rather than overlapping.
+- [ ] Drag the window narrow → the cart **wraps underneath** and fills the width, rather than staying a
+      narrow strip on the left.
+- [ ] Drag it wide → the stock takes most of the new room, not the cart.
+- [ ] Cart rows read on two lines in the narrow column: name and bin above, quantity and price below.
+- [ ] Clear and remove still work in the new layout, and Checkout is reachable without scrolling the cart.
+
 - [ ] Add to cart asks a quantity, and the cart appears under the buyer with a running total.
 - [ ] Adding the same item twice adds to the existing line rather than making a second one.
 - [ ] Removing a line and clearing the cart both work.

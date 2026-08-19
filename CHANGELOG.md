@@ -110,6 +110,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pressed Refresh. "I renamed it and nothing happened" is the kind of bug that gets reported as the rename
   not working.
 
+- **The cart sits beside the stock** (`templates/window-shop.hbs`, `styles/default.css`): two columns under
+  the header rather than a panel stacked into it, which is where a shopper looks for a cart. It is sticky, so
+  it stays in view while the list scrolls, and it renders empty rather than hidden so adding the first item
+  does not reflow the stock beside it.
+
+  Laid out with `flex-wrap` rather than a media query, because this is a resizable window — how wide the
+  *window* is, is the question, and a media query asks about the viewport. The cart grows a quarter as fast
+  as the stock, so a wide window spends its room on the thing being browsed; narrow it past the two flex
+  bases and the cart wraps onto its own row and fills the width. The sticky offset is the header's measured
+  height rather than a constant: the header grows and shrinks with the shop description, the browsing notice
+  and the override line, all of which can appear on a socket refresh with no re-render.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
