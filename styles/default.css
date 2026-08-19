@@ -7,7 +7,7 @@
 /* `container-type: inline-size` so the columns can ask how wide *this window* is.
    A media query would ask about the viewport, which says nothing useful about a
    window the user can drag to any size. */
-.merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 0 8px 8px; color: var(--blacksmith-tool-text); container-type: inline-size; }
+.merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 8px; color: var(--blacksmith-tool-text); container-type: inline-size; }
 .merchant-shop-section { min-width: 0; padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
 .merchant-shop-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 .merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 999px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
@@ -147,7 +147,7 @@
 .merchant-shop-browsing { display: flex; gap: 9px; align-items: center; padding: 8px 10px; border: 1px dashed color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); border-radius: 6px; background: color-mix(in srgb, #8c2f22 7%, var(--blacksmith-tool-surface-sunken)); color: var(--blacksmith-tool-text); font-size: .74rem; }
 
 /* --- Categories within a shelf --------------------------------------- */
-.merchant-shop-shelf-body { display: flex; flex-direction: column; gap: 9px; border-radius: 5px; }
+.merchant-shop-shelf-body { display: flex; flex-direction: column; gap: 9px; }
 .merchant-shop-shelf-body.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
@@ -464,16 +464,18 @@
    and a row is a tint rather than a card. */
 
 /* The stock column is the box; the search sits inside its top edge. */
-.merchant-shop-stock { padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
-
-/* Shelves are headed groups, not cards. */
-.merchant-shop-stock .merchant-shop-shelf { padding: 0; border: 0; border-radius: 0; background: none; }
-.merchant-shop-shelves { gap: 16px; }
+/* The column is not a box; each shelf is. One level of frame either way, and a
+   shelf is the thing that actually wants a boundary. */
+.merchant-shop-stock { padding: 0; border: 0; background: none; }
+.merchant-shop-stock .merchant-shop-shelf { padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); overflow: visible; }
+.merchant-shop-shelves { gap: 12px; }
+/* Clear of the scrollbar, which the gutter reserves but does not pad away from. */
+.merchant-shop-shelves { padding-right: 3px; }
 /* A hidden shelf loses its dashed frame and says so on the heading instead. */
 .merchant-shop-stock .merchant-shop-shelf-hidden { border-style: none; opacity: .82; }
 
 /* The search is an input, not a panel. */
-.merchant-shop-stock > .merchant-shop-search { padding: 0 0 8px; border: 0; border-radius: 0; background: none; }
+.merchant-shop-stock > .merchant-shop-search { padding: 0; border: 0; border-radius: 0; background: none; }
 
 /* The no-shelves and no-matches notices are lines of text, not cards. */
 .merchant-shop-stock .merchant-shop-no-matches,
@@ -491,7 +493,7 @@
 /* The cart lines were inset by the panel's padding *and* carried their own card,
    which read as a gutter down both sides. One inset now, and a small one. */
 .merchant-shop-cart { padding: 0 6px 6px; }
-.merchant-shop-cart-head { margin: 0 -6px 7px; padding: 7px 6px 6px; }
+.merchant-shop-cart-head { margin: 0 -6px 7px; padding: 7px 8px 6px; border-radius: 5px 5px 0 0; }
 .merchant-shop-cart-line { padding: 4px 6px; }
 
 /* Icon only now, so it is a square rather than a button with a hole where a word
@@ -512,10 +514,11 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    margin: 0 0 8px;
-    padding: 5px 8px;
-    border: 1px solid var(--blacksmith-tool-divider);
-    border-radius: 5px;
+    margin: 0;
+    padding: 6px 9px;
+    border: 0;
+    border-bottom: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px 5px 0 0;
     /* The panel's own tone, not the rows' — a row is sunken, so it stays distinct
        as it slides underneath rather than merging with the band it passes behind. */
     background: var(--blacksmith-tool-surface-raised);
@@ -532,5 +535,8 @@
 .merchant-shop-stock .merchant-shop-shelf-hidden { opacity: 1; }
 
 /* Rows sit in from the heading, so the group reads as one thing hanging off it. */
-.merchant-shop-shelf-body { padding-left: 2px; }
+.merchant-shop-shelf-body { padding: 9px; }
 .merchant-shop-category + .merchant-shop-category { margin-top: 8px; }
+
+/* The drop outline follows the card it is offered on, not a square inside it. */
+.merchant-shop-shelf-body.is-dropping { outline-offset: -4px; border-radius: 5px; }

@@ -318,6 +318,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column now, and the cart sits beside all of it. The only thing spanning both columns is the action bar in
   the footer, which is the one thing that acts on both.
 
+- **Shelves are containers again, and the column is not** (`styles/default.css`): flattening put the frame on
+  the column and took it off the shelves, which is backwards — a shelf is the thing that wants a boundary.
+  One level of frame either way, and now it is on the right level. The heading is the card's own top edge, so
+  it keeps the sticky behaviour that made a long list navigable while the card does the grouping.
+- **Three fixes to go with it**: the content had lost its top padding when the pinned band was retired and
+  nothing replaced it; the cart's full-bleed head was squaring off the panel's top corners because its
+  background did not follow the radius; and rows had no room between them and the frame, or between them and
+  the scrollbar the gutter reserves but does not pad away from.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
