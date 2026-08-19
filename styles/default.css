@@ -693,3 +693,7 @@
 .merchant-config-shelf-rolls { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
 .merchant-config-shelf-rolls > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
 .merchant-config-shelf.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
+
+/* A shelf can name several tables, so they stack. */
+.merchant-config-shelf-tables { grid-area: table; display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
+.merchant-config-shelf-tables .merchant-config-shelf-table { margin-top: 0; }

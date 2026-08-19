@@ -197,6 +197,24 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
+#### Several tables on one shelf
+
+- [ ] Drop a second table on a shelf → **both** are listed, each with its own roll count.
+- [ ] Drop the same table twice → it says so and does not duplicate it.
+- [ ] Each table's roll count is independent.
+- [ ] Restock → every table rolls its own number of times, and the results arrive together.
+- [ ] The same item rolled by two different tables lands as **one row** with a quantity of two.
+- [ ] Remove one table → the other keeps working.
+- [ ] Delete a table from the world → the shelf lists it as "Missing table" and the others still roll.
+- [ ] A shelf configured before this change still rolls its original table.
+
+#### Merchant Settings titlebar
+
+- [ ] **Refresh** redraws the window and picks up a shelf edited on the Actor sheet.
+- [ ] **Open Shop** opens the shop for a merchant with a token on the current scene.
+- [ ] It also works when the merchant's only token is on **another** scene.
+- [ ] With no token anywhere, it says so rather than failing silently.
+
 #### Stocking from a roll table
 
 - [ ] Drag a **RollTable** from the sidebar onto a shelf row in Merchant Settings → the row highlights and

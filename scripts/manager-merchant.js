@@ -513,29 +513,68 @@ export class MerchantManager {
     }
 
     /**
-     * The roll table a shelf restocks from, or null.
+     * The tables a shelf restocks from, each with its own number of rolls.
      *
-     * Stored as a uuid rather than an id so a table in a compendium works the same as
-     * one in the world — which is the point, since a shop's stock table is exactly
-     * the sort of thing a GM keeps in a module compendium.
+     * A shop is rarely one table. A general store might roll on *common goods* three
+     * times, *potions* once, and *whatever fell off a cart* once — and expressing
+     * that as one table means building a combined table for every shop.
+     *
+     * Uuids rather than ids, so a table in a compendium works the same as one in the
+     * world — which is where a GM keeps this sort of table.
+     *
+     * Reads a single `table` from before this took a list, so a shelf configured
+     * earlier keeps working without a migration pass.
      */
-    static async getShelfTable(shelf) {
-        const uuid = this.getShelfConfig(shelf)?.table;
-        if (!uuid) return null;
-        try {
-            const table = await fromUuid(uuid);
-            return table?.documentName === 'RollTable' ? table : null;
-        } catch (_error) {
-            return null;
+    static getShelfTables(shelf) {
+        const config = this.getShelfConfig(shelf);
+        if (!config) return [];
+
+        const list = Array.isArray(config.tables) ? config.tables : [];
+        if (list.length) {
+            return list
+                .filter((entry) => entry?.uuid)
+                .map((entry) => ({ uuid: entry.uuid, rolls: this._rollCount(entry.rolls) }));
         }
+        return config.table
+            ? [{ uuid: config.table, rolls: this._rollCount(config.tableRolls) }]
+            : [];
     }
 
-    static async setShelfTable(actor, shelfId, uuid) {
-        return this.setShelfConfig(actor, shelfId, { table: uuid ?? null });
+    /** One to twenty. A shelf rolling nothing is a shelf with no table on it. */
+    static _rollCount(value) {
+        return Math.min(20, Math.max(1, Math.trunc(Number(value) || 1)));
+    }
+
+    static async addShelfTable(actor, shelfId, uuid) {
+        if (!uuid) return null;
+        const shelf = actor?.items?.get(shelfId);
+        const tables = this.getShelfTables(shelf);
+        // Dropping the same table twice is a slip, not a request for double rolls;
+        // the roll count is how you ask for that.
+        if (tables.some((entry) => entry.uuid === uuid)) return null;
+        return this.setShelfConfig(actor, shelfId, {
+            tables: [...tables, { uuid, rolls: 1 }],
+            // The single-table fields are what this list replaced.
+            table: null,
+            tableRolls: null
+        });
+    }
+
+    static async removeShelfTable(actor, shelfId, uuid) {
+        const shelf = actor?.items?.get(shelfId);
+        const tables = this.getShelfTables(shelf).filter((entry) => entry.uuid !== uuid);
+        return this.setShelfConfig(actor, shelfId, { tables, table: null, tableRolls: null });
+    }
+
+    static async setShelfTableRolls(actor, shelfId, uuid, rolls) {
+        const shelf = actor?.items?.get(shelfId);
+        const tables = this.getShelfTables(shelf)
+            .map((entry) => (entry.uuid === uuid ? { ...entry, rolls: this._rollCount(rolls) } : entry));
+        return this.setShelfConfig(actor, shelfId, { tables, table: null, tableRolls: null });
     }
 
     /**
-     * Roll a shelf's table and put what comes up on it.
+     * Roll a shelf's tables and put what comes up on it.
      *
      * **`roll()`, not `draw()`.** Drawing marks results as drawn, so a shop restocking
      * from a table would exhaust it and then quietly stock nothing. A shop's table is
@@ -547,52 +586,60 @@ export class MerchantManager {
     static async rollShelfTable(actor, shelfId) {
         if (!game.user.isGM) return 0;
         const shelf = actor?.items?.get(shelfId);
-        const config = this.getShelfConfig(shelf);
-        if (!config) return 0;
+        if (!this.getShelfConfig(shelf)) return 0;
 
-        const table = await this.getShelfTable(shelf);
-        if (!table) return 0;
-
-        const rolls = Math.min(20, Math.max(1, Math.trunc(Number(config.tableRolls) || 1)));
         const drawn = [];
-        for (let i = 0; i < rolls; i++) {
-            let results = [];
+        for (const entry of this.getShelfTables(shelf)) {
+            let table = null;
             try {
-                ({ results = [] } = await table.roll());
-            } catch (error) {
-                console.error(`${MODULE.TITLE} | Could not roll ${table.name}:`, error);
-                break;
+                table = await fromUuid(entry.uuid);
+            } catch (_error) {
+                table = null;
             }
-            for (const result of results) {
-                if (!result?.documentUuid) continue;
-                drawn.push(result.documentUuid);
+            // A table deleted since it was assigned is skipped, not fatal: the other
+            // tables on the shelf should still deliver.
+            if (table?.documentName !== 'RollTable') {
+                console.warn(`${MODULE.TITLE} | ${shelf.name} names a roll table that no longer resolves:`, entry.uuid);
+                continue;
+            }
+
+            for (let i = 0; i < entry.rolls; i++) {
+                let results = [];
+                try {
+                    ({ results = [] } = await table.roll());
+                } catch (error) {
+                    console.error(`${MODULE.TITLE} | Could not roll ${table.name}:`, error);
+                    break;
+                }
+                for (const result of results) {
+                    if (result?.documentUuid) drawn.push(result.documentUuid);
+                }
             }
         }
         if (!drawn.length) return 0;
 
-        // Resolved once per distinct uuid: a table that rolls the same row twice
-        // should cost one lookup, and only physical items can sit on a shelf.
+        // Resolved once per distinct uuid: several tables rolling the same row should
+        // cost one lookup, and only physical items can sit on a shelf.
         const sellable = new Map();
         for (const uuid of drawn) {
-            if (!sellable.has(uuid)) {
-                let item = null;
-                try {
-                    item = await fromUuid(uuid);
-                } catch (_error) {
-                    item = null;
-                }
-                sellable.set(uuid, item?.documentName === 'Item' && isPhysical(item.type));
+            if (sellable.has(uuid)) continue;
+            let item = null;
+            try {
+                item = await fromUuid(uuid);
+            } catch (_error) {
+                item = null;
             }
+            sellable.set(uuid, item?.documentName === 'Item' && isPhysical(item.type));
         }
 
         const items = drawn.filter((uuid) => sellable.get(uuid)).map((uuid) => ({ itemUuid: uuid, quantity: 1 }));
         if (!items.length) return 0;
 
-        // One call, so duplicates coalesce into one row rather than becoming several
-        // rows of one — see grantItems.
+        // One call for every table on the shelf, so the same potion rolled by two of
+        // them lands as one row of two — see grantItems.
         const result = await grantItems({ targetActorUuid: actor.uuid, items, container: shelfId });
         if (!result?.ok) {
-            console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from ${table.name}:`, result);
+            console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from its tables:`, result);
         }
         return items.length;
     }
@@ -609,7 +656,7 @@ export class MerchantManager {
         const shelf = actor?.items?.get(shelfId);
         const config = this.getShelfConfig(shelf);
         if (!config) return 0;
-        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !config.table) return 0;
+        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !this.getShelfTables(shelf).length) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
             const updates = [];
@@ -644,7 +691,7 @@ export class MerchantManager {
             for (const { item: shelf, config } of this.getShelves(actor, { includeHidden: true })) {
                 // A table-stocked shelf restocks on the clock whatever its policy: it
                 // is not refilling to a level, it is receiving a delivery.
-                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !config.table) continue;
+                if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !this.getShelfTables(shelf).length) continue;
 
                 const days = Number(config.restockDays);
                 const interval = (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS)

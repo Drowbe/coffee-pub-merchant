@@ -54,7 +54,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
         removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
-        clearShelfTable: (_event, target, win) => void win.clearShelfTable(target.dataset.shelfId),
+        removeShelfTable: (_event, target, win) =>
+            void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid),
         clearHours: (_event, _target, win) => void win.clearHours()
     };
 
@@ -165,8 +166,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
             input.addEventListener('change', (event) => {
-                const rolls = Math.min(20, Math.max(1, Math.trunc(Number(event.target.value) || 1)));
-                void this._commitShelfStock(input.getAttribute('data-shelf-table-rolls'), { tableRolls: rolls });
+                void this._setTableRolls(
+                    input.getAttribute('data-shelf-table-rolls'),
+                    input.getAttribute('data-table-uuid'),
+                    event.target.value
+                );
             });
         }
 
@@ -234,7 +238,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Assign a roll table to a shelf by dropping one on it.
+     * Add a roll table to a shelf by dropping one on it.
+     *
+     * Adds rather than replaces: a shop is rarely one table, and dropping a second
+     * should extend the shelf's sources rather than silently discard the first.
      *
      * Dragged rather than picked from a list, matching how stock itself gets onto a
      * shelf — and a table in a compendium drags the same as one in the world, which a
@@ -255,11 +262,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
-            await MerchantManager.setShelfTable(actor, shelfId, data.uuid);
-            MerchantManager.broadcastActorRefresh(actor);
+            const added = await MerchantManager.addShelfTable(actor, shelfId, data.uuid);
+            if (!added) ui.notifications?.info('That table is already on this shelf.');
+            else MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not set that table:`, error);
-            ui.notifications?.error('Could not set that table.');
+            console.error(`${MODULE.TITLE} | Could not add that table:`, error);
+            ui.notifications?.error('Could not add that table.');
         }
         await this.render(false);
     }
@@ -494,14 +502,26 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async clearShelfTable(shelfId) {
+    async _setTableRolls(shelfId, uuid, value) {
         const actor = await this._resolveActor();
-        if (!actor) return;
+        if (!actor || !uuid) return;
         try {
-            await MerchantManager.setShelfTable(actor, shelfId, null);
+            await MerchantManager.setShelfTableRolls(actor, shelfId, uuid, value);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not clear that table:`, error);
+            console.error(`${MODULE.TITLE} | Could not set that roll count:`, error);
+        }
+        await this.render(false);
+    }
+
+    async removeShelfTable(shelfId, uuid) {
+        const actor = await this._resolveActor();
+        if (!actor || !uuid) return;
+        try {
+            await MerchantManager.removeShelfTable(actor, shelfId, uuid);
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not remove that table:`, error);
         }
         await this.render(false);
     }
@@ -539,7 +559,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 const count = MerchantManager.getShelfContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);
-                const rolls = Math.min(20, Math.max(1, Math.trunc(Number(config.tableRolls) || 1)));
                 return {
                     id: item.id,
                     img: item.img,
@@ -562,13 +581,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // that counts its stock can be refilled by hand.
                     countable: policy !== STOCK.INFINITE,
                     restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
-                    // A uuid that no longer resolves reads as no table rather than as
-                    // a broken one. `fromUuidSync` throws on some shapes rather than
-                    // returning null, and a compendium uuid gives an index entry --
-                    // which carries a name, which is all this needs.
-                    tableName: this._tableName(config.table),
-                    tableRolls: rolls,
-                    oneRoll: rolls === 1
+                    tables: MerchantManager.getShelfTables(item).map((entry) => ({
+                        uuid: entry.uuid,
+                        // A uuid that no longer resolves is named as missing rather
+                        // than left blank, so a GM can see which one to remove.
+                        name: this._tableName(entry.uuid) ?? 'Missing table',
+                        rolls: entry.rolls,
+                        oneRoll: entry.rolls === 1
+                    })),
+                    hasTables: MerchantManager.getShelfTables(item).length > 0
                 };
             })
             : [];
@@ -620,6 +641,56 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 </button>`,
             toolFooterRight: ''
         };
+    }
+
+    /**
+     * Titlebar actions.
+     *
+     * **Refresh**, because this window shows things it does not own — a shelf's item
+     * count, a roll table's name — and nothing pushes a change here when a GM edits
+     * the Actor sheet beside it.
+     *
+     * **Open Shop**, because setting a shop up and looking at it are the same sitting.
+     * The shop is normally reached by double-clicking a token, which is no use when
+     * the token is on another scene or not placed at all.
+     */
+    getToolHeaderActions() {
+        return [
+            {
+                id: 'merchant-config-refresh',
+                icon: 'fa-solid fa-rotate',
+                label: 'Refresh',
+                onClick: () => void this.render(false)
+            },
+            {
+                id: 'merchant-config-shop',
+                icon: 'fa-solid fa-shop',
+                label: 'Open Shop',
+                onClick: () => void this.openShop()
+            }
+        ];
+    }
+
+    /**
+     * Open this merchant's shop from its settings.
+     *
+     * A shop belongs to a token, so this needs one: the active scene first, since
+     * that is where the GM is looking, then anywhere else the merchant stands.
+     */
+    async openShop() {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+
+        const here = canvas?.scene?.tokens?.find((token) => token.actor?.uuid === actor.uuid);
+        const anywhere = here ?? game.scenes
+            ?.map((scene) => scene.tokens.find((token) => token.actor?.uuid === actor.uuid))
+            ?.find(Boolean);
+
+        if (!anywhere) {
+            ui.notifications?.warn(`${actor.name} has no token on any scene, so there is no shop to open.`);
+            return;
+        }
+        MerchantManager.openSafely(anywhere);
     }
 
     _onClose(options) {

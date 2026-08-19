@@ -198,26 +198,30 @@
                             {{!-- A shelf may also be stocked by rolling. Dragged on
                                   rather than picked from a list, the same way stock
                                   itself is put on a shelf. --}}
-                            <div class="merchant-config-shelf-table">
-                                {{#if tableName}}
-                                    <span class="merchant-config-shelf-table-name" data-tooltip="Rolled when this shelf restocks">
-                                        <i class="fa-solid fa-dice-d20"></i> {{tableName}}
-                                    </span>
-                                    <label class="merchant-config-shelf-rolls" data-tooltip="How many times to roll it">
-                                        <input type="number" min="1" max="20" step="1" value="{{tableRolls}}"
-                                               data-shelf-table-rolls="{{id}}" aria-label="Rolls per restock">
-                                        roll{{#unless oneRoll}}s{{/unless}}
-                                    </label>
-                                    <button type="button" class="merchant-config-icon-btn merchant-config-remove"
-                                            data-action="clearShelfTable" data-shelf-id="{{id}}"
-                                            data-tooltip="Stop rolling for this shelf">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                {{else}}
-                                    <span class="merchant-config-shelf-table-empty">
-                                        <i class="fa-solid fa-dice-d20"></i> Drop a roll table here to stock it by rolling
-                                    </span>
-                                {{/if}}
+                            <div class="merchant-config-shelf-tables">
+                                {{#each tables}}
+                                    <div class="merchant-config-shelf-table">
+                                        <span class="merchant-config-shelf-table-name" data-tooltip="{{name}} — rolled when this shelf restocks">
+                                            <i class="fa-solid fa-dice-d20"></i> {{name}}
+                                        </span>
+                                        <label class="merchant-config-shelf-rolls" data-tooltip="How many times to roll it">
+                                            <input type="number" min="1" max="20" step="1" value="{{rolls}}"
+                                                   data-shelf-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
+                                                   aria-label="Rolls per restock">
+                                            roll{{#unless oneRoll}}s{{/unless}}
+                                        </label>
+                                        <button type="button" class="merchant-config-icon-btn merchant-config-remove"
+                                                data-action="removeShelfTable" data-shelf-id="{{../id}}"
+                                                data-table-uuid="{{uuid}}"
+                                                data-tooltip="Take this table off the shelf">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </div>
+                                {{/each}}
+                                <span class="merchant-config-shelf-table-empty">
+                                    <i class="fa-solid fa-dice-d20"></i>
+                                    {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock it by rolling{{/if}}
+                                </span>
                             </div>
                         </div>
                     {{/each}}

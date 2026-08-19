@@ -442,6 +442,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a "nothing this week" row is a reasonable table. A table-stocked shelf restocks on the clock whatever
   its stock policy, because it is not refilling to a level, it is receiving a delivery.
 
+- **A shelf can name several roll tables** (`scripts/manager-merchant.js`): a shop is rarely one table. A
+  general store might roll on *common goods* three times, *potions* once and *oddments* once, and expressing
+  that as a single table means building a combined one for every shop. Each table carries its own roll count,
+  dropping a second adds rather than replaces, and all of a shelf's tables settle in one `grantItems` call so
+  the same potion rolled by two of them lands as one row of two. A shelf configured before this reads its old
+  single table without a migration.
+- **Merchant Settings has a titlebar** (`scripts/window-merchant-config.js`): **Refresh**, because the window
+  shows things it does not own — a shelf's item count, a table's name — and nothing pushes a change when a GM
+  edits the Actor sheet beside it. And **Open Shop**, because setting a shop up and looking at it are the
+  same sitting; it finds a token on the active scene first, then anywhere else the merchant stands.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.
