@@ -15,6 +15,7 @@ import {
 } from './merchant-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
+import { notify } from './merchant-feedback.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -788,7 +789,7 @@ export class MerchantManager {
                     + 'from its source, so a compendium entry\'s own quantity is not a ceiling — update '
                     + 'Coffee Pub Blacksmith and restock again.'
                 );
-                ui.notifications?.error(
+                notify.error(
                     'Stock could not be delivered because Coffee Pub Blacksmith is out of date. Update it and restock.'
                 );
             }
@@ -1037,7 +1038,7 @@ export class MerchantManager {
 
     static _reportOpenFailure(error) {
         console.error(`${MODULE.TITLE} | Failed to open the shop:`, error);
-        ui.notifications?.error('Could not open that shop.');
+        notify.error('Could not open that shop.');
     }
 
     static open(tokenDocument) {

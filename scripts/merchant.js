@@ -5,6 +5,8 @@
 import { MODULE, PAR_FLAG, SHELF_FLAG } from './const.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import { MerchantManager } from './manager-merchant.js';
+import { registerSettings } from './settings.js';
+import { registerToastChannels } from './merchant-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 
 /**
@@ -73,6 +75,11 @@ Hooks.once('ready', async function () {
     // the Blacksmith a given world has installed.
     blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${PAR_FLAG}`);
     blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${SHELF_FLAG}`);
+
+    // Sounds are a world setting read on every client, and the toast channels give a
+    // GM a checkbox per class of message. Both before anything can want them.
+    registerSettings();
+    registerToastChannels();
 
     // Registered for every user, not just the GM: the interaction claim and the
     // request path both have to exist on a player's client.

@@ -187,6 +187,20 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Sell it back to the merchant. It lands on the Buyback shelf.
 - [ ] Press **Restock Everything** → that buyback row stays at **1**. It must not become 6.
 
+## 2d-vii. Toasts and sounds
+
+- [ ] Completing a transaction raises a **toast**, not a Foundry notification: what was paid as the
+      headline, who and where underneath.
+- [ ] That toast **stays until clicked**. Clicking anywhere on it dismisses it; so does the ×.
+- [ ] A second purchase **replaces** the first receipt rather than stacking two.
+- [ ] Every warning and error is a toast too — red for errors, amber for warnings.
+- [ ] Restock progress is still a **Foundry progress bar**, not a toast. That one is deliberate.
+- [ ] Settings show six sound options, all defaulting to **None**, all listing Blacksmith's sound library.
+- [ ] Set each and confirm it fires: adding to the slate, changing a quantity or price, taking a line off,
+      completing a transaction, finishing a restock, and anything that errors.
+- [ ] With Blacksmith's sound list unavailable at load, the dropdowns still populate once it arrives.
+- [ ] A sound plays **only on the client that acted** — a second player hears nothing.
+
 ## 2e. Prices, buying and selling
 
 Buying and selling need `blacksmith.inventory.exchange`, which does not exist yet. Until it does, the Buy

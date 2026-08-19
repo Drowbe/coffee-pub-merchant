@@ -28,6 +28,9 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/window-merchant-config.js` | Merchant Settings. Shelves, hours, till, tables, presets. |
 | `scripts/merchant-pricing.js` | Pure arithmetic: denominations, prices, making change. No documents. |
 | `scripts/merchant-inventory.js` | Thin accessors over `blacksmith.inventory`. Deliberately thin. |
+| `scripts/merchant-feedback.js` | Everything the module says to a person: toasts and sounds. |
+| `scripts/merchant-progress.js` | The restock progress bar. Core's notification, not a toast. |
+| `scripts/settings.js` | The six sound settings, and nothing else. |
 | `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
 `merchant-pricing.js` and the schedule half of `const.js` are the only modules with no Foundry documents in
@@ -298,6 +301,24 @@ has cost this suite real time twice. What is used:
 | `dialog.confirm / choose / wait` + `controls` | every prompt |
 | `entityList`, `quantitySplit`, `uiContextMenu` | embedded controls |
 | compendium search window | stocking a shelf |
+| `toast` | every message the module shows |
+| `utils.playSound` + `arrSoundChoices` | the sound settings |
+
+**Nothing calls `ui.notifications` directly.** Two exceptions, both deliberate: the fallback inside
+`merchant-feedback.js`, for a Blacksmith too old to have the toast API — a world one version behind should
+lose the styling, not the message — and the restock progress bar, because a toast has no progress shape and
+core's does. Everything else goes through `notify`.
+
+### Sounds
+
+Six world settings, played **locally**. World-scoped because a shop's voice is set dressing and belongs to
+whoever built the scene; played locally because broadcasting would mean the whole table hearing somebody
+else drop a rope into their own slate. All default to silent — a module that starts making noises nobody
+asked for is a module people switch off.
+
+`notify.error()` plays the error sound itself rather than leaving it to twenty-odd call sites, one of which
+would eventually forget. The transaction sound rides on the receipt toast rather than being played beside
+it, so the sound and the thing it announces cannot come apart.
 
 **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
 can never pick up anything landing later. To check: compare filenames against `coffee-pub-blacksmith/scripts/`;

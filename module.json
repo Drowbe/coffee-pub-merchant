@@ -39,6 +39,8 @@
   ],
   "esmodules": [
     "scripts/const.js",
+    "scripts/settings.js",
+    "scripts/merchant-feedback.js",
     "scripts/merchant-inventory.js",
     "scripts/merchant-pricing.js",
     "scripts/merchant-progress.js",

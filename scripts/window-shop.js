@@ -11,6 +11,7 @@ import { MerchantConfigWindow } from './window-merchant-config.js';
 // the window. Safe because every use below is inside a method, so the binding
 // resolves at call time rather than at module evaluation.
 import { MerchantManager } from './manager-merchant.js';
+import { notify, playFeedback, SOUND } from './merchant-feedback.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-shop.hbs';
 const ROW_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-shop-row.hbs';
@@ -256,7 +257,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async _pickActor({ title, actors, selectedUuid, confirmLabel = 'Select', confirmIcon = 'fa-solid fa-check' }) {
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.entityList?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
-            ui.notifications?.warn('The Blacksmith entity list is unavailable.');
+            notify.warn('The Blacksmith entity list is unavailable.');
             return null;
         }
         if (!actors.length) return null;
@@ -322,7 +323,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             await operation();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Shop action failed:`, error);
-            ui.notifications?.error('That could not be completed.');
+            notify.error('That could not be completed.');
         } finally {
             this.busy = false;
             this.element?.classList.remove('merchant-shop-busy');
@@ -344,7 +345,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const token = await this._resolveToken();
         const item = token?.actor?.items?.get(itemId);
         if (!item) {
-            ui.notifications?.warn('That is no longer in stock.');
+            notify.warn('That is no longer in stock.');
             return null;
         }
         return { item, token };
@@ -393,12 +394,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * nothing to dismiss.
      */
     async addToCart(itemId) {
+        playFeedback(SOUND.SLATE_ADD);
         const context = await this._itemContext(itemId);
         if (!context) return;
 
         const inCart = this.cart.get(itemId) ?? 0;
         if (this._maxFor(context.token?.actor, context.item) < 1) {
-            ui.notifications?.warn(inCart
+            notify.warn(inCart
                 ? `Your slate already holds every ${context.item.name} in stock.`
                 : `${context.item.name} is out of stock.`);
             return;
@@ -409,12 +411,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     async removeFromCart(itemId) {
+        playFeedback(SOUND.SLATE_CLEAR);
         this.cart.delete(itemId);
         await this.render(false);
     }
 
     /** One slate, so one thing wipes it. */
     async clearAll() {
+        playFeedback(SOUND.SLATE_CLEAR);
         this.cart.clear();
         this.basket.clear();
         await this.render(false);
@@ -442,19 +446,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async settle() {
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
         if (!cart.length && !basket.length) {
-            ui.notifications?.info('There is nothing on the slate yet.');
+            notify.info('There is nothing on the slate yet.');
             return;
         }
 
         const shopper = this.recipient;
         if (!shopper) {
-            ui.notifications?.warn('You have no character able to trade.');
+            notify.warn('You have no character able to trade.');
             return;
         }
 
         const unagreed = [...cart, ...basket].filter((line) => line.total === null);
         if (unagreed.length) {
-            ui.notifications?.warn(
+            notify.warn(
                 'You have unnegotiated items on your slate. Remove them, or negotiate a price with the merchant.'
             );
             return;
@@ -467,7 +471,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Checked here so a player learns they cannot cover it from the confirm rather
         // than from a refusal. The GM re-checks regardless.
         if (net > 0 && !planPayment(shopper, net)) {
-            ui.notifications?.warn(
+            notify.warn(
                 `${shopper.name} cannot cover that \u2014 ${formatBase(net)} needed, `
                 + `${purseValue(shopper) ? formatBase(purseValue(shopper)) : 'nothing'} held.`
             );
@@ -487,12 +491,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (result?.ok) {
             this.cart.clear();
             this.basket.clear();
+
+            // A receipt rather than a notice. What was paid is the headline, because it
+            // is the number somebody wants to check; what moved is the detail under it.
+            //
+            // The shop is re-resolved rather than captured: `settle` never held one, and
+            // reaching for a name is not a reason to start assuming it did.
+            const shop = (await this._resolveToken())?.actor;
+            const shopName = MerchantManager.getConfig(shop)?.name || shop?.name || 'the shop';
+            const moved = [
+                cart.length ? `${cart.length} bought` : null,
+                basket.length ? `${basket.length} sold` : null
+            ].filter(Boolean).join(', ');
+
+            notify.receipt(
+                net > 0 ? `Paid ${formatBase(net)}`
+                    : net < 0 ? `Received ${formatBase(-net)}`
+                        : 'Traded evenly',
+                `${shopper.name} at ${shopName}`
+                + (moved ? ` — ${moved}` : '')
+            );
+            return;
         }
-        this._report(result, net > 0
-            ? `${shopper.name} paid ${formatBase(net)}.`
-            : net < 0
-                ? `${shopper.name} received ${formatBase(-net)}.`
-                : 'Traded evenly.');
+        this._report(result, null);
     }
 
     /** Cart lines resolved against current stock and prices. */
@@ -625,14 +646,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async sell() {
         const seller = this.recipient;
         if (!seller) {
-            ui.notifications?.warn('You have no character able to sell.');
+            notify.warn('You have no character able to sell.');
             return;
         }
         const token = await this._resolveToken();
         const merchant = token?.actor;
         const buyback = this._buyback(merchant);
         if (!buyback) {
-            ui.notifications?.warn('This merchant does not buy anything.');
+            notify.warn('This merchant does not buy anything.');
             return;
         }
 
@@ -645,7 +666,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             return (Number.isFinite(available) ? available : 1) - held > 0;
         });
         if (!sellable.length) {
-            ui.notifications?.warn(this.basket.size
+            notify.warn(this.basket.size
                 ? `Everything ${seller.name} can sell here is already in the basket.`
                 : `${seller.name} has nothing this merchant would buy.`);
             return;
@@ -653,7 +674,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.entityList?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
-            ui.notifications?.warn('The Blacksmith entity list is unavailable.');
+            notify.warn('The Blacksmith entity list is unavailable.');
             return;
         }
 
@@ -719,6 +740,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * the same way and are refused for the same reasons.
      */
     async addToBasket(item, { silent = false } = {}) {
+        playFeedback(SOUND.SLATE_ADD);
         const seller = this.recipient;
         const token = await this._resolveToken();
         const merchant = token?.actor;
@@ -726,11 +748,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!item || !seller || !buyback) return;
 
         if (item.parent?.uuid !== seller.uuid) {
-            ui.notifications?.warn(`You are selling as ${seller.name}. That belongs to somebody else.`);
+            notify.warn(`You are selling as ${seller.name}. That belongs to somebody else.`);
             return;
         }
         if (!this._wouldTake(item)) {
-            ui.notifications?.warn(`This merchant would not take ${item.name}.`);
+            notify.warn(`This merchant would not take ${item.name}.`);
             return;
         }
         // Refused in front of the quantity dialog rather than after it: dnd5e keeps
@@ -739,14 +761,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const packed = item.type === 'container'
             && (item.parent?.items?.filter((child) => child.system?.container === item.id).length ?? 0) > 0;
         if (packed) {
-            ui.notifications?.warn(`Unpack ${item.name} first \u2014 a full container cannot change hands.`);
+            notify.warn(`Unpack ${item.name} first \u2014 a full container cannot change hands.`);
             return;
         }
 
         const held = this.basket.get(item.id) ?? 0;
         const available = Number(item.system?.quantity ?? 1);
         if ((Number.isFinite(available) ? available : 1) - held < 1) {
-            ui.notifications?.warn(`Every ${item.name} you have is already on the slate.`);
+            notify.warn(`Every ${item.name} you have is already on the slate.`);
             return;
         }
 
@@ -757,6 +779,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     async removeFromBasket(itemId) {
+        playFeedback(SOUND.SLATE_CLEAR);
         this.basket.delete(itemId);
         await this.render(false);
     }
@@ -803,7 +826,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** `ok: true, merged: false` is success — the item arrived as its own row. */
     _report(result, successMessage) {
         if (result?.ok) {
-            if (successMessage) ui.notifications?.info(successMessage);
+            if (successMessage) notify.info(successMessage);
             return;
         }
         // No suffix about goods already handed over: a purchase is one `exchange`
@@ -814,7 +837,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (result?.code === 'SOURCE_UPDATE_FAILED' || result?.code === 'ROLLBACK_FAILED') {
             console.error(`${MODULE.TITLE} | ${result.code}:`, result);
         }
-        ui.notifications?.error(message);
+        notify.error(message);
     }
 
     _explain(code, result) {
@@ -1213,7 +1236,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager._broadcastRefresh(this.tokenUuid);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change that shelf:`, error);
-            ui.notifications?.error('Could not change that shelf.');
+            notify.error('Could not change that shelf.');
         }
     }
 
@@ -1525,9 +1548,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             await MerchantManager.setNegotiatedPrice(
                 merchant, itemId, gold === null ? null : toBase(gold, 'gp'), { side }
             );
+            playFeedback(SOUND.SLATE_UPDATE);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not agree that price:`, error);
-            ui.notifications?.error('Could not agree that price.');
+            notify.error('Could not agree that price.');
         }
     }
 
@@ -1537,8 +1561,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const map = cell.getAttribute('data-line-side') === 'basket' ? this.basket : this.cart;
             // Zero is how a line is removed, which is the same rule the loot window
             // uses and means the bin is a shortcut rather than the only way.
-            if (next < 1) map.delete(lineId);
-            else map.set(lineId, next);
+            if (next < 1) {
+                map.delete(lineId);
+                playFeedback(SOUND.SLATE_CLEAR);
+            } else {
+                map.set(lineId, next);
+                playFeedback(SOUND.SLATE_UPDATE);
+            }
             return;
         }
 
@@ -1552,15 +1581,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // Silently correcting a number a GM typed is how you get somebody
             // re-typing it, so say what happened and where the limit lives.
             if (result?.clamped) {
-                ui.notifications?.info(
+                notify.info(
                     `This shelf holds at most ${result.maxPerItem} of any one thing, so that is ${result.value}. `
                     + 'Raise the shelf’s "each" limit in Merchant Settings to keep more.'
                 );
             }
+            playFeedback(SOUND.SLATE_UPDATE);
             MerchantManager.broadcastActorRefresh(merchant);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);
-            ui.notifications?.error('Could not set that quantity.');
+            notify.error('Could not set that quantity.');
         }
     }
 
@@ -1645,7 +1675,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // A compendium or sidebar item has no owner to take it from. Only something
         // actually on a character can be sold.
         if (!item?.parent?.uuid) {
-            ui.notifications?.warn('Only something a character is carrying can be sold.');
+            notify.warn('Only something a character is carrying can be sold.');
             return;
         }
         await this.addToBasket(item);
@@ -1730,13 +1760,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 force: true,
                 onStep: (message) => bar.step(message)
             });
+            if (filled) playFeedback(SOUND.RESTOCK);
             bar.finish(filled
                 ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
                 : `${shelfName} had nothing to restock.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
             bar.finish('Could not restock that shelf.');
-            ui.notifications?.error('Could not restock that shelf.');
+            notify.error('Could not restock that shelf.');
         }
     }
 
@@ -1756,7 +1787,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const count = MerchantManager.getShelfContents(merchant, shelf).length;
         if (!count) {
-            ui.notifications?.info(`${shelf.name} is already empty.`);
+            notify.info(`${shelf.name} is already empty.`);
             return;
         }
 
@@ -1776,10 +1807,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         try {
             const cleared = await MerchantManager.clearShelf(merchant, shelfId);
-            ui.notifications?.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
-            ui.notifications?.error('Could not clear that shelf.');
+            notify.error('Could not clear that shelf.');
         }
     }
 
@@ -1800,10 +1831,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         try {
             const result = await MerchantManager.addToShelf(merchant, shelfId, data.uuid);
             if (result?.ok) MerchantManager._broadcastRefresh(this.tokenUuid);
-            else ui.notifications?.error(this._explain(result?.code, result));
+            else notify.error(this._explain(result?.code, result));
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that to the shelf:`, error);
-            ui.notifications?.error('Could not add that to the shelf.');
+            notify.error('Could not add that to the shelf.');
         }
         await this.render(false);
     }
@@ -1827,7 +1858,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!game.user.isGM) return;
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.openWindow !== 'function') {
-            ui.notifications?.warn('Blacksmith compendium search is unavailable.');
+            notify.warn('Blacksmith compendium search is unavailable.');
             return;
         }
         await blacksmith.openWindow('blacksmith-compendium-search');
@@ -1844,7 +1875,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager._broadcastRefresh(this.tokenUuid);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change the shop state:`, error);
-            ui.notifications?.error('Could not change the shop state.');
+            notify.error('Could not change the shop state.');
         }
     }
 
@@ -1862,7 +1893,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // PrototypeToken is a DataModel with no `sheet` getter, so `prototype.sheet`
         // optional-chains into silence. This is how core opens it.
         if (!prototype || !sheetClass) {
-            ui.notifications?.warn('This merchant has no prototype token.');
+            notify.warn('This merchant has no prototype token.');
             return;
         }
         new sheetClass({ prototype }).render(true);

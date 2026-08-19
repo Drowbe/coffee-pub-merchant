@@ -5,6 +5,7 @@ import {
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase } from './merchant-pricing.js';
 import { startProgress } from './merchant-progress.js';
+import { notify, playFeedback, SOUND } from './merchant-feedback.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
@@ -249,7 +250,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update this merchant:`, error);
-            ui.notifications?.error('Could not update this merchant.');
+            notify.error('Could not update this merchant.');
         }
         if (redraw) await this.render(false);
     }
@@ -263,7 +264,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the till:`, error);
-            ui.notifications?.error('Could not set the till.');
+            notify.error('Could not set the till.');
         }
         await this.render(false);
     }
@@ -286,7 +287,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
         if (data?.type !== 'RollTable' || !data.uuid) {
-            if (data?.type) ui.notifications?.warn('Drop a roll table here, not a ' + String(data.type).toLowerCase() + '.');
+            if (data?.type) notify.warn('Drop a roll table here, not a ' + String(data.type).toLowerCase() + '.');
             return;
         }
 
@@ -294,11 +295,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (!actor) return;
         try {
             const added = await MerchantManager.addShelfTable(actor, shelfId, data.uuid);
-            if (!added) ui.notifications?.info('That table is already on this shelf.');
+            if (!added) notify.info('That table is already on this shelf.');
             else MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that table:`, error);
-            ui.notifications?.error('Could not add that table.');
+            notify.error('Could not add that table.');
         }
         await this.render(false);
     }
@@ -313,7 +314,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the stock policy:`, error);
-            ui.notifications?.error('Could not set the stock policy.');
+            notify.error('Could not set the stock policy.');
         }
         await this.render(false);
     }
@@ -323,7 +324,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (!actor) return;
         const markup = Number(value);
         if (!Number.isFinite(markup) || markup < 0) {
-            ui.notifications?.warn('Markup must be a number.');
+            notify.warn('Markup must be a number.');
             return this.render(false);
         }
         try {
@@ -406,7 +407,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             await MerchantManager.setHours(actor, { open, close });
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set trading hours:`, error);
-            ui.notifications?.error('Could not set trading hours.');
+            notify.error('Could not set trading hours.');
         }
         await this.render(false);
     }
@@ -420,7 +421,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             actor.sheet?.render(false);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update merchant state:`, error);
-            ui.notifications?.error('Could not update this merchant.');
+            notify.error('Could not update this merchant.');
         }
         await this.render(false);
     }
@@ -485,7 +486,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that shelf:`, error);
-            ui.notifications?.error('Could not add that shelf.');
+            notify.error('Could not add that shelf.');
         }
         await this.render(false);
     }
@@ -498,7 +499,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (removed) MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove that shelf:`, error);
-            ui.notifications?.error('Could not remove that shelf.');
+            notify.error('Could not remove that shelf.');
         }
         await this.render(false);
     }
@@ -563,6 +564,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 }
             }
         } finally {
+            if (stocked) playFeedback(SOUND.RESTOCK);
             bar.finish(stocked
                 ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'}.`
                 : 'Every shelf was already full.');
@@ -591,13 +593,14 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 force: true,
                 onStep: (message) => bar.step(message)
             });
+            if (filled) playFeedback(SOUND.RESTOCK);
             bar.finish(filled
                 ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
                 : `${shelfName} was already full.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
             bar.finish('Could not restock that shelf.');
-            ui.notifications?.error('Could not restock that shelf.');
+            notify.error('Could not restock that shelf.');
         }
         await this.render(false);
     }
@@ -610,7 +613,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         const count = MerchantManager.getShelfContents(actor, shelf).length;
         if (!count) {
-            ui.notifications?.info(`${shelf.name} is already empty.`);
+            notify.info(`${shelf.name} is already empty.`);
             return;
         }
 
@@ -630,10 +633,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         try {
             const cleared = await MerchantManager.clearShelf(actor, shelfId);
-            ui.notifications?.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
-            ui.notifications?.error('Could not clear that shelf.');
+            notify.error('Could not clear that shelf.');
         }
         await this.render(false);
     }
@@ -693,7 +696,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update that shelf:`, error);
-            ui.notifications?.error('Could not update that shelf.');
+            notify.error('Could not update that shelf.');
         }
         await this.render(false);
     }
@@ -872,7 +875,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             ?.find(Boolean);
 
         if (!anywhere) {
-            ui.notifications?.warn(`${actor.name} has no token on any scene, so there is no shop to open.`);
+            notify.warn(`${actor.name} has no token on any scene, so there is no shop to open.`);
             return;
         }
         MerchantManager.openSafely(anywhere);
