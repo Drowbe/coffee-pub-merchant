@@ -25,11 +25,14 @@
                     <div class="merchant-shop-subject-head">
                         <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
                         <div class="merchant-shop-subject-copy">
-                            <div class="merchant-shop-kicker"><i class="{{kindIcon}}"></i> {{kindLabel}}</div>
+                            {{!-- Name, then who runs it, then what it is and when it is
+                                  open. The kind was above the name and read as the more
+                                  important of the two; it is a fact about the shop, not
+                                  its billing. --}}
                             <div class="merchant-shop-title">{{shopName}}</div>
+                            {{#if hasKeeper}}<div class="merchant-shop-keeper">{{keeperName}}</div>{{/if}}
                             <div class="merchant-shop-description">
-                                {{#if hasKeeper}}<span><i class="fa-solid fa-user"></i> {{keeperName}}</span>{{/if}}
-                                <span>{{itemCount}} in stock</span>
+                                <span><i class="{{kindIcon}}"></i> {{kindLabel}}</span>
                                 {{#if hoursLabel}}<span><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
                             </div>
                         </div>

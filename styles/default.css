@@ -35,7 +35,7 @@
 .merchant-shop-subject-image > img,
 .merchant-shop-actor-image > img,
 .merchant-config-image > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
-.merchant-shop-subject-image { width: 58px; height: 58px; flex: 0 0 58px; }
+.merchant-shop-subject-image { width: 70px; height: 70px; flex: 0 0 70px; }
 .merchant-shop-actor-image { width: 34px; height: 34px; flex: 0 0 34px; }
 .merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
 
@@ -56,8 +56,10 @@
 .merchant-shop-actor-copy small, .merchant-shop-actor-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-actor-copy small { color: var(--blacksmith-tool-text-muted); font-size: .55rem; letter-spacing: .05em; text-transform: uppercase; }
 .merchant-shop-actor-copy strong { font-size: .82rem; }
-.merchant-shop-kicker { color: var(--blacksmith-tool-accent); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.merchant-shop-title { font-size: 1.02rem; font-weight: 700; }
+.merchant-shop-title { font-size: 1.02rem; font-weight: 700; line-height: 1.25; }
+/* Who runs it, under what it is called. Quieter than the name and louder than the
+   facts beneath, which is the order in which the three get read. */
+.merchant-shop-keeper { color: var(--blacksmith-tool-text); font-size: .82rem; opacity: .8; }
 .merchant-shop-description { margin-top: 4px; color: var(--blacksmith-tool-text-muted); font-size: .72rem; }
 .merchant-shop-warning { color: #a4432f; }
 

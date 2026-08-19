@@ -892,7 +892,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // One section per shelf. A GM sees hidden shelves too, marked as such; a
         // player is never sent their contents at all.
         let shelves = [];
-        let itemCount = 0;
         if (!missing) {
             const busyRow = this._busy?.row ?? null;
             const isGM = game.user.isGM;
@@ -959,7 +958,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         isBarter
                     };
                 });
-                itemCount += contents.length;
 
                 // Grouped by kind within the shelf. A storefront with forty rows is
                 // a wall of text otherwise.
@@ -1012,7 +1010,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             portraitImg: merchant?.img ?? 'icons/svg/mystery-man.svg',
             shelves,
             hasShelves: shelves.length > 0,
-            itemCount,
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
             hoursLabel: hours ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}` : null,
