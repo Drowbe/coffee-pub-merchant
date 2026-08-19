@@ -71,6 +71,56 @@
                             <i class="fa-solid fa-hand"></i> Overriding the schedule until the next opening or closing hour
                         </div>
                     {{/if}}
+
+                    {{!-- Who is shopping, and who else is here. Inside the shop's own
+                          card and under a rule: it is a fact about this visit rather
+                          than a section in its own right, and the window is short of
+                          vertical room that the stock and the slate both want more
+                          than this does. --}}
+                    <div class="merchant-shop-actor">
+                    {{!-- Everyone else with something on a slate in this shop. The same bar
+                          Curator puts looters in, for the same reason: a shop with three
+                          people in it should look like one. Clicking a face switches to
+                          that slate, which is the whole point of the slates being shared --
+                          the GM sees who is mid-purchase and goes straight to them. --}}
+                    {{#if hasShoppers}}
+                        <div class="merchant-shop-shoppers">
+                            {{#each shoppers}}
+                                {{#if canSwitch}}
+                                    <button type="button" class="merchant-shop-shopper{{#if lines}} has-slate{{/if}}"
+                                            data-action="switchTo" data-actor-uuid="{{uuid}}"
+                                            data-tooltip="{{tooltip}}">
+                                        <img src="{{img}}" alt="{{name}}">
+                                    </button>
+                                {{else}}
+                                    {{!-- A face you cannot act as is a portrait, not a
+                                          control. Everybody sees who is here; only somebody
+                                          who could shop as them can take the slate over. --}}
+                                    <div class="merchant-shop-shopper is-static{{#if lines}} has-slate{{/if}}"
+                                         data-tooltip="{{tooltip}}">
+                                        <img src="{{img}}" alt="{{name}}">
+                                    </div>
+                                {{/if}}
+                            {{/each}}
+                        </div>
+                        <div class="merchant-shop-shoppers-divider" aria-hidden="true"></div>
+                    {{/if}}
+                    <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
+                    <div class="merchant-shop-actor-copy">
+                        <small>Buying as</small>
+                        {{#if hasRecipient}}
+                            <strong>{{recipientName}}</strong>
+                        {{else}}
+                            <strong class="merchant-shop-warning">No character available</strong>
+                        {{/if}}
+                    </div>
+                    {{#if hasRecipientChoice}}
+                        <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
+                                data-action="changeRecipient" data-tooltip="Buy as a different character">
+                            <i class="fa-solid fa-user-group-simple"></i>
+                        </button>
+                    {{/if}}
+                    </div>
                 </section>
 
             {{#if browsing}}
@@ -81,52 +131,6 @@
                     <span>Closed &mdash; you can look through the window, but nothing is changing hands.</span>
                 </div>
             {{/if}}
-
-            <section class="merchant-shop-section merchant-shop-actor">
-                {{!-- Everyone else with something on a slate in this shop. The same bar
-                      Curator puts looters in, for the same reason: a shop with three
-                      people in it should look like one. Clicking a face switches to
-                      that slate, which is the whole point of the slates being shared --
-                      the GM sees who is mid-purchase and goes straight to them. --}}
-                {{#if hasShoppers}}
-                    <div class="merchant-shop-shoppers">
-                        {{#each shoppers}}
-                            {{#if canSwitch}}
-                                <button type="button" class="merchant-shop-shopper{{#if lines}} has-slate{{/if}}"
-                                        data-action="switchTo" data-actor-uuid="{{uuid}}"
-                                        data-tooltip="{{tooltip}}">
-                                    <img src="{{img}}" alt="{{name}}">
-                                </button>
-                            {{else}}
-                                {{!-- A face you cannot act as is a portrait, not a
-                                      control. Everybody sees who is here; only somebody
-                                      who could shop as them can take the slate over. --}}
-                                <div class="merchant-shop-shopper is-static{{#if lines}} has-slate{{/if}}"
-                                     data-tooltip="{{tooltip}}">
-                                    <img src="{{img}}" alt="{{name}}">
-                                </div>
-                            {{/if}}
-                        {{/each}}
-                    </div>
-                    <div class="merchant-shop-shoppers-divider" aria-hidden="true"></div>
-                {{/if}}
-                <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
-                <div class="merchant-shop-actor-copy">
-                    <small>Buying as</small>
-                    {{#if hasRecipient}}
-                        <strong>{{recipientName}}</strong>
-                    {{else}}
-                        <strong class="merchant-shop-warning">No character available</strong>
-                    {{/if}}
-                </div>
-                {{#if hasRecipientChoice}}
-                    <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
-                            data-action="changeRecipient" data-tooltip="Buy as a different character">
-                        <i class="fa-solid fa-user-group-simple"></i>
-                    </button>
-                {{/if}}
-            </section>
-
 
             <div class="merchant-shop-stock">
         {{#if hasShelves}}

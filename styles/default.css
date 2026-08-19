@@ -50,7 +50,11 @@
    with whom. Mixed into the theme surfaces rather than painted over them, so the
    cards follow Light, Dark and Glass instead of fighting them. */
 .merchant-shop-subject { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 11px; align-items: center; padding: 10px; border-color: color-mix(in srgb, #2c5a8c 22%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #2c5a8c 10%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #2c5a8c 5%, var(--blacksmith-tool-surface-sunken))); }
-.merchant-shop-actor { display: flex; gap: 9px; align-items: center; padding: 7px 8px; border-color: color-mix(in srgb, #2f6b33 22%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #2f6b33 10%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #2f6b33 5%, var(--blacksmith-tool-surface-sunken))); }
+/* A row inside the shop's card rather than a card of its own: it says who is
+   visiting, which belongs to the shop being looked at. A rule above it instead of a
+   border around it, which also gives the stock and the slate back the height a
+   second bordered box was spending. */
+.merchant-shop-actor { display: flex; gap: 9px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
 .merchant-shop-subject-copy { min-width: 0; }
 .merchant-shop-actor-copy { flex: 1 1 auto; min-width: 0; }
 .merchant-shop-actor-copy small, .merchant-shop-actor-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,12 +226,18 @@
 /* Which side of the counter. Two buttons with one lit says where you are as well
    as what you can do -- a single toggle only did the second, and only if you
    remembered which way it had last been pressed. */
+/* `font-family`, `font-size` and `line-height` are all stated rather than left to
+   inherit. Every button in this window that renders correctly states them; the first
+   version of this one did not, and picked up Foundry's own button metrics instead --
+   which collapsed the labels to a couple of pixels. Specificity is raised through the
+   parent for the same reason. */
 .merchant-shop-sides { display: flex; gap: 0; padding: 0; overflow: hidden; }
-.merchant-shop-side { flex: 1 1 0; display: inline-flex; gap: 7px; align-items: center; justify-content: center; padding: 7px 10px; border: 0; background: none; color: var(--blacksmith-tool-text-muted); font-size: .84rem; font-weight: 600; cursor: pointer; }
-.merchant-shop-side + .merchant-shop-side { border-left: 1px solid var(--blacksmith-tool-divider, rgba(0,0,0,.18)); }
-.merchant-shop-side:hover:not(:disabled) { color: var(--blacksmith-tool-text); }
-.merchant-shop-side.is-on { background: var(--blacksmith-tool-surface-hover, rgba(0,0,0,.07)); color: var(--blacksmith-tool-text); }
-.merchant-shop-side:disabled { opacity: .45; cursor: default; }
+.merchant-shop-sides > .merchant-shop-side { flex: 1 1 0; display: inline-flex; gap: 7px; align-items: center; justify-content: center; min-height: 30px; padding: 6px 10px; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .82rem; font-weight: 600; line-height: 1.2; text-transform: none; cursor: pointer; }
+.merchant-shop-sides > .merchant-shop-side > i { font-size: .78rem; }
+.merchant-shop-sides > .merchant-shop-side + .merchant-shop-side { border-left: 1px solid var(--blacksmith-tool-divider, rgba(0,0,0,.18)); }
+.merchant-shop-sides > .merchant-shop-side:hover:not(:disabled) { color: var(--blacksmith-tool-text); }
+.merchant-shop-sides > .merchant-shop-side.is-on { background: var(--blacksmith-tool-surface-hover, rgba(0,0,0,.07)); color: var(--blacksmith-tool-text); }
+.merchant-shop-sides > .merchant-shop-side:disabled { opacity: .45; cursor: default; }
 /* Hidden rather than unrendered: the search keeps its text and the shelves keep
    their scroll position, so switching back is where you left it. */
 .merchant-shop-stock .is-hidden { display: none; }
