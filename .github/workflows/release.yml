@@ -1,0 +1,79 @@
+name: Release Creation
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (without v prefix)'
+        required: true
+        default: '13.0.0'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The logic half of this module is covered by dependency-free Node scripts, so
+      # a release can check itself before it is built. test-search skips cleanly when
+      # jsdom is absent, which is why it is installed rather than left to skip: a
+      # skipped test reported as a pass is the one outcome worth spending 20s to avoid.
+      - name: Run logic checks
+        run: |
+          npm install --no-save jsdom handlebars
+          for t in tests/*.mjs; do
+            echo "--- $t"
+            node "$t" || exit 1
+          done
+      
+      # Get version from tag or manual input
+      - name: Get Version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+      
+      # Create zip file
+      - name: Create Zip File
+        run: |
+          # Build a list of files and directories to zip, only including those that exist
+          FILES_TO_ZIP="module.json LICENSE README.md CHANGELOG.md"
+          for dir in scripts styles templates lang images sounds packs prompts resources api utilities; do
+            if [ -d "$dir" ]; then
+              FILES_TO_ZIP="$FILES_TO_ZIP $dir/"
+            fi
+          done
+          
+          # Ensure the zip excludes unnecessary files
+          zip -r coffee-pub-merchant.zip $FILES_TO_ZIP -x "*.git*" -x "*.github*" -x "*node_modules*" -x "*.vscode*"
+
+      # Create release
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            coffee-pub-merchant.zip
+            module.json
+          draft: false
+          prerelease: false
+          name: Release ${{ steps.get-version.outputs.version }}
+          body: |
+            Release version ${{ steps.get-version.outputs.version }}
+            
+            ## What's Changed
+            * Automated release from tag v${{ steps.get-version.outputs.version }}
+            
+            For full changes, see the [changelog](CHANGELOG.md).

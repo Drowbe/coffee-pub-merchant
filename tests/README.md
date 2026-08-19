@@ -48,3 +48,14 @@ either changes in `manager-merchant.js`, change it here too — or better, if th
 functions out of the class so the test can import the real ones.
 
 `test-pricing.mjs` has no such problem: it imports `merchant-pricing.js` directly and runs the real code.
+
+## A trap worth knowing about
+
+`test-search.mjs` needs `jsdom` and `handlebars` because it renders the real templates. When they are
+absent it prints `skipped` and **exits 0**. That is deliberate — the other two suites should not be blocked
+by an optional dependency — but it means a fresh clone reports success while checking nothing.
+
+    npm install --no-save jsdom handlebars
+
+The release workflow installs them for the same reason: a skipped test counted as a pass is the one outcome
+worth twenty seconds to avoid.
