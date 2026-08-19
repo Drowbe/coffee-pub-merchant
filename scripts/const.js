@@ -141,6 +141,14 @@ export const SHELF_MODE = Object.freeze({
  * Artwork is Foundry's own container icons rather than the monochrome `icons/svg`
  * set: a shelf is a physical thing in the shop and reads better as one, and these
  * ship with core so there is nothing to install.
+ *
+ * **`name` is the shelf's name and the flag carries no copy of it.** The preset names
+ * the container at creation and nothing owns the name after that: a GM renaming the
+ * container in dnd5e's own sheet renames the shelf, because there is only one name to
+ * rename. The flag used to carry a `label` as well, which meant a rename changed the
+ * container everywhere in Foundry and nowhere in Merchant. Nothing stops a GM
+ * renaming a container, so the answer is to follow the rename rather than to fight
+ * it. Old flags may still carry a vestigial `label`; it is ignored.
  */
 export const SHELF_PRESETS = Object.freeze({
     storefront: {
@@ -148,35 +156,35 @@ export const SHELF_PRESETS = Object.freeze({
         name: 'Storefront',
         img: 'icons/containers/boxes/crate-wooden-beige.webp',
         hint: 'Ordinary stock, on display to everyone.',
-        shelf: { label: 'Storefront', order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null, stock: null }
+        shelf: { order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     backroom: {
         key: 'backroom',
         name: 'Back Room',
         img: 'icons/containers/chest/chest-reinforced-box-brown.webp',
         hint: 'Hidden from players until you move it out front.',
-        shelf: { label: 'Back Room', order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null, stock: null }
+        shelf: { order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null, stock: null }
     },
     premium: {
         key: 'premium',
         name: 'Premium',
         img: 'icons/containers/chest/chest-steel-purple.webp',
         hint: 'On display, priced above the going rate.',
-        shelf: { label: 'Premium', order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5, stock: null }
+        shelf: { order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5, stock: null }
     },
     barter: {
         key: 'barter',
         name: 'Barter',
         img: 'icons/containers/misc/basket-handle-woven-yellow.webp',
         hint: 'No fixed price. Settle it at the table.',
-        shelf: { label: 'Barter', order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
+        shelf: { order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
     },
     buyback: {
         key: 'buyback',
         name: 'Buyback',
         img: 'icons/containers/bags/sack-cloth-tan.webp',
         hint: 'Where things bought from the party end up.',
-        shelf: { label: 'Buyback', order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5, stock: STOCK.FINITE }
+        shelf: { order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5, stock: STOCK.FINITE }
     }
 });
 

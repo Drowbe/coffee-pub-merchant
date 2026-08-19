@@ -226,6 +226,22 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] The trading-hours **opening** handle is green and the **closing** handle red, and the readout labels
       match. Drag either; the colours stay put.
 
+## 2h. Editing a shelf outside Merchant
+
+**The GM can reach these containers through Foundry's own UI, and nothing stops them.** Everything here is
+about following that rather than fighting it.
+
+- [ ] Rename a shelf container on the Actor sheet → the name changes in Merchant Settings **and** in an open
+      shop window, without pressing Refresh.
+- [ ] Rename it to something long → the row still lays out; the name does not shove the buttons off.
+- [ ] Change an item's quantity on the container sheet → a shop window open on another client updates.
+- [ ] Delete a shelf from the Actor sheet rather than the trash icon → it leaves an open shop window.
+- [ ] Drag an item from one shelf to another on the Actor sheet → it moves sections in an open shop.
+- [ ] **Drag one shelf inside another shelf** → the nested shelf still renders as its own section, and does
+      **not** also appear as an item for sale on its parent.
+- [ ] A crafted request to buy a shelf is refused with "That is not for sale."
+- [ ] An ordinary container that is *not* a shelf — a backpack on the Storefront — still sells normally.
+
 ## 2f. Searching the shop
 
 The filter itself is covered by `tests/test-search.mjs` against the real templates. What is left is whether

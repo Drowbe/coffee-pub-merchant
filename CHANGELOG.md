@@ -94,6 +94,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dark green over a sunken track is nearly invisible on the light themes — so the colour that has to read is
   on the thing you grab. The band is thicker and lighter for the same reason.
 
+- **A shelf's name is the container's name** (`scripts/const.js`, `scripts/manager-merchant.js`): the shelf
+  flag used to carry its own `label`, so renaming the container in dnd5e's sheet renamed it everywhere in
+  Foundry and nowhere in Merchant — the shop went on calling it Barter. Nothing stops a GM renaming a
+  container, so the fix is to follow the rename rather than to fight it. There is now one name and the flag
+  carries no copy of it. Old flags keep a vestigial `label` that is ignored.
+- **A shelf nested inside another shelf is not stock** (`scripts/manager-merchant.js`): a container is
+  ordinary stock — a backpack for sale is a backpack for sale — but a GM can drag one shelf into another on
+  the Actor sheet, and a nested shelf would then appear twice, once as its own section and once as an item
+  for sale on its parent. Excluded from the listing and refused by the GM handler, since hiding a control is
+  only ever the honest path.
+- **Edits made outside Merchant's windows now reach open shops** (`scripts/manager-merchant.js`): renaming a
+  shelf, changing a quantity, dragging an item between containers, or deleting a shelf from the Actor sheet
+  none of them routed through this module, so an open shop showed stale names and counts until somebody
+  pressed Refresh. "I renamed it and nothing happened" is the kind of bug that gets reported as the rename
+  not working.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

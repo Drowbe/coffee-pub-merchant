@@ -23,6 +23,7 @@ export class MerchantManager {
         GMRequest.registerHandler((op, payload, userId) => this._process(op, payload, userId));
         this._registerRefreshListener();
         this._registerScheduleWatcher();
+        this._registerStockWatcher();
     }
 
     static teardown() {
@@ -184,12 +185,25 @@ export class MerchantManager {
             .filter((item) => this.isShelf(item))
             .filter((item) => includeHidden || this.getShelfConfig(item).visible !== false)
             .map((item) => ({ item, config: this.getShelfConfig(item) }))
+            // Preset order first, then by name — which is the container's name,
+            // because that is the only name a shelf has.
             .sort((a, b) => (a.config.order ?? 0) - (b.config.order ?? 0)
-                || String(a.config.label ?? a.item.name).localeCompare(String(b.config.label ?? b.item.name)));
+                || String(a.item.name).localeCompare(String(b.item.name)));
     }
 
+    /**
+     * What is on a shelf.
+     *
+     * Shelves are excluded, not merely containers. A container *is* physical and is
+     * ordinary stock — a backpack for sale is a backpack for sale — but a GM can drag
+     * one shelf into another on the Actor sheet, and nothing stops them. A nested
+     * shelf would otherwise appear twice: once as its own section, and once as an item
+     * for sale on its parent.
+     */
     static getShelfContents(actor, shelfItem) {
-        return actor.items.filter((item) => item.system?.container === shelfItem.id && isPhysical(item.type));
+        return actor.items.filter((item) => item.system?.container === shelfItem.id
+            && isPhysical(item.type)
+            && !this.isShelf(item));
     }
 
     /** The shelf an item sits on, or null if it is the shopkeeper's own gear. */
@@ -610,6 +624,10 @@ export class MerchantManager {
         const item = merchant.items?.get(payload.itemId);
         if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
         if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+        // A shelf nested inside another shelf is furniture, not stock. Hidden from the
+        // window by getShelfContents, and refused here, because hiding a control is
+        // only the honest path.
+        if (this.isShelf(item)) return { ok: false, code: 'NOT_FOR_SALE' };
 
         // Only what is on a shelf is for sale. The shopkeeper's own gear is not.
         const shelf = this.getShelfFor(merchant, item);
@@ -785,6 +803,7 @@ export class MerchantManager {
             const item = merchant.items?.get(entry?.itemId);
             if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
             if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
+            if (this.isShelf(item)) return { ok: false, code: 'NOT_FOR_SALE' };
 
             const shelf = this.getShelfFor(merchant, item);
             if (!shelf) return { ok: false, code: 'NOT_FOR_SALE' };
@@ -980,6 +999,49 @@ export class MerchantManager {
         if (!actor) return;
         game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: actor.uuid });
         void ShopWindow.refreshForActor(actor.uuid);
+    }
+
+    /**
+     * Follow edits made outside Merchant's own windows.
+     *
+     * A GM can rename a shelf, restock one, or delete one from the Actor sheet, the
+     * container sheet, or a drag between containers — none of which route through this
+     * module. Without this an open shop shows the old name and the old counts until
+     * somebody presses Refresh, and "I renamed it and nothing happened" is the kind of
+     * bug that gets reported as the rename not working.
+     *
+     * GM-only, because every client running it would broadcast the same refresh.
+     */
+    static _registerStockWatcher() {
+        const react = (item) => {
+            if (!game.user.isGM) return;
+            const actor = item?.parent;
+            if (!actor?.items || !this.isMerchant(actor)) return;
+            // A shelf, or anything sitting on one. Everything else on a merchant is
+            // the shopkeeper's own gear and changes nothing a shop window shows.
+            const relevant = this.isShelf(item) || Boolean(this.getShelfFor(actor, item));
+            if (relevant) this.broadcastActorRefresh(actor);
+        };
+
+        Hooks.on('updateItem', (item, changes) => {
+            // Quantity, name and our own flag are the three that change what a shop
+            // window renders. Anything else is an edit to an item that happens to be
+            // in a shop.
+            const touches = changes?.name !== undefined
+                || changes?.system?.quantity !== undefined
+                || changes?.system?.container !== undefined
+                || changes?.flags?.[MODULE.ID] !== undefined;
+            if (touches) react(item);
+        });
+        Hooks.on('createItem', (item) => react(item));
+        // On delete the item is already off the Actor, so `getShelfFor` cannot see
+        // where it was. The container id is still on the document being removed.
+        Hooks.on('deleteItem', (item) => {
+            if (!game.user.isGM) return;
+            const actor = item?.parent;
+            if (!actor?.items || !this.isMerchant(actor)) return;
+            if (this.isShelf(item) || item?.system?.container) this.broadcastActorRefresh(actor);
+        });
     }
 
     static _registerRefreshListener() {

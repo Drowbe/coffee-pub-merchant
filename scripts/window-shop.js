@@ -905,7 +905,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
                 return {
                     id: shelf.id,
-                    label: config.label || shelf.name,
+                    label: shelf.name,
                     img: shelf.img,
                     hidden: config.visible === false,
                     canToggle: isGM,

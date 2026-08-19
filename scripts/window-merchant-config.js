@@ -430,7 +430,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 return {
                     id: item.id,
                     img: item.img,
-                    label: config.label || item.name,
+                    // The container's name, which is the only name a shelf has.
+                    label: item.name,
                     hidden: config.visible === false,
                     count,
                     one: count === 1,
