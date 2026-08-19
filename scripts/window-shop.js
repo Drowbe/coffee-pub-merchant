@@ -147,10 +147,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearCart: (_event, _target, win) => void win.clearCart(),
-        checkout: (_event, _target, win) => win.run(() => win.checkout()),
+        settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         clearBasket: (_event, _target, win) => void win.clearBasket(),
-        sellBasket: (_event, _target, win) => win.run(() => win.sellBasket()),
         addToShelf: (_event, _target, win) => void win.openCompendiumSearch()
     };
 
@@ -310,7 +309,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async _send(payload, busy = {}, op = 'checkout') {
+    async _send(payload, busy = {}, op = 'settle') {
         this._busy = { row: busy.row ?? null, label: busy.label ?? 'Working' };
         await this.render(false);
         try {
@@ -448,64 +447,110 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Buy everything in the cart in one go.
+     * Settle the visit: buy the cart, sell the basket, and move the difference.
      *
-     * The whole point of a cart: one exchange, one payment, one lot of change. Buying
-     * six things separately is six payments and six lots of change, which is both
-     * more writes and worse arithmetic for the player.
+     * One press, because a counter transaction is one transaction. Trading a sword
+     * towards a suit of armour is not a sale followed by a purchase — it is a swap
+     * and a difference, and doing it as two means two lots of change, an order that
+     * matters, and a purchase you cannot make until the sale has landed.
      */
-    async checkout() {
-        const lines = await this._cartLines();
-        if (!lines.length) return;
+    async settle() {
+        const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
+        if (!cart.length && !basket.length) return;
 
-        const destination = await this._askDestination('Checkout', { paid: true });
-        if (!destination) return;
-
-        const total = lines.reduce((sum, line) => sum + line.total, 0);
-        const payer = this.recipient;
-        if (!payer) {
-            ui.notifications?.warn('You have no character able to pay.');
+        const shopper = this.recipient;
+        if (!shopper) {
+            ui.notifications?.warn('You have no character able to trade.');
             return;
         }
-        const plan = planPayment(payer, total);
-        if (!plan) {
+
+        const spent = cart.reduce((sum, line) => sum + line.total, 0);
+        const earned = basket.reduce((sum, line) => sum + line.total, 0);
+        const net = spent - earned;
+
+        // Only asked when something is actually being bought. A pure sale has nowhere
+        // else for goods to go.
+        let destination = { uuid: shopper.uuid, label: shopper.name };
+        if (cart.length) {
+            const picked = await this._askDestination(this._settleLabel(cart, basket), { paid: true });
+            if (!picked) return;
+            destination = picked;
+        }
+
+        // Checked here so a player learns they cannot cover it from the confirm rather
+        // than from a refusal. The GM re-checks regardless.
+        if (net > 0 && !planPayment(shopper, net)) {
             ui.notifications?.warn(
-                'That comes to ' + formatBase(total) + ' and ' + payer.name
-                + ' holds ' + formatBase(purseValue(payer)) + '.'
+                `${shopper.name} cannot cover that \u2014 ${formatBase(net)} needed, `
+                + `${purseValue(shopper) ? formatBase(purseValue(shopper)) : 'nothing'} held.`
             );
             return;
         }
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.confirm === 'function') {
-            const list = lines.map((line) => '<li>' + line.quantity + ' &times; ' + line.name
-                + ' &mdash; ' + formatBase(line.total) + '</li>').join('');
+            const side = (label, lines) => lines.length
+                ? `<p class="merchant-confirm-head">${label}</p><ul class="merchant-cart-confirm">`
+                    + lines.map((line) => `<li>${line.quantity} &times; ${line.name}`
+                        + ` &mdash; ${formatBase(line.total)}</li>`).join('')
+                    + '</ul>'
+                : '';
+
+            const outcome = net > 0
+                ? `${shopper.name} pays <strong>${formatBase(net)}</strong>`
+                : net < 0
+                    ? `${shopper.name} receives <strong>${formatBase(-net)}</strong>`
+                    : 'An even trade \u2014 <strong>no coin changes hands</strong>';
+
             const confirmed = await blacksmith.dialog.confirm({
-                title: 'Checkout',
+                title: this._settleLabel(cart, basket),
                 classes: ['merchant-dialog'],
-                content: '<ul class="merchant-cart-confirm">' + list + '</ul>'
-                    + '<p>' + payer.name + ' pays <strong>' + formatBase(total) + '</strong>'
-                    + (destination.uuid === payer.uuid ? '' : ', delivered to ' + (destination.label ?? 'them'))
+                content: side('Buying', cart) + side('Selling', basket)
+                    + `<p>${outcome}`
+                    + (cart.length && destination.uuid !== shopper.uuid
+                        ? `, and the goods go to ${destination.label ?? 'them'}`
+                        : '')
                     + '.</p>',
-                confirmLabel: 'Pay',
-                confirmIcon: 'fa-solid fa-coins'
+                confirmLabel: this._settleLabel(cart, basket),
+                confirmIcon: 'fa-solid fa-scale-balanced'
             });
             if (!confirmed) return;
         }
 
         const result = await this._send(
             {
-                items: lines.map((line) => ({ itemId: line.id, quantity: line.quantity })),
+                buy: cart.map((line) => ({ itemId: line.id, quantity: line.quantity })),
+                sell: basket.map((line) => ({ itemId: line.id, quantity: line.quantity })),
                 recipientUuid: destination.uuid,
-                payerUuid: payer.uuid
+                payerUuid: shopper.uuid
             },
-            { label: 'Paying' },
-            'checkout'
+            { label: 'Settling up' },
+            'settle'
         );
 
-        if (result?.ok) this.cart.clear();
-        this._report(result, 'Bought ' + lines.length + ' line' + (lines.length === 1 ? '' : 's')
-            + ' for ' + formatBase(total) + '.');
+        if (result?.ok) {
+            this.cart.clear();
+            this.basket.clear();
+        }
+        this._report(result, net > 0
+            ? `${shopper.name} paid ${formatBase(net)}.`
+            : net < 0
+                ? `${shopper.name} received ${formatBase(-net)}.`
+                : 'Traded evenly.');
+    }
+
+    /**
+     * What the one button is currently doing.
+     *
+     * The label has to follow the state, because a cart survives the session: someone
+     * who filled one, wandered off, and came back to sell a sword needs the button to
+     * say "Trade" rather than "Sell" before they press it. The confirm itemises both
+     * sides, but a surprise belongs on the button, not in the dialog that follows it.
+     */
+    _settleLabel(cart, basket) {
+        if (cart.length && basket.length) return 'Trade';
+        if (basket.length) return 'Sell';
+        return cart.length ? 'Checkout' : '';
     }
 
     /** Cart lines resolved against current stock and prices. */
@@ -807,52 +852,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return lines;
     }
 
-    /**
-     * Sell the whole basket at once.
-     *
-     * One payment and one lot of change, however many lines — the same reasoning as
-     * checkout, and the reason a basket exists rather than a sale per item.
-     */
-    async sellBasket() {
-        const lines = await this._basketLines();
-        if (!lines.length) return;
-
-        const seller = this.recipient;
-        if (!seller) {
-            ui.notifications?.warn('You have no character able to sell.');
-            return;
-        }
-        const total = lines.reduce((sum, line) => sum + line.total, 0);
-
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.dialog?.confirm === 'function') {
-            const list = lines.map((line) => '<li>' + line.quantity + ' &times; ' + line.name
-                + ' &mdash; ' + formatBase(line.total) + '</li>').join('');
-            const confirmed = await blacksmith.dialog.confirm({
-                title: 'Sell to the merchant',
-                classes: ['merchant-dialog'],
-                content: '<ul class="merchant-cart-confirm">' + list + '</ul>'
-                    + '<p>' + seller.name + ' receives <strong>' + formatBase(total) + '</strong>.</p>',
-                confirmLabel: 'Sell',
-                confirmIcon: 'fa-solid fa-hand-holding-dollar'
-            });
-            if (!confirmed) return;
-        }
-
-        const result = await this._send(
-            {
-                items: lines.map((line) => ({ itemId: line.id, quantity: line.quantity })),
-                sellerUuid: seller.uuid
-            },
-            { label: 'Selling' },
-            'sell'
-        );
-
-        if (result?.ok) this.basket.clear();
-        this._report(result, seller.name + ' sold ' + lines.length + ' line'
-            + (lines.length === 1 ? '' : 's') + ' for ' + formatBase(total) + '.');
-    }
-
     /** `ok: true, merged: false` is success — the item arrived as its own row. */
     _report(result, successMessage) {
         if (result?.ok) {
@@ -879,14 +878,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'MERCHANT_NOT_FOUND': return 'That shop is no longer on the scene.';
             case 'ITEM_NOT_FOUND': return 'That is no longer in stock.';
             case 'ITEM_NOT_TRANSFERABLE': return 'That is not something you can carry off.';
-            case 'NOT_FOR_SALE': return 'That is not for sale.';
+            case 'NOT_FOR_SALE': return result?.itemName
+                ? `${result.itemName} is not for sale.`
+                : 'That is not for sale.';
             case 'SHOP_CLOSED': return 'The shop is closed. You can look, but nothing is changing hands.';
             case 'EXCHANGE_UNAVAILABLE': return 'Buying and selling are waiting on a Blacksmith update.';
             case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} held.`;
             // `formatBase` renders nothing as an em dash, which is right in a price
             // column and reads as a missing word in a sentence.
             case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} in the till.`;
-            case 'NOT_PRICED': return 'That has no price set.';
+            case 'NOT_PRICED': return result?.itemName
+                ? `${result.itemName} has no price set.`
+                : 'That has no price set.';
+            case 'NOTHING_TO_SETTLE': return 'There is nothing to settle.';
             case 'OUT_OF_STOCK': return result?.itemName
                 ? `${result.itemName} is out of stock.`
                 : 'That is out of stock.';
@@ -912,7 +916,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
             case 'THIRD_PARTY_DELIVERY': return 'Buying on behalf of someone else is waiting on a Blacksmith update.';
-            case 'BARTER_ONLY': return 'That one is a conversation, not a purchase.';
+            case 'BARTER_ONLY': return result?.itemName
+                ? `${result.itemName} is a conversation, not a purchase.`
+                : 'That one is a conversation, not a purchase.';
             case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
             case 'NO_PAYER': return 'Nobody was named to pay for that.';
@@ -1103,6 +1109,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             hasRecipientChoice: options.length > 1
         });
 
+        // The label follows the state: a cart outlives the moment it was filled, so
+        // somebody returning to sell one thing must see "Trade" before they press it
+        // rather than discovering it in the confirm.
+        const settleLabel = this._settleLabel(cartLines, basketLines);
+        const net = cartTotal - basketTotal;
+        const settleNet = !cartLines.length && !basketLines.length ? ''
+            : net > 0 ? `\u2212${formatBase(net)}`
+                : net < 0 ? `+${formatBase(-net)}`
+                    : 'even';
+        const settleTooltip = net > 0 ? `You pay ${formatBase(net)}`
+            : net < 0 ? `You receive ${formatBase(-net)}`
+                : 'An even trade';
+
         return {
             appId: this.id,
             bodyContent,
@@ -1111,7 +1130,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 <button type="button" class="blacksmith-window-btn-secondary" data-action="close">
                     <i class="fa-solid fa-check"></i> Done
                 </button>`,
-            toolFooterRight: ''
+            // One main action, right-justified — the pattern the rest of the suite
+            // uses. It settles both panels, so it cannot live in either of them.
+            toolFooterRight: settleLabel
+                ? `
+                <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
+                        data-action="settle" data-tooltip="${settleTooltip}">
+                    <i class="fa-solid fa-scale-balanced"></i> ${settleLabel}
+                    <span class="merchant-shop-settle-net">${settleNet}</span>
+                </button>`
+                : ''
         };
     }
 

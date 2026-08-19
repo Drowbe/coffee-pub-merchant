@@ -199,12 +199,10 @@
                                 {{/each}}
                             </div>
 
+                            {{!-- No button. One press settles both panels, so it
+                                  belongs to neither and lives in the footer. --}}
                             <div class="merchant-shop-cart-foot">
                                 <span>Total <strong>{{cartTotalLabel}}</strong></span>
-                                <button type="button" class="blacksmith-window-btn-primary merchant-shop-checkout"
-                                        data-action="checkout">
-                                    <i class="fa-solid fa-coins"></i> Checkout
-                                </button>
                             </div>
                         {{else}}
                             {{!-- Rendered empty rather than hidden, so the stock list
@@ -253,10 +251,6 @@
 
                                 <div class="merchant-shop-cart-foot">
                                     <span>You get <strong>{{basketTotalLabel}}</strong></span>
-                                    <button type="button" class="blacksmith-window-btn-primary merchant-shop-checkout"
-                                            data-action="sellBasket">
-                                        <i class="fa-solid fa-hand-holding-dollar"></i> Sell
-                                    </button>
                                 </div>
                             {{else}}
                                 <div class="merchant-shop-empty merchant-shop-cart-empty">

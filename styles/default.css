@@ -373,3 +373,14 @@
    rather than growing the dialog past the screen. */
 .merchant-sell-dialog .merchant-sell-list { max-height: min(52vh, 460px); overflow-y: auto; }
 .merchant-sell-dialog .blacksmith-field { min-width: min(560px, 70vw); }
+
+/* --- Settle -------------------------------------------------------------- */
+/* The one main action, right-justified in the footer. It settles both panels, so
+   it belongs to neither; the running net rides on it so the number is where the
+   press is. */
+.merchant-shop-settle { display: inline-flex; gap: 8px; align-items: center; }
+.merchant-shop-settle-net { padding: 1px 7px; border-radius: 999px; background: rgba(0,0,0,.22); font-size: .68rem; font-variant-numeric: tabular-nums; }
+
+/* Two lists in one confirm need to say which is which. */
+.merchant-confirm-head { margin: 8px 0 3px; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .75; }
+.merchant-confirm-head:first-child { margin-top: 0; }

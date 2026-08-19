@@ -620,16 +620,15 @@ export class MerchantManager {
     /**
      * Runs on the GM only. Nothing in payload is trusted without re-resolving it.
      *
-     * Two operations, because everything a player buys goes through the cart. There
-     * was a `buy` that purchased one row outright and an `acquire` that handed one
-     * over free; both are gone. Buy-now was never fewer prompts than the cart — pick a
-     * quantity, pick a destination, confirm, either way — so it was a second path
-     * through the same money for no gain, and a second place for the two to disagree.
+     * **One operation.** Everything that changes hands in a shop is one settlement:
+     * goods out, goods in, and coin in whichever direction the difference falls.
+     * There were four — buy, acquire, checkout, sell — and each was a separate path
+     * through the same money, which is a separate place for them to disagree.
      */
     static async _process(op, payload, userId) {
         const user = game.users.get(userId);
         if (!user) return { ok: false, code: 'UNKNOWN_USER' };
-        if (!['sell', 'checkout'].includes(op)) return { ok: false, code: 'UNKNOWN_OPERATION' };
+        if (op !== 'settle') return { ok: false, code: 'UNKNOWN_OPERATION' };
 
         const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
         const merchant = tokenDocument?.actor;
@@ -637,10 +636,7 @@ export class MerchantManager {
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
         if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
 
-        const result = op === 'checkout'
-            ? await this._processCheckout(merchant, payload, user)
-            : await this._processSell(merchant, payload, user);
-
+        const result = await this._processSettle(merchant, payload, user);
         if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
         return result;
     }
@@ -732,28 +728,8 @@ export class MerchantManager {
             .every(([denomination, amount]) => Number(purse[denomination] ?? 0) >= amount);
     }
 
-    /**
-     * Buy a whole cart at once.
-     *
-     * **One payment and one lot of change, however many lines.** That is the point of
-     * a cart: six separate purchases would be six payments each rounding its own
-     * change, which is both more writes and worse arithmetic for the player.
-     *
-     * Delivery is still per line, because stock is a count and each line grants a
-     * copy — see `_goodsTransfer`. Every line and both coin legs are in one call, so
-     * a cart that cannot be filled writes nothing rather than half of it.
-     *
-     * Every line is re-priced here rather than trusting what the cart was built
-     * against: a GM may have changed a markup, removed stock, or closed the shop
-     * while the cart sat open.
-     */
-    static async _processCheckout(merchant, payload, user) {
-        const check = this._validateRecipient(payload.recipientUuid, user);
-        if (!check.ok) return check;
-
-        const requested = Array.isArray(payload.items) ? payload.items : [];
-        if (!requested.length) return { ok: false, code: 'EMPTY_CART' };
-
+    /** Price the buy side. Every line re-resolved and re-priced on the GM. */
+    static _priceBuying(merchant, requested, user) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -765,67 +741,27 @@ export class MerchantManager {
             if (this.isShelf(item)) return { ok: false, code: 'NOT_FOR_SALE' };
 
             const shelf = this.getShelfFor(merchant, item);
-            if (!shelf) return { ok: false, code: 'NOT_FOR_SALE' };
+            if (!shelf) return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
             const shelfConfig = this.getShelfConfig(shelf);
-            if (shelfConfig.visible === false && !user.isGM) return { ok: false, code: 'NOT_FOR_SALE' };
-            if (shelfConfig.mode === 'barter') return { ok: false, code: 'BARTER_ONLY' };
+            // Hidden is a permission, not a display filter: a crafted request naming a
+            // back-room item is refused here, not merely omitted from the window.
+            if (shelfConfig.visible === false && !user.isGM) {
+                return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
+            }
+            if (shelfConfig.mode === 'barter') return { ok: false, code: 'BARTER_ONLY', itemName: item.name };
 
             const unit = resolvePrice(config, shelfConfig, item);
-            if (unit === null) return { ok: false, code: 'NOT_PRICED' };
+            if (unit === null) return { ok: false, code: 'NOT_PRICED', itemName: item.name };
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
-            lines.push({ item, quantity, shelfConfig, name: item.name });
+            lines.push({ item, quantity, shelfConfig });
         }
-
-        const payerCheck = this._validatePayer(payload.payerUuid ?? check.actorUuid, check.actorUuid, user);
-        if (!payerCheck.ok) return payerCheck;
-
-        const plan = planPayment(payerCheck.actor, total);
-        if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(payerCheck.actor) };
-
-        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
-        if (!this._canMakeChange(merchant, plan)) {
-            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
-        }
-
-        // One call for the whole cart: every line and both coin legs commit together,
-        // so a cart that cannot be filled writes nothing rather than half of it. The
-        // per-line stock check that used to run first is the primitive's job now.
-        return exchange({
-            transfers: [
-                ...this._goodsTransfers(merchant, check.actorUuid, lines),
-                ...this._coinTransfers(payerCheck.actor.uuid, merchant.uuid, plan)
-            ]
-        }).then((result) => (result?.ok ? { ...result, price: total } : result));
+        return { ok: true, lines, total };
     }
 
-    /**
-     * Selling: the party's items to the merchant, coin the other way.
-     *
-     * The same operation with the sides swapped, which is why a symmetric primitive
-     * was asked for rather than a buy-shaped one. A basket rather than one item at a
-     * time, for the same reason the cart is a cart: a dungeon haul sold piecemeal is
-     * a payment and a lot of change per item, each rounding separately.
-     *
-     * **This inverts the trust model.** Every other handler validates that someone
-     * may *receive*; here a player is handing something over, so the item must be
-     * theirs and the merchant must be able to pay for it.
-     */
-    static async _processSell(merchant, payload, user) {
-        const shelf = this.getShelves(merchant, { includeHidden: true })
-            .find(({ config }) => config.mode === 'buyback');
-        if (!shelf) return { ok: false, code: 'NO_BUYBACK_SHELF' };
-
-        const seller = payload.sellerUuid ? fromUuidSync(payload.sellerUuid) : null;
-        if (!seller || seller.type !== 'character') return { ok: false, code: 'RECIPIENT_NOT_FOUND' };
-        // The seller must be the requester's own character. Giving away someone
-        // else's possessions is not a thing a shop workflow should enable.
-        if (!user.isGM && !seller.testUserPermission(user, 'OWNER')) return { ok: false, code: 'NOT_YOUR_ITEM' };
-
-        const requested = Array.isArray(payload.items) ? payload.items : [];
-        if (!requested.length) return { ok: false, code: 'EMPTY_BASKET' };
-
+    /** Price the sell side, against the buyback shelf's rate. */
+    static _priceSelling(merchant, seller, shelf, requested) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -847,41 +783,104 @@ export class MerchantManager {
             total += unit * quantity;
             lines.push({ itemId: item.id, quantity });
         }
+        return { ok: true, lines, total };
+    }
 
-        // A merchant with an empty till cannot buy, which is a fiction a GM may well
-        // want. Refused rather than conjuring coin.
-        const plan = planPayment(merchant, total);
-        if (!plan) return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: total, held: purseValue(merchant) };
+    /**
+     * Settle a whole visit: what is being bought, what is being sold, and the
+     * difference, as one `exchange`.
+     *
+     * **This is what the primitive was built for.** A counter transaction is not two
+     * transactions — you put the old sword down, pick the new one up, and money moves
+     * once, in whichever direction the difference falls. Doing it as a purchase and a
+     * sale means two lots of change, an order that matters, and a sale you cannot
+     * afford to make until the purchase has already happened.
+     *
+     * Netting the *price* is not netting payment against change. The rule that change
+     * cannot fund a payment still holds: the difference is worked out before anything
+     * moves, and whoever owes it must actually hold it.
+     *
+     * Consequences worth knowing. A visit that buys more than it sells needs **no
+     * coin in the till at all** — the shop receives. And a purchase becomes affordable
+     * when funded by a trade-in, which as two transactions it was not.
+     */
+    static async _processSettle(merchant, payload, user) {
+        const buying = Array.isArray(payload.buy) ? payload.buy : [];
+        const selling = Array.isArray(payload.sell) ? payload.sell : [];
+        if (!buying.length && !selling.length) return { ok: false, code: 'NOTHING_TO_SETTLE' };
 
-        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
-        // The merchant is paying, so it is the seller who owes change back.
-        if (!this._canMakeChange(seller, plan)) {
-            return { ok: false, code: 'NO_CHANGE', price: total, changeBase: this._changeBase(plan) };
+        // The shopper is the one constant: they pay, they are paid, and they are who
+        // the sold goods come from.
+        const payerCheck = this._validatePayer(payload.payerUuid, payload.recipientUuid, user);
+        if (!payerCheck.ok) return payerCheck;
+        const shopper = payerCheck.actor;
+
+        let recipientUuid = shopper.uuid;
+        if (buying.length) {
+            const check = this._validateRecipient(payload.recipientUuid, user);
+            if (!check.ok) return check;
+            recipientUuid = check.actorUuid;
         }
 
-        // One call for the whole basket, mirroring checkout: every line and both coin
-        // legs commit together, so one unsellable line writes nothing rather than
-        // half a haul. Selling genuinely moves the goods — the party's sword becomes
-        // the merchant's — so these are transfers rather than the copies a purchase
-        // needs, which is the one direction the primitive suited without a new option.
+        const bought = buying.length ? this._priceBuying(merchant, buying, user) : { ok: true, lines: [], total: 0 };
+        if (!bought.ok) return bought;
+
+        let shelf = null;
+        let sold = { ok: true, lines: [], total: 0 };
+        if (selling.length) {
+            shelf = this.getShelves(merchant, { includeHidden: true })
+                .find(({ config }) => config.mode === 'buyback');
+            if (!shelf) return { ok: false, code: 'NO_BUYBACK_SHELF' };
+            sold = this._priceSelling(merchant, shopper, shelf, selling);
+            if (!sold.ok) return sold;
+        }
+
+        const net = bought.total - sold.total;
+        let plan = { pay: {}, change: {} };
+        let coin = [];
+
+        if (net > 0) {
+            plan = planPayment(shopper, net);
+            if (!plan) return { ok: false, code: 'CANNOT_AFFORD', price: net, held: purseValue(shopper) };
+            if (!this._canMakeChange(merchant, plan)) {
+                return { ok: false, code: 'NO_CHANGE', price: net, changeBase: this._changeBase(plan) };
+            }
+            coin = this._coinTransfers(shopper.uuid, merchant.uuid, plan);
+        } else if (net < 0) {
+            plan = planPayment(merchant, -net);
+            if (!plan) {
+                return { ok: false, code: 'MERCHANT_CANNOT_AFFORD', price: -net, held: purseValue(merchant) };
+            }
+            if (!this._canMakeChange(shopper, plan)) {
+                return { ok: false, code: 'NO_CHANGE', price: -net, changeBase: this._changeBase(plan) };
+            }
+            coin = this._coinTransfers(merchant.uuid, shopper.uuid, plan);
+        }
+        // net === 0 moves no coin at all, which is what an even trade is.
+
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+
+        const goodsIn = sold.lines.length
+            ? [{
+                from: shopper.uuid,
+                to: merchant.uuid,
+                items: sold.lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
+                // Bought stock lands on the buyback shelf rather than loose on the NPC.
+                container: shelf.item.id
+            }]
+            : [];
+
         const result = await exchange({
             transfers: [
-                {
-                    from: seller.uuid,
-                    to: merchant.uuid,
-                    // The whole basket in one leg: same seller, same merchant, same
-                    // shelf, so splitting it per line would batch nothing.
-                    items: lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
-                    // Bought stock lands on the buyback shelf rather than loose on the
-                    // NPC. `container` belongs to the transfer, so it is unambiguously
-                    // about where these items arrive.
-                    container: shelf.item.id
-                },
-                ...this._coinTransfers(merchant.uuid, seller.uuid, plan)
+                ...this._goodsTransfers(merchant, recipientUuid, bought.lines),
+                ...goodsIn,
+                ...coin
             ]
         });
 
-        return result?.ok ? { ...result, price: total, lines: lines.length } : result;
+        return result?.ok
+            ? { ...result, net, spent: bought.total, earned: sold.total }
+            : result;
     }
 
     /**
