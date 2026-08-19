@@ -311,6 +311,10 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 ### Open and closed
 
+- [ ] The merchant card reads: name and the Open/Closed chip at either end of line one, the keeper on line
+      two, kind and hours on line three — each of those running the full width.
+- [ ] A very long shop name ellipsises rather than pushing the chip off the card.
+
 - [ ] The Open/Closed chip sits on the facts row with the kind and the hours, not in a column of its own.
 - [ ] A GM clicking it toggles the shop; a player sees it as a plain chip and cannot click it.
 - [ ] Closed shows red; open shows green.
@@ -324,7 +328,7 @@ One button in the footer settles the whole visit. Its label is part of the desig
 - [ ] Hovering **Complete Transaction** says what you pay or receive, and says so before you press it.
 - [ ] Quantities on slate lines sit in the same place on every row, whatever the prices are.
 - [ ] Neither panel has a button of its own any more; both are just lists with a total.
-- [ ] The confirm itemises **Buying** and **Selling** separately and states the direction of the difference.
+- [ ] **No confirmation dialog.** Pressing Complete Transaction completes it.
 - [ ] Buy 100 gp of goods while selling 60 gp of goods → you pay **40 gp**, once. Not 100 out and 60 back.
 - [ ] An even trade → the confirm says no coin changes hands, and none does.
 - [ ] **Buy something you could not otherwise afford, funded by what you are selling** → it goes through.

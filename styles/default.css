@@ -145,9 +145,13 @@
 .merchant-shop-open-state { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 999px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .68rem; white-space: nowrap; }
 .merchant-shop-open-toggle { cursor: pointer; }
 .merchant-shop-open-state.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
-/* A chip is a fact, not a fact plus a rule, so the separator skips it. */
-.merchant-shop-description > .merchant-shop-open-toggle + span::before,
-.merchant-shop-description > .merchant-shop-open-state + span::before { content: none; }
+/* Name at one end, the door at the other; the two lines below run the full width
+   underneath both. Baseline-aligned so the chip sits on the name's line rather
+   than floating in the middle of it. */
+.merchant-shop-titleline { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.merchant-shop-titleline > .merchant-shop-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-shop-titleline > .merchant-shop-open-toggle,
+.merchant-shop-titleline > .merchant-shop-open-state { flex: 0 0 auto; }
 .merchant-shop-open-toggle:hover { background: color-mix(in srgb, #2f6b33 14%, transparent); }
 .merchant-shop-open-toggle.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
 .merchant-shop-open-toggle.is-closed:hover { background: color-mix(in srgb, #8c2f22 14%, transparent); }

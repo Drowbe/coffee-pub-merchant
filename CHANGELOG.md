@@ -403,6 +403,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on the facts row now — a switch for a GM, the sign in the window for everyone else — and the card reads in
   three.
 
+- **Complete Transaction completes the transaction** (`scripts/window-shop.js`): the confirmation dialog is
+  gone. The slate *is* the confirmation — every line, both subtotals and the difference are on screen when the
+  button is pressed, so a dialog restating them asked somebody to agree to what they were already looking at.
+  The affordability check still runs first, because that is a refusal rather than a question.
+- **The merchant card's first line has two ends** (`templates/window-shop.hbs`): shop name at one, open or
+  closed at the other, with the keeper and the facts running the full width beneath both. The chip had been
+  moved into the facts row to stop it reserving a column, which fixed the squeeze but buried a piece of state
+  worth seeing first.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

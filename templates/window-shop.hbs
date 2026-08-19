@@ -25,18 +25,15 @@
                     <div class="merchant-shop-subject-head">
                         <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
                         <div class="merchant-shop-subject-copy">
-                            {{!-- Name, then who runs it, then what it is and when it is
-                                  open. The kind was above the name and read as the more
-                                  important of the two; it is a fact about the shop, not
-                                  its billing. --}}
-                            <div class="merchant-shop-title">{{shopName}}</div>
-                            {{#if hasKeeper}}<div class="merchant-shop-keeper">{{keeperName}}</div>{{/if}}
-                            {{!-- Open or closed is a fact about the shop, so it sits with
-                                  the other facts rather than reserving a column of its
-                                  own down the side of the card. For a GM it is also the
-                                  switch; for everyone else it is the sign in the
-                                  window. --}}
-                            <div class="merchant-shop-description">
+                            {{!-- Name and whether the door is open at either end of one
+                                  line; who runs it and what it is beneath, each running
+                                  the full width.
+
+                                  The kind used to sit above the name as a kicker, which
+                                  read as the more important of the two — it is a fact
+                                  about the shop, not its billing. --}}
+                            <div class="merchant-shop-titleline">
+                                <div class="merchant-shop-title">{{shopName}}</div>
                                 {{#if isGM}}
                                     <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
                                             data-action="toggleOpen"
@@ -50,6 +47,9 @@
                                         {{#if isOpen}}Open{{else}}Closed{{/if}}
                                     </span>
                                 {{/if}}
+                            </div>
+                            {{#if hasKeeper}}<div class="merchant-shop-keeper">{{keeperName}}</div>{{/if}}
+                            <div class="merchant-shop-description">
                                 <span><i class="{{kindIcon}}"></i> {{kindLabel}}</span>
                                 {{#if hoursLabel}}<span><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
                             </div>

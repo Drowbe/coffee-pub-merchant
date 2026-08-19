@@ -415,6 +415,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * and the party is one of the things you can shop as — which is what "buy it for
      * the party" means, and removes the three-party transaction the primitive cannot
      * express along with the dialog that used to offer it.
+     *
+     * **And no confirmation.** The slate is the confirmation: every line, both
+     * subtotals and the difference are on screen when the button is pressed, so a
+     * dialog restating them is asking somebody to agree to what they are already
+     * looking at. The affordability check below still runs first, because that is a
+     * refusal rather than a question.
      */
     async settle() {
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
@@ -441,31 +447,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 + `${purseValue(shopper) ? formatBase(purseValue(shopper)) : 'nothing'} held.`
             );
             return;
-        }
-
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.dialog?.confirm === 'function') {
-            const side = (label, lines) => lines.length
-                ? `<p class="merchant-confirm-head">${label}</p><ul class="merchant-cart-confirm">`
-                    + lines.map((line) => `<li>${line.quantity} &times; ${line.name}`
-                        + ` &mdash; ${formatBase(line.total)}</li>`).join('')
-                    + '</ul>'
-                : '';
-
-            const outcome = net > 0
-                ? `${shopper.name} pays <strong>${formatBase(net)}</strong>`
-                : net < 0
-                    ? `${shopper.name} receives <strong>${formatBase(-net)}</strong>`
-                    : 'An even trade \u2014 <strong>no coin changes hands</strong>';
-
-            const confirmed = await blacksmith.dialog.confirm({
-                title: 'Complete Transaction',
-                classes: ['merchant-dialog'],
-                content: side('Buying', cart) + side('Selling', basket) + `<p>${outcome}.</p>`,
-                confirmLabel: 'Complete Transaction',
-                confirmIcon: 'fa-solid fa-scale-balanced'
-            });
-            if (!confirmed) return;
         }
 
         const result = await this._send(
