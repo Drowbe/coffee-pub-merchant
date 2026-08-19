@@ -233,7 +233,11 @@ game.modules.get('coffee-pub-merchant').api.merchant
       was broken when faces came from slates.
 - [ ] A player's face is a **portrait**, not a button — no pointer cursor, no hover border.
 - [ ] The GM's view of that same face **is** clickable and switches to their slate.
-- [ ] A character with something on the slate is marked; one merely browsing is not.
+- [ ] A character with something on the slate is marked; one merely browsing is not — but **both appear**.
+- [ ] Open the shop and take nothing → the others still see your face.
+- [ ] Two people shopping as the **same character** both get a face; neither is hidden by the other.
+- [ ] A face's tooltip names the **person** and the character they are shopping as, when those differ.
+- [ ] Switch "Buying as" → everyone else's view of your face updates to the new character.
 - [ ] Close the shop → your face leaves everyone else's bar.
 - [ ] Disconnect a player → their face leaves too, rather than standing there forever.
 

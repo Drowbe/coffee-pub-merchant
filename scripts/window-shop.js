@@ -280,6 +280,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!uuid) return;
         this._recipientUuid = uuid;
         _lastRecipientUuid = uuid;
+        // The room is looking at a face that has just changed. Without this everybody
+        // else keeps seeing whoever you were shopping as a moment ago.
+        this.publishPresence();
         void this.render(false);
     }
 
@@ -602,11 +605,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const room = ShopWindow._presence.get(this.tokenUuid);
         if (!room?.size) return [];
 
-        const mine = this.recipient?.uuid;
         const faces = [];
         for (const [userId, entry] of room) {
+            // Only yourself is left out. Somebody shopping as the character you happen
+            // to be viewing as still gets a face -- they are a *person in the shop*,
+            // and they are the one a GM most wants to see. The portrait beside
+            // "Buying as" is your own view of that character, not a claim about who
+            // else is standing there.
             if (userId === game.user.id) continue;
-            if (entry.actorUuid && entry.actorUuid === mine) continue;
 
             const lines = entry.actorUuid ? this._slateSizeFor(entry.actorUuid) : 0;
             const actor = entry.actorUuid ? this.recipients.find((a) => a.uuid === entry.actorUuid) : null;
@@ -619,9 +625,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 // the same one the "Buying as" list is built from, so a face can never
                 // offer something the picker would refuse.
                 canSwitch: Boolean(actor),
-                tooltip: lines
-                    ? `${entry.name} — ${lines} on the slate${actor ? '. Click to take it over.' : ''}`
-                    : `${entry.name} is in this shop`
+                tooltip: [
+                    entry.userName && entry.userName !== entry.name
+                        ? `${entry.userName}, as ${entry.name}`
+                        : entry.name,
+                    lines ? `${lines} on the slate` : 'browsing',
+                    actor ? 'Click to take the slate over.' : null
+                ].filter(Boolean).join(' — ')
             });
         }
         return faces;
@@ -693,18 +703,34 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const actor = this.recipient;
         return {
             actorUuid: actor?.uuid ?? null,
+            // Both, because a face answers two questions: who is here, and who are
+            // they shopping as. Two people can be on the same character, and the
+            // character name alone would make them one face saying nothing.
+            userName: game.user.name,
             name: actor?.name ?? game.user.name,
             img: actor?.img ?? game.user.avatar ?? 'icons/svg/mystery-man.svg'
         };
     }
 
-    /** Announce, and ask anyone already here to announce back. */
-    announcePresence() {
+    /** Say who we are and who we are shopping as. Sent again whenever either changes. */
+    publishPresence() {
         const self = this._selfPresence();
         ShopWindow._setPresence(this.tokenUuid, game.user.id, self);
         game.socket.emit(`module.${MODULE.ID}`, {
             action: 'shopPresence', state: 'open', tokenUuid: this.tokenUuid, userId: game.user.id, ...self
         });
+    }
+
+    /**
+     * Announce, and ask anyone already here to announce back.
+     *
+     * The ping is only for arriving: a window opening late otherwise shows an empty
+     * shop until somebody else happens to do something. Switching character republishes
+     * without pinging, or one person changing who they are shopping as would make
+     * everybody in the room shout.
+     */
+    announcePresence() {
+        this.publishPresence();
         game.socket.emit(`module.${MODULE.ID}`, {
             action: 'shopPresence', state: 'ping', tokenUuid: this.tokenUuid, userId: game.user.id
         });
@@ -723,7 +749,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /** Apply a presence message and redraw anyone looking at that shop. */
-    static receivePresence({ state, tokenUuid, userId, actorUuid, name, img } = {}) {
+    static receivePresence({ state, tokenUuid, userId, actorUuid, userName, name, img } = {}) {
         if (!tokenUuid || !userId || userId === game.user.id) return;
 
         if (state === 'close') {
@@ -740,7 +766,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             }
             return;
         } else {
-            ShopWindow._setPresence(tokenUuid, userId, { actorUuid, name, img });
+            ShopWindow._setPresence(tokenUuid, userId, { actorUuid, userName, name, img });
         }
 
         for (const window of ShopWindow._windows.values()) {
