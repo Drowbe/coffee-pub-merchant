@@ -117,7 +117,13 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] The green band marks the **open** hours, and green means the same thing here as on the Open toggle.
 - [ ] An overnight schedule (open 20, close 04) is open at midnight and closed at noon.
 - [ ] That overnight schedule shades **both ends** of the slider, not the middle.
-- [ ] **Always open** removes the schedule and leaves the toggle purely manual.
+- [ ] There is **no Always open button**.
+- [ ] Drag the handles to cover the whole slider → an **Always open** label appears on the section heading.
+- [ ] With that set, the shop is open at **every** hour, 11pm included. *That hour used to fall outside a
+      "whole day" span, which is why the closing handle now reaches midnight rather than 11pm.*
+- [ ] A shop that has never had hours set shows the handles across the whole day and reads as always open.
+- [ ] The shop window shows **no hours** for an always-open shop.
+- [ ] Move a handle off the full span → the label goes and the hours appear in the shop.
 
 ## 2e. Prices, buying and selling
 

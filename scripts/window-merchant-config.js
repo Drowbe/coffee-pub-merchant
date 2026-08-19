@@ -1,6 +1,6 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import {
-    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND
+    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase } from './merchant-pricing.js';
@@ -56,7 +56,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
         removeShelfTable: (_event, target, win) =>
             void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid),
-        clearHours: (_event, _target, win) => void win.clearHours()
+        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId)
     };
 
     constructor(actor, options = {}) {
@@ -393,17 +393,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async clearHours() {
-        const actor = await this._resolveActor();
-        if (!actor) return;
-        try {
-            await MerchantManager.setHours(actor, null);
-        } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not clear trading hours:`, error);
-        }
-        await this.render(false);
-    }
-
     async _setEnabled(enabled) {
         const actor = await this._resolveActor();
         if (!actor) return;
@@ -638,12 +627,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         const hours = enabled ? MerchantManager.getHours(actor) : null;
         const max = hoursPerDay() - 1;
+        const dayEnd = hoursPerDay();
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
             enabled,
-            hasHours: Boolean(hours),
+            // A shop that has never had hours set is open all day, which is the same
+            // thing the slider says when it covers the whole span — so there is one
+            // state on screen rather than a schedule and a not-a-schedule.
+            alwaysOpen: isAlwaysOpen(hours),
             markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
             description: MerchantManager.getConfig(actor)?.description ?? '',
             shopName: MerchantManager.getConfig(actor)?.name ?? '',
@@ -662,13 +655,18 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             })),
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
-            openHour: hours?.open ?? Math.min(9, max),
-            closeHour: hours?.close ?? Math.min(18, max),
-            openLabel: formatHour(hours?.open ?? Math.min(9, max)),
-            closeLabel: formatHour(hours?.close ?? Math.min(18, max)),
+            // No schedule shows as the whole day rather than as an invented 9 to 6:
+            // the handles should say what the shop is doing, and it is open.
+            openHour: hours?.open ?? 0,
+            closeHour: hours?.close ?? dayEnd,
+            openLabel: formatHour(hours?.open ?? 0),
+            closeLabel: formatHour(hours?.close ?? dayEnd),
+            // The opening handle picks an hour; the closing one picks an edge, one
+            // past the last hour, so a shop can be open through it.
             maxHour: max,
+            dayEnd,
             dayStartLabel: formatHour(0),
-            dayEndLabel: formatHour(max),
+            dayEndLabel: formatHour(dayEnd),
             overridden: enabled && MerchantManager.isOverridden(actor),
             shelves,
             shelfCount: shelves.length,

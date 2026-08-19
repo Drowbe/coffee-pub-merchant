@@ -15,7 +15,7 @@ globalThis.foundry = { utils: { mergeObject: (a, b) => ({ ...a, ...b }) } };
 globalThis.fromUuid = async () => null;
 globalThis.fromUuidSync = () => null;
 
-const { STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, secondsPerDay, isScheduledOpen } =
+const { STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, secondsPerDay, isScheduledOpen, isAlwaysOpen } =
     await import('../scripts/const.js');
 
 // --- secondsPerDay ------------------------------------------------------
@@ -177,5 +177,23 @@ assert.strictEqual(isOpen(NIGHT, 23), true, 'open at midnight');
 assert.strictEqual(isOpen(NIGHT, 2), true, 'and in the small hours');
 assert.strictEqual(isOpen(NIGHT, 12), false, 'shut at noon');
 console.log('ok  overnight schedules');
+
+// A schedule covering the whole day is "always open", said two ways, and the
+// arithmetic agrees with the label without a special case: the closing handle
+// reaches the end of the day rather than its last hour.
+assert.strictEqual(isAlwaysOpen(null), true, 'no schedule is open all day');
+assert.strictEqual(isAlwaysOpen({ open: 0, close: 24 }), true, 'and so is midnight to midnight');
+assert.strictEqual(isAlwaysOpen({ open: 9, close: 9 }), true, 'and so are the handles together');
+assert.strictEqual(isAlwaysOpen({ open: 7, close: 18 }), false);
+assert.strictEqual(isAlwaysOpen({ open: 0, close: 23 }), false, 'one hour short is not all day');
+
+for (const hour of [0, 6, 12, 18, 23]) {
+    assert.strictEqual(isScheduledOpen({ open: 0, close: 24 }, hour), true,
+        `open at ${hour} under a whole-day schedule`);
+}
+// The reason the closing handle goes to 24 and not 23: this is the hour that used
+// to fall outside a "whole day" span.
+assert.strictEqual(isScheduledOpen({ open: 0, close: 23 }, 23), false, 'the last hour is genuinely outside 0-23');
+console.log('ok  a whole-day schedule is open at every hour');
 
 console.log('\nall stock logic checks passed');

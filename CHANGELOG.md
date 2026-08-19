@@ -493,6 +493,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   phrase above it rather than two labels facing each other, with the opening figure green and the closing one
   red to match their handles. Deeper channel, larger handles.
 
+- **"Always open" is a label, not a button** (`scripts/const.js`, `templates/window-merchant-config.hbs`):
+  it was a control that cleared the schedule, which meant two ways to say one thing and a way for the two to
+  disagree — a shop could be scheduleless *and* have hours that covered the day, and those looked different
+  while meaning the same. Covering the whole slider is what makes a shop always open, and the label says so.
+
+  **The closing handle now reaches the end of the day rather than its last hour.** That is what makes it
+  arithmetic rather than a special case: `0–24` is genuinely every hour, where `0–23` left 11pm outside. A
+  shop with no schedule at all shows the handles across the whole day, because that is what it is doing.
+
+  The shop window stops printing hours for a shop open all of them — "midnight to midnight" is a fact about
+  the clock rather than about the shop.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

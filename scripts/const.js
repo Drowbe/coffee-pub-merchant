@@ -279,8 +279,27 @@ export function isScheduledOpen(hours, hour) {
 export function formatHour(hour) {
     const value = Number(hour);
     if (!Number.isFinite(value)) return '--';
+    // The closing handle reaches the *end* of the day, one past its last hour, so
+    // that "all day" is a span rather than a special case. Both ends of the day are
+    // midnight and neither is "12:00 PM".
+    if (value === 0 || value === hoursPerDay()) return hoursPerDay() === 24 ? 'midnight' : `${value}:00`;
     if (hoursPerDay() !== 24) return `${value}:00`;
     const suffix = value < 12 ? 'AM' : 'PM';
     const display = value % 12 === 0 ? 12 : value % 12;
     return `${display}:00 ${suffix}`;
+}
+
+/**
+ * Whether a schedule covers every hour there is.
+ *
+ * Two ways to say it and both are honest: the handles together, or the whole span
+ * from one midnight to the next. `isScheduledOpen` already answers true for both —
+ * this is only for saying so on screen.
+ */
+export function isAlwaysOpen(hours) {
+    if (!hours) return true;
+    const open = Number(hours.open);
+    const close = Number(hours.close);
+    if (!Number.isFinite(open) || !Number.isFinite(close)) return true;
+    return open === close || (open === 0 && close === hoursPerDay());
 }

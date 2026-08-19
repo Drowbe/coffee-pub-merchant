@@ -21,22 +21,18 @@
         <section class="merchant-config-section">
             <h3>
                 <span><i class="fa-solid fa-clock"></i> Trading Hours</span>
-                {{#if hasHours}}
-                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-hours-clear"
-                            data-action="clearHours" data-tooltip="Remove the schedule; the shop then only opens and closes by hand">
-                        Always open
-                    </button>
+                {{#if alwaysOpen}}
+                    {{!-- Said, not offered. Covering the whole slider *is* always
+                          open, so a button that also meant it was a second way to
+                          say one thing and a way for the two to disagree. --}}
+                    <span class="merchant-config-hours-always">Always open</span>
                 {{/if}}
             </h3>
 
             <div class="merchant-config-hours">
                 <div class="merchant-config-hours-readout">
-                    {{#if hasHours}}
-                        Open <strong data-hours-open-label>{{openLabel}}</strong>
-                        to <strong data-hours-close-label>{{closeLabel}}</strong>
-                    {{else}}
-                        No schedule &mdash; open and closed by hand.
-                    {{/if}}
+                    Open <strong data-hours-open-label>{{openLabel}}</strong>
+                    to <strong data-hours-close-label>{{closeLabel}}</strong>
                 </div>
 
                 {{!-- The day's ends flank the track, so the band is read against the
@@ -47,7 +43,7 @@
                     <div class="merchant-config-hours-slider" data-hours-slider>
                         <div class="merchant-config-hours-fill" data-hours-fill></div>
                         <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
-                        <input type="range" min="0" max="{{maxHour}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                        <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
                     </div>
                     <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
                 </div>

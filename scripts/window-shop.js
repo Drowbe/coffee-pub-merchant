@@ -1,5 +1,5 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, ITEM_CATEGORIES, formatHour, shopKind } from './const.js';
+import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen } from './const.js';
 import { resolvePrice, resolveBuybackPrice, formatBase, purseValue, planPayment } from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
@@ -933,7 +933,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             hasShelves: shelves.length > 0,
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
-            hoursLabel: hours ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}` : null,
+            // A shop open every hour has no hours worth printing; "midnight to
+            // midnight" is a fact about the clock rather than about the shop.
+            hoursLabel: hours && !isAlwaysOpen(hours)
+                ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}`
+                : null,
             purseLabel: recipient ? formatBase(purseValue(recipient)) : null,
             cart: cartLines.map((line) => ({
                 ...line,

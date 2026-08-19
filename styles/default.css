@@ -722,3 +722,6 @@
 .merchant-config-shelf-cap { display: flex; align-items: center; gap: 5px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; white-space: nowrap; }
 .merchant-config-shelf-cap > input { width: 50px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
 .merchant-config-shelf-stock { flex-wrap: wrap; }
+
+/* Said rather than offered: the slider covering the day is what makes it true. */
+.merchant-config-hours-always { padding: 1px 8px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 4px; color: #2f6b33; font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; }
