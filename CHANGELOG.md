@@ -220,6 +220,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holds, platinum and electrum included. This governs how a number is written down, not which coins change
   hands, and the exhaustive payment sweep in `tests/` proves the two stayed independent.
 
+- **Each pane scrolls, not the whole window** (`styles/default.css`, `scripts/window-shop.js`): the stock
+  list and the cart now scroll independently, so a long shelf list no longer carries the cart off the bottom
+  of the window and a full cart no longer lengthens the page. Narrow enough that the cart has wrapped
+  underneath, the two scroll together again — two half-height scrollers stacked would be worse than one.
+
+  The breakpoint is a **container query** on the window's own width, not a media query: this is a window the
+  user can drag to any size, and the viewport says nothing useful about it. It is set to the two flex bases
+  plus the gap, so the layout and the scrolling change at the same moment rather than a few pixels apart.
+
+  This deleted the sticky machinery. The cart was `position: sticky` offset by the header's measured height,
+  with a `ResizeObserver` republishing it whenever the description or the browsing notice changed the header.
+  A header that is simply the first item of a column whose second item scrolls is what all of that was
+  imitating.
+- **Checkout and Sell sit below their total** rather than beside it, so the button reads as the conclusion of
+  the sum instead of its neighbour.
+
 ### Notes
 - **Every stock policy delivers with `grantItem`, never `transferItem`.** The merchant's item is a template carrying a count, so a sale copies it and adjusts a number. That kept infinite stock free of races entirely, and it is what lets finite stock keep a sold-out row on the shelf. What finite stock does reintroduce is the read-then-write race, which the per-merchant lock answers.
 - `"socket": true` from the first commit. Foundry reads manifests at world launch, so adding it later costs a world restart and silently drops every emit until then.

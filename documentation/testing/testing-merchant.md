@@ -365,6 +365,18 @@ The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
 - [ ] Items you hold exactly one of add **without** a quantity prompt; stacks ask.
 - [ ] Cancel adds nothing.
 
+## 2k. Scrolling
+
+- [ ] Wide window: the stock list scrolls **on its own**, and the cart stays put beside it.
+- [ ] The cart scrolls on its own too — fill it past the window height and the stock list does not move.
+- [ ] Neither scrollbar belongs to the whole window; the merchant card, buyer and search never scroll away.
+- [ ] Drag the window narrow until the cart wraps underneath → the two scroll **together** as one region.
+- [ ] Drag it wide again → they separate again, at the same width the layout changes at.
+- [ ] Resize the window shorter → both panes shrink and keep their own scrollbars; nothing is cut off.
+- [ ] A shop description or the closed-for-browsing notice makes the header taller → the panes shorten to
+      match rather than overflowing the window.
+- [ ] Checkout sits **below** the cart total, full width. Same for Sell under the basket total.
+
 ## 3. The window
 
 - [ ] Shelf sections list only physical items; features, spells and class items are absent.
