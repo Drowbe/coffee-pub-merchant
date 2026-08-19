@@ -6,8 +6,9 @@ what has been considered but not scheduled.
 **Where things go:** `documentation/architecture/` describes implemented systems, `documentation/plans/`
 records intent and reasoning, `documentation/testing/` holds verification checklists.
 
-`architecture/` is deliberately empty. It describes what the system *does*, and nothing since `beb8f41` has
-been run in Foundry — writing it now would be recording what the code says rather than what it does.
+`architecture/architecture-merchant.md` is the map: what the system does and how the pieces fit. Read it
+before changing anything, and change it in the same commit as the thing it describes. A map that lies is
+worse than no map.
 
 ## Inherited lessons
 
@@ -124,11 +125,17 @@ change and handlers read the User they are handed.
 Every phase in `plans/plan-merchant.md` is built, and `blacksmith.inventory.exchange` has shipped, so
 nothing in the money path is blocked any more.
 
-- **Nothing since `beb8f41` has been run in Foundry beyond spot checks.** That is sixty commits: prices,
-  the slate, settlement, stock policy, search, roll tables, and the whole of the window's layout.
-  `testing/testing-merchant.md` is current and is the list. The pure-logic half *is* verified — `tests/`
-  covers making change across 5,151 purse/price combinations, stock policy, the restock cadence, the lock,
-  the trading-hours derivation and the search filter — but that is the small half.
+- **`testing/testing-merchant.md` is the checklist**, and it is current. Every feature here has been run in
+  Foundry as it was built — the module is developed against a live world, and most of what is in `CHANGELOG`
+  arrived as a correction to something seen on screen. What `tests/` adds is the half a table cannot check
+  by looking: making change across 5,151 purse/price combinations, stock policy, the restock cadence, the
+  lock, the trading-hours derivation, stock depth, and the search filter.
+
+  **A note for whoever inherits this.** An earlier version of this file claimed nothing since `beb8f41` had
+  been run in Foundry. That was written during two unattended sessions, when it was true, and never retired
+  when it stopped being true. It then got repeated as fact in a handoff review, against a page of evidence
+  to the contrary. If you find a claim here about what has or has not been verified, check its date against
+  the git log before you believe it — and if you are the one writing such a claim, put an expiry on it.
 - **Read `DECISIONS-TO-REVIEW.md`** before changing the transaction model. Its first entry is out of date in
   one respect: `exchange` shipped with both `copy` and `preserveEmptySource`, so buying is one atomic call
   again and the grant-then-charge failure it describes cannot happen.
@@ -141,12 +148,39 @@ nothing in the money path is blocked any more.
   purses and refuse negatives, so "this shop now holds 40 when it holds 250" is not expressible. It is a GM
   editing an NPC's own purse rather than a transaction, so it may be correct to sit outside — but if that
   boundary should hold absolutely, the ask to Blacksmith is a `setCurrency` with no counterparty.
+- **The Blacksmith asks are sent, 2026-08-19.** Four of them, in one note: the blocking
+  `INSUFFICIENT_QUANTITY` defect in the grant paths (they are on it), forwarding the verified caller on the
+  query envelope, a `setCurrency` with no counterparty, and the four extractions below. **This is a
+  relationship, not a file** — somebody has to own the reply, take the answer, and delete our side of it
+  when each lands. All four resolve to *deletions* here rather than rewrites. If nobody owns it, the
+  workarounds quietly become the design.
 - **Four extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
   Re-measured after `dialog.wait()` gained `controls`: the helpers shrank but got *more* alike, so they still
   qualify. Nothing is blocked on them.
 - **The query envelope still does not forward the caller.** See *Caller identity* above. One deletion on our
   side when it lands.
 - Decisions A–E in `plans/plan-merchant.md` section 14 — settled 2026-08-09, recommendations accepted.
+
+## Localisation — not done, and it should be
+
+**Every string in this module is hardcoded English.** `lang/en.json` is a 34-byte stub and there is not a
+single `game.i18n` call in `scripts/`. This was not a decision; it is an omission that ran the whole length
+of the build without being noticed, and it is recorded here rather than quietly fixed later because the cost
+of retrofitting it grows with every string added.
+
+Scope, so nobody has to survey it twice:
+
+- Roughly 200 strings across `scripts/window-shop.js`, `scripts/window-merchant-config.js`,
+  `scripts/manager-merchant.js` (the refusal messages), and the two window templates.
+- The refusal messages are the awkward part. They are written as prose with a voice — *"That would be
+  trading with yourself"*, *"Somebody is short of the coins that were meant to change hands, and nothing
+  moved"* — and a key table tends to flatten that into labels. Whoever does this should treat keeping the
+  voice as part of the job, not as a nice-to-have.
+- Tooltips carry meaning that the control does not, so they are not optional strings.
+- `SHELF_PRESETS` names and hints, `SHOP_KINDS` labels, and `ITEM_CATEGORIES` labels are data in
+  `const.js` and want keys rather than literals.
+
+Do this **before** the next feature that adds user-facing text, not after.
 
 ## Considered, not scheduled
 

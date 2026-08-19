@@ -1,16 +1,25 @@
-# Decisions taken unattended — 2026-08-18
+# Decisions taken unattended — reviewed and closed 2026-08-19
 
-Built while you were away, on "build the remainder of the project unattended, log decisions I need to
-review." Everything here is a call I made without you. Each says what I chose, what I rejected, and how
-much it would cost to reverse. **None of it has been run in Foundry.**
+Built during two unattended sessions, on "build the remainder of the project unattended, log decisions I
+need to review." Each entry says what was chosen, what was rejected, and what reversing it would cost.
 
-Ordered by how much I want you to look at it.
+**Every decision in this file is now closed.** Nothing here is waiting on anybody. It is kept because the
+reasoning is worth having when one of these comes up again, and because the rejected options are the part
+no one can reconstruct from the code.
+
+Two ways they closed. Some were **ratified in conversation** on 2026-08-19 — asked as options with a
+recommendation, answered directly. The rest were **settled by use**: the feature was built on, corrected,
+and extended in a live world over the following days, which is a stronger confirmation than an answer to a
+question would have been. Each entry says which, and an entry settled by use names what confirmed it.
+
+An earlier version of this header said none of it had been run in Foundry. That was true when written and
+false within days; see `TODO.md` for why that mattered.
 
 ---
 
 ## 1. Buying no longer moves the merchant's item — it grants a copy and decrements a count
 
-**Status: superseded on 2026-08-19, and worth reading anyway for what it was.**
+**Status: CLOSED — superseded by `exchange` shipping. Worth reading for what it was.**
 
 > `exchange` shipped with **both** primitives this asked for — `copy` for a template row and
 > `preserveEmptySource` for a counted one. Buying is a single atomic call again, so the grant-then-charge
@@ -52,6 +61,10 @@ this becomes one call again and the decision above stops mattering.
 
 ## 2. Stock policy is per shelf, not per merchant
 
+**Status: CLOSED — settled by use.** Shelf ceilings (`maxProducts`, `maxPerItem`) and per-shelf roll tables
+were both built on top of this afterwards, and both would have had nowhere to live under a merchant-wide
+policy. A shop in play now runs a Storefront that runs out beside a Back Room that does not.
+
 `config.stock` existed on the merchant from the scaffold and was never read. I made it a **shelf** property
 that falls back to the merchant's, exactly as `markup: null` already does.
 
@@ -66,6 +79,10 @@ case rather than a concept.
 
 ## 3. The count lives in `system.quantity`, not in a flag
 
+**Status: CLOSED — settled by use.** GMs edit quantities from the shop window, the Actor sheet, and by
+clearing shelves, and all three agree because there is only one number. The predicted failure of the
+rejected option — sheet and flag disagreeing — never had a chance to happen.
+
 The alternative was a flag map on the shelf. I rejected it because it is a parallel truth: the moment a GM
 edits quantity on the Actor sheet — which they will, because that is where quantity has always been — the
 flag and the sheet disagree and one of them is silently wrong.
@@ -79,6 +96,14 @@ learning anything new.
 ---
 
 ## 4. Par level is "whatever the GM last set by hand"
+
+**Status: CLOSED — ratified in conversation, then amended.** You raised exactly the case this entry calls
+its failure mode: *"If the max is 5 but I type 10 in the item row, does that become the new max for that
+item, or on next restock does it become 5 again?"* The answer built from that is that a shelf ceiling
+clamps par on both write and read, so a hand-set target can never exceed what the shelf will hold.
+
+The remaining gap — temporarily dropping stock *without* moving par — is still not expressible, and is
+recorded under *Considered, not scheduled* in `TODO.md` rather than here.
 
 Restocking needs a target, and the target cannot be recovered from a shelf that has been sold down.
 
@@ -102,6 +127,10 @@ it is a judgement, not a fact.
 
 ## 5. Restocking is driven by the world clock, on a per-shelf day count
 
+**Status: CLOSED — settled by use**, and by your standing ruling on world time (*"we have an entire world
+time tool. most gms do too. and it is built into core"*). Restock Everything was added later for the
+by-hand case, which is the other half of the same need.
+
 It reuses the `updateWorldTime` watcher that already opens and closes shops, so there is no second clock and
 no second thing to forget to register. A shelf restocks when `restockDays` in-world days have passed since it
 last restocked.
@@ -121,6 +150,9 @@ line that says it does not.
 
 ## 6. Buy and Sell are now disabled-with-reason rather than absent
 
+**Status: CLOSED — your call at the time.** Since promoted to a general rule in `CONTRIBUTING.md` §5: a
+control that cannot act says why rather than disappearing.
+
 Your call, taken from the two options offered. Recorded here only because it reverses a rule stated in three
 places (`plan-merchant.md` phase 3, `CHANGELOG.md`, `testing-merchant.md`), all of which now say the new
 thing. The rule it replaces was *"absent rather than present-and-broken"*; the rule now is that a control
@@ -129,6 +161,13 @@ which cannot act says why on hover.
 ---
 
 ## 7. Out of stock is a refusal, not just a greyed button
+
+**Status: CLOSED as a decision.** Since promoted to a general rule in `CONTRIBUTING.md` §5.
+
+**The concurrency risk it names is still open, and is a testing item rather than a decision.** Two players
+racing for the last unit is the one thing here that a single-GM development world cannot exercise, and
+`testing/testing-merchant.md` carries a specific check for it. The lock is sound in reasoning — exactly one
+GM client handles requests — but reasoning is not the same as having seen it.
 
 Zero stock is checked on the GM as well as in the window. This follows the standing rule — *a setting that
 hides a control must also refuse the request* — and it is what makes two players racing for the last unit
@@ -155,14 +194,15 @@ likely place for a bug I cannot see without a table**, and the test doc has a sp
 
 ---
 
-## Still open, and not mine to close
+## What was open here, and how it closed
 
-- **`exchange` does not exist.** Buy, Sell and Checkout are complete and end at `EXCHANGE_UNAVAILABLE`.
-- **The three-party gap** — the shopper pays while someone else receives. Raised with Blacksmith.
-- **Copy-vs-move on an exchange side** — decision 1 above. Also raised.
-- **Everything from `beb8f41` forward is untested in Foundry.** Six commits. The arithmetic half is verified
-  by `tests/`; the half that touches documents, templates, hooks and permissions is not, and cannot be
-  without a table. `documentation/testing/testing-merchant.md` is current and is the list.
+- **`exchange` does not exist.** — **Closed.** It shipped, with both `copy` and `preserveEmptySource`.
+  Settling is one atomic call again.
+- **The three-party gap** — the shopper pays while someone else receives. — **Closed, and withdrawn rather
+  than answered.** The party Group Actor went into the "Buying as" list, so payer and recipient are always
+  the same Actor and the three-party case stopped existing. The ask to Blacksmith was retracted.
+- **Copy-vs-move on an exchange side** — **Closed.** Shipped as `copy`.
+- **Untested in Foundry** — **Closed, and it was wrong.** See the header.
 
 ---
 
@@ -185,6 +225,8 @@ has to be divided back down: 40 gp for three is 1333 cp each, which shows straig
 
 **Recommendation: A.** C is the fallback if you find the tooltip is not enough in play.
 
+**CLOSED 2026-08-19 — A, ratified.** The tooltip reads *"12 gp each — double-click to change it"*.
+
 ### D-N2. Agreements are cleared when the trade settles
 
 A negotiated figure lives on the merchant until the trade it was made for goes through, then it
@@ -202,19 +244,77 @@ exists in order not to have one.
 **Recommendation: A**, but this is the one I would most expect you to overrule — B is a
 defensible reading of "that IS the price".
 
+**CLOSED 2026-08-19 — A, ratified.** Each negotiation is its own conversation. A discount one party
+haggled does not become the shelf price for the next party, and a negotiate shelf stays a negotiate shelf.
+
+Reinforced afterwards by a related change: a negotiate shelf now shows **no figure in the price column at
+all**, agreed or not. Keeping the agreement would have made that column either a lie or a leak.
+
 ### D-N3. The price is stamped on the item only when it had none
 
 An item that arrives with no price of its own is written with what was agreed. An item that
 already had a price keeps it, however deep the discount.
 
 This is your rule, restated to be sure I read it the way you meant: *a longsword bought cheap is
-still worth what a longsword is worth, but a curio negotiated at 200 gp is worth 200 gp.* If you
-meant that a discount should also follow the item, that is a one-line change.
+still worth what a longsword is worth, but a curio negotiated at 200 gp is worth 200 gp.*
+
+**CLOSED 2026-08-19 — confirmed as read.** A discount does not follow the item. If that ever needs to
+change it is one branch in `_recordAgreedPrices`.
 
 ### D-N4. Unpriced possessions can go in the sell basket
 
 Previously the shop refused anything it had no price for: *"This merchant would not take X."*
 That now applies only to things that are not goods at all (spells, features). Anything physical
 can go in the basket at TBD for the GM to price, which is the sell-side half of the same
-workflow. Say if you would rather the buyback shelf's rate remain the only sell-side price.
+workflow.
+
+**CLOSED 2026-08-19 — ratified.** A party can sell the strange orb they found; the GM names what the
+merchant will pay for it.
+
+---
+
+## Decisions taken while fixing, 2026-08-19
+
+Not from an unattended session — these were taken mid-conversation while chasing bugs, and are recorded
+here because each replaced something that had already been decided once.
+
+### D-F1. Stock depth follows price, not item type. **CLOSED — corrected in play.**
+
+The first version gated depth behind a whitelist of stackable *types*: consumables and loot stack, gear
+does not. It excluded daggers, vials, clothes, chests and tools — a general store's entire shelf — so
+every row still arrived at QTY 1 and the feature was invisible.
+
+Cost was always what the intuition meant. Nobody has eight suits of plate because plate is expensive, not
+because it is armour. The type list is gone entirely rather than kept as a modifier: a rule firing on type
+*and* price is two rules to hold in your head at the moment somebody is asking why their shop looks wrong.
+
+What survives of the idea is narrower and correct — **stackability is read off the document**
+(`typeof system.quantity === 'number'`), which is the same rule `api-inventory` states for itself.
+
+**Reversing:** `STOCK_DEPTH_BANDS` in `const.js` is tunable data; `stockDepth` in `merchant-pricing.js` is
+twenty lines and fully covered by tests.
+
+### D-F2. Working around `INSUFFICIENT_QUANTITY` rather than waiting for the fix. **CLOSED — shipped.**
+
+`grantItems` validates a requested quantity against the source document's own — for a compendium template
+that is 1 — so asking for five crowbars was refused. It is a defect (a grant draws nothing down) and is
+with Blacksmith.
+
+Three options were available. **Chosen:** send N entries of quantity 1 and let documented batch coalescing
+sum them. **Rejected:** switching to `itemData`, which dodges the check but loses the
+`_stats.compendiumSource` provenance the uuid path preserves; and waiting, which leaves restocking broken.
+
+The coalescing behaviour was verified in Blacksmith's source before being relied on, not taken from the doc
+alone. Cost is one entry per unit on a batch that can reach a few hundred.
+
+**Reversing:** one marked loop in `_withinLimits`, back to a single entry, the day the fix lands.
+
+### D-F3. Restocking progress uses core's notification, not a Blacksmith or Merchant component. **CLOSED.**
+
+`ui.notifications.info(msg, { progress: true })` gives a bar and an updating message. Blacksmith has no
+progress primitive — `api-window.md` names progress bars only as an example of what a consumer might put
+in a Tools zone — and building one here would have been a second thing doing a job core already does.
+
+If Blacksmith ever ships a themed progress component, `merchant-progress.js` is the only file that changes,
+which is why the wrapper exists at all.
 
