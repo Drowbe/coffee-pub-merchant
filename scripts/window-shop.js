@@ -432,7 +432,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // else for goods to go.
         let destination = { uuid: shopper.uuid, label: shopper.name };
         if (cart.length) {
-            const picked = await this._askDestination(this._settleLabel(cart, basket), { paid: true });
+            const picked = await this._askDestination('Complete Transaction', { paid: true });
             if (!picked) return;
             destination = picked;
         }
@@ -463,7 +463,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     : 'An even trade \u2014 <strong>no coin changes hands</strong>';
 
             const confirmed = await blacksmith.dialog.confirm({
-                title: this._settleLabel(cart, basket),
+                title: 'Complete Transaction',
                 classes: ['merchant-dialog'],
                 content: side('Buying', cart) + side('Selling', basket)
                     + `<p>${outcome}`
@@ -471,7 +471,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         ? `, and the goods go to ${destination.label ?? 'them'}`
                         : '')
                     + '.</p>',
-                confirmLabel: this._settleLabel(cart, basket),
+                confirmLabel: 'Complete Transaction',
                 confirmIcon: 'fa-solid fa-scale-balanced'
             });
             if (!confirmed) return;
@@ -497,20 +497,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             : net < 0
                 ? `${shopper.name} received ${formatBase(-net)}.`
                 : 'Traded evenly.');
-    }
-
-    /**
-     * What the one button is currently doing.
-     *
-     * The label has to follow the state, because a cart survives the session: someone
-     * who filled one, wandered off, and came back to sell a sword needs the button to
-     * say "Trade" rather than "Sell" before they press it. The confirm itemises both
-     * sides, but a surprise belongs on the button, not in the dialog that follows it.
-     */
-    _settleLabel(cart, basket) {
-        if (cart.length && basket.length) return 'Trade';
-        if (basket.length) return 'Sell';
-        return 'Checkout';
     }
 
     /** Cart lines resolved against current stock and prices. */
@@ -1077,7 +1063,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // somebody returning to sell one thing must see "Trade" before they press it
         // rather than discovering it in the confirm.
         const hasAnything = cartLines.length > 0 || basketLines.length > 0;
-        const settleLabel = this._settleLabel(cartLines, basketLines);
         const net = cartTotal - basketTotal;
         const settleTooltip = !hasAnything ? 'Nothing on the slate yet'
             : net > 0 ? `You pay ${formatBase(net)}`
@@ -1100,12 +1085,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             toolFooterRight: `
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-clear"
                         data-action="clearAll" ${hasAnything ? '' : 'disabled'}
-                        data-tooltip="Wipe the slate">
-                    <i class="fa-solid fa-trash"></i> Wipe
+                        data-tooltip="Take everything off the slate">
+                    <i class="fa-solid fa-trash"></i> Clear Slate
                 </button>
                 <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
                         data-action="settle" data-tooltip="${settleTooltip}">
-                    <i class="fa-solid fa-scale-balanced"></i> ${settleLabel}
+                    <i class="fa-solid fa-scale-balanced"></i> Complete Transaction
                 </button>`
         };
     }

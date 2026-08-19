@@ -303,10 +303,9 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 One button in the footer settles the whole visit. Its label is part of the design, not decoration.
 
-- [ ] Nothing in either panel → **no** button in the footer.
-- [ ] Cart only → the button reads **Checkout** and shows what you pay.
-- [ ] Basket only → it reads **Sell** and shows what you receive.
-- [ ] Both → it reads **Trade**. *The label must change before you press it, not in the confirm.*
+- [ ] The footer reads `[ Cancel ]` left, `[ Clear Slate ] [ Complete Transaction ]` right, always.
+- [ ] Hovering **Complete Transaction** says what you pay or receive, and says so before you press it.
+- [ ] Quantities on slate lines sit in the same place on every row, whatever the prices are.
 - [ ] Neither panel has a button of its own any more; both are just lists with a total.
 - [ ] The confirm itemises **Buying** and **Selling** separately and states the direction of the difference.
 - [ ] Buy 100 gp of goods while selling 60 gp of goods → you pay **40 gp**, once. Not 100 out and 60 back.

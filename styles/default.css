@@ -638,7 +638,12 @@
    the price and the delete along with it. Fixed at both ends now: the quantity
    column is one width whatever is in it, and the delete sits at a fixed edge so
    prices align on their right regardless of length. */
-.merchant-shop-cart-line { grid-template-columns: 26px minmax(0, 1fr) 3.6em auto 16px; }
+/* The price column was `auto`, so a wide price sized it wider, the name column
+   gave up the difference, and everything between them slid left — which is why the
+   quantity sat in a different place on every row. `minmax` gives it a floor
+   instead: every ordinary price occupies the same width, and only something longer
+   than the floor moves anything. */
+.merchant-shop-cart-line { grid-template-columns: 26px minmax(0, 1fr) 3.6em minmax(6.8em, auto) 16px; }
 .merchant-shop-cart-qty { text-align: right; }
 /* A space after the multiplication sign, which "×5" reads badly without. */
 .merchant-shop-cart-qty > strong { margin-left: .28em; }
