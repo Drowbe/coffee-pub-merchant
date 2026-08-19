@@ -22,6 +22,18 @@ These cost Curator real time. They apply here identically and there is no reason
   Blacksmith toolbar and menubar for something that already opens what you are about to write. This is a
   different failure from forking a file — nothing was copied, a duplicate was simply invented — and the tell
   is the same: two things doing one job, one of which nobody else maintains.
+- **Grepping a doc is not reading it, and this is the second time.** Merchant asked "is there a drop helper
+  in `api-inventory`?", searched the file for *drop* and *drag*, found nothing, and moved on. The answer was
+  correct and three unrelated rules in that same file were being broken: `registerTransientFlag` must be
+  called by whoever writes a flag to items, arrival flags belong in the `grantItem` call rather than a
+  follow-up `setFlag`, and `items` is an array so one leg per line batches nothing. None contain the word
+  "drop".
+
+  This is the compendium-search mistake in a different coat. There, `search()` was found and a *feature*
+  built on top of it was missed. Here, the absence of one keyword was read as the absence of guidance. Both
+  times the failure was treating a document as an index to query rather than a thing to read. **Read the
+  whole page for any API you call more than once**, and re-read it when the API ships something new — the
+  rules around `exchange` arrived in the same change as `exchange`.
 - **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
   can never pick up anything landing later. Curator carried two forks — `ui-context-menu.js` and
   `manager-hooks.js` — both with bugs already fixed upstream. To check: compare filenames against
