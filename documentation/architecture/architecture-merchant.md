@@ -266,8 +266,28 @@ identity into a client-supplied one. **Do not build a mitigation for this.** Whe
 ## 9. The shop window
 
 `window-shop.js` extends `BlacksmithToolWindowBaseV2`, which supplies the titlebar, footer, position memory
-and micro-titlebar folding. One window per token, held in a static map, so double-clicking twice focuses
-rather than duplicates.
+and micro-titlebar folding. **One window per token, and the registry behind it, are the base class's** —
+`openFor` / `openWindowFor` / `openWindows` / `closeFor`, keyed by uuid and per subclass, so double-clicking
+twice focuses rather than duplicates and a Shop and a Loot window on one token do not evict each other.
+
+Merchant kept its own map until 2026-08-19, and the difference is not cosmetic: ours entered the map before
+the first render and left it only in `_onClose`, so a window whose first render threw was registered, never
+opened, and never removed — after which every later open re-rendered that same broken instance. The window
+became unopenable for that actor until the page was reloaded, which is the shape of a bug seen in play and
+not reproducible afterwards, because a reload clears a static map. The base class deletes the entry when a
+render throws. Anything this window does in `_onClose` therefore runs inside a `try`: a throw before
+`super._onClose` would strand the entry again.
+
+**Both classes import the base by path, and `module.api` is not an option.** `api-window.md` says the
+classes are the contract, the paths are not, and to resolve a base class from `module.api` at module top
+level. That cannot work for a class you `extends`: Foundry evaluates module scripts before `game` exists, so
+the resolve throws — and ESM caches the failed evaluation, so it kills the module for the whole session
+rather than being retried on the next call. Tried and reverted on 2026-08-19.
+
+Curator imports the path in three files for the same reason. Squire takes the other route: resolve from
+`module.api`, then **dynamically import** the window module at the point of use, by which time the API is
+published. That one honours the contract and costs every static import of a window becoming a lazy one. The
+coupling is therefore deliberate rather than overlooked, and it is in `TODO.md` with what it would take.
 
 **The slate** is two `Map`s of `itemId → quantity` — `cart` (buying) and `basket` (selling) — keyed by
 `tokenUuid|shopperUuid` and **mirrored to every client that can act as that character**, never persisted.
@@ -305,7 +325,7 @@ has cost this suite real time twice. What is used:
 | `inventory.exchange` | the entire transaction |
 | `inventory.registerTransientFlag` | `par` and `shelf` surviving transfers |
 | `tokens.registerInteraction` | double-click to open, with the permission bypass |
-| `BlacksmithToolWindowBaseV2` | both windows |
+| `BlacksmithToolWindowBaseV2` | both windows, including `openFor` and its per-subclass registry |
 | `dialog.confirm / choose / wait` + `controls` | every prompt |
 | `entityList`, `quantitySplit`, `uiContextMenu` | embedded controls |
 | compendium search window | stocking a shelf |

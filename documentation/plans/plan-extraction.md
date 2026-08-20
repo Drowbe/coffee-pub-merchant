@@ -138,9 +138,15 @@ the envelope, which is the same conclusion by a different route.
 
 ## Blacksmith's reply, 2026-08-19
 
-**(c) window construction — agreed and theirs.** `static openFor(target, options)` on
-`BlacksmithToolWindowBaseV2` with the registry behind it. They called a base class needing thirty identical
-lines per subclass their defect rather than our duplication, which it is.
+**(c) window construction — agreed and theirs. Shipped in 13.19.0, adopted here 2026-08-19.** `static
+openFor(target, options)` on `BlacksmithToolWindowBaseV2` with the registry behind it. They called a base
+class needing thirty identical lines per subclass their defect rather than our duplication, which it is.
+
+It also turned out to fix a live bug rather than only remove duplication. Our map was entered before the
+first render and left only in `_onClose`, so a window whose render threw stayed registered and unopenable
+for the rest of the session; theirs deletes the entry when a render throws. Neither module noticed that
+while the code was being measured for similarity — the extraction was argued on line counts, and the defect
+was in the four lines the two copies had in common.
 
 **(d) party resolution — agreed, and it is two policies, not one.** Rest uses `party.system.creatures`;
 Merchant uses `playerCharacters` with a fallback. Familiars and mounts rest and cannot shop. Both will be

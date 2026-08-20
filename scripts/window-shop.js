@@ -1,3 +1,5 @@
+// Imported by path, not resolved from `module.api`, and that is not an oversight —
+// see the note above the class.
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
 import { startProgress } from './merchant-progress.js';
@@ -112,8 +114,31 @@ export function filterShopList(root, query) {
     return visibleTotal;
 }
 
+/**
+ * **The base class comes in by path, and `module.api` is not an option here.**
+ *
+ * `api-window.md` says the classes are the contract and the paths are not, and to
+ * resolve a base class from `module.api` at module top level. That advice cannot
+ * work for a class you `extends`: Foundry evaluates module scripts before `game`
+ * exists, so `game.modules.get(...)` throws — and ESM caches the failed evaluation,
+ * so the throw kills Merchant for the whole session rather than being retried.
+ * Tried, seen, reverted 2026-08-19.
+ *
+ * Two patterns in the suite work. Curator imports the path, as here, in three files.
+ * Squire resolves from `module.api` and then **dynamically imports** the window
+ * module at the point of use, by which time the API is published. The second is the
+ * one that honours the documented contract, and it is a real change rather than an
+ * import swap: every static import of this file would have to become a lazy one.
+ *
+ * So the coupling stands, deliberately, and is recorded in `TODO.md`.
+ */
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
-    static _windows = new Map();
+    // One window per token, and the registry behind that, are the base class's:
+    // `openFor`, `openWindowFor`, `openWindows`, `closeFor`, keyed by uuid. Ours
+    // deleted its map entry only in `_onClose`, so a window whose first render threw
+    // was never entered and never left — and every later open re-rendered the same
+    // broken instance, which is a shop that cannot be reopened until the page is
+    // reloaded. Theirs deletes the entry when a render throws.
 
     // tokenUuid -> Map(itemId -> quantity), for things being sold TO the merchant.
     // Same shape and same reasoning as the buying side; kept apart because this holds
@@ -228,23 +253,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this._search = '';
     }
 
-    static async open(tokenDocument) {
-        const existing = this._windows.get(tokenDocument.uuid);
-        if (existing) return existing.render(true);
-        const win = new this(tokenDocument);
-        this._windows.set(tokenDocument.uuid, win);
-        await win.render(true);
-        return win;
-    }
-
     static closeForToken(tokenUuid) {
-        const win = this._windows.get(tokenUuid);
-        if (win) void win.close();
+        void this.closeFor(tokenUuid);
     }
 
     static refreshForToken(tokenUuid) {
-        const win = this._windows.get(tokenUuid);
-        if (win) void win.render(false);
+        // `keyFor` takes a plain string as readily as a document, which is what lets
+        // a socket message carrying only a uuid find its window.
+        void this.openWindowFor(tokenUuid)?.render(false);
     }
 
     /**
@@ -254,8 +270,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * scenes, so keying the refresh on a single token would miss the others.
      */
     static async refreshForActor(actorUuid) {
-        for (const [tokenUuid, win] of this._windows) {
-            const token = await fromUuid(tokenUuid);
+        for (const win of this.openWindows()) {
+            const token = await fromUuid(win.tokenUuid);
             if (token?.actor?.uuid === actorUuid) void win.render(false);
         }
     }
@@ -391,7 +407,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         } finally {
             this.busy = false;
             this.element?.classList.remove('merchant-shop-busy');
-            if (this.constructor._windows.get(this.tokenUuid) === this) await this.render(false);
+            if (this.constructor.openWindowFor(this.tokenUuid) === this) await this.render(false);
         }
     }
 
@@ -763,7 +779,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ShopWindow._presence.get(tokenUuid)?.delete(userId);
         } else if (state === 'ping') {
             // Somebody just arrived and cannot see the room. Say we are here.
-            for (const window of ShopWindow._windows.values()) {
+            for (const window of ShopWindow.openWindows()) {
                 if (window.tokenUuid === tokenUuid) {
                     const self = window._selfPresence();
                     game.socket.emit(`module.${MODULE.ID}`, {
@@ -776,7 +792,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ShopWindow._setPresence(tokenUuid, userId, { actorUuid, userName, name, img });
         }
 
-        for (const window of ShopWindow._windows.values()) {
+        for (const window of ShopWindow.openWindows()) {
             if (window.tokenUuid === tokenUuid) void window.render(false);
         }
     }
@@ -785,7 +801,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static dropUser(userId) {
         for (const [tokenUuid, room] of ShopWindow._presence) {
             if (!room.delete(userId)) continue;
-            for (const window of ShopWindow._windows.values()) {
+            for (const window of ShopWindow.openWindows()) {
                 if (window.tokenUuid === tokenUuid) void window.render(false);
             }
         }
@@ -810,7 +826,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     /** Answer a `slateRequest` with every slate this client is actually driving. */
     static publishSlatesFor(tokenUuid) {
-        for (const window of ShopWindow._windows.values()) {
+        for (const window of ShopWindow.openWindows()) {
             if (window.tokenUuid === tokenUuid) window._publishSlate();
         }
     }
@@ -824,7 +840,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Recorded as published, so receiving a slate never bounces it back.
         ShopWindow._published.set(key, JSON.stringify([cart, basket]));
 
-        for (const window of ShopWindow._windows.values()) {
+        for (const window of ShopWindow.openWindows()) {
             if (window.slateKey === key) void window.render(false);
         }
     }
@@ -2265,11 +2281,23 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         new sheetClass({ prototype }).render(true);
     }
 
+    /**
+     * Deregistration is the base class's now, and it happens in `super._onClose`.
+     *
+     * Which is why ours runs in a `try`: leaving the room is a socket emit and a map
+     * write, and if either threw, the `super` call below would never run and the
+     * window would stay registered — the exact state that made a shop unopenable for
+     * the rest of the session. A face left behind is a cosmetic bug; a stranded
+     * registry entry is not.
+     */
     _onClose(options) {
-        // Leave the room before leaving the map, or the face stays behind.
-        this.clearPresence();
-        clearTimeout(this._sellSearchTimer);
-        this.constructor._windows.delete(this.tokenUuid);
-        super._onClose?.(options);
+        try {
+            // Leave the room first, or the face stays behind.
+            this.clearPresence();
+            clearTimeout(this._sellSearchTimer);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not clean up on close:`, error);
+        }
+        return super._onClose?.(options);
     }
 }

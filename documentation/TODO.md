@@ -34,16 +34,13 @@ Two things to read before changing anything load-bearing:
 
 | Severity | Item | Where |
 |---|---|---|
-| **Bug** | A failed render strands a window in its own registry; that shop or settings window then refuses to open for the rest of the session | `window-shop.js:231`, `window-merchant-config.js:83` |
 | **High** | Adopt `blacksmith.gmRequest` — deletes `gm-request.js` and closes the caller-identity hole | `gm-request.js`, `manager-merchant.js` |
-| **High** | Adopt `BlacksmithToolWindowBaseV2.openFor` — deletes both hand-rolled registries, and the bug above with them | both windows |
 | **High** | Adopt `blacksmith.party` — `acting()`, `actor()`, `hasPrimaryParty()` | `manager-merchant.js:1075` |
-| **Medium** | Both windows deep-link a Blacksmith script file instead of `module.api` | both windows, line 1 |
+| **Medium** | Windows import a Blacksmith script by path; the documented `module.api` fix cannot work — raise the doc with them | both windows, line 3 |
 | **Medium** | No localisation — roughly 200 hardcoded English strings | scripts and templates |
 | **Medium** | Trading hours and restocking hand-roll what `api.worldClock` does | `manager-merchant.js` |
 | **Medium** | Three raw `Hooks.on` registrations, none of them disposable | `manager-merchant.js` |
 | **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:1523` |
-| **Low** | Duplicate `removeShelf` handler; a comment that lies about the stock model | config `:59`/`:65`, manager `:1521` |
 | **Low** | Sell as the party is untried | — |
 | **Low** | No way to hand something over for free | — |
 
@@ -51,51 +48,9 @@ Two things to read before changing anything load-bearing:
 
 ---
 
-## 1. Bugs
+## 1. Adopt what Blacksmith shipped
 
-### A failed render strands a window in its own registry
-
-**Seen in play 2026-08-19, not reproduced since.** A merchant was being set up; the settings window was
-closed in a state it could not be reopened from. It opened normally the next day with nothing changed in
-between.
-
-Both windows register themselves **before** their first render:
-
-```js
-const win = new this(actor);
-this._windows.set(actor.uuid, win);   // registered before it renders
-await win.render(true);
-```
-
-If that render throws — a shelf flag, a roll table uuid that no longer resolves, a template field that is
-not there — the map keeps the instance, `_onClose` never runs because the window never opened, and every
-later `open()` takes the `if (existing) return existing.render(true)` branch and re-renders **the same
-broken instance**, which throws again. The window is then unopenable for that actor for the rest of the
-session, with nothing on screen to explain it.
-
-`window-shop.js` has a second route to the same state: its `_onClose` calls `clearPresence()` *before*
-deleting from the map, so a throw in presence-clearing strands the entry too.
-
-**The discriminator, for next time.** The registry is a class static and dies with the page, so a reload
-clears it. Position, title-bar mode and theme are in `localStorage` and survive one. So:
-
-- reload fixes it → the registry, this entry;
-- reload does not fix it → a saved position off-screen (there is no viewport clamp on restore, so a
-  different monitor will do it) or Micro title bar switched on by a stray context-menu click. Both recover
-  from the title-bar menu: **Reset Position**, **Use Full Title Bar**.
-
-Before reloading, look for a thrown error in the console at the moment the window refuses to open. That one
-observation separates them.
-
-**The fix is two lines** — register only after a successful render, and delete from the map first in
-`_onClose` — but §2 deletes both registries outright, and Blacksmith's deregisters on close. Doing that
-removes the class rather than this instance of it, so prefer it if both are on the table.
-
----
-
-## 2. Adopt what Blacksmith shipped
-
-All three landed in **Blacksmith 13.19.0** (`a13e0984`, committed), and `module.json` already pins that
+Both landed in **Blacksmith 13.19.0** (`a13e0984`, committed), and `module.json` already pins that
 minimum. Each of these deletes code here.
 
 ### `blacksmith.gmRequest` — `gm-request.js` becomes a deletion
@@ -125,18 +80,6 @@ ours exactly — which is what writing `gm-request.js` against the eventual shap
 **The standing rule survives the migration:** never read an identity out of a payload. If one is there, it
 is either redundant or a hole.
 
-### `BlacksmithToolWindowBaseV2.openFor` — both windows drop their registries
-
-`static openFor(target, options)`, plus `isOpenFor`, `openWindowFor`, `openWindows`, `closeFor`, and a
-`static keyFor(target)` keyed on `uuid` by default. Windows deregister themselves on close.
-
-That deletes `ShopWindow._windows` with its `static open`, `closeForToken` and `_onClose` bookkeeping, and
-the same again in `MerchantConfigWindow`. `refreshForToken` and `refreshForActor` become filters over
-`openWindows()` rather than map walks. **Registries are per subclass**, so a Shop and Curator's Loot opened
-against one token do not evict each other — the case a shared registry would have got wrong.
-
-This is also the fix for §1. Do it in the same sitting as the deep-link item below: it is the same file.
-
 ### `blacksmith.party` — the roster, and the distinction we never had to make
 
 `party.acting()` is ours: `system.playerCharacters`, with the no-primary-party fallback to player-owned
@@ -154,22 +97,35 @@ odd Buying-as list far better than the list does.
 
 ---
 
-## 3. Couplings and gaps
+## 2. Couplings and gaps
 
-### Both windows deep-link a Blacksmith script file
+### Both windows import a Blacksmith script by path — and the documented fix does not work
 
-`window-shop.js:1` and `window-merchant-config.js:1` import `BlacksmithToolWindowBaseV2` from
-`/modules/coffee-pub-blacksmith/scripts/window-tool-base.js`. `api-window.md` is explicit that base classes
-come from `module.api` and that **file paths are not the stable contract** — and its own version history
-records the `window-base-v2.js` re-export shim already being removed, so this is a path that has moved once.
+`window-shop.js` and `window-merchant-config.js` import `BlacksmithToolWindowBaseV2` from
+`/modules/coffee-pub-blacksmith/scripts/window-tool-base.js`. `api-window.md` says the classes are the
+contract and the paths are not, and its own version history records the `window-base-v2.js` shim being
+removed — so this is a path that has moved once, on a file under active development. A failed ESM import
+takes the **whole module** down rather than one window.
 
-This is not a fork and nothing drifts, which is why it has stayed invisible. The cost is all in one moment:
-the day that file is renamed, both imports throw at module evaluation and a failed ESM import takes the
-**whole module** down rather than one window. That file is under active development — it is where `openFor`
-just arrived — which is the argument, live.
+**The documented remedy was tried on 2026-08-19 and reverted the same hour.** That page says to resolve the
+base from `module.api` at module top level. It cannot work for a class you `extends`: Foundry evaluates
+module scripts before `game` exists, so `game.modules.get(...)` throws `Cannot read properties of undefined`
+— and ESM caches a failed evaluation, so the throw kills Merchant for the session instead of being retried.
 
-`merchant.js:6` is a different case and stays: `/modules/coffee-pub-blacksmith/api/blacksmith-api.js` is the
-documented bridge, shown that way in `api-core.md` and `api-sockets.md` both.
+Two patterns in the suite do work, and neither is an import swap:
+
+- **Curator's**, which is what we do now: import the path and accept the coupling. Three of its files do
+  this.
+- **Squire's**: resolve from `module.api` and **dynamically import** the window module at the point of use,
+  by which time the API is published. `panel-control.js:499` carries the note explaining why, having been
+  bitten by exactly this. Honours the contract; costs every static import of a window becoming a lazy one,
+  and `manager-merchant.js` reaches `ShopWindow` from socket handlers as well as from the token gesture.
+
+**Raise the doc with Blacksmith before doing either.** The page recommends something that cannot work for
+the case it is describing, and two consumers have now independently discovered that — Squire in a comment,
+Merchant by breaking a live world. Either the deep import is supported for base classes and should be
+documented as such, or the classes need to be reachable from a stable path at evaluation time. That is a
+better outcome than each consumer picking a workaround.
 
 ### Localisation — not done, and it should be
 
@@ -221,7 +177,7 @@ debounce, and `once` with `debounceMs` never runs the callback at all.
 
 ---
 
-## 4. Nits and known gaps
+## 3. Nits and known gaps
 
 - **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
   `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
@@ -230,12 +186,6 @@ debounce, and `once` with `debounceMs` never runs the callback at all.
   fine. But once `gmRequest` is adopted this is the **only** place left where Merchant talks to core
   directly on a surface Blacksmith owns, and "it is only a redraw" is how a second transport acquires a
   second consumer.
-- **Two small ones, while anyone is in these files.** `window-merchant-config.js` declares `removeShelf`
-  twice in `ACTION_HANDLERS` (lines 59 and 65). They are identical so nothing misbehaves, but the second
-  silently wins and an edit to the first would do nothing — a bad half-hour. And the comment above
-  `_broadcastRefresh` (`manager-merchant.js:1521`) still reads *"Stock is infinite, so a refresh is only for
-  the GM changing what is on offer"*, false since phase 5. A comment lying about the stock model, on the
-  function that tells every client to redraw, is one a reader has every reason to trust.
 - **Sell as the party is untried.** The path exists — the party Group Actor is in the "Buying as" list and
   the same code serves it — but a Group Actor's inventory and purse have never been exercised by it.
 - **The GM has no way to hand something over for free.** Deliberate: the take-without-paying control was

@@ -1065,7 +1065,10 @@ export class MerchantManager {
 
     static open(tokenDocument) {
         if (!this.isMerchantToken(tokenDocument)) return null;
-        return ShopWindow.open(tokenDocument);
+        // `openFor` rethrows a failed render, which is what `openSafely` is for: the
+        // gesture must never surface a rejected promise, and a shop that will not
+        // build should say so once rather than be retried into the same wall.
+        return ShopWindow.openFor(tokenDocument);
     }
 
     // ==============================================================
@@ -1518,7 +1521,8 @@ export class MerchantManager {
         return { ok: true, actor };
     }
 
-    // Stock is infinite, so a refresh is only for the GM changing what is on offer.
+    // Not only for the GM changing what is on offer: since stock became a count, a
+    // settlement moves the number every other client is looking at.
     static _broadcastRefresh(tokenUuid) {
         game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', tokenUuid });
         ShopWindow.refreshForToken(tokenUuid);

@@ -1,3 +1,5 @@
+// By path rather than from `module.api`: module scripts evaluate before `game`
+// exists. See the note above `ShopWindow` in `window-shop.js`.
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
 import {
     MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
@@ -35,7 +37,7 @@ const STOCK_OPTIONS = [
  * that is not a growing pile of prompts.
  */
 export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
-    static _windows = new Map();
+    // The one-window-per-actor registry is the base class's. See `window-shop.js`.
 
     static DEFAULT_OPTIONS = foundry.utils.mergeObject(
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
@@ -61,8 +63,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
         restockAll: (_event, _target, win) => void win.restockAll(),
         removeShelfTable: (_event, target, win) =>
-            void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid),
-        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId)
+            void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid)
     };
 
     constructor(actor, options = {}) {
@@ -80,14 +81,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         this.actorUuid = actor.uuid;
     }
 
+    /**
+     * The door, and the only thing it adds to `openFor` is the GM gate.
+     *
+     * Kept as a named entry point rather than pushing `openFor` out to the call
+     * sites: this window configures a shop, so who may open it is a rule of ours,
+     * and the base class deliberately holds no permission opinions.
+     */
     static async open(actor) {
         if (!game.user.isGM) return null;
-        const existing = this._windows.get(actor.uuid);
-        if (existing) return existing.render(true);
-        const win = new this(actor);
-        this._windows.set(actor.uuid, win);
-        await win.render(true);
-        return win;
+        return this.openFor(actor);
     }
 
     async _resolveActor() {
@@ -879,10 +882,5 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
         MerchantManager.openSafely(anywhere);
-    }
-
-    _onClose(options) {
-        this.constructor._windows.delete(this.actorUuid);
-        super._onClose?.(options);
     }
 }
