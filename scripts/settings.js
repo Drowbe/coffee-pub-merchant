@@ -44,7 +44,7 @@ export const SOUND_SETTINGS = Object.freeze([
     {
         key: 'soundRestock',
         name: 'Restocking',
-        hint: 'Played to the GM when a shelf or a whole shop finishes restocking.'
+        hint: 'Played to the GM when an inventory or a whole shop finishes restocking.'
     },
     {
         key: 'soundError',

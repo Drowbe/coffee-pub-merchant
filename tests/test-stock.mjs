@@ -28,14 +28,14 @@ game.time.calendar = { days: { hoursPerDay: 24, minutesPerHour: 60, secondsPerMi
 console.log('ok  secondsPerDay');
 
 // --- policy resolution, lifted verbatim from the manager ----------------
-function resolveStockPolicy(merchantStock, shelfStock) {
+function resolveStockPolicy(merchantStock, inventoryStock) {
     const policies = Object.values(STOCK);
-    if (policies.includes(shelfStock)) return shelfStock;
+    if (policies.includes(inventoryStock)) return inventoryStock;
     return policies.includes(merchantStock) ? merchantStock : STOCK.INFINITE;
 }
 assert.strictEqual(resolveStockPolicy(undefined, null), STOCK.INFINITE, 'unset defaults to infinite');
-assert.strictEqual(resolveStockPolicy(STOCK.FINITE, null), STOCK.FINITE, 'shelf inherits the merchant');
-assert.strictEqual(resolveStockPolicy(STOCK.FINITE, STOCK.INFINITE), STOCK.INFINITE, 'shelf overrides');
+assert.strictEqual(resolveStockPolicy(STOCK.FINITE, null), STOCK.FINITE, 'inventory inherits the merchant');
+assert.strictEqual(resolveStockPolicy(STOCK.FINITE, STOCK.INFINITE), STOCK.INFINITE, 'inventory overrides');
 assert.strictEqual(resolveStockPolicy(STOCK.INFINITE, STOCK.FINITE), STOCK.FINITE, 'buyback stays finite');
 assert.strictEqual(resolveStockPolicy('nonsense', 'rubbish'), STOCK.INFINITE, 'garbage falls back');
 console.log('ok  resolveStockPolicy');
@@ -89,8 +89,8 @@ const DAY = 86400;
 assert.strictEqual(due(DAY, 0, 1), 'restock', 'a full day is due');
 assert.strictEqual(due(DAY - 1, 0, 1), 'wait', 'just short is not');
 assert.strictEqual(due(7 * DAY, 0, 1), 'restock', 'a week is one restock, not seven');
-assert.strictEqual(due(2 * DAY, 0, 7), 'wait', 'a 7-day shelf waits');
-assert.strictEqual(due(0, undefined, 1), 'reset', 'a shelf with no clock starts one');
+assert.strictEqual(due(2 * DAY, 0, 7), 'wait', 'a 7-day inventory waits');
+assert.strictEqual(due(0, undefined, 1), 'reset', 'an inventory with no clock starts one');
 assert.strictEqual(due(0, 5 * DAY, 1), 'reset', 'winding the clock back resets rather than stranding');
 assert.strictEqual(due(DAY, 0, 0), 'restock', 'a zero cadence falls back to the default');
 console.log('ok  restock cadence');
@@ -100,23 +100,23 @@ function parOf(quantity, flag) {
     const stored = Number(flag);
     return Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : quantity;
 }
-assert.strictEqual(parOf(3, undefined), 3, 'a shelf stocked before par existed reads as full');
-assert.strictEqual(parOf(0, 6), 6, 'a sold-out shelf still knows what it keeps');
+assert.strictEqual(parOf(3, undefined), 3, 'an inventory stocked before par existed reads as full');
+assert.strictEqual(parOf(0, 6), 6, 'a sold-out inventory still knows what it keeps');
 assert.strictEqual(parOf(0, -2), 0, 'a negative par clamps rather than growing stock');
 assert.strictEqual(parOf(2, 4.7), 4, 'a fractional par truncates');
 assert.strictEqual(PAR_FLAG, 'par');
 
-// A buyback shelf ignores a stored par entirely: its stock is whatever the party
+// A buyback inventory ignores a stored par entirely: its stock is whatever the party
 // sold it, and there is nothing it is "kept at". This guards a real leak --
 // registerTransientFlag hides a flag from merge comparison but does not strip it
 // from the payload, so `par` travels out with a bought item and back in when it is
-// sold. A bedroll bought from a shelf kept at six would otherwise arrive on the
-// buyback shelf claiming a par of six, and the next restock would manufacture five
+// sold. A bedroll bought from an inventory kept at six would otherwise arrive on the
+// buyback inventory claiming a par of six, and the next restock would manufacture five
 // bedrolls from a target the shop never set.
 const parFor = (mode, quantity, flag) => (mode === 'buyback' ? quantity : parOf(quantity, flag));
-assert.strictEqual(parFor('buyback', 1, 6), 1, 'a buyback shelf ignores a par that rode in');
+assert.strictEqual(parFor('buyback', 1, 6), 1, 'a buyback inventory ignores a par that rode in');
 assert.strictEqual(parFor('buyback', 1, undefined), 1, 'and has none of its own either');
-assert.strictEqual(parFor('sale', 1, 6), 6, 'while an ordinary shelf still keeps what it keeps');
+assert.strictEqual(parFor('sale', 1, 6), 6, 'while an ordinary inventory still keeps what it keeps');
 console.log('ok  par resolution');
 
 // --- trading hours: open is derived, never stored ------------------------

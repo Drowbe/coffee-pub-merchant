@@ -105,14 +105,14 @@ console.log(`ok  ${checked} purse/price combinations net exactly`);
 
 // --- negotiation ---------------------------------------------------------
 // The rule the whole feature turns on: an agreed price beats everything, and a
-// shelf that exists not to have prices has none until one is agreed.
+// inventory that exists not to have prices has none until one is agreed.
 const item = (id, gp) => ({ id, system: gp === null ? {} : { price: { value: gp, denomination: 'gp' } } });
-const NEGOTIATE = { mode: 'barter' };
-const SALE = { mode: 'sale', markup: null };
+const NEGOTIATE = { type: 'unpriced' };
+const SALE = { type: 'general', markup: 1 };
 
 assert.strictEqual(P.resolvePrice({}, NEGOTIATE, item('a', 50)), null,
-    'a negotiate shelf has no price even for a listed item');
-assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50)), 5000, 'and an ordinary shelf still does');
+    'a negotiate inventory has no price even for a listed item');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50)), 5000, 'and an ordinary inventory still does');
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', null)), null, 'nothing to go on is still nothing');
 
 const AGREED = { pricing: { overrides: { a: 1200 } } };
@@ -131,7 +131,7 @@ assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: 0 } } }, 'a'),
 // configured before any of this existed keeps its prices.
 assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: { value: 7, denomination: 'gp' } } } }, 'a'), 700);
 
-const BUYBACK = { mode: 'buyback', markup: 0.5 };
+const BUYBACK = { type: 'purchased', markup: 1, buyRate: 0.5 };
 assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
 assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
 assert.strictEqual(
@@ -141,6 +141,64 @@ assert.strictEqual(
     P.resolveBuybackPrice({ pricing: { overrides: { a: 9999 } } }, BUYBACK, item('a', 50)), 2500,
     'a buy-side agreement does not decide what the shop pays');
 console.log('ok  agreed prices, both directions');
+
+// --- stacking ------------------------------------------------------------
+// The rule the whole pricing model turns on: the shop's Global Markup is a
+// baseline (an expensive quarter, or the middle of nowhere) and an inventory's own
+// markup is an adjustment *within* that shop. They multiply. Replacing one with the
+// other -- which is what this used to do -- priced a premium inventory in an
+// expensive shop as though the shop were ordinary.
+const DEAR = { pricing: { markup: 1.2 } };
+const PREMIUM = { type: 'premium', markup: 1.5 };
+const DISCOUNTED = { type: 'discounted', markup: 0.75 };
+
+assert.strictEqual(P.resolvePrice(DEAR, SALE, item('a', 50)), 6000, 'the shop baseline applies on its own');
+assert.strictEqual(P.resolvePrice({}, PREMIUM, item('a', 50)), 7500, 'so does an inventory markup on its own');
+assert.strictEqual(P.resolvePrice(DEAR, PREMIUM, item('a', 50)), 9000, '1.2 x 1.5 = 1.8, not 1.5');
+assert.strictEqual(P.resolvePrice(DEAR, DISCOUNTED, item('a', 50)), 4500, 'and a discount cuts the baseline, not the book');
+
+// A rate of zero, a negative, or a typo is "no adjustment" rather than a free item.
+for (const bad of [0, -1, null, undefined, 'x', NaN]) {
+    assert.strictEqual(P.resolvePrice({ pricing: { markup: bad } }, { type: 'general', markup: bad }, item('a', 50)),
+        5000, `a markup of ${String(bad)} changes nothing`);
+}
+console.log('ok  markups stack, and rubbish rates change nothing');
+
+// --- reputation ----------------------------------------------------------
+// Applied on top of both markups when buying, and **inverted** when selling: the
+// standing that buys you a discount should get you more for your goods, or a
+// beloved party is rewarded in one direction and ignored in the other.
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50), { reputation: 0.85 }), 4250, 'liked is cheaper');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50), { reputation: 1.15 }), 5750, 'disliked is dearer');
+assert.strictEqual(P.resolvePrice(DEAR, PREMIUM, item('a', 50), { reputation: 0.85 }), 7650,
+    'and it multiplies against both markups');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50), { reputation: 1 }), 5000, 'neutral moves nothing');
+
+assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50), { reputation: 0.85 }), 2941,
+    'a liked party is paid more, not less');
+assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50), { reputation: 1.15 }), 2174,
+    'and a disliked one is paid less');
+
+// An agreed price is the price. Nothing is applied on top of a number two people
+// settled on, in either direction.
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), { reputation: 0.5 }), 1200,
+    'reputation does not re-cut an agreed price');
+assert.strictEqual(
+    P.resolveBuybackPrice({ pricing: { buybackOverrides: { a: 900 } } }, BUYBACK, item('a', 50), { reputation: 0.5 }),
+    900, 'nor an agreed buyback');
+
+// What the shop pays is a share of what the thing is *worth*, never of what this
+// shop charges for it: a dear quarter does not raise what your old sword fetches.
+assert.strictEqual(P.resolveBuybackPrice(DEAR, BUYBACK, item('a', 50)), 2500,
+    'the shop baseline does not move what it pays');
+console.log('ok  reputation, both directions');
+
+// The purchased type's two rates are independent, which is the whole reason there
+// are two: what the shop hands over is not what it asks for the thing afterwards.
+const TRADE = { type: 'purchased', markup: 1.25, buyRate: 0.4 };
+assert.strictEqual(P.resolveBuybackPrice({}, TRADE, item('a', 50)), 2000, 'pays 40% of worth');
+assert.strictEqual(P.resolvePrice({}, TRADE, item('a', 50)), 6250, 'and resells at 125%');
+console.log('ok  purchase and sell rates are independent');
 
 // --- fromBase round-trips ------------------------------------------------
 // The price control types gold and stores base units; both directions have to
@@ -173,7 +231,7 @@ assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 99, ra
 assert.strictEqual(P.stockDepth(goods('equipment', 1500, 6), { maxPerItem: 99, random: minRoll }), 6,
     'and it wins even for something that would not otherwise stack');
 assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 5, random: minRoll }), 5,
-    'but the shelf ceiling still clamps it');
+    'but the inventory ceiling still clamps it');
 
 // 2. Then the price band, for things a shop keeps a pile of.
 assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: maxRoll }), 10,
@@ -187,11 +245,11 @@ assert.strictEqual(P.stockDepth(goods('consumable', 500, 1), { maxPerItem: 99, r
 assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll }), 1,
     'and the die can always come up one');
 assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll }), 4,
-    'the shelf ceiling beats the band');
+    'the inventory ceiling beats the band');
 
 // 3. Price decides it, not type. The whitelist that used to sit here excluded
 // daggers, vials, clothes, chests and tools -- which is to say a general store's
-// entire shelf -- so the feature changed nothing anybody could see.
+// entire inventory -- so the feature changed nothing anybody could see.
 for (const type of ['equipment', 'weapon', 'tool', 'container', 'consumable', 'loot']) {
     assert.strictEqual(P.stockDepth(goods(type, 0.1, 1), { maxPerItem: 99, random: maxRoll }), 10,
         `a cheap ${type} comes in a pile like anything else cheap`);

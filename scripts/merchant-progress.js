@@ -4,7 +4,7 @@
 //
 // Restocking a shop is slow in a way nothing on screen admitted to. Every roll is a
 // `table.roll()`, every result is a `fromUuid` against a compendium, and a shop with
-// two shelves and four tables at ten rolls each is forty of each before a single item
+// two inventories and four tables at ten rolls each is forty of each before a single item
 // lands. That is seconds of nothing happening, which reads as nothing *having*
 // happened -- and the GM presses the button again.
 //

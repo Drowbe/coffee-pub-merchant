@@ -91,20 +91,10 @@
             </div>
         </section>
 
-        <section class="merchant-config-section">
-            <h3><span><i class="fa-solid fa-boxes-stacked"></i> Stock</span></h3>
-            <label class="merchant-config-markup merchant-config-field">
-                <span>
-                    <strong>When something is bought</strong>
-                    <small>The shop's default. Any shelf may say otherwise &mdash; Buyback always runs out.</small>
-                </span>
-                <select data-merchant-stock>
-                    {{#each merchantStockOptions}}
-                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                    {{/each}}
-                </select>
-            </label>
-        </section>
+        {{!-- The shop-wide stock default used to live here. It is gone: each
+              inventory states what happens when something is bought, on the
+              inventory, where it can be read at the same moment as everything else
+              about that inventory. --}}
 
         <section class="merchant-config-section">
             <h3>
@@ -130,106 +120,188 @@
             <h3><span><i class="fa-solid fa-tags"></i> Pricing</span></h3>
             <label class="merchant-config-markup">
                 <span>
-                    <strong>Markup</strong>
-                    <small>Applied to each item's own price. A shelf may override this; Premium ships at 1.5.</small>
+                    <strong>Global Markup</strong>
+                    <small>The baseline for everything in this shop &mdash; an expensive quarter, or the
+                           middle of nowhere. Every inventory multiplies against it: a Premium at 1.5
+                           inside a shop at 1.2 asks 1.8 times the going rate.</small>
                 </span>
                 <input type="number" min="0" step="0.05" value="{{markup}}" data-merchant-markup>
             </label>
+
+            <label class="merchant-config-toggle merchant-config-reputation">
+                <input type="checkbox" data-merchant-reputation {{#if reputationOn}}checked{{/if}}>
+                <span>
+                    <strong>Reputation moves prices</strong>
+                    <small>How the party is thought of here changes what they are charged &mdash; and what
+                           they are paid when they sell. Off unless you say so.</small>
+                </span>
+            </label>
+            {{#if reputationOn}}
+                {{!-- Said in words, because "15% dearer" with no reason given reads as
+                      a bug and "Distrusted here" reads as the game working. --}}
+                <div class="merchant-config-hours-note">
+                    {{#if reputationLabel}}
+                        The party is <strong>{{reputationLabel}}</strong> on this scene{{#if reputationEffect}},
+                        so prices here are {{reputationEffect}}{{/if}}.
+                    {{else}}
+                        No standing recorded on this scene, so prices are unchanged.
+                    {{/if}}
+                </div>
+            {{/if}}
         </section>
 
         <section class="merchant-config-section">
             <h3>
-                <span><i class="fa-solid fa-layer-group"></i> Shelves</span>
+                <span><i class="fa-solid fa-layer-group"></i> Inventories</span>
                 <span class="merchant-config-head-actions">
-                    <button type="button" class="merchant-config-shelf-add" data-action="addShelf"
-                            data-tooltip="Add a shelf">
+                    <button type="button" class="merchant-config-inventory-add" data-action="addInventory"
+                            data-tooltip="Add an inventory">
                         <i class="fa-solid fa-plus"></i>
                     </button>
-                    <span class="merchant-config-count">{{shelfCount}}</span>
+                    <span class="merchant-config-count">{{inventoryCount}}</span>
                 </span>
             </h3>
 
-            {{#if hasShelves}}
-                <div class="merchant-config-shelf-list">
-                    {{#each shelves}}
-                        <div class="merchant-config-shelf" data-drop-table="{{id}}">
+            {{#if hasInventories}}
+                <div class="merchant-config-inventory-list">
+                    {{#each inventories}}
+                        <div class="merchant-config-inventory" data-drop-table="{{id}}">
                             <img src="{{img}}" alt="">
-                            <div class="merchant-config-shelf-copy">
-                                <strong>{{label}}</strong>
-                                <span>{{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}</span>
+                            {{!-- The name is the container's own, editable here as well
+                                  as on its sheet: several inventories of one type is
+                                  ordinary, and they need telling apart. The type sits
+                                  beneath it, because it is what the settings follow
+                                  from and cannot be changed once created. --}}
+                            <div class="merchant-config-inventory-copy">
+                                <input type="text" class="merchant-config-inventory-name" value="{{label}}"
+                                       data-inventory-name="{{id}}" aria-label="Inventory name"
+                                       data-tooltip="{{typeHint}}">
+                                <span>
+                                    <em>{{typeLabel}}</em> · {{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}
+                                </span>
                             </div>
-                            <div class="merchant-config-shelf-actions">
+                            <div class="merchant-config-inventory-actions">
                                 {{#if countable}}
                                     <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                            data-action="restockShelf" data-shelf-id="{{id}}"
-                                            data-tooltip="Refill this shelf to the quantities you set">
+                                            data-action="restockInventory" data-inventory-id="{{id}}"
+                                            data-tooltip="Refill this inventory to the quantities you set">
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </button>
                                 {{/if}}
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                        data-action="openShelf" data-shelf-id="{{id}}" data-tooltip="Open this shelf to stock it">
+                                        data-action="openInventory" data-inventory-id="{{id}}" data-tooltip="Open this inventory to stock it">
                                     <i class="fa-solid fa-box-open"></i>
                                 </button>
-                                {{!-- Between opening the shelf and deleting it, which is
+                                {{!-- Between opening the inventory and deleting it, which is
                                       where it sits in meaning too: empty it, or be rid
                                       of it. --}}
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                        data-action="clearShelf" data-shelf-id="{{id}}"
-                                        data-tooltip="Clear this shelf — take everything off it">
+                                        data-action="clearInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Clear this inventory — take everything off it">
                                     <i class="fa-solid fa-broom"></i>
                                 </button>
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn merchant-config-remove"
-                                        data-action="removeShelf" data-shelf-id="{{id}}" data-tooltip="Remove this shelf">
+                                        data-action="removeInventory" data-inventory-id="{{id}}" data-tooltip="Remove this inventory">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
 
-                            {{!-- A second row under the shelf's identity rather than
+                            {{!-- A second row under the inventory's identity rather than
                                   beside it, so the name stays on one line. --}}
-                            <div class="merchant-config-shelf-stock">
-                                <select data-shelf-stock="{{id}}"
-                                        data-tooltip="What happens to this shelf when something is bought">
-                                    {{#each stockOptions}}
-                                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                    {{/each}}
-                                </select>
-                                {{#if inherited}}
-                                    <span class="merchant-config-shelf-inherited">{{stockLabel}}</span>
+                            {{!-- What this type is allowed to price with. One control,
+                                  never two, and none at all where a price is agreed
+                                  rather than set. --}}
+                            {{#if pricingMarkup}}
+                                <div class="merchant-config-inventory-rates">
+                                    <label class="merchant-config-inventory-cap"
+                                           data-tooltip="Multiplied against the shop's Global Markup. Above 1 is dearer, below 1 is cheaper.">
+                                        <input type="number" min="0.05" step="0.05" value="{{markup}}"
+                                               data-inventory-markup="{{id}}" aria-label="Markup for this inventory">
+                                        &times; markup
+                                    </label>
+                                </div>
+                            {{/if}}
+                            {{#if pricingTrade}}
+                                <div class="merchant-config-inventory-rates">
+                                    {{!-- Two rates, because they are two different
+                                          transactions. What the shop hands over for
+                                          your old sword is not what it asks for it
+                                          afterwards, and one number cannot be both. --}}
+                                    <label class="merchant-config-inventory-cap"
+                                           data-tooltip="What the shop pays, as a share of what the item is worth. Lower is a better margin for the shop.">
+                                        <input type="number" min="0.05" step="0.05" value="{{buyRate}}"
+                                               data-inventory-buy-rate="{{id}}" aria-label="Purchase rate">
+                                        &times; purchase
+                                    </label>
+                                    <label class="merchant-config-inventory-cap"
+                                           data-tooltip="What second-hand stock is then sold at, multiplied against the Global Markup.">
+                                        <input type="number" min="0.05" step="0.05" value="{{markup}}"
+                                               data-inventory-markup="{{id}}" aria-label="Sell rate">
+                                        &times; sell
+                                    </label>
+                                </div>
+                            {{/if}}
+                            {{#if pricingNone}}
+                                <div class="merchant-config-inventory-rates merchant-config-inventory-unpriced">
+                                    No price until one is agreed on the slate.
+                                </div>
+                            {{/if}}
+
+                            <div class="merchant-config-inventory-stock">
+                                {{#if restocks}}
+                                    <select data-inventory-stock="{{id}}"
+                                            data-tooltip="What happens to this inventory when something is bought">
+                                        {{#each stockOptions}}
+                                            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                        {{/each}}
+                                    </select>
+                                {{else}}
+                                    {{!-- Purchased is the one type with nothing to
+                                          restock to: its stock is whatever the party
+                                          sold, so a refill would conjure duplicates of
+                                          somebody's old sword. --}}
+                                    <span class="merchant-config-inventory-norestock">
+                                        Items bought from this inventory are removed and never restocked.
+                                    </span>
                                 {{/if}}
-                                <label class="merchant-config-shelf-cap"
-                                       data-tooltip="How many different things this shelf will hold. Not the total quantity.">
-                                    <input type="number" min="1" max="500" step="1" value="{{maxProducts}}"
-                                           data-shelf-max-products="{{id}}" aria-label="Most products on this shelf">
-                                    products
-                                </label>
-                                <label class="merchant-config-shelf-cap"
-                                       data-tooltip="The most of any one thing. Stops a restocking shelf building toward thousands of rations.">
-                                    <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
-                                           data-shelf-max-per-item="{{id}}" aria-label="Most of any one product">
-                                    each
-                                </label>
+                                {{#if showMaxProducts}}
+                                    <label class="merchant-config-inventory-cap"
+                                           data-tooltip="How many different things a table roll may leave here. Not the total quantity, and only ever applied when rolling.">
+                                        <input type="number" min="1" max="500" step="1" value="{{maxProducts}}"
+                                               data-inventory-max-products="{{id}}" aria-label="Most products on this inventory">
+                                        products
+                                    </label>
+                                {{/if}}
+                                {{#if countable}}
+                                    <label class="merchant-config-inventory-cap"
+                                           data-tooltip="The most of any one thing. Clamps a table roll and a quantity you type in the shop.">
+                                        <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
+                                               data-inventory-max-per-item="{{id}}" aria-label="Most of any one product">
+                                        each
+                                    </label>
+                                {{/if}}
                                 {{#if restocking}}
-                                    <label class="merchant-config-shelf-days" data-tooltip="In-world days between refills">
+                                    <label class="merchant-config-inventory-days" data-tooltip="In-world days between refills">
                                         every
                                         <input type="number" min="1" step="1" value="{{restockDays}}"
-                                               data-shelf-restock-days="{{id}}" aria-label="Days between restocks">
+                                               data-inventory-restock-days="{{id}}" aria-label="Days between restocks">
                                         days
                                     </label>
                                 {{/if}}
                             </div>
 
-                            {{!-- A shelf may also be stocked by rolling. Dragged on
+                            {{!-- An inventory may also be stocked by rolling. Dragged on
                                   rather than picked from a list, the same way stock
-                                  itself is put on a shelf. --}}
-                            <div class="merchant-config-shelf-tables">
+                                  itself is put on an inventory. --}}
+                            <div class="merchant-config-inventory-tables">
                                 {{#each tables}}
-                                    <div class="merchant-config-shelf-table">
-                                        <span class="merchant-config-shelf-table-name" data-tooltip="{{name}} — rolled when this shelf restocks">
+                                    <div class="merchant-config-inventory-table">
+                                        <span class="merchant-config-inventory-table-name" data-tooltip="{{name}} — rolled when this inventory restocks">
                                             <i class="fa-solid fa-dice-d20"></i> {{name}}
                                         </span>
-                                        <label class="merchant-config-shelf-rolls" data-tooltip="How many times to roll it">
+                                        <label class="merchant-config-inventory-rolls" data-tooltip="How many times to roll it">
                                             <input type="number" min="1" max="20" step="1" value="{{rolls}}"
-                                                   data-shelf-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
+                                                   data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
                                                    aria-label="Rolls per restock">
                                             {{!-- Always plural: "roll" and "rolls" are
                                                   different widths, so pluralising it
@@ -237,24 +309,24 @@
                                                   crossed one. --}}
                                             rolls
                                         </label>
-                                        {{!-- Off means the table furnishes the shelf when
+                                        {{!-- Off means the table furnishes the inventory when
                                               a GM asks and never again. On means it also
                                               delivers on the clock. --}}
-                                        <label class="merchant-config-shelf-reroll"
+                                        <label class="merchant-config-inventory-reroll"
                                                data-tooltip="Also roll this every time the clock brings a restock. Off, it only rolls when you press Restock.">
-                                            <input type="checkbox" data-shelf-table-auto="{{../id}}"
+                                            <input type="checkbox" data-inventory-table-auto="{{../id}}"
                                                    data-table-uuid="{{uuid}}" {{#if auto}}checked{{/if}}>
                                             <span>reroll</span>
                                         </label>
                                         <button type="button" class="merchant-config-icon-btn merchant-config-remove"
-                                                data-action="removeShelfTable" data-shelf-id="{{../id}}"
+                                                data-action="removeInventoryTable" data-inventory-id="{{../id}}"
                                                 data-table-uuid="{{uuid}}"
-                                                data-tooltip="Take this table off the shelf">
+                                                data-tooltip="Take this table off the inventory">
                                             <i class="fa-solid fa-xmark"></i>
                                         </button>
                                     </div>
                                 {{/each}}
-                                <span class="merchant-config-shelf-table-empty">
+                                <span class="merchant-config-inventory-table-empty">
                                     <i class="fa-solid fa-dice-d20"></i>
                                     {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock it by rolling{{/if}}
                                 </span>
@@ -263,7 +335,7 @@
                     {{/each}}
                 </div>
             {{else}}
-                <div class="merchant-config-empty">No shelves yet. Add one to start stocking this merchant.</div>
+                <div class="merchant-config-empty">No inventories yet. Add one to start stocking this merchant.</div>
             {{/if}}
 
         </section>

@@ -34,10 +34,8 @@ Two things to read before changing anything load-bearing:
 
 | Severity | Item | Where |
 |---|---|---|
-| **High** | **Inventory types** — shelves become typed inventories, per-type settings, restock per inventory, reputation pricing. Planned, not built | `plans/plan-inventory-types.md` |
 | **High** | Adopt `blacksmith.gmRequest` — deletes `gm-request.js` and closes the caller-identity hole | `gm-request.js`, `manager-merchant.js` |
 | **High** | Adopt `blacksmith.party` — `acting()`, `actor()`, `hasPrimaryParty()` | `manager-merchant.js:1075` |
-| **Medium** | Windows import a Blacksmith script by path; the documented `module.api` fix cannot work — raise the doc with them | both windows, line 3 |
 | **Medium** | No localisation — roughly 200 hardcoded English strings | scripts and templates |
 | **Medium** | Trading hours and restocking hand-roll what `api.worldClock` does | `manager-merchant.js` |
 | **Medium** | Three raw `Hooks.on` registrations, none of them disposable | `manager-merchant.js` |
@@ -49,25 +47,7 @@ Two things to read before changing anything load-bearing:
 
 ---
 
-## 1. Inventory types — planned, awaiting five decisions
-
-`plans/plan-inventory-types.md` is the whole of it. Shelves become **inventories with a type** — general,
-hidden, premium, discounted, unpriced, purchased — each carrying only the settings its type can act on. The
-merchant-wide stock setting goes, restock becomes part of every inventory, each inventory gets a name field,
-and the global markup gains an optional reputation modifier read from Blacksmith's own scale.
-
-Three calls are already made and recorded in the plan: the type sets defaults without taking the show/hide
-toggle away; the reputation mapping is Blacksmith's `merchantModifier` rather than a table of ours; and it
-gets planned before it gets built. **Section 9 holds five that are still open**, none of which blocks
-starting but two of which decide what a control means on screen.
-
-**One thing to settle with Blacksmith before any of it is written:** `merchantModifier` is `0` at neutral,
-not `1.0`, so the field is a delta or a percentage rather than a multiplier. Read as a multiplier, a neutral
-party gets every item free. Confirm the unit; treat `0` as no change under any reading.
-
----
-
-## 2. Adopt what Blacksmith shipped
+## 1. Adopt what Blacksmith shipped
 
 Both landed in **Blacksmith 13.19.0** (`a13e0984`, committed), and `module.json` already pins that
 minimum. Each of these deletes code here.
@@ -116,35 +96,7 @@ odd Buying-as list far better than the list does.
 
 ---
 
-## 3. Couplings and gaps
-
-### Both windows import a Blacksmith script by path — and the documented fix does not work
-
-`window-shop.js` and `window-merchant-config.js` import `BlacksmithToolWindowBaseV2` from
-`/modules/coffee-pub-blacksmith/scripts/window-tool-base.js`. `api-window.md` says the classes are the
-contract and the paths are not, and its own version history records the `window-base-v2.js` shim being
-removed — so this is a path that has moved once, on a file under active development. A failed ESM import
-takes the **whole module** down rather than one window.
-
-**The documented remedy was tried on 2026-08-19 and reverted the same hour.** That page says to resolve the
-base from `module.api` at module top level. It cannot work for a class you `extends`: Foundry evaluates
-module scripts before `game` exists, so `game.modules.get(...)` throws `Cannot read properties of undefined`
-— and ESM caches a failed evaluation, so the throw kills Merchant for the session instead of being retried.
-
-Two patterns in the suite do work, and neither is an import swap:
-
-- **Curator's**, which is what we do now: import the path and accept the coupling. Three of its files do
-  this.
-- **Squire's**: resolve from `module.api` and **dynamically import** the window module at the point of use,
-  by which time the API is published. `panel-control.js:499` carries the note explaining why, having been
-  bitten by exactly this. Honours the contract; costs every static import of a window becoming a lazy one,
-  and `manager-merchant.js` reaches `ShopWindow` from socket handlers as well as from the token gesture.
-
-**Raise the doc with Blacksmith before doing either.** The page recommends something that cannot work for
-the case it is describing, and two consumers have now independently discovered that — Squire in a comment,
-Merchant by breaking a live world. Either the deep import is supported for base classes and should be
-documented as such, or the classes need to be reachable from a stable path at evaluation time. That is a
-better outcome than each consumer picking a workaround.
+## 2. Couplings and gaps
 
 ### Localisation — not done, and it should be
 
@@ -196,7 +148,7 @@ debounce, and `once` with `debounceMs` never runs the callback at all.
 
 ---
 
-## 4. Nits and known gaps
+## 3. Nits and known gaps
 
 - **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
   `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`

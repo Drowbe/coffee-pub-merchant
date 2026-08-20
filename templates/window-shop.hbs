@@ -133,7 +133,7 @@
             {{/if}}
 
             <div class="merchant-shop-stock">
-        {{#if hasShelves}}
+        {{#if hasInventories}}
                 {{!-- Which side of the counter you are on. It was a Sell button inside
                       the slate header, which put a control that changes what the *stock*
                       column shows into the panel that shows the result -- and left no
@@ -182,25 +182,25 @@
 
                 {{!-- The scrolling region starts here, below the search, so the
                       scrollbar does not run up behind a box that never moves. --}}
-                {{!-- The pack is a shelf. Same section, same header, same body, same
+                {{!-- The pack is an inventory. Same section, same header, same body, same
                       row partial -- so it inherits the card, the spacing and the
                       scrolling rather than reimplementing three of them slightly
                       differently, which is what it was doing and what looked wrong.
                       One list is showing at a time, so one container holds it. --}}
-                <div class="merchant-shop-shelves">
+                <div class="merchant-shop-inventories">
             {{#if sell.open}}
-            <section class="merchant-shop-section merchant-shop-shelf">
+            <section class="merchant-shop-section merchant-shop-inventory">
                 <h3>
                     <span><i class="fa-solid fa-hand-holding-dollar"></i> {{sell.title}}</span>
                     <span class="merchant-shop-head-actions">
-                        <button type="button" class="merchant-shop-shelf-add"
+                        <button type="button" class="merchant-shop-inventory-add"
                                 data-action="sortSell" data-tooltip="{{sell.sortTooltip}}">
                             <i class="{{sell.sortIcon}}"></i>
                         </button>
                         <span class="merchant-shop-count">{{sell.count}}</span>
                     </span>
                 </h3>
-                <div class="merchant-shop-shelf-body">
+                <div class="merchant-shop-inventory-body">
                     {{#if sell.hasItems}}
                         {{#each sell.groups}}
                             <div class="merchant-shop-category">
@@ -218,42 +218,42 @@
                 </div>
             </section>
             {{else}}
-            {{#each shelves}}
-                <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
+            {{#each inventories}}
+                <section class="merchant-shop-section merchant-shop-inventory{{#if hidden}} merchant-shop-inventory-hidden{{/if}}">
                     <h3>
-                        <span><img class="merchant-shop-shelf-icon" src="{{img}}" alt="">{{label}}</span>
+                        <span><img class="merchant-shop-inventory-icon" src="{{img}}" alt="">{{label}}</span>
                         <span class="merchant-shop-head-actions">
                             {{#if canToggle}}
                                 {{!-- GM only. The shop is where you are standing when
                                       you decide to bring the good stuff out. --}}
-                                <button type="button" class="merchant-shop-shelf-toggle{{#if hidden}} is-hidden{{/if}}"
-                                        data-action="toggleShelf" data-shelf-id="{{id}}"
+                                <button type="button" class="merchant-shop-inventory-toggle{{#if hidden}} is-hidden{{/if}}"
+                                        data-action="toggleInventory" data-inventory-id="{{id}}"
                                         data-tooltip="{{#if hidden}}Hidden from players — click to bring it out front{{else}}On display — click to put it away{{/if}}">
                                     <i class="fa-solid {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
                                     {{#if hidden}}Hidden{{else}}Shown{{/if}}
                                 </button>
                             {{/if}}
-                            {{#if isBarter}}
+                            {{#if isUnpricedInventory}}
                                 <span class="merchant-shop-hidden-tag" data-tooltip="No price until one is agreed at the table">
                                     <i class="fa-solid fa-comments"></i> Negotiate
                                 </span>
                             {{/if}}
                             {{#if canStock}}
-                                <button type="button" class="merchant-shop-shelf-add" data-action="restockShelf"
-                                        data-shelf-id="{{id}}"
+                                <button type="button" class="merchant-shop-inventory-add" data-action="restockInventory"
+                                        data-inventory-id="{{id}}"
                                         data-tooltip="Restock: bring it back to its quantities and roll its tables">
                                     <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
-                                <button type="button" class="merchant-shop-shelf-add" data-action="addToShelf" data-shelf-id="{{id}}"
-                                        data-tooltip="Search the compendiums — drag a result onto this shelf">
+                                <button type="button" class="merchant-shop-inventory-add" data-action="addToInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Search the compendiums — drag a result onto this inventory">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
                                 {{!-- Last, and the only one that asks first. Setting a
                                       count to zero says "sold out"; this says "take it
                                       all off and let me start again". --}}
-                                <button type="button" class="merchant-shop-shelf-add merchant-shop-shelf-clear"
-                                        data-action="clearShelf" data-shelf-id="{{id}}"
-                                        data-tooltip="Clear this shelf — take everything off it">
+                                <button type="button" class="merchant-shop-inventory-add merchant-shop-inventory-clear"
+                                        data-action="clearInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Clear this inventory — take everything off it">
                                     <i class="fa-solid fa-broom"></i>
                                 </button>
                             {{/if}}
@@ -261,9 +261,9 @@
                         </span>
                     </h3>
 
-                    {{!-- Drop target for the GM: drag stock straight onto the shelf
+                    {{!-- Drop target for the GM: drag stock straight onto the inventory
                           it belongs on. --}}
-                    <div class="merchant-shop-shelf-body"{{#if canStock}} data-drop-shelf="{{id}}"{{/if}}>
+                    <div class="merchant-shop-inventory-body"{{#if canStock}} data-drop-inventory="{{id}}"{{/if}}>
                         {{#if hasItems}}
                             {{#each categories}}
                                 <div class="merchant-shop-category">
@@ -277,7 +277,7 @@
                             {{/each}}
                         {{else}}
                             <div class="merchant-shop-empty">
-                                {{#if canStock}}Nothing on this shelf. Drag items here, or use the + above.{{else}}Nothing on this shelf.{{/if}}
+                                {{#if canStock}}Nothing on this inventory. Drag items here, or use the + above.{{else}}Nothing on this inventory.{{/if}}
                             </div>
                         {{/if}}
                     </div>
@@ -292,13 +292,13 @@
                 </div>
         {{else}}
             <section class="merchant-shop-section">
-                <div class="merchant-shop-empty">This merchant has no shelves set up.</div>
+                <div class="merchant-shop-empty">This merchant has no inventories set up.</div>
             </section>
         {{/if}}
             </div>{{!-- /stock --}}
         </div>{{!-- /main --}}
 
-            {{#if hasShelves}}
+            {{#if hasInventories}}
                 {{!-- One slate, two segments.
                       "Slate" rather than "cart": a slate is a running reckoning you
                       settle and then wipe, which is what this is and what a cart is

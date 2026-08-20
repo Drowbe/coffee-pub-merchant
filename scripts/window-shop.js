@@ -1,13 +1,14 @@
-// Imported by path, not resolved from `module.api`, and that is not an oversight —
-// see the note above the class.
-import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
-import { MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed } from './const.js';
+import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
+import {
+    MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased
+} from './const.js';
 import { startProgress } from './merchant-progress.js';
 import {
     resolvePrice, resolveBuybackPrice, formatBase, purseValue, planSettlement, toBase, fromBase,
     negotiatedPrice
 } from './merchant-pricing.js';
 import { hasExchange, isPhysical } from './merchant-inventory.js';
+import { resolveReputation } from './merchant-reputation.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
@@ -56,7 +57,7 @@ async function _enrich(text) {
  * Hide what does not match, and everything left holding nothing.
  *
  * Three levels, bottom up: a row matches or it does not; a category with no visible
- * row is a heading over nothing; a shelf with no visible category is a section over
+ * row is a heading over nothing; an inventory with no visible category is a section over
  * nothing. Collapsing all three is what stops a search returning one potion under
  * five empty headings.
  *
@@ -77,10 +78,10 @@ export function filterShopList(root, query) {
 
     let visibleTotal = 0;
 
-    for (const shelf of root.querySelectorAll('.merchant-shop-shelf')) {
-        let shelfVisible = 0;
+    for (const inventory of root.querySelectorAll('.merchant-shop-inventory')) {
+        let inventoryVisible = 0;
 
-        for (const category of shelf.querySelectorAll('.merchant-shop-category')) {
+        for (const category of inventory.querySelectorAll('.merchant-shop-category')) {
             let categoryVisible = 0;
             for (const row of category.querySelectorAll('.merchant-shop-item')) {
                 const hit = !needle || (row.dataset.search ?? '').includes(needle);
@@ -88,23 +89,23 @@ export function filterShopList(root, query) {
                 if (hit) categoryVisible++;
             }
             category.hidden = categoryVisible === 0;
-            shelfVisible += categoryVisible;
+            inventoryVisible += categoryVisible;
         }
 
-        // An empty shelf keeps its "nothing on this shelf" line when nobody is
+        // An empty inventory keeps its "nothing on this inventory" line when nobody is
         // searching, and gets out of the way when somebody is.
-        const empty = shelf.querySelector('.merchant-shop-empty');
+        const empty = inventory.querySelector('.merchant-shop-empty');
         if (empty) empty.hidden = Boolean(needle);
 
-        shelf.hidden = Boolean(needle) && shelfVisible === 0;
-        visibleTotal += shelfVisible;
+        inventory.hidden = Boolean(needle) && inventoryVisible === 0;
+        visibleTotal += inventoryVisible;
 
         // The badge counts what is in front of you, and remembers the real total so
         // clearing the search puts it back.
-        const count = shelf.querySelector('.merchant-shop-count');
+        const count = inventory.querySelector('.merchant-shop-count');
         if (count) {
             count.dataset.total ??= count.textContent.trim();
-            count.textContent = needle ? String(shelfVisible) : count.dataset.total;
+            count.textContent = needle ? String(inventoryVisible) : count.dataset.total;
         }
     }
 
@@ -115,22 +116,18 @@ export function filterShopList(root, query) {
 }
 
 /**
- * **The base class comes in by path, and `module.api` is not an option here.**
+ * **The base class comes from the bridge, which is the supported path.**
  *
- * `api-window.md` says the classes are the contract and the paths are not, and to
- * resolve a base class from `module.api` at module top level. That advice cannot
- * work for a class you `extends`: Foundry evaluates module scripts before `game`
- * exists, so `game.modules.get(...)` throws — and ESM caches the failed evaluation,
- * so the throw kills Merchant for the whole session rather than being retried.
- * Tried, seen, reverted 2026-08-19.
+ * `api/blacksmith-api.js` re-exports both window bases precisely so a subclass can
+ * `extends` one at module scope. It is a real ESM module, so it resolves at
+ * evaluation, when `game` does not yet exist.
  *
- * Two patterns in the suite work. Curator imports the path, as here, in three files.
- * Squire resolves from `module.api` and then **dynamically imports** the window
- * module at the point of use, by which time the API is published. The second is the
- * one that honours the documented contract, and it is a real change rather than an
- * import swap: every static import of this file would have to become a lazy one.
- *
- * So the coupling stands, deliberately, and is recorded in `TODO.md`.
+ * The obvious-looking alternative does not work and is worth knowing about: resolving
+ * the class from `module.api` at module top level throws, because module scripts are
+ * evaluated before `game` — and ESM caches a failed evaluation, so the throw kills
+ * the module for the whole session rather than being retried. `api-window.md` used to
+ * recommend exactly that; Merchant broke a live world on it, Blacksmith fixed the doc
+ * and added the re-exports on 2026-08-19, and this is the result.
  */
 export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // One window per token, and the registry behind that, are the base class's:
@@ -215,7 +212,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
 
-        toggleShelf: (_event, target, win) => void win.toggleShelf(target.dataset.shelfId),
+        toggleInventory: (_event, target, win) => void win.toggleInventory(target.dataset.inventoryId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
         showBuy: (_event, _target, win) => win.showSide(false),
         showSell: (_event, _target, win) => win.showSide(true),
@@ -226,10 +223,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         clearAll: (_event, _target, win) => void win.clearAll(),
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
-        addToShelf: (_event, _target, win) => void win.openCompendiumSearch(),
+        addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
         switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
-        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
-        clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
+        restockInventory: (_event, target, win) => void win.restockInventory(target.dataset.inventoryId),
+        clearInventory: (_event, target, win) => void win.clearInventory(target.dataset.inventoryId),
         removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
     };
 
@@ -266,7 +263,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * Refresh every open shop for one merchant, wherever its tokens are.
      *
-     * Shelf changes are Actor-level, and a merchant can have tokens on several
+     * Inventory changes are Actor-level, and a merchant can have tokens on several
      * scenes, so keying the refresh on a single token would miss the others.
      */
     static async refreshForActor(actorUuid) {
@@ -278,6 +275,30 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     async _resolveToken() {
         return fromUuid(this.tokenUuid);
+    }
+
+    /**
+     * The party's standing here, as a multiplier, resolved **once per render**.
+     *
+     * The band comes from an async fetch and a price list is a hundred rows, so
+     * looking it up per price would be a promise per row and a list that resolved in
+     * a different order than it drew. Held on the window and read synchronously by
+     * everything that prices anything.
+     *
+     * The token's scene, not the viewer's: reputation is per scene, and a GM looking
+     * at another map must not see different prices from the players standing in the
+     * shop.
+     */
+    async _refreshReputation() {
+        const token = await this._resolveToken();
+        const config = MerchantManager.getConfig(token?.actor);
+        this._reputation = await resolveReputation(token?.parent, config?.pricing?.reputation);
+        return this._reputation;
+    }
+
+    /** The last resolved multiplier. 1 until the first render says otherwise. */
+    get reputation() {
+        return this._reputation ?? 1;
     }
 
     // ==============================================================
@@ -440,7 +461,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * How many of this a buyer may ask for.
      *
-     * On an infinite shelf that is the slider cap; on a finite one it is what is left
+     * On an infinite inventory that is the slider cap; on a finite one it is what is left
      * **after what the cart already holds**, so no dialog offers a quantity that would
      * make the eventual checkout fail.
      *
@@ -503,7 +524,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * The seller's own goods, as shop rows.
      *
-     * Deliberately the *same* row partial the shelves use: a thing you are selling and
+     * Deliberately the *same* row partial the inventories use: a thing you are selling and
      * a thing you are buying are both a picture, a name, a price and a way to put it on
      * the slate, and giving them two layouts would be inventing a difference that is
      * not there. `addAction` is the only thing that changes.
@@ -543,10 +564,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
                     searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
                     offer: offer ?? -1,
-                    // A negotiate-shelf price is not published, and neither is an offer
+                    // A negotiate-inventory price is not published, and neither is an offer
                     // for something nobody has priced yet. TBD says the same thing here.
                     priceLabel: offer === null ? null : formatBase(offer),
-                    isBarter: offer === null,
+                    isUnpricedInventory: offer === null,
                     negotiateTooltip: null,
                     qtyLabel: String(left),
                     qtyTooltip: promised
@@ -905,6 +926,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * refusal rather than a question.
      */
     async settle() {
+        // The slate was priced at the last render, and reputation can have moved
+        // since. Cheap — the band is cached — and it keeps the affordability check
+        // below arguing about the same numbers the GM is about to.
+        await this._refreshReputation();
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
         if (!cart.length && !basket.length) {
             notify.info('There is nothing on the slate yet.');
@@ -992,15 +1017,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 this.cart.delete(itemId);
                 continue;
             }
-            const shelf = MerchantManager.getShelfFor(merchant, item);
+            const inventory = MerchantManager.getInventoryFor(merchant, item);
             // An unpriced line stays, showing as not yet agreed. Dropping it would
-            // make adding something from a negotiate shelf look like nothing
+            // make adding something from a negotiate inventory look like nothing
             // happened, which is the opposite of asking about it.
-            const unit = resolvePrice(config, MerchantManager.getShelfConfig(shelf), item);
+            const unit = resolvePrice(config, MerchantManager.getInventoryConfig(inventory), item, { reputation: this.reputation });
 
             // Stock sold out from under a standing cart trims the line rather than
             // failing the whole checkout. A line trimmed to nothing drops out.
-            const stock = MerchantManager.getStock(merchant, item, MerchantManager.getShelfConfig(shelf));
+            const stock = MerchantManager.getStock(merchant, item, MerchantManager.getInventoryConfig(inventory));
             const held = stock.unlimited ? quantity : Math.min(quantity, stock.available);
             if (held < 1) {
                 this.cart.delete(itemId);
@@ -1022,13 +1047,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * The buyback shelf, or null when this merchant does not buy anything.
+     * The buyback inventory, or null when this merchant does not buy anything.
      *
-     * That shelf existing *is* "this shop buys things"; there is no separate setting.
+     * That inventory existing *is* "this shop buys things"; there is no separate setting.
      */
     _buyback(merchant) {
-        return MerchantManager.getShelves(merchant, { includeHidden: true })
-            .find(({ config }) => config.mode === 'buyback') ?? null;
+        return MerchantManager.getInventories(merchant, { includeHidden: true })
+            .find(({ config }) => isPurchased(config.type)) ?? null;
     }
 
     /**
@@ -1037,7 +1062,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * Two different facts, and which is missing changes what the GM should do. An
      * agreed price is a decision already taken and worth repeating back. A book price
      * is an anchor to haggle against. Neither is a thing to show a player: the whole
-     * point of the shelf is that the number is not published.
+     * point of the inventory is that the number is not published.
      */
     _negotiateHint(merchantConfig, item, agreedPrice) {
         const agreed = negotiatedPrice(merchantConfig, item?.id);
@@ -1054,7 +1079,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
         if (!this._wouldTake(item)) return null;
-        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item);
+        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation });
     }
 
     /**
@@ -1220,12 +1245,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // repair the state by hand.
             case 'SOURCE_UPDATE_FAILED': return 'The stock could not be reduced, so the goods were put back.';
             case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
-            case 'CONTAINER_NOT_FOUND': return 'That shelf no longer exists.';
+            case 'CONTAINER_NOT_FOUND': return 'That inventory no longer exists.';
             case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
             case 'NOT_NEGOTIATED': return result?.itemName
                 ? `No price has been agreed for ${result.itemName}.`
                 : 'No price has been agreed for one of those.';
-            case 'NO_BUYBACK_SHELF': return 'This merchant does not buy anything.';
+            case 'NO_PURCHASED_INVENTORY': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
             case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
@@ -1250,6 +1275,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         _partialsReady ??= foundry.applications.handlebars.loadTemplates([ROW_PARTIAL, LINE_PARTIAL]);
         await _partialsReady;
 
+        // Before anything is priced, and before the slate lines are built from it.
+        await this._refreshReputation();
+
         const token = await this._resolveToken();
         const merchant = token?.actor;
         const missing = !token || !merchant;
@@ -1261,9 +1289,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const config = missing ? null : MerchantManager.getConfig(merchant);
         const hours = missing ? null : MerchantManager.getHours(merchant);
 
-        // One section per shelf. A GM sees hidden shelves too, marked as such; a
+        // One section per inventory. A GM sees hidden inventories too, marked as such; a
         // player is never sent their contents at all.
-        let shelves = [];
+        let inventories = [];
         if (!missing) {
             const busyRow = this._busy?.row ?? null;
             const isGM = game.user.isGM;
@@ -1274,12 +1302,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             const trading = MerchantManager.isOpen(merchant) || isGM;
             const config0 = MerchantManager.getConfig(merchant);
 
-            shelves = MerchantManager.getShelves(merchant, { includeHidden: isGM }).map(({ item: shelf, config }) => {
-                const isBarter = config.mode === 'barter';
-                const contents = MerchantManager.getShelfContents(merchant, shelf).map((item) => {
-                    const price = resolvePrice(config0, config, item);
+            inventories = MerchantManager.getInventories(merchant, { includeHidden: isGM }).map(({ item: inventory, config }) => {
+                const isUnpricedInventory = isUnpriced(config.type);
+                const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
+                    const price = resolvePrice(config0, config, item, { reputation: this.reputation });
                     const stock = MerchantManager.getStock(merchant, item, config);
-                    // What the cart holds is spoken for, so the shelf shows what is
+                    // What the cart holds is spoken for, so the inventory shows what is
                     // still available to take rather than what is physically there.
                     const held = cart.get(item.id) ?? 0;
                     const left = stock.unlimited ? Infinity : Math.max(0, stock.available - held);
@@ -1301,18 +1329,18 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
                         busy: item.id === busyRow,
                         price,
-                        // **A negotiate shelf never shows a figure**, not even once a
+                        // **A negotiate inventory never shows a figure**, not even once a
                         // price has been agreed. The agreement is between the GM and
                         // whoever is standing there; putting it in the price column
                         // publishes it to the next player who opens the shop, and turns
-                        // a shelf that exists in order not to have prices into one that
+                        // an inventory that exists in order not to have prices into one that
                         // quietly accumulates them.
-                        priceLabel: isBarter || price === null ? null : formatBase(price),
+                        priceLabel: isUnpricedInventory || price === null ? null : formatBase(price),
                         // The GM needs an anchor to haggle against, and it is the one
                         // thing they cannot see once the column is blank. Players get
                         // nothing here at all -- a tooltip saying what it is worth is
-                        // exactly the number a negotiate shelf is withholding.
-                        negotiateTooltip: isGM && isBarter
+                        // exactly the number a negotiate inventory is withholding.
+                        negotiateTooltip: isGM && isUnpricedInventory
                             ? this._negotiateHint(config0, item, price)
                             : null,
                         // Unlimited reads as a symbol; anything else is a number in
@@ -1327,7 +1355,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         outOfStock: out && !allInCart,
                         reserved: allInCart,
                         // A GM sets the count by hand here, and that also sets what a
-                        // restocking shelf refills to.
+                        // restocking inventory refills to.
                         canEditStock: isGM && !stock.unlimited,
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
@@ -1337,21 +1365,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                             : out ? 'Out of stock'
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
-                            : (price === null && isBarter) ? 'Add to the slate and agree a price'
+                            : (price === null && isUnpricedInventory) ? 'Add to the slate and agree a price'
                             : price === null ? 'This has no price set'
                             : 'Add to the slate',
                         // A negotiate row has no price *yet*, which is not the same
                         // as having none. It goes on the slate at TBD and settling
                         // is what waits for the number.
-                        canCart: trading && Boolean(recipient) && inStock && (isBarter || price !== null),
+                        canCart: trading && Boolean(recipient) && inStock && (isUnpricedInventory || price !== null),
                         // Setting a quantity to zero says "sold out"; this says "we do
                         // not carry that". Different statements, so different controls.
                         canRemove: isGM,
-                        isBarter
+                        isUnpricedInventory
                     };
                 });
 
-                // Grouped by kind within the shelf. A storefront with forty rows is
+                // Grouped by kind within the inventory. A storefront with forty rows is
                 // a wall of text otherwise.
                 const categories = ITEM_CATEGORIES
                     .map((category) => ({
@@ -1365,13 +1393,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 if (other.length) categories.push({ type: 'other', label: 'Other', icon: 'fa-solid fa-question', items: other });
 
                 return {
-                    id: shelf.id,
-                    label: shelf.name,
-                    img: shelf.img,
+                    id: inventory.id,
+                    label: inventory.name,
+                    img: inventory.img,
                     hidden: config.visible === false,
                     canToggle: isGM,
                     canStock: isGM,
-                    isBarter,
+                    isUnpricedInventory,
                     categories,
                     count: contents.length,
                     hasItems: contents.length > 0
@@ -1400,8 +1428,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             description: descriptionHtml,
             hasDescription: Boolean(descriptionHtml),
             portraitImg: merchant?.img ?? 'icons/svg/mystery-man.svg',
-            shelves,
-            hasShelves: shelves.length > 0,
+            inventories,
+            hasInventories: inventories.length > 0,
             isGM: game.user.isGM,
             isOpen: missing ? false : MerchantManager.isOpen(merchant),
             // A shop open every hour has no hours worth printing; "midnight to
@@ -1463,14 +1491,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             basketCount: basketLines.length,
             hasBasket: basketLines.length > 0,
             basketTotalLabel: formatBase(basketTotal),
-            // The buyback shelf existing is what "this shop buys things" means.
+            // The buyback inventory existing is what "this shop buys things" means.
             canSell: !missing && Boolean(this._buyback(merchant)),
             sellTooltip: !recipient
                 ? 'You have no character able to sell'
                 : 'Choose something to sell',
             sellEnabled: !missing && Boolean(recipient)
                 && (MerchantManager.isOpen(merchant) || game.user.isGM)
-                && MerchantManager.getShelves(merchant, { includeHidden: true }).some(({ config }) => config.mode === 'buyback'),
+                && MerchantManager.getInventories(merchant, { includeHidden: true }).some(({ config }) => isPurchased(config.type)),
             // Shown so a GM is never puzzled by a shop that disagrees with its own
             // schedule; the next boundary will set it straight.
             overridden: !missing && game.user.isGM && MerchantManager.isOverridden(merchant),
@@ -1528,7 +1556,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     getToolHeaderActions() {
         // Refresh is for everyone. Nothing watches the merchant's items, so a GM
-        // restocking a shelf does not push anything to a player already looking at
+        // restocking an inventory does not push anything to a player already looking at
         // the shop.
         const actions = [{
             id: 'merchant-refresh',
@@ -1562,28 +1590,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Bring a shelf out front, or put it away, from the shop itself — which is where
+     * Bring an inventory out front, or put it away, from the shop itself — which is where
      * a GM is standing when they decide to. The config window is for setting a shop
      * up; this is for running one.
      */
-    async toggleShelf(shelfId) {
+    async toggleInventory(inventoryId) {
         if (!game.user.isGM) return;
         const token = await this._resolveToken();
         const merchant = token?.actor;
-        const config = MerchantManager.getShelfConfig(merchant?.items?.get(shelfId));
+        const config = MerchantManager.getInventoryConfig(merchant?.items?.get(inventoryId));
         if (!config) return;
         try {
-            await MerchantManager.setShelfVisible(merchant, shelfId, config.visible === false);
+            await MerchantManager.setInventoryVisible(merchant, inventoryId, config.visible === false);
             // Players with the shop open gain or lose a whole section, so tell them.
             MerchantManager._broadcastRefresh(this.tokenUuid);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not change that shelf:`, error);
-            notify.error('Could not change that shelf.');
+            console.error(`${MODULE.TITLE} | Could not change that inventory:`, error);
+            notify.error('Could not change that inventory.');
         }
     }
 
     /**
-     * Each shelf is a drop target, so a GM can drag stock straight onto the shelf it
+     * Each inventory is a drop target, so a GM can drag stock straight onto the inventory it
      * belongs on — from a compendium, the sidebar, or another sheet.
      */
     _onRender(context, options) {
@@ -1605,7 +1633,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this._bindSearch();
         this._bindSellSearch();
         this._bindSellDrop();
-        // Re-applied after every render, because a refresh, a GM stocking a shelf, or
+        // Re-applied after every render, because a refresh, a GM stocking an inventory, or
         // another player's purchase all rebuild the list underneath a standing search.
         this._applyFilter();
 
@@ -1616,10 +1644,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         this._bindItemSheets();
 
-        for (const zone of this.element?.querySelectorAll('[data-drop-shelf]') ?? []) {
+        for (const zone of this.element?.querySelectorAll('[data-drop-inventory]') ?? []) {
             if (zone.dataset.merchantBound === 'true') continue;
             zone.dataset.merchantBound = 'true';
-            const shelfId = zone.getAttribute('data-drop-shelf');
+            const inventoryId = zone.getAttribute('data-drop-inventory');
 
             zone.addEventListener('dragover', (event) => {
                 event.preventDefault();
@@ -1629,7 +1657,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             zone.addEventListener('drop', (event) => {
                 event.preventDefault();
                 zone.classList.remove('is-dropping');
-                void this._onDropToShelf(event, shelfId);
+                void this._onDropToInventory(event, inventoryId);
             });
         }
     }
@@ -1661,7 +1689,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * points at when they mean "that one", so it gets the same card -- reaching past a
      * 32-pixel icon to a truncated name is a worse gesture than either.
      *
-     * Three families, from two different Actors: the shelves and the buying side of
+     * Three families, from two different Actors: the inventories and the buying side of
      * the slate are the merchant's items; the selling side is the shopper's own.
      */
     async _applyItemTooltips() {
@@ -1710,7 +1738,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * already the part of the row that means "this item" rather than "this row" --
      * which makes it the honest place to put the way in. A GM who wants to fix a
      * price, edit a description or check what a rolled result actually is otherwise
-     * has to leave the shop, open the Actor, and find the shelf it is sitting in.
+     * has to leave the shop, open the Actor, and find the inventory it is sitting in.
      *
      * **GM only, and enforced by not binding it** rather than by refusing inside the
      * handler: a player has no permission on a shopkeeper's items, so the sheet would
@@ -1718,7 +1746,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * is not there. The cursor changes only where the click works, so the affordance
      * and the permission are the same fact.
      *
-     * Both families, from both Actors: the shelves and the buying side are the
+     * Both families, from both Actors: the inventories and the buying side are the
      * merchant's, the selling side is the shopper's.
      */
     _bindItemSheets() {
@@ -1755,7 +1783,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      *
      * Adding something to the cart re-renders, which replaces the markup and takes
      * the scroll position with it — so a player who scrolled to the bottom of a long
-     * shelf and pressed Add was thrown back to the top and had to find their place
+     * inventory and pressed Add was thrown back to the top and had to find their place
      * again for every single item.
      *
      * Recorded on scroll rather than captured before each render, because a render
@@ -1765,7 +1793,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _keepScroll() {
         this._scroll ??= {};
         for (const [key, selector] of [
-            ['stock', '.merchant-shop-shelves'],
+            ['stock', '.merchant-shop-inventories'],
             ['cart', '.merchant-shop-cart-body']
         ]) {
             const region = this.element?.querySelector(selector);
@@ -1938,8 +1966,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // re-typing it, so say what happened and where the limit lives.
             if (result?.clamped) {
                 notify.info(
-                    `This shelf holds at most ${result.maxPerItem} of any one thing, so that is ${result.value}. `
-                    + 'Raise the shelf’s "each" limit in Merchant Settings to keep more.'
+                    `This inventory holds at most ${result.maxPerItem} of any one thing, so that is ${result.value}. `
+                    + 'Raise the inventory’s "each" limit in Merchant Settings to keep more.'
                 );
             }
             playFeedback(SOUND.SLATE_UPDATE);
@@ -2022,7 +2050,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * be sold, so the cart already knows which way a drop goes. Asking the user to aim
      * at the right half was asking them to state something the panel could work out.
      *
-     * Not GM-only, unlike the shelf drop zones: selling is the one thing in this
+     * Not GM-only, unlike the inventory drop zones: selling is the one thing in this
      * window a player does with their own possessions. Foundry's drag payload carries
      * a uuid, so the item is resolved rather than reconstructed from the sheet it came
      * from — `fromUuid` already knows how to read `Actor.x.Item.y`.
@@ -2064,20 +2092,20 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Restock a shelf from the shop itself.
+     * Restock an inventory from the shop itself.
      *
      * The same act as the button in Merchant Settings, put where a GM already is when
-     * they notice a shelf is bare. A press is deliberate, so every table on the shelf
+     * they notice an inventory is bare. A press is deliberate, so every table on the inventory
      * rolls — the reroll flag governs the clock, not the button.
      */
     /**
-     * Take something off a shelf for good.
+     * Take something off an inventory for good.
      *
      * Not the same as setting it to zero: zero is a shop that has sold out of
-     * something it carries, and a restocking shelf brings it back. This is the shelf
+     * something it carries, and a restocking inventory brings it back. This is the inventory
      * no longer carrying it.
      *
-     * **No confirmation.** Putting something back on a shelf is a drag, so a prompt
+     * **No confirmation.** Putting something back on an inventory is a drag, so a prompt
      * here charges every removal for a mistake that costs seconds to undo — and a
      * dialog that always says yes is one people stop reading.
      *
@@ -2088,7 +2116,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async removeStock(itemId) {
         if (!game.user.isGM) return;
 
-        // Clicking down a shelf faster than it re-renders sends the same id twice: the
+        // Clicking down an inventory faster than it re-renders sends the same id twice: the
         // row is still on screen because the render that would have removed it has not
         // landed yet. The second delete then reaches a document the first one already
         // took, and Foundry answers `Item "..." does not exist!` -- a server round trip
@@ -2127,76 +2155,76 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async restockShelf(shelfId) {
+    async restockInventory(inventoryId) {
         const token = await this._resolveToken();
         const merchant = token?.actor;
         if (!merchant) return;
 
-        const shelfName = merchant.items.get(shelfId)?.name ?? 'the shelf';
+        const inventoryName = merchant.items.get(inventoryId)?.name ?? 'the inventory';
         const bar = startProgress(
-            MerchantManager.restockWorkUnits(merchant, shelfId, { force: true }),
-            `Restocking ${shelfName}`
+            MerchantManager.restockWorkUnits(merchant, inventoryId, { force: true }),
+            `Restocking ${inventoryName}`
         );
         try {
-            const filled = await MerchantManager.restockShelf(merchant, shelfId, {
+            const filled = await MerchantManager.restockInventory(merchant, inventoryId, {
                 force: true,
                 onStep: (message) => bar.step(message)
             });
             if (filled) playFeedback(SOUND.RESTOCK);
             bar.finish(filled
-                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
-                : `${shelfName} had nothing to restock.`);
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${inventoryName}.`
+                : `${inventoryName} had nothing to restock.`);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
-            bar.finish('Could not restock that shelf.');
-            notify.error('Could not restock that shelf.');
+            console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
+            bar.finish('Could not restock that inventory.');
+            notify.error('Could not restock that inventory.');
         }
     }
 
     /**
-     * Take everything off a shelf.
+     * Take everything off an inventory.
      *
      * **Confirmed, unlike removing one row.** A single item is easy to put back, which
-     * is why that one has no prompt; a shelf is nineteen of them and a table roll to
+     * is why that one has no prompt; an inventory is nineteen of them and a table roll to
      * get them, so the scale is what earns the question.
      */
-    async clearShelf(shelfId) {
+    async clearInventory(inventoryId) {
         if (!game.user.isGM) return;
         const token = await this._resolveToken();
         const merchant = token?.actor;
-        const shelf = merchant?.items?.get(shelfId);
-        if (!shelf) return;
+        const inventory = merchant?.items?.get(inventoryId);
+        if (!inventory) return;
 
-        const count = MerchantManager.getShelfContents(merchant, shelf).length;
+        const count = MerchantManager.getInventoryContents(merchant, inventory).length;
         if (!count) {
-            notify.info(`${shelf.name} is already empty.`);
+            notify.info(`${inventory.name} is already empty.`);
             return;
         }
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.confirm === 'function') {
             const confirmed = await blacksmith.dialog.confirm({
-                title: 'Clear Shelf',
+                title: 'Clear Inventory',
                 classes: ['merchant-dialog'],
                 content: `<p>Take all ${count} item${count === 1 ? '' : 's'} off `
-                    + `<strong>${shelf.name}</strong>.</p>`
-                    + '<p>The shelf itself stays, with everything it is set to. This cannot be undone.</p>',
-                confirmLabel: 'Clear Shelf',
+                    + `<strong>${inventory.name}</strong>.</p>`
+                    + '<p>The inventory itself stays, with everything it is set to. This cannot be undone.</p>',
+                confirmLabel: 'Clear Inventory',
                 confirmIcon: 'fa-solid fa-broom'
             });
             if (!confirmed) return;
         }
 
         try {
-            const cleared = await MerchantManager.clearShelf(merchant, shelfId);
-            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+            const cleared = await MerchantManager.clearInventory(merchant, inventoryId);
+            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${inventory.name}.`);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
-            notify.error('Could not clear that shelf.');
+            console.error(`${MODULE.TITLE} | Could not clear that inventory:`, error);
+            notify.error('Could not clear that inventory.');
         }
     }
 
-    async _onDropToShelf(event, shelfId) {
+    async _onDropToInventory(event, inventoryId) {
         let data = null;
         try {
             data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
@@ -2211,12 +2239,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!merchant) return;
 
         try {
-            const result = await MerchantManager.addToShelf(merchant, shelfId, data.uuid);
+            const result = await MerchantManager.addToInventory(merchant, inventoryId, data.uuid);
             if (result?.ok) MerchantManager._broadcastRefresh(this.tokenUuid);
             else notify.error(this._explain(result?.code, result));
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not add that to the shelf:`, error);
-            notify.error('Could not add that to the shelf.');
+            console.error(`${MODULE.TITLE} | Could not add that to the inventory:`, error);
+            notify.error('Could not add that to the inventory.');
         }
         await this.render(false);
     }
@@ -2232,7 +2260,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      *
      * Merchant had its own for a day. Theirs is better — type filter, results
      * grouped by source, timing and a "more available" count — and its result rows
-     * are draggable with a `{ type, uuid }` payload, which is exactly what the shelf
+     * are draggable with a `{ type, uuid }` payload, which is exactly what the inventory
      * drop targets already read. So the search is theirs and the targeting is the
      * drag, and there is no second search to keep working.
      */

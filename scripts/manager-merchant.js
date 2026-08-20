@@ -7,7 +7,8 @@
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
-    DEFAULT_TILL, SHELF_FLAG, SHELF_MODE, SHELF_PRESETS, isScheduledOpen, hourAt, secondsPerDay
+    DEFAULT_TILL, INVENTORY_FLAG, LEGACY_INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
+    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -18,8 +19,18 @@ import {
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './merchant-feedback.js';
+import { resolveReputation, watchReputation } from './merchant-reputation.js';
 
 const CONTEXT = 'merchant-interaction';
+
+/**
+ * The inventory schema this build writes.
+ *
+ * Bumped when stored shape changes in a way that needs moving rather than reading
+ * around. 1 was untyped shelves; 2 is typed inventories. Stamped per merchant by
+ * `migrateWorld`.
+ */
+const SCHEMA_VERSION = 2;
 
 export class MerchantManager {
     static _interactionId = null;
@@ -30,6 +41,11 @@ export class MerchantManager {
         this._registerRefreshListener();
         this._registerScheduleWatcher();
         this._registerStockWatcher();
+        // Every client, because every client is showing prices. Blacksmith emits the
+        // change to all of them, so this needs no GM gate and no broadcast of ours.
+        watchReputation(() => {
+            for (const win of ShopWindow.openWindows()) void win.render(false);
+        });
     }
 
     static teardown() {
@@ -68,7 +84,6 @@ export class MerchantManager {
             // Free text, GM-authored, optional. Enriched when shown, so a GM can put
             // a journal link or an inline roll in it.
             description: '',
-            stock: STOCK.INFINITE,
             // Open for business. A closed shop still opens for browsing — you can
             // look through the window — but nothing changes hands.
             // Only consulted when there is no schedule. With one, the schedule
@@ -78,7 +93,12 @@ export class MerchantManager {
             // `{ open, against }` — what the GM chose, and what the schedule said at
             // the moment they chose it. Null when they have not overruled anything.
             override: null,
-            pricing: { markup: 1.0, overrides: {} }
+            // `markup` is the shop's baseline — an expensive quarter, or the middle of
+            // nowhere — and every inventory multiplies against it rather than
+            // replacing it. `reputation` opts into the party's standing moving prices
+            // at all: off by default, because a shop whose prices move for a reason
+            // the GM never chose is a mystery.
+            pricing: { markup: 1.0, reputation: false, overrides: {} }
         };
     }
 
@@ -266,106 +286,209 @@ export class MerchantManager {
     // ==============================================================
     // ===== SHELVES ================================================
     // ==============================================================
-    // Stock is what sits on a shelf. Everything else on the Actor is the
+    // Stock is what sits on an inventory. Everything else on the Actor is the
     // shopkeeper's own gear and is never for sale — which is the whole reason
-    // shelves exist rather than treating every physical item as stock.
+    // inventories exist rather than treating every physical item as stock.
 
-    static getShelfConfig(item) {
-        return item?.getFlag(MODULE.ID, SHELF_FLAG) ?? null;
+    /**
+     * An inventory's configuration, with its type guaranteed.
+     *
+     * `migrateWorld` rewrites everything at load, so the derivation below is a belt
+     * for its braces: a world whose GM has not logged in since the rename, a
+     * container copied in from another world, or an inventory a macro made by hand
+     * still reads as *something* rather than as a shop with no settings.
+     *
+     * The derivation is not a guess — each of these was the only way that state could
+     * be expressed before types existed.
+     */
+    static getInventoryConfig(item) {
+        const stored = item?.getFlag(MODULE.ID, INVENTORY_FLAG)
+            ?? item?.getFlag(MODULE.ID, LEGACY_INVENTORY_FLAG)
+            ?? null;
+        if (!stored) return null;
+        if (INVENTORY_TYPES[stored.type]) return stored;
+        return { ...stored, type: this.deriveInventoryType(stored) };
     }
 
-    static isShelf(item) {
-        return item?.type === 'container' && Boolean(this.getShelfConfig(item));
+    /** What an inventory configured before types must have meant. */
+    static deriveInventoryType(config) {
+        if (config?.mode === 'buyback') return INVENTORY_TYPE.PURCHASED;
+        if (config?.mode === 'barter') return INVENTORY_TYPE.UNPRICED;
+        if (config?.visible === false) return INVENTORY_TYPE.HIDDEN;
+        const markup = Number(config?.markup);
+        if (Number.isFinite(markup) && markup > 1) return INVENTORY_TYPE.PREMIUM;
+        if (Number.isFinite(markup) && markup > 0 && markup < 1) return INVENTORY_TYPE.DISCOUNTED;
+        return INVENTORY_TYPE.GENERAL;
     }
 
-    /** Shelves in display order. Hidden ones are omitted unless asked for. */
-    static getShelves(actor, { includeHidden = false } = {}) {
+    static isInventory(item) {
+        return item?.type === 'container' && Boolean(this.getInventoryConfig(item));
+    }
+
+    /** The inventory the shop buys into, or null when this merchant buys nothing. */
+    static getPurchasedInventory(actor) {
+        return this.getInventories(actor, { includeHidden: true })
+            .find(({ config }) => isPurchased(config.type)) ?? null;
+    }
+
+    // ==============================================================
+    // ===== MIGRATION ==============================================
+    // ==============================================================
+
+    /**
+     * Move every inventory onto the new flag, once.
+     *
+     * Shelves became inventories with a type, and the stored key moved with the word:
+     * one vocabulary in the interface and another in the data is how the two drift
+     * apart. That rename would orphan every shop already configured, so this walks
+     * them over.
+     *
+     * **GM-only, and idempotent.** It stamps a schema version on the Actor, so a
+     * second GM logging in does not repeat the work, and a shop already migrated is
+     * skipped rather than rewritten. The old flag is deleted in the same update as the
+     * new one is written, so there is never a moment with two truths on one container.
+     *
+     * One write per Actor, batched over its items: two writes to one Actor is the
+     * shape that trips dnd5e's encumbrance recompute, and a migration touching every
+     * merchant in a world is exactly where that would show up.
+     */
+    static async migrateWorld() {
+        if (!game.user.isGM) return 0;
+
+        let migrated = 0;
+        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+            if (this.getConfig(actor)?.schema >= SCHEMA_VERSION) continue;
+
+            const updates = [];
+            for (const item of actor.items) {
+                const legacy = item.getFlag(MODULE.ID, LEGACY_INVENTORY_FLAG);
+                if (!legacy) continue;
+
+                const config = { ...legacy, type: this.deriveInventoryType(legacy) };
+                // `mode` was what the code branched on and the type has taken that
+                // job. Left behind it would be a second, staler answer to the same
+                // question.
+                delete config.mode;
+
+                updates.push({
+                    _id: item.id,
+                    [`flags.${MODULE.ID}.${INVENTORY_FLAG}`]: config,
+                    [`flags.${MODULE.ID}.-=${LEGACY_INVENTORY_FLAG}`]: null
+                });
+            }
+
+            try {
+                if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
+                // Stamped even when nothing moved, so a merchant with no inventories
+                // is not re-examined at every load for the rest of its life.
+                await this.setConfig(actor, { schema: SCHEMA_VERSION });
+                migrated += updates.length;
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not migrate ${actor.name}:`, error);
+            }
+        }
+
+        if (migrated) {
+            console.log(`${MODULE.TITLE} | Migrated ${migrated} inventor${migrated === 1 ? 'y' : 'ies'} to the typed schema.`);
+        }
+        return migrated;
+    }
+
+    /** Inventories in display order. Hidden ones are omitted unless asked for. */
+    static getInventories(actor, { includeHidden = false } = {}) {
         if (!actor) return [];
         return actor.items
-            .filter((item) => this.isShelf(item))
-            .filter((item) => includeHidden || this.getShelfConfig(item).visible !== false)
-            .map((item) => ({ item, config: this.getShelfConfig(item) }))
+            .filter((item) => this.isInventory(item))
+            .filter((item) => includeHidden || this.getInventoryConfig(item).visible !== false)
+            .map((item) => ({ item, config: this.getInventoryConfig(item) }))
             // Preset order first, then by name — which is the container's name,
-            // because that is the only name a shelf has.
+            // because that is the only name an inventory has.
             .sort((a, b) => (a.config.order ?? 0) - (b.config.order ?? 0)
                 || String(a.item.name).localeCompare(String(b.item.name)));
     }
 
     /**
-     * What is on a shelf.
+     * What is on an inventory.
      *
-     * Shelves are excluded, not merely containers. A container *is* physical and is
+     * Inventories are excluded, not merely containers. A container *is* physical and is
      * ordinary stock — a backpack for sale is a backpack for sale — but a GM can drag
-     * one shelf into another on the Actor sheet, and nothing stops them. A nested
-     * shelf would otherwise appear twice: once as its own section, and once as an item
+     * one inventory into another on the Actor sheet, and nothing stops them. A nested
+     * inventory would otherwise appear twice: once as its own section, and once as an item
      * for sale on its parent.
      */
-    static getShelfContents(actor, shelfItem) {
-        return actor.items.filter((item) => item.system?.container === shelfItem.id
+    static getInventoryContents(actor, inventoryItem) {
+        return actor.items.filter((item) => item.system?.container === inventoryItem.id
             && isPhysical(item.type)
-            && !this.isShelf(item));
+            && !this.isInventory(item));
     }
 
-    /** The shelf an item sits on, or null if it is the shopkeeper's own gear. */
-    static getShelfFor(actor, item) {
+    /** The inventory an item sits on, or null if it is the shopkeeper's own gear. */
+    static getInventoryFor(actor, item) {
         const containerId = item?.system?.container;
         if (!containerId) return null;
         const container = actor.items.get(containerId);
-        return this.isShelf(container) ? container : null;
+        return this.isInventory(container) ? container : null;
     }
 
     /**
-     * Create a shelf from a preset.
+     * Create an inventory from a preset.
      *
      * `weightlessContents` and no capacity, so it is unlimited and weighs nothing.
      * Created here rather than shipped in a compendium: a pack is a thing to
      * maintain and its items can be edited into something malformed, whereas this
-     * cannot produce a shelf with the wrong flags.
+     * cannot produce an inventory with the wrong flags.
      */
-    static async addShelf(actor, presetKey) {
-        const preset = SHELF_PRESETS[presetKey];
-        if (!actor || !preset) return null;
+    static async addInventory(actor, typeKey) {
+        const definition = INVENTORY_TYPES[typeKey];
+        if (!actor || !definition) return null;
 
         const [created] = await actor.createEmbeddedDocuments('Item', [{
-            name: preset.name,
+            // The type names it once. After that the container's name is the
+            // inventory's name and a GM may call it anything — several inventories of
+            // one type is an ordinary shop, and they need telling apart.
+            name: definition.name,
             type: 'container',
-            img: preset.img,
+            img: definition.img,
             system: {
                 properties: ['weightlessContents'],
-                description: { value: `<p>${preset.hint}</p>` }
+                description: { value: `<p>${definition.hint}</p>` }
             },
-            flags: { [MODULE.ID]: { [SHELF_FLAG]: { ...preset.shelf } } }
+            flags: {
+                [MODULE.ID]: {
+                    [INVENTORY_FLAG]: { type: definition.key, ...definition.defaults }
+                }
+            }
         }]);
         return created ?? null;
     }
 
     /**
-     * Show or hide a whole shelf. GM-only and written directly: this is the GM
+     * Show or hide a whole inventory. GM-only and written directly: this is the GM
      * curating their own shop, not a player action, so it does not route through the
      * request handler.
      *
      * Deliberately a flag rather than the container's `equipped` state. Equipped is
      * inert on containers so it would have worked, but it is transient state the rest
      * of the ecosystem clears on transfer, it can change without anyone deciding to
-     * change it, and it would put one of the three shelf properties somewhere the
+     * change it, and it would put one of the three inventory properties somewhere the
      * other two are not.
      */
-    static async setShelfVisible(actor, shelfId, visible) {
-        return this.setShelfConfig(actor, shelfId, { visible: Boolean(visible) });
+    static async setInventoryVisible(actor, inventoryId, visible) {
+        return this.setInventoryConfig(actor, inventoryId, { visible: Boolean(visible) });
     }
 
-    /** Merge changes into a shelf's configuration. GM-only, written directly. */
-    static async setShelfConfig(actor, shelfId, changes) {
+    /** Merge changes into an inventory's configuration. GM-only, written directly. */
+    static async setInventoryConfig(actor, inventoryId, changes) {
         if (!game.user.isGM) return null;
-        const shelf = actor?.items?.get(shelfId);
-        const config = this.getShelfConfig(shelf);
+        const inventory = actor?.items?.get(inventoryId);
+        const config = this.getInventoryConfig(inventory);
         if (!config) return null;
-        await shelf.setFlag(MODULE.ID, SHELF_FLAG, { ...config, ...changes });
-        return shelf;
+        await inventory.setFlag(MODULE.ID, INVENTORY_FLAG, { ...config, ...changes });
+        return inventory;
     }
 
     /**
-     * Put an item on a shelf from a UUID — a compendium entry, a sidebar item, or
+     * Put an item on an inventory from a UUID — a compendium entry, a sidebar item, or
      * anything else Foundry hands over in a drop payload.
      *
      * **One write, and the restock target goes in it.** This used to grant and then
@@ -374,13 +497,13 @@ export class MerchantManager {
      * having the server reject the second. `api-inventory.md` is explicit that arrival
      * flags belong in the write and that no amount of awaiting avoids it.
      *
-     * `grantItem` takes the container too, so the item arrives on the shelf rather
+     * `grantItem` takes the container too, so the item arrives on the inventory rather
      * than landing at the root and being moved there.
      */
-    static async addToShelf(actor, shelfId, itemUuid, quantity) {
+    static async addToInventory(actor, inventoryId, itemUuid, quantity) {
         if (!game.user.isGM) return { ok: false, code: 'NOT_ALLOWED' };
-        const shelf = actor?.items?.get(shelfId);
-        if (!this.isShelf(shelf)) return { ok: false, code: 'NOT_A_SHELF' };
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.isInventory(inventory)) return { ok: false, code: 'NOT_AN_INVENTORY' };
 
         // The par has to be known before the write, so the arriving quantity is
         // resolved here rather than read back off the result. `quantity` omitted
@@ -396,11 +519,11 @@ export class MerchantManager {
             itemUuid,
             quantity,
             // Container membership is part of merge identity, so a merge can only
-            // land on a row already on this shelf — stock the GM put elsewhere is
+            // land on a row already on this inventory — stock the GM put elsewhere is
             // never relocated by a restock.
-            container: shelfId,
-            // What a GM stocks is what the shelf keeps. On a merge only the flags
-            // passed here are written, so topping up a shelf by hand does redefine
+            container: inventoryId,
+            // What a GM stocks is what the inventory keeps. On a merge only the flags
+            // passed here are written, so topping up an inventory by hand does redefine
             // its target — which is the rule the shop window's editable quantity
             // already follows.
             flags: { [MODULE.ID]: { [PAR_FLAG]: arriving } }
@@ -408,19 +531,19 @@ export class MerchantManager {
     }
 
     /**
-     * Remove a shelf through dnd5e's own delete dialog, which asks whether the
+     * Remove an inventory through dnd5e's own delete dialog, which asks whether the
      * contents go with it and handles the recursion. Curator learned this the same
      * way: reimplementing it would mean a second answer to a question the system
      * already asks, and the wrong answer orphans everything inside.
      */
-    static async removeShelf(actor, shelfId) {
+    static async removeInventory(actor, inventoryId) {
         if (!game.user.isGM) return false;
-        const shelf = actor?.items?.get(shelfId);
-        if (!this.isShelf(shelf)) return false;
-        await shelf.deleteDialog();
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.isInventory(inventory)) return false;
+        await inventory.deleteDialog();
         // deleteDialog resolves whether or not the GM went through with it, so check
         // rather than assume.
-        return !actor.items.get(shelfId);
+        return !actor.items.get(inventoryId);
     }
 
     static async setEnabled(actor, enabled) {
@@ -433,10 +556,10 @@ export class MerchantManager {
         }
         await actor.setFlag(MODULE.ID, MERCHANT_FLAG, { ...this.defaultConfig(), ...(current ?? {}), enabled: true });
 
-        // A merchant with no shelf is an empty window and a puzzle. Give the zero
+        // A merchant with no inventory is an empty window and a puzzle. Give the zero
         // config path something to look at.
-        if (!this.getShelves(actor, { includeHidden: true }).length) {
-            await this.addShelf(actor, 'storefront');
+        if (!this.getInventories(actor, { includeHidden: true }).length) {
+            await this.addInventory(actor, 'storefront');
         }
 
         // And a merchant with no coin cannot buy anything, which surfaces later as a
@@ -455,81 +578,86 @@ export class MerchantManager {
     // ===== STOCK POLICY ===========================================
     // ==============================================================
     // Stock is a count, not a document. A sale grants the buyer a copy and adjusts
-    // the number on the merchant's own item; nothing is moved off a shelf. That is
+    // the number on the merchant's own item; nothing is moved off an inventory. That is
     // what lets a sold-out row stay put, marked out of stock -- which finite stock
     // prefers and restocking stock requires, since a deleted row is not a row
     // anything can restock. See documentation/DECISIONS-TO-REVIEW.md.
 
     /**
-     * Which policy governs a shelf.
+     * Which policy governs an inventory.
      *
-     * The shelf's own setting wins, and `null` inherits the merchant's -- the same
-     * inheritance `markup` already uses, so this is a case added to an existing
-     * pattern rather than a second one.
+     * **Stated per inventory, never inherited.** There used to be a shop-wide default
+     * an inventory could fall back to, and the inheritance was not wrong so much as
+     * invisible: two places set one thing, one of them silently, and a GM reading
+     * "Same as the shop" could not tell what it meant without going to look. One
+     * number, in one place, on the thing it governs.
+     *
+     * A purchased inventory is finite whatever it says. Its stock is whatever the
+     * party sold it, so there is no level to return to.
      */
-    static resolveStockPolicy(actor, shelfConfig) {
+    static resolveStockPolicy(actor, inventoryConfig) {
+        if (isPurchased(inventoryConfig?.type)) return STOCK.FINITE;
         const policies = Object.values(STOCK);
-        if (policies.includes(shelfConfig?.stock)) return shelfConfig.stock;
-        const merchant = this.getConfig(actor)?.stock;
-        return policies.includes(merchant) ? merchant : STOCK.INFINITE;
+        if (policies.includes(inventoryConfig?.stock)) return inventoryConfig.stock;
+        return inventoryType(inventoryConfig?.type).defaults.stock ?? STOCK.INFINITE;
     }
 
     /**
-     * What is on the shelf, and what it refills to.
+     * What is on the inventory, and what it refills to.
      *
-     * `par` falls back to the current quantity so a shelf stocked before this
+     * `par` falls back to the current quantity so an inventory stocked before this
      * existed reads as full rather than as due for a restock to zero.
      */
-    static getStock(actor, item, shelfConfig) {
-        const config = shelfConfig ?? this.getShelfConfig(this.getShelfFor(actor, item));
+    static getStock(actor, item, inventoryConfig) {
+        const config = inventoryConfig ?? this.getInventoryConfig(this.getInventoryFor(actor, item));
         const policy = this.resolveStockPolicy(actor, config);
         if (policy === STOCK.INFINITE) {
             return { policy, unlimited: true, available: Infinity, par: null };
         }
         const available = Math.max(0, Math.trunc(Number(item?.system?.quantity ?? 0)));
 
-        // **A buyback shelf has no restock target, and must not inherit one.** Its stock
+        // **A buyback inventory has no restock target, and must not inherit one.** Its stock
         // is whatever the party sold; there is nothing it is "kept at".
         //
         // This is a guard against a real leak, not a tidiness rule. `registerTransientFlag`
         // makes a flag invisible to *merge comparison* -- it does not strip it from the
         // payload -- so `par` travels with a bought item into the buyer's inventory and
-        // back again if they sell it. A bedroll bought from a shelf kept at six arrives
-        // on the buyback shelf still claiming a par of six, and the next Restock
+        // back again if they sell it. A bedroll bought from an inventory kept at six arrives
+        // on the buyback inventory still claiming a par of six, and the next Restock
         // Everything manufactures five bedrolls the shop never had, from a target it
         // never set.
         //
         // Blacksmith's `omitFlags` will stop the flag arriving at all. This stays after
         // that lands: it is correct on its own terms, and it covers every item already in
         // a world with the flag on it.
-        if (config?.mode === SHELF_MODE.BUYBACK) {
+        if (isPurchased(config?.type)) {
             return { policy, unlimited: false, available, par: available };
         }
 
         const stored = Number(item?.getFlag(MODULE.ID, PAR_FLAG));
 
         // No par flag means "as many as are there", which is right for something a GM
-        // dropped on a shelf and never thought about again -- and is why a row that
+        // dropped on an inventory and never thought about again -- and is why a row that
         // only ever arrived by table roll creeps upward: each delivery raises the
         // quantity, which raises the target, which the next restock then protects.
         //
-        // Read through the ceiling as well as written through it, because a shelf's
+        // Read through the ceiling as well as written through it, because an inventory's
         // limit can be lowered after a target was set and the stored flag would then
         // be the higher of the two.
         const raw = Number.isFinite(stored) ? Math.max(0, Math.trunc(stored)) : available;
-        const par = Math.min(raw, this.getShelfLimits(config).maxPerItem);
+        const par = Math.min(raw, this.getInventoryLimits(config).maxPerItem);
         return { policy, unlimited: false, available, par };
     }
 
     /**
-     * What a shelf will hold: distinct rows, and how many of any one thing.
+     * What an inventory will hold: distinct rows, and how many of any one thing.
      *
-     * Per shelf rather than per shop, because a storefront and a back room are
+     * Per inventory rather than per shop, because a storefront and a back room are
      * different sizes in every shop that has both.
      */
-    static getShelfLimits(shelfConfig) {
-        const products = Math.trunc(Number(shelfConfig?.maxProducts));
-        const perItem = Math.trunc(Number(shelfConfig?.maxPerItem));
+    static getInventoryLimits(inventoryConfig) {
+        const products = Math.trunc(Number(inventoryConfig?.maxProducts));
+        const perItem = Math.trunc(Number(inventoryConfig?.maxPerItem));
         return {
             maxProducts: Number.isFinite(products) && products > 0 ? products : DEFAULT_MAX_PRODUCTS,
             maxPerItem: Number.isFinite(perItem) && perItem > 0 ? perItem : DEFAULT_MAX_PER_ITEM
@@ -537,7 +665,7 @@ export class MerchantManager {
     }
 
     /**
-     * Set a count by hand, which also sets what the shelf restocks to.
+     * Set a count by hand, which also sets what the inventory restocks to.
      *
      * A GM saying "I keep six of these" is describing the shop, not making a sale, so
      * both numbers move. A purchase lowers the count and leaves the target alone.
@@ -548,12 +676,12 @@ export class MerchantManager {
         if (!item) return null;
 
         const wanted = Math.max(0, Math.trunc(Number(quantity) || 0));
-        // Clamped to the shelf's ceiling rather than accepted and quietly undone.
+        // Clamped to the inventory's ceiling rather than accepted and quietly undone.
         // Storing 10 under a limit of 5 would leave the row reading 10 while its
         // restock target read 5 -- two numbers disagreeing with no way to see why.
-        // One number governs, and the shelf's limit is where it is raised.
-        const shelfConfig = this.getShelfConfig(this.getShelfFor(actor, item));
-        const { maxPerItem } = this.getShelfLimits(shelfConfig);
+        // One number governs, and the inventory's limit is where it is raised.
+        const inventoryConfig = this.getInventoryConfig(this.getInventoryFor(actor, item));
+        const { maxPerItem } = this.getInventoryLimits(inventoryConfig);
         const value = Math.min(wanted, maxPerItem);
 
         await item.update({
@@ -575,8 +703,8 @@ export class MerchantManager {
      * it will pay for one of yours. Two different agreements about two different
      * items, which is why they are two maps rather than one.
      *
-     * `null` clears it, and clearing a negotiate-shelf item puts it back to having no
-     * price at all — which is the state that shelf exists to express.
+     * `null` clears it, and clearing a negotiate-inventory item puts it back to having no
+     * price at all — which is the state that inventory exists to express.
      */
     static async setNegotiatedPrice(merchant, itemId, base, { side = 'buy' } = {}) {
         if (!game.user.isGM || !merchant || !itemId) return null;
@@ -623,7 +751,7 @@ export class MerchantManager {
     }
 
     /**
-     * The tables a shelf restocks from, each with its own number of rolls.
+     * The tables an inventory restocks from, each with its own number of rolls.
      *
      * A shop is rarely one table. A general store might roll on *common goods* three
      * times, *potions* once, and *whatever fell off a cart* once — and expressing
@@ -632,11 +760,11 @@ export class MerchantManager {
      * Uuids rather than ids, so a table in a compendium works the same as one in the
      * world — which is where a GM keeps this sort of table.
      *
-     * Reads a single `table` from before this took a list, so a shelf configured
+     * Reads a single `table` from before this took a list, so an inventory configured
      * earlier keeps working without a migration pass.
      */
-    static getShelfTables(shelf) {
-        const config = this.getShelfConfig(shelf);
+    static getInventoryTables(inventory) {
+        const config = this.getInventoryConfig(inventory);
         if (!config) return [];
 
         const list = Array.isArray(config.tables) ? config.tables : [];
@@ -657,19 +785,19 @@ export class MerchantManager {
             : [];
     }
 
-    /** One to twenty. A shelf rolling nothing is a shelf with no table on it. */
+    /** One to twenty. An inventory rolling nothing is an inventory with no table on it. */
     static _rollCount(value) {
         return Math.min(20, Math.max(1, Math.trunc(Number(value) || 1)));
     }
 
-    static async addShelfTable(actor, shelfId, uuid) {
+    static async addInventoryTable(actor, inventoryId, uuid) {
         if (!uuid) return null;
-        const shelf = actor?.items?.get(shelfId);
-        const tables = this.getShelfTables(shelf);
+        const inventory = actor?.items?.get(inventoryId);
+        const tables = this.getInventoryTables(inventory);
         // Dropping the same table twice is a slip, not a request for double rolls;
         // the roll count is how you ask for that.
         if (tables.some((entry) => entry.uuid === uuid)) return null;
-        return this.setShelfConfig(actor, shelfId, {
+        return this.setInventoryConfig(actor, inventoryId, {
             tables: [...tables, { uuid, rolls: 1, auto: false }],
             // The single-table fields are what this list replaced.
             table: null,
@@ -677,30 +805,30 @@ export class MerchantManager {
         });
     }
 
-    static async removeShelfTable(actor, shelfId, uuid) {
-        const shelf = actor?.items?.get(shelfId);
-        const tables = this.getShelfTables(shelf).filter((entry) => entry.uuid !== uuid);
-        return this.setShelfConfig(actor, shelfId, { tables, table: null, tableRolls: null });
+    static async removeInventoryTable(actor, inventoryId, uuid) {
+        const inventory = actor?.items?.get(inventoryId);
+        const tables = this.getInventoryTables(inventory).filter((entry) => entry.uuid !== uuid);
+        return this.setInventoryConfig(actor, inventoryId, { tables, table: null, tableRolls: null });
     }
 
-    static async setShelfTableRolls(actor, shelfId, uuid, rolls) {
-        return this._updateShelfTable(actor, shelfId, uuid, { rolls: this._rollCount(rolls) });
+    static async setInventoryTableRolls(actor, inventoryId, uuid, rolls) {
+        return this._updateInventoryTable(actor, inventoryId, uuid, { rolls: this._rollCount(rolls) });
     }
 
     /** Whether this table also fires when the clock brings a restock round. */
-    static async setShelfTableAuto(actor, shelfId, uuid, auto) {
-        return this._updateShelfTable(actor, shelfId, uuid, { auto: Boolean(auto) });
+    static async setInventoryTableAuto(actor, inventoryId, uuid, auto) {
+        return this._updateInventoryTable(actor, inventoryId, uuid, { auto: Boolean(auto) });
     }
 
-    static async _updateShelfTable(actor, shelfId, uuid, changes) {
-        const shelf = actor?.items?.get(shelfId);
-        const tables = this.getShelfTables(shelf)
+    static async _updateInventoryTable(actor, inventoryId, uuid, changes) {
+        const inventory = actor?.items?.get(inventoryId);
+        const tables = this.getInventoryTables(inventory)
             .map((entry) => (entry.uuid === uuid ? { ...entry, ...changes } : entry));
-        return this.setShelfConfig(actor, shelfId, { tables, table: null, tableRolls: null });
+        return this.setInventoryConfig(actor, inventoryId, { tables, table: null, tableRolls: null });
     }
 
     /**
-     * Roll a shelf's tables and put what comes up on it.
+     * Roll an inventory's tables and put what comes up on it.
      *
      * **`roll()`, not `draw()`.** Drawing marks results as drawn, so a shop restocking
      * from a table would exhaust it and then quietly stock nothing. A shop's table is
@@ -713,16 +841,16 @@ export class MerchantManager {
      * pressing Restock has asked for it, so every table rolls. The clock coming round
      * only rolls the tables marked to reroll — otherwise every table would add stock
      * on every cycle and a shop left alone would fill up for ever. Most tables are
-     * there to furnish a shelf once; the ones that are not say so.
+     * there to furnish an inventory once; the ones that are not say so.
      */
-    static async rollShelfTable(actor, shelfId, { automatic = false, onStep = null } = {}) {
+    static async rollInventoryTable(actor, inventoryId, { automatic = false, onStep = null } = {}) {
         if (!game.user.isGM) return 0;
-        const shelf = actor?.items?.get(shelfId);
-        if (!this.getShelfConfig(shelf)) return 0;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
 
         const drawn = [];
-        for (const entry of this.getShelfTables(shelf)) {
+        for (const entry of this.getInventoryTables(inventory)) {
             if (automatic && !entry.auto) continue;
             let table = null;
             try {
@@ -731,9 +859,9 @@ export class MerchantManager {
                 table = null;
             }
             // A table deleted since it was assigned is skipped, not fatal: the other
-            // tables on the shelf should still deliver.
+            // tables on the inventory should still deliver.
             if (table?.documentName !== 'RollTable') {
-                console.warn(`${MODULE.TITLE} | ${shelf.name} names a roll table that no longer resolves:`, entry.uuid);
+                console.warn(`${MODULE.TITLE} | ${inventory.name} names a roll table that no longer resolves:`, entry.uuid);
                 continue;
             }
 
@@ -754,10 +882,10 @@ export class MerchantManager {
                 step(`Rolling ${table.name} — ${i + 1} of ${entry.rolls}`);
             }
         }
-        if (!drawn.length) { step(`Nothing rolled for ${shelf.name}`); return 0; }
+        if (!drawn.length) { step(`Nothing rolled for ${inventory.name}`); return 0; }
 
         // Resolved once per distinct uuid: several tables rolling the same row should
-        // cost one lookup, and only physical items can sit on a shelf.
+        // cost one lookup, and only physical items can sit on an inventory.
         const resolved = new Map();
         for (const uuid of drawn) {
             if (resolved.has(uuid)) continue;
@@ -770,13 +898,13 @@ export class MerchantManager {
             resolved.set(uuid, item?.documentName === 'Item' && isPhysical(item.type) ? item : null);
         }
 
-        const items = this._withinLimits(actor, shelf, drawn, resolved);
-        if (!items.length) { step(`${shelf.name} is full`); return 0; }
-        step(`Stocking ${shelf.name}`);
+        const items = this._withinLimits(actor, inventory, drawn, resolved);
+        if (!items.length) { step(`${inventory.name} is full`); return 0; }
+        step(`Stocking ${inventory.name}`);
 
-        // One call for every table on the shelf, so the same potion rolled by two of
+        // One call for every table on the inventory, so the same potion rolled by two of
         // them lands as one row of two — see grantItems.
-        const result = await grantItems({ targetActorUuid: actor.uuid, items, container: shelfId });
+        const result = await grantItems({ targetActorUuid: actor.uuid, items, container: inventoryId });
 
         // `results` is index-aligned with what was sent and entries fail independently,
         // so the top-level flag alone says only "something went wrong somewhere". A GM
@@ -789,7 +917,7 @@ export class MerchantManager {
         if (failures.length) {
             console.error(
                 `${MODULE.TITLE} | ${failures.length} of ${items.length} item`
-                + `${items.length === 1 ? '' : 's'} did not reach ${shelf.name}:`,
+                + `${items.length === 1 ? '' : 's'} did not reach ${inventory.name}:`,
                 failures.map(({ entry, item }) => ({
                     uuid: item?.itemUuid,
                     name: resolved.get(item?.itemUuid)?.name ?? '(unresolved)',
@@ -801,7 +929,7 @@ export class MerchantManager {
             // One cause is worth naming outright, because no amount of looking at this
             // module explains it. Grant paths used to validate a requested quantity
             // against the source document's own -- 1, for a compendium template -- so a
-            // shelf asking for five of anything was refused wholesale. Fixed upstream;
+            // inventory asking for five of anything was refused wholesale. Fixed upstream;
             // an install still carrying the old primitive fails here and nowhere else,
             // and the symptom (every row arrives at one, or not at all) looks exactly
             // like a Merchant bug.
@@ -816,18 +944,18 @@ export class MerchantManager {
                 );
             }
         } else if (!result?.ok) {
-            console.error(`${MODULE.TITLE} | Could not stock ${shelf.name} from its tables:`, result);
+            console.error(`${MODULE.TITLE} | Could not stock ${inventory.name} from its tables:`, result);
         }
 
         return items.length - failures.length;
     }
 
     /**
-     * Trim a set of rolled results to what the shelf will actually hold.
+     * Trim a set of rolled results to what the inventory will actually hold.
      *
      * Two ceilings, checked against what is already there plus what this delivery has
-     * allocated so far. Without them a shelf rolling weekly grows an ever longer list
-     * of one-offs, and a shelf that keeps rolling rations builds toward thousands of
+     * allocated so far. Without them an inventory rolling weekly grows an ever longer list
+     * of one-offs, and an inventory that keeps rolling rations builds toward thousands of
      * them — neither of which announces itself until a fortnight of game time has
      * passed.
      *
@@ -835,13 +963,13 @@ export class MerchantManager {
      * identity `grantItems` uses, and a cap that is approximately right is worth far
      * more than one that reimplements the predicate and drifts from it.
      */
-    static _withinLimits(actor, shelf, drawn, resolved) {
-        const config = this.getShelfConfig(shelf);
-        const { maxProducts, maxPerItem } = this.getShelfLimits(config);
+    static _withinLimits(actor, inventory, drawn, resolved) {
+        const config = this.getInventoryConfig(inventory);
+        const { maxProducts, maxPerItem } = this.getInventoryLimits(config);
         const key = (name, type) => `${name}\u0000${type}`;
 
         const held = new Map();
-        for (const item of this.getShelfContents(actor, shelf)) {
+        for (const item of this.getInventoryContents(actor, inventory)) {
             held.set(key(item.name, item.type), Math.max(0, Math.trunc(Number(item.system?.quantity ?? 1))));
         }
         let rows = held.size;
@@ -861,7 +989,7 @@ export class MerchantManager {
             if (room < 1) { clipped++; continue; }
 
             if (!held.has(k) && rows >= maxProducts) {
-                // A new row costs one of the shelf's slots, and there may be none.
+                // A new row costs one of the inventory's slots, and there may be none.
                 clipped++;
                 continue;
             }
@@ -874,36 +1002,36 @@ export class MerchantManager {
         }
 
         if (clipped) {
-            console.debug(`${MODULE.TITLE} | ${shelf.name} is at its limit; ${clipped} rolled result${clipped === 1 ? '' : 's'} not stocked.`);
+            console.debug(`${MODULE.TITLE} | ${inventory.name} is at its limit; ${clipped} rolled result${clipped === 1 ? '' : 's'} not stocked.`);
         }
         return allowed;
     }
 
     /**
-     * Take everything off a shelf, leaving the shelf.
+     * Take everything off an inventory, leaving the inventory.
      *
-     * Distinct from removing the shelf and from setting counts to zero, which are the
+     * Distinct from removing the inventory and from setting counts to zero, which are the
      * two things it sits between: zero says "sold out", deleting the container says
-     * "this shop has no such shelf", and this says "clear it and let me start again".
+     * "this shop has no such inventory", and this says "clear it and let me start again".
      * A GM re-rolling a shop's stock wants the third and had to do it a row at a time.
      *
      * One `deleteEmbeddedDocuments` for the lot -- a delete per row is a write per row
      * to the same Actor, and doing it in a loop is what makes a fast clicker race the
      * re-render.
      */
-    static async clearShelf(actor, shelfId) {
+    static async clearInventory(actor, inventoryId) {
         if (!game.user.isGM) return 0;
-        const shelf = actor?.items?.get(shelfId);
-        if (!this.getShelfConfig(shelf)) return 0;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return 0;
 
         return this._withStockLock(actor, async () => {
             // Read inside the lock: a purchase settling right now changes this list.
-            const ids = this.getShelfContents(actor, shelf).map((item) => item.id);
+            const ids = this.getInventoryContents(actor, inventory).map((item) => item.id);
             if (!ids.length) return 0;
             try {
                 await actor.deleteEmbeddedDocuments('Item', ids);
             } catch (error) {
-                console.error(`${MODULE.TITLE} | Could not clear ${shelf.name}:`, error);
+                console.error(`${MODULE.TITLE} | Could not clear ${inventory.name}:`, error);
                 return 0;
             }
             this.broadcastActorRefresh(actor);
@@ -912,19 +1040,19 @@ export class MerchantManager {
     }
 
     /**
-     * How many steps restocking this shelf will take, for sizing a progress bar.
+     * How many steps restocking this inventory will take, for sizing a progress bar.
      *
-     * Counted the same way `restockShelf` spends them -- one for the refill, one per
+     * Counted the same way `restockInventory` spends them -- one for the refill, one per
      * roll, one for the delivery -- so the bar reaches its end exactly when the work
      * does. A total derived any other way drifts, and a bar that stops at 80% or hits
      * 100% early is worse than no bar, because it is a claim rather than a guess.
      */
-    static restockWorkUnits(actor, shelfId, { force = false } = {}) {
-        const shelf = actor?.items?.get(shelfId);
-        if (!this.getShelfConfig(shelf)) return 0;
+    static restockWorkUnits(actor, inventoryId, { force = false } = {}) {
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return 0;
 
         let units = 1;
-        for (const entry of this.getShelfTables(shelf)) {
+        for (const entry of this.getInventoryTables(inventory)) {
             if (!force && !entry.auto) continue;
             units += Math.max(0, Math.trunc(Number(entry.rolls) || 0));
         }
@@ -932,24 +1060,24 @@ export class MerchantManager {
     }
 
     /**
-     * Refill a shelf to its par levels.
+     * Refill an inventory to its par levels.
      *
-     * `force` is the GM pressing the button, which works on a finite shelf too -- a
-     * shop restocked by hand is an ordinary thing, and a finite shelf still knows
+     * `force` is the GM pressing the button, which works on a finite inventory too -- a
+     * shop restocked by hand is an ordinary thing, and a finite inventory still knows
      * what it holds.
      */
-    static async restockShelf(actor, shelfId, { force = false, onStep = null } = {}) {
+    static async restockInventory(actor, inventoryId, { force = false, onStep = null } = {}) {
         if (!game.user.isGM) return 0;
-        const shelf = actor?.items?.get(shelfId);
-        const config = this.getShelfConfig(shelf);
+        const inventory = actor?.items?.get(inventoryId);
+        const config = this.getInventoryConfig(inventory);
         if (!config) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
         if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING
-            && !this.getShelfTables(shelf).some((entry) => entry.auto)) return 0;
+            && !this.getInventoryTables(inventory).some((entry) => entry.auto)) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
             const updates = [];
-            for (const item of this.getShelfContents(actor, shelf)) {
+            for (const item of this.getInventoryContents(actor, inventory)) {
                 const stock = this.getStock(actor, item, config);
                 if (stock.unlimited || stock.available >= stock.par) continue;
                 updates.push({ _id: item.id, 'system.quantity': stock.par });
@@ -957,14 +1085,14 @@ export class MerchantManager {
             if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
             return updates.length;
         });
-        step(`Refilling ${shelf.name}`);
+        step(`Refilling ${inventory.name}`);
 
-        // Two mechanisms, deliberately both: par brings back what the shelf is known
+        // Two mechanisms, deliberately both: par brings back what the inventory is known
         // to keep, and the tables bring in whatever it happens to have got hold of
-        // this time. A shelf may use either or both.
-        const rolled = await this.rollShelfTable(actor, shelfId, { automatic: !force, onStep: step });
+        // this time. An inventory may use either or both.
+        const rolled = await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
 
-        await this.setShelfConfig(actor, shelfId, { lastRestock: game.time.worldTime });
+        await this.setInventoryConfig(actor, inventoryId, { lastRestock: game.time.worldTime });
         if (filled || rolled) this.broadcastActorRefresh(actor);
         return filled + rolled;
     }
@@ -978,10 +1106,10 @@ export class MerchantManager {
      */
     static async _applyRestocks(worldTime) {
         for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
-            for (const { item: shelf, config } of this.getShelves(actor, { includeHidden: true })) {
-                // A table-stocked shelf restocks on the clock whatever its policy: it
+            for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
+                // A table-stocked inventory restocks on the clock whatever its policy: it
                 // is not refilling to a level, it is receiving a delivery.
-                const rerolls = this.getShelfTables(shelf).some((entry) => entry.auto);
+                const rerolls = this.getInventoryTables(inventory).some((entry) => entry.auto);
                 if (this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !rerolls) continue;
 
                 const days = Number(config.restockDays);
@@ -990,16 +1118,16 @@ export class MerchantManager {
                 const last = Number(config.lastRestock);
 
                 // No clock yet, or a GM has wound the world back past it. Start it
-                // here rather than restocking on the spot: switching a shelf to
+                // here rather than restocking on the spot: switching an inventory to
                 // restocking should not empty and refill it the same instant.
                 if (!Number.isFinite(last) || worldTime < last) {
-                    await this.setShelfConfig(actor, shelf.id, { lastRestock: worldTime });
+                    await this.setInventoryConfig(actor, inventory.id, { lastRestock: worldTime });
                     continue;
                 }
                 if (worldTime - last < interval) continue;
 
                 try {
-                    await this.restockShelf(actor, shelf.id);
+                    await this.restockInventory(actor, inventory.id);
                 } catch (error) {
                     console.error(`${MODULE.TITLE} | Could not restock ${actor.name}:`, error);
                 }
@@ -1157,20 +1285,23 @@ export class MerchantManager {
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
         if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
 
-        const result = await this._processSettle(merchant, payload, user);
+        // Resolved from the **token's** scene, not the GM's view. Reputation is per
+        // scene, and the GM answering a request may be looking at another map
+        // entirely — the shop is priced where it stands.
+        const result = await this._processSettle(merchant, payload, user, tokenDocument.parent);
         if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
         return result;
     }
 
     /**
-     * The goods legs of an exchange: everything leaving the shelves.
+     * The goods legs of an exchange: everything leaving the inventories.
      *
      * The stock policy is expressed entirely as two flags on the transfer, which is
      * what `copy` and `preserveEmptySource` were asked for and built for:
      *
      * - **infinite** — `copy`, so the merchant's row is a template and is not touched.
      *   The primitive deliberately does not treat a copied source's stack as a
-     *   ceiling, so a shelf reading 1 sells three.
+     *   ceiling, so an inventory reading 1 sells three.
      * - **finite / restocking** — a real transfer with `preserveEmptySource`, so the
      *   count comes down and the row survives at zero. Availability is enforced by the
      *   primitive itself, which is why there is no stock check here any more.
@@ -1181,7 +1312,7 @@ export class MerchantManager {
      * fail to take the money.
      */
     static _goodsTransfers(merchant, recipientUuid, lines) {
-        // `items` is an array, so a whole cart from one shelf policy is one leg. A leg
+        // `items` is an array, so a whole cart from one inventory policy is one leg. A leg
         // per line would be the mistake `api-inventory.md` names for grantItems: the
         // plural form only batches when everything meets in the same call.
         //
@@ -1189,7 +1320,7 @@ export class MerchantManager {
         // `preserveEmptySource` are per transfer and answer different stock models.
         const groups = new Map();
         for (const line of lines) {
-            const unlimited = this.resolveStockPolicy(merchant, line.shelfConfig) === STOCK.INFINITE;
+            const unlimited = this.resolveStockPolicy(merchant, line.inventoryConfig) === STOCK.INFINITE;
             const key = unlimited ? 'copy' : 'move';
             if (!groups.has(key)) {
                 groups.set(key, {
@@ -1249,7 +1380,7 @@ export class MerchantManager {
      * A haggled discount is not what a thing is worth — a longsword bought cheap is
      * still a longsword, and selling it on should fetch a longsword's price. So a
      * price is only ever written where there was none, which is the case a negotiate
-     * shelf exists for: the odd, the unique, the thing with no entry in any book.
+     * inventory exists for: the odd, the unique, the thing with no entry in any book.
      * Agreeing a number for one of those *is* deciding what it is worth, and the
      * party should be able to sell it for that later.
      *
@@ -1266,8 +1397,8 @@ export class MerchantManager {
             if (Number.isFinite(worth) && worth > 0) continue;
 
             const agreed = merchant
-                ? resolveBuybackPrice(config, this.getShelfConfig(this.getShelfFor(merchant, item)), item)
-                : resolvePrice(config, this.getShelfConfig(this.getShelfFor(owner, item)), item);
+                ? resolveBuybackPrice(config, this.getInventoryConfig(this.getInventoryFor(merchant, item)), item)
+                : resolvePrice(config, this.getInventoryConfig(this.getInventoryFor(owner, item)), item);
             if (agreed === null || agreed <= 0) continue;
 
             updates.push({
@@ -1285,7 +1416,7 @@ export class MerchantManager {
     }
 
     /** Price the buy side. Every line re-resolved and re-priced on the GM. */
-    static _priceBuying(merchant, requested, user) {
+    static _priceBuying(merchant, requested, user, reputation = 1) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -1294,31 +1425,31 @@ export class MerchantManager {
             const item = merchant.items?.get(entry?.itemId);
             if (!item) return { ok: false, code: 'ITEM_NOT_FOUND' };
             if (!isPhysical(item.type)) return { ok: false, code: 'ITEM_NOT_TRANSFERABLE' };
-            if (this.isShelf(item)) return { ok: false, code: 'NOT_FOR_SALE' };
+            if (this.isInventory(item)) return { ok: false, code: 'NOT_FOR_SALE' };
 
-            const shelf = this.getShelfFor(merchant, item);
-            if (!shelf) return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
-            const shelfConfig = this.getShelfConfig(shelf);
+            const inventory = this.getInventoryFor(merchant, item);
+            if (!inventory) return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
+            const inventoryConfig = this.getInventoryConfig(inventory);
             // Hidden is a permission, not a display filter: a crafted request naming a
             // back-room item is refused here, not merely omitted from the window.
-            if (shelfConfig.visible === false && !user.isGM) {
+            if (inventoryConfig.visible === false && !user.isGM) {
                 return { ok: false, code: 'NOT_FOR_SALE', itemName: item.name };
             }
-            // No `BARTER_ONLY` refusal any more. A negotiate shelf has no list price,
+            // No `BARTER_ONLY` refusal any more. A negotiate inventory has no list price,
             // so `resolvePrice` returns null until one is agreed — and refusing an
             // unpriced line is the same refusal either way.
-            const unit = resolvePrice(config, shelfConfig, item);
+            const unit = resolvePrice(config, inventoryConfig, item, { reputation });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
-            lines.push({ item, quantity, shelfConfig });
+            lines.push({ item, quantity, inventoryConfig });
         }
         return { ok: true, lines, total };
     }
 
-    /** Price the sell side, against the buyback shelf's rate. */
-    static _priceSelling(merchant, seller, shelf, requested) {
+    /** Price the sell side, against the buyback inventory's rate. */
+    static _priceSelling(merchant, seller, inventory, requested, reputation = 1) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -1334,7 +1465,7 @@ export class MerchantManager {
                 return { ok: false, code: 'INSUFFICIENT_QUANTITY', available, itemName: item.name };
             }
 
-            const unit = resolveBuybackPrice(config, shelf.config, item);
+            const unit = resolveBuybackPrice(config, inventory.config, item, { reputation });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             total += unit * quantity;
@@ -1361,7 +1492,7 @@ export class MerchantManager {
      * coin in the till at all** — the shop receives. And a purchase becomes affordable
      * when funded by a trade-in, which as two transactions it was not.
      */
-    static async _processSettle(merchant, payload, user) {
+    static async _processSettle(merchant, payload, user, scene = null) {
         const buying = Array.isArray(payload.buy) ? payload.buy : [];
         const selling = Array.isArray(payload.sell) ? payload.sell : [];
         if (!buying.length && !selling.length) return { ok: false, code: 'NOTHING_TO_SETTLE' };
@@ -1372,16 +1503,21 @@ export class MerchantManager {
         if (!check.ok) return check;
         const shopper = check.actor;
 
-        const bought = buying.length ? this._priceBuying(merchant, buying, user) : { ok: true, lines: [], total: 0 };
+        // Once, before anything is priced. The window shows a figure worked out from
+        // the same band, but this is the one that decides what changes hands — a
+        // client's arithmetic is an explanation, never the answer.
+        const reputation = await resolveReputation(scene, this.getConfig(merchant)?.pricing?.reputation);
+
+        const bought = buying.length ? this._priceBuying(merchant, buying, user, reputation) : { ok: true, lines: [], total: 0 };
         if (!bought.ok) return bought;
 
-        let shelf = null;
+        let inventory = null;
         let sold = { ok: true, lines: [], total: 0 };
         if (selling.length) {
-            shelf = this.getShelves(merchant, { includeHidden: true })
-                .find(({ config }) => config.mode === 'buyback');
-            if (!shelf) return { ok: false, code: 'NO_BUYBACK_SHELF' };
-            sold = this._priceSelling(merchant, shopper, shelf, selling);
+            inventory = this.getInventories(merchant, { includeHidden: true })
+                .find(({ config }) => isPurchased(config.type));
+            if (!inventory) return { ok: false, code: 'NO_PURCHASED_INVENTORY' };
+            sold = this._priceSelling(merchant, shopper, inventory, selling, reputation);
             if (!sold.ok) return sold;
         }
 
@@ -1439,8 +1575,8 @@ export class MerchantManager {
                 from: shopper.uuid,
                 to: merchant.uuid,
                 items: sold.lines.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
-                // Bought stock lands on the buyback shelf rather than loose on the NPC.
-                container: shelf.item.id
+                // Bought stock lands on the buyback inventory rather than loose on the NPC.
+                container: inventory.item.id
             }]
             : [];
 
@@ -1450,7 +1586,7 @@ export class MerchantManager {
                 ...goodsIn,
                 ...coin
             ],
-            // `par` describes a shelf, not an item, and has no business travelling with
+            // `par` describes an inventory, not an item, and has no business travelling with
             // one. `registerTransientFlag` hides it from merge comparison but leaves it
             // in the payload, so without this it lands in a buyer's inventory and rides
             // back in if they sell it — see the buyback guard in `getStock`.
@@ -1465,8 +1601,8 @@ export class MerchantManager {
         });
 
         // An agreement covers the trade it was made for. Left standing, a haggled
-        // discount would quietly become the shelf price for everyone who came after,
-        // and a settled negotiate line would keep a price the shelf exists not to
+        // discount would quietly become the inventory price for everyone who came after,
+        // and a settled negotiate line would keep a price the inventory exists not to
         // have. Cleared only on success, so a refused trade can be tried again on
         // the same terms.
         if (result?.ok) await this._clearAgreedPrices(merchant, bought.lines, sold.lines);
@@ -1528,7 +1664,7 @@ export class MerchantManager {
         ShopWindow.refreshForToken(tokenUuid);
     }
 
-    /** Shelf changes are Actor-level, so they reach every token of that merchant. */
+    /** Inventory changes are Actor-level, so they reach every token of that merchant. */
     static broadcastActorRefresh(actor) {
         if (!actor) return;
         game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: actor.uuid });
@@ -1538,7 +1674,7 @@ export class MerchantManager {
     /**
      * Follow edits made outside Merchant's own windows.
      *
-     * A GM can rename a shelf, restock one, or delete one from the Actor sheet, the
+     * A GM can rename an inventory, restock one, or delete one from the Actor sheet, the
      * container sheet, or a drag between containers — none of which route through this
      * module. Without this an open shop shows the old name and the old counts until
      * somebody presses Refresh, and "I renamed it and nothing happened" is the kind of
@@ -1551,9 +1687,9 @@ export class MerchantManager {
             if (!game.user.isGM) return;
             const actor = item?.parent;
             if (!actor?.items || !this.isMerchant(actor)) return;
-            // A shelf, or anything sitting on one. Everything else on a merchant is
+            // An inventory, or anything sitting on one. Everything else on a merchant is
             // the shopkeeper's own gear and changes nothing a shop window shows.
-            const relevant = this.isShelf(item) || Boolean(this.getShelfFor(actor, item));
+            const relevant = this.isInventory(item) || Boolean(this.getInventoryFor(actor, item));
             if (relevant) this.broadcastActorRefresh(actor);
         };
 
@@ -1568,13 +1704,13 @@ export class MerchantManager {
             if (touches) react(item);
         });
         Hooks.on('createItem', (item) => react(item));
-        // On delete the item is already off the Actor, so `getShelfFor` cannot see
+        // On delete the item is already off the Actor, so `getInventoryFor` cannot see
         // where it was. The container id is still on the document being removed.
         Hooks.on('deleteItem', (item) => {
             if (!game.user.isGM) return;
             const actor = item?.parent;
             if (!actor?.items || !this.isMerchant(actor)) return;
-            if (this.isShelf(item) || item?.system?.container) this.broadcastActorRefresh(actor);
+            if (this.isInventory(item) || item?.system?.container) this.broadcastActorRefresh(actor);
         });
     }
 

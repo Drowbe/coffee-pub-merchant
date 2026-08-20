@@ -10,7 +10,7 @@ Read this first, then `CONTRIBUTING.md` for the conventions the code follows.
 ## 1. The one-paragraph version
 
 An Actor carries a flag that makes it a merchant. Its stock lives in **container Items** on that Actor
-called *shelves*. Double-clicking the token opens the shop window, where a player fills a **slate** — things
+called *inventories*. Double-clicking the token opens the shop window, where a player fills a **slate** — things
 to buy, things to sell — and presses one button. That request goes to the **active GM**, who re-derives
 every price from documents, and settles goods and coin in a **single `blacksmith.inventory.exchange` call**
 that either commits entirely or does nothing. There is no client-authoritative path and no partial state.
@@ -25,11 +25,12 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/merchant.js` | Entry point. Hooks, sheet header buttons, socket listener. |
 | `scripts/manager-merchant.js` | All state and the entire GM-side transaction. The heart of the module. |
 | `scripts/window-shop.js` | The shop window. Slate state, rendering context, every player-facing gesture. |
-| `scripts/window-merchant-config.js` | Merchant Settings. Shelves, hours, till, tables, presets. |
+| `scripts/window-merchant-config.js` | Merchant Settings. Inventories, hours, till, tables, presets. |
 | `scripts/merchant-pricing.js` | Pure arithmetic: denominations, prices, making change. No documents. |
 | `scripts/merchant-inventory.js` | Thin accessors over `blacksmith.inventory`. Deliberately thin. |
 | `scripts/merchant-feedback.js` | Everything the module says to a person: toasts and sounds. |
 | `scripts/merchant-progress.js` | The restock progress bar. Core's notification, not a toast. |
+| `scripts/merchant-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
 | `scripts/settings.js` | The six sound settings, and nothing else. |
 | `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
@@ -53,54 +54,82 @@ is the one most likely to be got wrong out of habit.
     name: 'Potions and Stuff',   // the shop's name; the Actor's name is the shopkeeper's
     kind: 'general',             // SHOP_KINDS — drives the icon and category label
     description: '',             // GM-authored, enriched on display
-    stock: 'infinite',           // merchant-wide default; a shelf may override
+    schema: 2,                   // migration stamp — see §12
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
     pricing: {
-        markup: 1.0,
+        markup: 1.0,             // the shop's BASELINE; inventories multiply against it
+        reputation: false,       // opt in to the party's standing moving prices
         overrides: { [itemId]: baseUnits },        // agreed buy prices
         buybackOverrides: { [itemId]: baseUnits }  // agreed sell prices
     }
 }
 ```
 
+There is no shop-wide `stock` any more. Every inventory states its own policy — see below.
+
 Read with `MerchantManager.getConfig(actor)`, written with `setConfig(actor, changes)`, which shallow-merges.
 
-### The shelf flag — `flags['coffee-pub-merchant'].shelf` on a container Item
+### The inventory flag — `flags['coffee-pub-merchant'].inventory` on a container Item
 
 ```js
-{ order: 0, visible: true, mode: 'sale', markup: null, stock: null,
-  restockDays: 7, lastRestock: <worldTime>, maxItems: 25, maxPerItem: null,
+{ type: 'general', order: 0, visible: true, markup: 1, stock: 'infinite',
+  buyRate: 0.5,                                  // purchased only — what the shop PAYS
+  restockDays: 7, lastRestock: <worldTime>, maxProducts: 25, maxPerItem: 20,
   tables: [{ uuid, rolls, auto }] }
 ```
 
-`null` means *inherit from the merchant*, the same way `markup: null` already did. One schema with three
-properties — visibility, markup, mode — rather than five shelf types, so the sixth idea has somewhere to go.
-The five presets in `SHELF_PRESETS` are **data**, not code paths.
+**The type is stored, and the settings follow from it.** Six of them, defined in `INVENTORY_TYPES`:
 
-**The shelf's name is the container's name.** The flag carries no copy of it, so a GM renaming the container
-in dnd5e's own sheet renames the shelf. Old flags may carry a vestigial `label`; it is ignored.
+| type | visible | pricing control | restocks |
+|---|---|---|---|
+| `general` | shown | the shop baseline, nothing of its own | yes |
+| `hidden` | **hidden** | own markup, starts at 1 | yes |
+| `premium` | shown | own markup, starts at 1.5 | yes |
+| `discounted` | shown | own markup, starts at 0.75 | yes |
+| `unpriced` | shown | none — agreed on the slate | yes |
+| `purchased` | shown | **two** rates: `buyRate` paid, `markup` charged | **no** |
+
+These were five *presets over one schema* until 2026-08-19, and the schema stored nothing about which one
+had been chosen — a Premium and a Storefront were the same object once created, so nothing downstream could
+offer a control that only made sense for one of them. Storing the choice is what lets the settings window
+show a Purchase Rate on the one type that has one and nothing at all on the type that has no prices.
+
+**The type sets defaults; it does not take controls away.** Every type keeps the show/hide toggle in the
+inventory header — that gesture exists so a GM can bring the good stuff out front mid-session, and a
+premium inventory needs it as much as a hidden one. `hidden` is simply the type that starts hidden.
+
+**Nothing inherits any more.** `markup` is a real multiplier on every inventory (1 means "the baseline and
+nothing more") and `stock` is stated per inventory. The old `null`-means-inherit was not wrong so much as
+invisible: two places set one thing, one of them silently.
+
+`mode` is gone. It carried what the transaction branched on — sale, barter, buyback — and `type` carries it
+now, through `isUnpriced()` and `isPurchased()`. One word per concept, in the interface and in the code.
+
+**The inventory's name is the container's name.** The flag carries no copy of it, so a GM renaming the
+container — in Merchant Settings or in dnd5e's own sheet — renames the inventory. A shop may hold several
+inventories of one type, which is why naming them matters.
 
 ### The par flag — `flags['coffee-pub-merchant'].par` on a stock Item
 
-What a restocking shelf refills *to*. There is no separate par editor: a GM setting a quantity by hand in
+What a restocking inventory refills *to*. There is no separate par editor: a GM setting a quantity by hand in
 the shop window sets both the count and the par, so the rule is *"what I keep six of, I restock to six"*.
 A purchase lowers the count and leaves par alone.
 
-Because Merchant writes flags to Items that `blacksmith.inventory` moves, both `par` and `shelf` are
+Because Merchant writes flags to Items that `blacksmith.inventory` moves, both `par` and `inventory` are
 registered with `registerTransientFlag` at startup. **If you add a flag that lives on an item, register it.**
 
 **Registering is not stripping.** `registerTransientFlag` makes a path invisible to *merge comparison*; the
-flag still rides along in the payload. So `par` leaves with every item bought from a counted shelf and comes
-back if the buyer sells it — which is why `getStock` refuses to read a par on a buyback shelf. Blacksmith's
+flag still rides along in the payload. So `par` leaves with every item bought from a counted inventory and comes
+back if the buyer sells it — which is why `getStock` refuses to read a par on a purchased inventory. Blacksmith's
 `omitFlags` will stop it arriving at all; the guard stays regardless, for items already out there.
 
 ---
 
 ## 4. Stock is a count, not a document
 
-Nothing is ever moved off a shelf by a sale in the ordinary sense. Every policy grants the buyer a copy or
+Nothing is ever moved off an inventory by a sale in the ordinary sense. Every policy grants the buyer a copy or
 decrements a number; the row itself survives:
 
 | policy | on purchase | transfer flags |
@@ -119,11 +148,11 @@ The whole policy is expressed as two flags on the exchange transfer. There is no
 
 ### Ceilings and restocking
 
-A shelf has `maxItems` (how many distinct rows) and `maxPerItem` (how many of any one thing). Both are
+An inventory has `maxItems` (how many distinct rows) and `maxPerItem` (how many of any one thing). Both are
 enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }` so the window can say
 what happened rather than silently correcting a number a GM typed.
 
-**Both are ceilings, not targets.** They only ever refuse. Nothing fills a shelf *to* them, and reading
+**Both are ceilings, not targets.** They only ever refuse. Nothing fills an inventory *to* them, and reading
 either as "how many I want" is the single most natural wrong assumption about this screen.
 
 How deep a table-rolled row goes is `stockDepth()` in `merchant-pricing.js`, in three steps:
@@ -131,16 +160,16 @@ How deep a table-rolled row goes is `stockDepth()` in `merchant-pricing.js`, in 
 1. **The item's own `system.quantity`**, if it is more than one. A compendium entry authored as a quiver of
    twenty arrows is a quiver of twenty arrows.
 2. **The price band** (`STOCK_DEPTH_BANDS`), for types a shop keeps a pile of — `consumable`, `loot`, and
-   ammunition. The band caps it and a die fills it, so stocking the same shelf twice gives two shops.
+   ammunition. The band caps it and a die fills it, so stocking the same inventory twice gives two shops.
 3. **One**, for everything else.
 
 `maxPerItem` clamps the result, so a ceiling a GM set by hand is never argued with by a die. The roll is a
 plain integer, not a `Roll` — nothing here belongs in chat.
 
 Restocking is driven by `updateWorldTime` — the same watcher that opens and closes shops, so there is no
-second clock. A shelf restocks when `restockDays` in-world days have elapsed. **Advancing a week restocks
+second clock. An inventory restocks when `restockDays` in-world days have elapsed. **Advancing a week restocks
 once, not seven times**; the watcher compares elapsed time against the interval rather than counting
-boundaries. Table-stocked shelves may additionally re-roll on restock, which is opt-in per table (`auto`).
+boundaries. Table-stocked inventories may additionally re-roll on restock, which is opt-in per table (`auto`).
 
 ---
 
@@ -173,13 +202,52 @@ holds it and touches no documents, which is why 5,151 purse/price combinations c
 `api.inventory` will never convert denominations, so this arithmetic is ours permanently and nobody else was
 going to catch it being wrong.
 
-`resolvePrice(merchantConfig, shelfConfig, item)` in order:
+`resolvePrice(merchantConfig, inventoryConfig, item, { reputation })` in order:
 
-1. An **agreed price** for this item id wins outright — that is what makes it agreed.
-2. A **negotiate shelf** (`mode: 'barter'`) returns `null`. It has no list price by definition.
-3. Otherwise `system.price` × the shelf's markup, falling back to the merchant's.
+1. An **agreed price** for this item id wins outright — that is what makes it agreed. Nothing is applied on
+   top of it, in either direction: a haggled number is the number, not the start of an arithmetic.
+2. An **unpriced inventory** returns `null`. It has no list price by definition.
+3. Otherwise:
 
-`resolveBuybackPrice` is the mirror, reading `buybackOverrides` and the buyback shelf's rate.
+```
+system.price  ×  global markup  ×  inventory markup  ×  reputation
+```
+
+**Everything multiplies, and that is the model.** The shop's Global Markup is a *baseline* — an expensive
+quarter, or the middle of nowhere — and an inventory's markup is an adjustment *within* that shop. Premium
+stock is dearer than this shop's ordinary stock; a discounted rack is cheaper than it. Applying one instead
+of the other, which is what this did until 2026-08-19, priced a premium inventory in an expensive shop as
+though the shop were ordinary. Reputation stacks for a related reason: it is a fact about the town rather
+than about the inventory.
+
+Any rate that is zero, negative or unparseable is read as 1. A price of nothing is never what a typo meant.
+
+`resolveBuybackPrice` is the mirror with two differences that matter. It reads a share of what the item is
+**worth** — the global markup is blanked before it computes — because a shop in a dear quarter does not pay
+more for your old sword. And reputation is applied **inverted**: the standing that buys you a discount gets
+you more for your goods, or a beloved party is rewarded in one direction and ignored in the other.
+
+The purchased type carries both halves of that: `buyRate` is what it pays, `markup` is what it then charges.
+They used to be one number, and `resolvePrice` had to refuse to read it or a shop buying at half price would
+have resold at half price forever.
+
+### Reputation
+
+Off unless a shop opts in. Blacksmith scores the party −100..+100 **per scene** and sorts that into eleven
+named bands; `REPUTATION_MARKUP` in `const.js` maps band → multiplier, and **is meant to be tuned**.
+
+The boundary is worth stating: they own *how liked the party is*, we own *what a shop does about it*. Their
+scale briefly carried an `effects.merchantModifier` and they removed it rather than fill it, which was the
+right call — the same scale drives NPC attitude and what people will tell you, and a table wanting gentler
+prices should not have to edit that.
+
+Two constraints shape the implementation, both in `merchant-reputation.js`:
+
+- **The band lookup is async**, so it is resolved **once per render** and the multiplier passed down. Per
+  row it would be a promise per price and a list resolving in a different order than it drew.
+- **Reputation is per scene**, so a shop reads the scene its *token* stands on — never `canvas.scene` on
+  the GM's client. A GM answering a request from another map must not price the shop differently from the
+  players standing in it.
 
 ### Negotiation
 
@@ -192,7 +260,7 @@ not be able to name, and a slate is client state.
   negotiated at 200 gp can be sold on for 200 gp. An item that **had** a price keeps it — a longsword
   bought cheap is still worth what a longsword is worth.
 - Agreements are **cleared once the trade they were made for settles**, so a discount does not quietly
-  become the shelf price for the next party.
+  become the inventory price for the next party.
 
 Stamping happens *before* the goods move, in one batched `updateEmbeddedDocuments` per Actor. A second
 separate write to the same Actor is the shape that trips dnd5e's encumbrance recompute.
@@ -219,7 +287,7 @@ manager-merchant.js  _process()
 _processSettle()  under _withStockLock(merchant)
     │  1. _validateShopper   — one Actor pays AND receives
     │  2. _priceBuying       — every line re-resolved from documents
-    │  3. _priceSelling      — ditto, against the buyback shelf
+    │  3. _priceSelling      — ditto, against the buyback inventory
     │  4. planPayment        — coins chosen smallest-first, change computed
     │  5. _recordAgreedPrices— stamp negotiated prices onto unpriced items
     │  6. exchange({ transfers: [...goods out, ...goods in, ...coin] })
@@ -300,7 +368,7 @@ rather than from the sixteen mutation sites, and snapshot-compared so it cannot 
 
 Permissions fall out for free: the only characters you can switch to are the ones you can act as. `_cartLines()` and `_basketLines()` turn them into render context, and
 that is where stock trimming, TBD lines and totals happen. Both re-resolve from documents on every render,
-so a shelf emptied out from under a standing slate trims the line instead of failing the checkout.
+so an inventory emptied out from under a standing slate trims the line instead of failing the checkout.
 
 Notable behaviours worth knowing before you touch it:
 
@@ -323,12 +391,12 @@ has cost this suite real time twice. What is used:
 | API | for |
 |---|---|
 | `inventory.exchange` | the entire transaction |
-| `inventory.registerTransientFlag` | `par` and `shelf` surviving transfers |
+| `inventory.registerTransientFlag` | `par` and `inventory` surviving transfers |
 | `tokens.registerInteraction` | double-click to open, with the permission bypass |
 | `BlacksmithToolWindowBaseV2` | both windows, including `openFor` and its per-subclass registry |
 | `dialog.confirm / choose / wait` + `controls` | every prompt |
 | `entityList`, `quantitySplit`, `uiContextMenu` | embedded controls |
-| compendium search window | stocking a shelf |
+| compendium search window | stocking an inventory |
 | `toast` | every message the module shows |
 | `utils.playSound` + `arrSoundChoices` | the sound settings |
 
@@ -381,3 +449,36 @@ which is the shortest document here and the one most worth reading before writin
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.
 - **`architecture/` was empty until 2026-08-19.** If you change how any of the above works, change this file
   in the same commit. A map that lies is worse than no map.
+
+---
+
+## 12. Migration
+
+`SCHEMA_VERSION` in `manager-merchant.js` is the shape this build writes. **1** was untyped shelves under
+`flags['coffee-pub-merchant'].shelf`; **2** is typed inventories under `.inventory`.
+
+`MerchantManager.migrateWorld()` runs from the `ready` hook, **GM-only**, and is awaited before anything
+reads a merchant. For each shop it has not already stamped, it rewrites every container's flag to the new
+key, derives the `type` from what the old settings must have meant, drops `mode`, and deletes the old flag
+**in the same update** — so there is never a moment when one container carries two answers.
+
+The derivation is not a guess. Each branch was the only way that state could be expressed before types
+existed:
+
+| old state | becomes |
+|---|---|
+| `mode: 'buyback'` | `purchased` |
+| `mode: 'barter'` | `unpriced` |
+| `visible: false` | `hidden` |
+| `markup > 1` | `premium` |
+| `markup < 1` | `discounted` |
+| anything else | `general` |
+
+`getInventoryConfig` applies the same derivation on read, which is a belt for those braces: a world whose GM
+has not logged in since the rename, a container copied in from elsewhere, or an inventory built by a macro
+still reads as *something* rather than as a shop with no settings.
+
+**Stamped even when nothing moved**, so a merchant with no inventories is not re-examined at every load for
+the rest of its life. One batched write per Actor, because two writes to one Actor is the shape that trips
+dnd5e's encumbrance recompute — and a migration touching every merchant in a world is exactly where that
+would show up.

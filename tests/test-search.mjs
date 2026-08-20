@@ -38,7 +38,7 @@ const row = (name, type) => ({
     searchKey: `${name} ${type}`.toLowerCase()
 });
 
-const shelf = (id, label, cats) => ({
+const inventory = (id, label, cats) => ({
     id, label, img: '', hidden: false, canToggle: false, canStock: false, isBarter: false,
     hasItems: cats.some((c) => c.items.length),
     count: cats.reduce((n, c) => n + c.items.length, 0),
@@ -46,17 +46,17 @@ const shelf = (id, label, cats) => ({
 });
 
 const html = Handlebars.compile(shopSrc)({
-    hasShelves: true, hasRecipient: true, recipientName: 'Tess', recipientImg: '',
+    hasInventories: true, hasRecipient: true, recipientName: 'Tess', recipientImg: '',
     shopName: 'The Shop', portraitImg: '', isGM: false, isOpen: true,
-    shelves: [
-        shelf('a', 'Storefront', [
+    inventories: [
+        inventory('a', 'Storefront', [
             { label: 'Weapons', icon: '', items: [row('Longsword', 'weapon'), row('Dagger', 'weapon')] },
             { label: 'Consumables', icon: '', items: [row('Potion of Healing', 'consumable')] }
         ]),
-        shelf('b', 'Premium', [
+        inventory('b', 'Premium', [
             { label: 'Armor & Gear', icon: '', items: [row('Plate Armor', 'equipment')] }
         ]),
-        shelf('c', 'Back Room', [])
+        inventory('c', 'Back Room', [])
     ]
 });
 
@@ -77,7 +77,7 @@ const { filterShopList } = await import('../scripts/window-shop.js')
     });
 
 const visible = (sel) => [...el.querySelectorAll(sel)].filter((n) => !n.hidden);
-const shelves = () => visible('.merchant-shop-shelf').map((s) => s.querySelector('h3 span').textContent.trim());
+const inventories = () => visible('.merchant-shop-inventory').map((s) => s.querySelector('h3 span').textContent.trim());
 const rows = () => visible('.merchant-shop-item').map((r) => r.querySelector('strong').textContent.trim());
 const cats = () => visible('.merchant-shop-category').length;
 const noMatches = () => !el.querySelector('[data-shop-no-matches]').hidden;
@@ -85,16 +85,16 @@ const noMatches = () => !el.querySelector('[data-shop-no-matches]').hidden;
 // --- no query: everything shows ----------------------------------------
 assert.strictEqual(filterShopList(el, ''), 4, 'four rows in total');
 assert.strictEqual(rows().length, 4);
-assert.strictEqual(visible('.merchant-shop-shelf').length, 3, 'the empty shelf still shows');
+assert.strictEqual(visible('.merchant-shop-inventory').length, 3, 'the empty inventory still shows');
 assert.ok(!noMatches());
-console.log('ok  empty query shows everything, including an empty shelf');
+console.log('ok  empty query shows everything, including an empty inventory');
 
 // --- a name match -------------------------------------------------------
 assert.strictEqual(filterShopList(el, 'dagger'), 1);
 assert.deepStrictEqual(rows(), ['Dagger']);
 assert.strictEqual(cats(), 1, 'the Consumables heading is not left over nothing');
-assert.deepStrictEqual(shelves(), ['Storefront'], 'Premium and the empty shelf collapse');
-console.log('ok  a name match collapses empty categories and shelves');
+assert.deepStrictEqual(inventories(), ['Storefront'], 'Premium and the empty inventory collapse');
+console.log('ok  a name match collapses empty categories and inventories');
 
 // --- case and partials --------------------------------------------------
 assert.strictEqual(filterShopList(el, 'DAGGER'), 1, 'case insensitive');
@@ -107,20 +107,20 @@ assert.strictEqual(filterShopList(el, 'weapon'), 2, 'kind matches as well as nam
 assert.deepStrictEqual(rows().sort(), ['Dagger', 'Longsword']);
 console.log('ok  searching by kind');
 
-// --- across shelves -----------------------------------------------------
-assert.strictEqual(filterShopList(el, 'a'), 4, 'a common letter spans both shelves');
-assert.strictEqual(shelves().length, 2);
-console.log('ok  matches span shelves');
+// --- across inventories -----------------------------------------------------
+assert.strictEqual(filterShopList(el, 'a'), 4, 'a common letter spans both inventories');
+assert.strictEqual(inventories().length, 2);
+console.log('ok  matches span inventories');
 
 // --- no match -----------------------------------------------------------
 assert.strictEqual(filterShopList(el, 'zzz'), 0);
 assert.strictEqual(rows().length, 0);
-assert.strictEqual(shelves().length, 0, 'every shelf collapses');
+assert.strictEqual(inventories().length, 0, 'every inventory collapses');
 assert.ok(noMatches(), 'and the "nothing matches" line appears');
 console.log('ok  no match hides everything and says so');
 
 // --- the badge counts what is in front of you ---------------------------
-const badge = () => el.querySelector('.merchant-shop-shelf .merchant-shop-count').textContent.trim();
+const badge = () => el.querySelector('.merchant-shop-inventory .merchant-shop-count').textContent.trim();
 filterShopList(el, '');
 assert.strictEqual(badge(), '3', 'Storefront holds three');
 filterShopList(el, 'dagger');
@@ -133,7 +133,7 @@ console.log('ok  the count badge tracks the filter and restores');
 filterShopList(el, 'zzz');
 assert.strictEqual(filterShopList(el, ''), 4);
 assert.strictEqual(rows().length, 4);
-assert.strictEqual(visible('.merchant-shop-shelf').length, 3);
+assert.strictEqual(visible('.merchant-shop-inventory').length, 3);
 assert.ok(!noMatches());
 console.log('ok  clearing after a dead end restores everything');
 

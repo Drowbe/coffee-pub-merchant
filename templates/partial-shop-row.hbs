@@ -28,7 +28,7 @@
 
     {{!-- Unlimited reads as a symbol, anything else as a number, so the column does
           not move between stock policies. A GM edits the number in place, which sets
-          both what is there and what a restocking shelf refills to. --}}
+          both what is there and what a restocking inventory refills to. --}}
     {{#if canEditStock}}
         <div class="merchant-shop-item-qty merchant-shop-qty-editable" data-edit-stock="{{id}}"
              data-tooltip="{{qtyTooltip}} — double-click to change">
@@ -41,18 +41,18 @@
     {{/if}}
 
     <div class="merchant-shop-item-price">
-        {{!-- A negotiate shelf is checked *first*, before any figure. Once a price has
+        {{!-- A negotiate inventory is checked *first*, before any figure. Once a price has
               been agreed `priceLabel` would otherwise have something in it, and showing
               it here would publish a private agreement to the next player who opened
               the shop. The tooltip is GM-only and the context decides that, so a player
               inspecting the markup finds nothing to read either. --}}
-        {{#if isBarter}}
+        {{#if isUnpricedInventory}}
             <em class="merchant-shop-negotiate"
                 {{#if negotiateTooltip}}data-tooltip="{{negotiateTooltip}}"{{/if}}>negotiate</em>
         {{else if priceLabel}}
             <strong>{{priceLabel}}</strong>
         {{else}}
-            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a negotiate shelf">no price</em>
+            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a negotiate inventory">no price</em>
         {{/if}}
     </div>
 
@@ -70,7 +70,7 @@
                   outright, and it was never fewer prompts than the cart: pick a
                   quantity, pick a destination, confirm, either way. Two paths through
                   the same money, and two places for them to disagree. --}}
-            {{!-- `addAction` so a row can serve both sides: the shelves add to the
+            {{!-- `addAction` so a row can serve both sides: the inventories add to the
                   buying half, your own pack adds to the selling half. Same row, same
                   gesture, one word different. --}}
             <button type="button" class="blacksmith-window-btn-secondary merchant-shop-cart-add"
@@ -80,10 +80,10 @@
             </button>
             {{#if canRemove}}
                 {{!-- GM only. Zero is out of stock, which is a state a shop is in;
-                      this is the shelf no longer carrying the thing at all. --}}
+                      this is the inventory no longer carrying the thing at all. --}}
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-remove"
                         data-action="removeStock" data-item-id="{{id}}"
-                        data-tooltip="Take this off the shelf entirely">
+                        data-tooltip="Take this off the inventory entirely">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             {{/if}}

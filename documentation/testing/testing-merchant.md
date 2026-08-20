@@ -55,27 +55,27 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 ---
 
-## 2b. Shelves
+## 2b. Inventories
 
-- [ ] Enabling a merchant with no shelves auto-creates a **Storefront**.
-- [ ] Config window lists shelves with their item counts, and an **Add a shelf** row of five presets.
-- [x] Adding a shelf creates a container on the Actor; opening it via the box icon shows dnd5e's own
+- [ ] Enabling a merchant with no inventories auto-creates a **Storefront**.
+- [ ] Config window lists inventories with their item counts, and an **Add an inventory** row of five presets.
+- [x] Adding an inventory creates a container on the Actor; opening it via the box icon shows dnd5e's own
       container sheet, and dragging items in stocks it.
-- [ ] The trash icon removes a shelf via dnd5e's delete prompt — keeping the contents leaves them loose on
+- [ ] The trash icon removes an inventory via dnd5e's delete prompt — keeping the contents leaves them loose on
       the merchant, deleting them removes both.
-- [ ] Cancelling that prompt leaves the shelf in place.
-- [ ] Adding or removing a shelf updates an open shop without reopening it, including a shop opened from a
+- [ ] Cancelling that prompt leaves the inventory in place.
+- [ ] Adding or removing an inventory updates an open shop without reopening it, including a shop opened from a
       different token of the same merchant.
-- [ ] A shelf reports **unlimited capacity** and its contents add **no weight** to the merchant.
-- [ ] Items on the merchant *outside* any shelf — the shopkeeper's worn armour, their own dagger — do
+- [ ] An inventory reports **unlimited capacity** and its contents add **no weight** to the merchant.
+- [ ] Items on the merchant *outside* any inventory — the shopkeeper's worn armour, their own dagger — do
       **not** appear in the shop.
-- [ ] Each visible shelf renders as its own section in the shop window, in preset order.
-- [ ] A **Back Room** shelf is visible to the GM, marked hidden, and **absent entirely** for a player.
+- [ ] Each visible inventory renders as its own section in the shop window, in preset order.
+- [ ] A **Back Room** inventory is visible to the GM, marked hidden, and **absent entirely** for a player.
 - [ ] A crafted request naming a back-room item is refused with "That is not for sale."
       *This is the one that matters: hidden must be a refusal, not just a missing section.*
-- [ ] A **Barter** shelf lists its items with "Ask" instead of acquire controls.
-- [ ] A GM sees a **Shown / Hidden** toggle on each shelf header; a player sees none.
-- [ ] Toggling a shelf to Hidden while a player has the shop open makes that whole section vanish for them
+- [ ] A **Barter** inventory lists its items with "Ask" instead of acquire controls.
+- [ ] A GM sees a **Shown / Hidden** toggle on each inventory header; a player sees none.
+- [ ] Toggling an inventory to Hidden while a player has the shop open makes that whole section vanish for them
       without either side reopening the window.
 - [ ] Toggling it back brings it out front for them again.
 
@@ -89,11 +89,11 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] The **GM is exempt** — they can still acquire from a closed shop, for stocking and testing.
 - [ ] Toggling open/closed updates a player's open window without either side reopening it.
 - [ ] Shop titlebar has **Merchant Settings**; the character sheet header has it too, but **no Open Shop**.
-- [ ] The **+** on a shelf header opens **Blacksmith's** Compendium Search window.
-- [ ] Dragging a result from that window onto a shelf puts it on that shelf.
-- [ ] **Drag an item onto a shelf** from a compendium or the sidebar → it lands on that shelf.
-- [ ] Dragging onto a shelf highlights it while hovering.
-- [ ] A player cannot drop onto a shelf.
+- [ ] The **+** on an inventory header opens **Blacksmith's** Compendium Search window.
+- [ ] Dragging a result from that window onto an inventory puts it on that inventory.
+- [ ] **Drag an item onto an inventory** from a compendium or the sidebar → it lands on that inventory.
+- [ ] Dragging onto an inventory highlights it while hovering.
+- [ ] A player cannot drop onto an inventory.
 
 ## 2d. Trading hours
 
@@ -131,7 +131,7 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 ## 2d-ii. Negotiating a price
 
-- [ ] A **Negotiate** shelf (was Barter) shows *negotiate* in the price column and its tag reads **Negotiate**.
+- [ ] A **Negotiate** inventory (was Barter) shows *negotiate* in the price column and its tag reads **Negotiate**.
 - [ ] Its rows have the ordinary **+** button, not an "Ask" label.
 - [ ] Add one → it lands on the slate with the price showing **TBD**, in red italic.
 - [ ] **Complete Transaction** with a TBD line refuses: *"You have unnegotiated items on your slate..."*
@@ -140,51 +140,51 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] Settle it → the item arrives in the character's inventory **carrying that price**.
 - [ ] Buy something that already had a price, negotiated down → the item keeps its **own** price, not the
       discount. *A longsword bought cheap is still worth what a longsword is worth.*
-- [ ] After settling, the shelf row is back to **negotiate** — the agreement did not become the list price.
+- [ ] After settling, the inventory row is back to **negotiate** — the agreement did not become the list price.
 - [ ] The same works on the **selling** side: an unpriced possession can go in the basket at TBD, the GM
       names what the merchant will pay, and settling moves it.
 - [ ] A **player** sees the price but cannot double-click to change it.
-- [ ] A negotiate shelf's price column reads **negotiate** and shows **no figure ever** — including after a
+- [ ] A negotiate inventory's price column reads **negotiate** and shows **no figure ever** — including after a
       price has been agreed for that item, and including on the next player's screen.
 - [ ] As GM, hover that label → a tooltip gives the agreed price, or what it is worth on the books.
 - [ ] As a **player**, hover it → **no tooltip at all**, and nothing readable in the markup.
 
 ## 2d-v. Item cards and opening items
 
-- [ ] Hover an item's **picture** on a shelf row → the system's item card appears, same as hovering the name.
+- [ ] Hover an item's **picture** on an inventory row → the system's item card appears, same as hovering the name.
 - [ ] The same on both sides of the slate — the buying side reads the merchant's item, the selling side
       reads the shopper's own.
-- [ ] As **GM**, click a picture → that item's sheet opens. Works from a shelf row and from a slate line.
+- [ ] As **GM**, click a picture → that item's sheet opens. Works from an inventory row and from a slate line.
 - [ ] As a **player**, the picture is not clickable and the cursor does not suggest it is.
 - [ ] Clicking the picture does not also trigger the row underneath it.
 
 ## 2d-iii. How deep table-rolled stock stacks
 
-- [ ] Roll a table onto a shelf → rows are **not all QTY 1**. Cheap consumables arrive several deep.
+- [ ] Roll a table onto an inventory → rows are **not all QTY 1**. Cheap consumables arrive several deep.
 - [ ] A compendium item authored as a stack (a quiver of arrows, a pouch of caltrops) arrives at **its own
       quantity**, not at 1.
 - [ ] Armour, weapons, tools and containers still arrive **one at a time** however cheap they are.
 - [ ] Ammunition stacks, unlike other weapons.
-- [ ] Restock the same shelf twice → the depths **differ**. The band is a ceiling, not a count.
-- [ ] Lower a shelf's **each** limit below a band cap → rolled depth respects the shelf, not the band.
-- [ ] A shelf at its **products** limit still refuses new rows, and says so in the console.
+- [ ] Restock the same inventory twice → the depths **differ**. The band is a ceiling, not a count.
+- [ ] Lower an inventory's **each** limit below a band cap → rolled depth respects the inventory, not the band.
+- [ ] An inventory at its **products** limit still refuses new rows, and says so in the console.
 
 ## 2d-iv. Clearing and restocking feedback
 
-- [ ] Each shelf has a **broom** button, in the shop window and in Merchant Settings.
-- [ ] It asks first, names the count, and says the shelf itself stays.
-- [ ] Confirm → every row goes, the **shelf remains** with its stock policy, limits and tables intact.
-- [ ] Clearing an already-empty shelf says so and asks nothing.
-- [ ] **Restock Everything** shows a progress bar that names the shelf and table it is working on.
+- [ ] Each inventory has a **broom** button, in the shop window and in Merchant Settings.
+- [ ] It asks first, names the count, and says the inventory itself stays.
+- [ ] Confirm → every row goes, the **inventory remains** with its stock policy, limits and tables intact.
+- [ ] Clearing an already-empty inventory says so and asks nothing.
+- [ ] **Restock Everything** shows a progress bar that names the inventory and table it is working on.
 - [ ] The bar reaches 100% exactly as the work finishes — not early, not stuck short.
-- [ ] A shelf whose table has been deleted still completes the bar rather than leaving it hanging.
-- [ ] Restocking a single shelf, from either window, shows the same bar.
+- [ ] An inventory whose table has been deleted still completes the bar rather than leaving it hanging.
+- [ ] Restocking a single inventory, from either window, shows the same bar.
 - [ ] Delete stock rows **as fast as you can click** → no `Item "..." does not exist!` in the console.
 
 ## 2d-vi. The par leak
 
-- [ ] Set a restocking shelf to keep **6** of something. Buy one as a player.
-- [ ] Sell it back to the merchant. It lands on the Buyback shelf.
+- [ ] Set a restocking inventory to keep **6** of something. Buy one as a player.
+- [ ] Sell it back to the merchant. It lands on the Buyback inventory.
 - [ ] Press **Restock Everything** → that buyback row stays at **1**. It must not become 6.
 
 ## 2d-vii. Toasts and sounds
@@ -252,11 +252,11 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] **Sell** shows your pack in the stock column, not a modal.
 - [ ] Press `+` on a row → it lands on the slate **immediately**. This is the one that was broken.
 - [ ] Switch back to Buy → the shop's search text and scroll position are as you left them.
-- [ ] The pack looks **exactly like a shelf** — same card, same header, same spacing, same rows.
-- [ ] It scrolls in the same region the shelves do, and its header scrolls with it as a shelf's does.
+- [ ] The pack looks **exactly like an inventory** — same card, same header, same spacing, same rows.
+- [ ] It scrolls in the same region the inventories do, and its header scrolls with it as an inventory's does.
 - [ ] The slate is **visible while you add**, and updates as you press `+`.
 - [ ] Add several things without reopening anything.
-- [ ] The pack has its **own search**; typing in it does not filter the shop's shelves, and vice versa.
+- [ ] The pack has its **own search**; typing in it does not filter the shop's inventories, and vice versa.
 - [ ] The sort button cycles **value → name → kind**, and says which it is on.
 - [ ] Sorting by kind groups rows under headings.
 - [ ] Something already wholly on the slate shows as unavailable rather than being addable twice.
@@ -272,8 +272,8 @@ check, and it reverses what this file said before 2026-08-18.
 - [ ] With no `exchange` in Blacksmith, Buy and Sell are **disabled**, and hovering either says it is waiting
       on a Blacksmith update. The GM's free-take still works.
 - [ ] Prices show on each row, formatted largest-coin-first ("1 gp 5 sp").
-- [ ] An item with no price shows **no price** in red on a sale shelf, and nothing on a barter shelf.
-- [ ] Markup 2 in config doubles every displayed price; the Premium shelf stays at its own 1.5.
+- [ ] An item with no price shows **no price** in red on a sale inventory, and nothing on a barter inventory.
+- [ ] Markup 2 in config doubles every displayed price; the Premium inventory stays at its own 1.5.
 - [ ] The buyer's purse shows beside "Buying as" and matches their sheet.
 
 - [ ] Each row reads as columns: item, quantity, price, actions.
@@ -297,11 +297,11 @@ check, and it reverses what this file said before 2026-08-18.
 
 #### Stock policy through a purchase
 
-- [ ] Buy from an **infinite** shelf → the merchant's row is untouched, same quantity as before.
-- [ ] Buy 3 from an infinite shelf whose row reads 1 → all 3 arrive. The row is a template, not a count.
-- [ ] Buy from a **finite** shelf → the count comes down by what you bought.
+- [ ] Buy from an **infinite** inventory → the merchant's row is untouched, same quantity as before.
+- [ ] Buy 3 from an infinite inventory whose row reads 1 → all 3 arrive. The row is a template, not a count.
+- [ ] Buy from a **finite** inventory → the count comes down by what you bought.
 - [ ] Buy the last one → the row stays at 0 rather than disappearing.
-- [ ] Restock that shelf → the row comes back to its par, which is why it had to survive.
+- [ ] Restock that inventory → the row comes back to its par, which is why it had to survive.
 
 Once `exchange` ships:
 
@@ -313,51 +313,51 @@ Once `exchange` ships:
 - [ ] Buy with only large coins → you pay the large coin and get change back.
 - [ ] Buy with only small coins → you pay the small coins, no change.
 - [ ] Buy something you cannot afford → refused with what it costs and what you hold, and **nothing moves**.
-- [ ] Buy on a barter shelf → refused; barter is a conversation.
-- [ ] Sell an item → it leaves your sheet, coin arrives, and it lands on the **Buyback** shelf.
+- [ ] Buy on a barter inventory → refused; barter is a conversation.
+- [ ] Sell an item → it leaves your sheet, coin arrives, and it lands on the **Buyback** inventory.
 - [ ] Sell when the merchant's till is empty → refused, and nothing moves.
 - [ ] Sell an item belonging to a character you do not own → refused with `NOT_YOUR_ITEM`.
-- [ ] Sell to a merchant with no Buyback shelf → the Sell control is absent.
+- [ ] Sell to a merchant with no Buyback inventory → the Sell control is absent.
 
 ### Stock
 
-Three policies, set per shelf in Merchant Settings, `Same as the shop` inheriting the merchant's.
+Three policies, set per inventory in Merchant Settings, `Same as the shop` inheriting the merchant's.
 
-- [ ] A shelf set to **Never runs out** shows ∞ in the quantity column and never decreases.
-- [ ] A shelf set to **Runs out** shows a number, and buying decreases it.
+- [ ] An inventory set to **Never runs out** shows ∞ in the quantity column and never decreases.
+- [ ] An inventory set to **Runs out** shows a number, and buying decreases it.
 - [ ] **The row does not vanish at zero.** It stays, dimmed, marked out of stock.
-      *This is the whole design. A vanished row loses the shelf layout and leaves nothing to restock.*
+      *This is the whole design. A vanished row loses the inventory layout and leaves nothing to restock.*
 - [ ] At zero, Buy, add-to-cart and the GM's free-take are all disabled, all saying "Out of stock".
 - [ ] A crafted request against a zero row is refused with `OUT_OF_STOCK` — **not** merely disabled.
 - [ ] Asking for more than is there is refused with how many are left.
 - [ ] The quantity dialog will not offer more than is in stock.
 - [ ] With 1 left, the dialog does not appear at all — there is no choice to make.
 - [ ] **Buyback is finite whatever the shop is set to**, including when the shop says Never runs out.
-- [ ] Switching a shelf's policy updates an open shop for a player without either side reopening.
+- [ ] Switching an inventory's policy updates an open shop for a player without either side reopening.
 
 #### Quantities and par
 
-- [ ] A GM sees an editable number in the quantity column on any counting shelf; a player sees plain text.
+- [ ] A GM sees an editable number in the quantity column on any counting inventory; a player sees plain text.
 - [ ] Typing a number and pressing Enter or clicking away commits it, and a player's open window updates.
 - [ ] Setting the number by hand sets **both** the count and what it restocks to.
 - [ ] Buying lowers the count and leaves the restock target alone — hover the quantity to read both back.
-- [ ] Dragging a new item onto a shelf sets its restock target from the quantity that arrived.
+- [ ] Dragging a new item onto an inventory sets its restock target from the quantity that arrived.
 - [ ] Dragging *more of an item already there* tops up the count and leaves the target where it was.
 
-#### Shelf ceilings
+#### Inventory ceilings
 
-- [ ] Type a quantity **above** a shelf's "each" limit → it clamps, and says where to raise the limit.
+- [ ] Type a quantity **above** an inventory's "each" limit → it clamps, and says where to raise the limit.
 - [ ] Raise the limit, type it again → it takes.
-- [ ] Lower a shelf's limit **below** an existing row's quantity → nothing is deleted, and the row's restock
+- [ ] Lower an inventory's limit **below** an existing row's quantity → nothing is deleted, and the row's restock
       target reads the new, lower limit.
 
-- [ ] A new shelf shows **25 products** and **20 each**.
-- [ ] Fill a shelf to its product ceiling, then restock from a table → no new rows appear, and existing rows
+- [ ] A new inventory shows **25 products** and **20 each**.
+- [ ] Fill an inventory to its product ceiling, then restock from a table → no new rows appear, and existing rows
       can still top up.
 - [ ] Lower the ceiling below what is already there → nothing is deleted; it simply stops growing.
 - [ ] A row at the per-item ceiling stops receiving from table rolls.
 - [ ] Hover a row's quantity → its restock target never reads higher than the per-item ceiling.
-- [ ] Both are per shelf: set the Back Room to 5 products and the Storefront stays at 25.
+- [ ] Both are per inventory: set the Back Room to 5 products and the Storefront stays at 25.
 
 #### Removing stock
 
@@ -372,70 +372,70 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 #### Restock Everything
 
 - [ ] Merchant Settings shows a green **Restock Everything** in the footer, right-justified.
-- [ ] A merchant with **no shelves** does not show it at all.
-- [ ] It asks first, naming the shop and how many shelves, and says rolled stock is added not replaced.
+- [ ] A merchant with **no inventories** does not show it at all.
+- [ ] It asks first, naming the shop and how many inventories, and says rolled stock is added not replaced.
 - [ ] Cancelling changes nothing.
-- [ ] Confirming brings every shelf to its quantities **and** rolls every table on them, marked or not.
-- [ ] It reports **one** total, not one message per shelf.
-- [ ] Shelf ceilings still apply — it cannot push a shelf past its product or per-item limits.
+- [ ] Confirming brings every inventory to its quantities **and** rolls every table on them, marked or not.
+- [ ] It reports **one** total, not one message per inventory.
+- [ ] Inventory ceilings still apply — it cannot push an inventory past its product or per-item limits.
 
 #### Rerolling, and restocking from the shop
 
 - [ ] A newly dropped table has **reroll off**.
-- [ ] Press **Restock** — from Settings or from the shelf header in the shop — and **every** table rolls,
+- [ ] Press **Restock** — from Settings or from the inventory header in the shop — and **every** table rolls,
       marked or not.
 - [ ] Advance the clock past the interval → **only** tables with reroll ticked deliver.
-- [ ] A shelf whose tables are all unmarked, on a policy that is not "runs out, refills", is left alone by
+- [ ] An inventory whose tables are all unmarked, on a policy that is not "runs out, refills", is left alone by
       the clock entirely.
 - [ ] Tick reroll, advance the clock, and it delivers; untick it and it stops.
-- [ ] The shelf header's restock control is GM-only, and sits beside the search glass.
+- [ ] The inventory header's restock control is GM-only, and sits beside the search glass.
 - [ ] The search control is a **magnifying glass**, and opens Blacksmith's compendium search.
 
-#### Several tables on one shelf
+#### Several tables on one inventory
 
-- [ ] Drop a second table on a shelf → **both** are listed, each with its own roll count.
+- [ ] Drop a second table on an inventory → **both** are listed, each with its own roll count.
 - [ ] Drop the same table twice → it says so and does not duplicate it.
 - [ ] Each table's roll count is independent.
 - [ ] Restock → every table rolls its own number of times, and the results arrive together.
 - [ ] The same item rolled by two different tables lands as **one row** with a quantity of two.
 - [ ] Remove one table → the other keeps working.
-- [ ] Delete a table from the world → the shelf lists it as "Missing table" and the others still roll.
-- [ ] A shelf configured before this change still rolls its original table.
+- [ ] Delete a table from the world → the inventory lists it as "Missing table" and the others still roll.
+- [ ] An inventory configured before this change still rolls its original table.
 
 #### Merchant Settings titlebar
 
-- [ ] **Refresh** redraws the window and picks up a shelf edited on the Actor sheet.
+- [ ] **Refresh** redraws the window and picks up an inventory edited on the Actor sheet.
 - [ ] **Open Shop** opens the shop for a merchant with a token on the current scene.
 - [ ] It also works when the merchant's only token is on **another** scene.
 - [ ] With no token anywhere, it says so rather than failing silently.
 
 #### Stocking from a roll table
 
-- [ ] Drag a **RollTable** from the sidebar onto a shelf row in Merchant Settings → the row highlights and
+- [ ] Drag a **RollTable** from the sidebar onto an inventory row in Merchant Settings → the row highlights and
       the table's name appears on it.
 - [ ] Drag one from a **compendium** → same thing. A compendium table is the normal case.
-- [ ] Drag something that is not a table → refused with a message, and the shelf is unchanged.
-- [ ] Set the roll count; press **Restock** → that many rolls, and what comes up lands on that shelf.
+- [ ] Drag something that is not a table → refused with a message, and the inventory is unchanged.
+- [ ] Set the roll count; press **Restock** → that many rolls, and what comes up lands on that inventory.
 - [ ] A table rolling the same item several times produces **one row** with a quantity, not several rows.
 - [ ] Text-only results are skipped without erroring.
 - [ ] Non-physical results — a journal, an actor — are skipped too.
 - [ ] Rolling does **not** mark the table's results as drawn; restock twice and the second still rolls.
-- [ ] Advance the clock past the shelf's interval → it rolls on its own.
-- [ ] A table-stocked shelf restocks on the clock even when its policy is not "runs out, refills".
-- [ ] The **×** clears the table and the shelf stops rolling.
-- [ ] Delete the table from the world → the shelf shows no table rather than erroring.
+- [ ] Advance the clock past the inventory's interval → it rolls on its own.
+- [ ] A table-stocked inventory restocks on the clock even when its policy is not "runs out, refills".
+- [ ] The **×** clears the table and the inventory stops rolling.
+- [ ] Delete the table from the world → the inventory shows no table rather than erroring.
 
 #### Restocking
 
-- [ ] A shelf set to **Runs out, refills** shows an "every _n_ days" field; the other policies do not.
-- [ ] Sell the shelf down, advance the world clock by the interval → it refills to its targets.
-- [ ] Advance by **a week** on a 1-day shelf → it refills **once**, to par. Not seven times, not seven copies.
+- [ ] An inventory set to **Runs out, refills** shows an "every _n_ days" field; the other policies do not.
+- [ ] Sell the inventory down, advance the world clock by the interval → it refills to its targets.
+- [ ] Advance by **a week** on a 1-day inventory → it refills **once**, to par. Not seven times, not seven copies.
 - [ ] Advance by less than the interval → nothing changes.
-- [ ] Wind the clock **backwards** → nothing breaks, and the shelf restocks normally afterwards rather than
+- [ ] Wind the clock **backwards** → nothing breaks, and the inventory restocks normally afterwards rather than
       waiting for the world to catch up to a timestamp in the future.
-- [ ] A shelf that has never restocked starts its clock rather than refilling on the spot.
-- [ ] The refresh icon in Merchant Settings refills a shelf immediately, and says how many items it topped up.
-- [ ] It appears on **finite** shelves too, and says "already full" when there is nothing to do.
+- [ ] An inventory that has never restocked starts its clock rather than refilling on the spot.
+- [ ] The refresh icon in Merchant Settings refills an inventory immediately, and says how many items it topped up.
+- [ ] It appears on **finite** inventories too, and says "already full" when there is nothing to do.
 - [ ] An item already at or above its target is left alone rather than being trimmed down to it.
 
 #### The cart reserves stock
@@ -448,19 +448,19 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
       *not* "Out of stock". The row is tinted rather than greyed.
 - [ ] Remove the line from the cart → the row goes back to 5 and the controls come back.
 - [ ] Checkout, then look at the row → it now genuinely reads 0 and says "Out of stock".
-- [ ] On an infinite shelf the cart changes nothing: the row still reads ∞.
+- [ ] On an infinite inventory the cart changes nothing: the row still reads ∞.
 
 #### Buyback resale price
 
 - [ ] Merchant markup 2, Buyback rate 0.5, an item worth 10 gp: the shop offers **5 gp** for it.
-- [ ] Sell it, then look at it on the Buyback shelf: it is priced at **20 gp**, the shop's ordinary markup —
+- [ ] Sell it, then look at it on the Buyback inventory: it is priced at **20 gp**, the shop's ordinary markup —
       *not* 5 gp. Selling something and buying it straight back must not be free.
 
 #### Two buyers, one item
 
 **The race infinite stock did not have.** Finite stock means two clients can read the same count.
 
-- [ ] Set a shelf to Runs out with exactly **1** of something.
+- [ ] Set an inventory to Runs out with exactly **1** of something.
 - [ ] Two players click Buy on it at the same moment → **one succeeds, one is refused**, and the count is 0.
       *Both succeeding means the lock is not doing its job. Report it — this is the least visible bug here.*
 - [ ] The same with the GM's free-take, and with one player buying while another checks out a cart.
@@ -468,7 +468,7 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 ### Item tooltips
 
-- [ ] Hover an item's **name** on a shelf → dnd5e's item card, the same one its sheet shows.
+- [ ] Hover an item's **name** on an inventory → dnd5e's item card, the same one its sheet shows.
 - [ ] Hover the quantity, the price or a button on that row → their own tooltips, **not** the item card.
 - [ ] Hover a name in the slate's **Buying** section → the merchant's item.
 - [ ] Hover one in **Selling** → your own item. *Different Actors; a mix-up here shows the wrong card.*
@@ -505,7 +505,7 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 
 ### Layout
 
-- [ ] The cart is level with the **merchant card**, not with the first shelf — it runs the full height of the
+- [ ] The cart is level with the **merchant card**, not with the first inventory — it runs the full height of the
       window beside everything.
 - [ ] Only the footer spans both columns.
 - [ ] The merchant card, buyer card and search stay put while the item list scrolls beneath them.
@@ -513,13 +513,13 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Narrow the window until the cart wraps → the header cards, search, items and cart stack in that order
       and scroll as one.
 
-### Shelf grouping
+### Inventory grouping
 
-- [ ] Shelves read as distinct groups; a long Storefront does not run into the shelf below it.
-- [ ] Scroll a long shelf → its heading **sticks to the top of the list** and names what you are looking at.
-- [ ] Scrolling into the next shelf swaps the heading for that one.
+- [ ] Inventories read as distinct groups; a long Storefront does not run into the inventory below it.
+- [ ] Scroll a long inventory → its heading **sticks to the top of the list** and names what you are looking at.
+- [ ] Scrolling into the next inventory swaps the heading for that one.
 - [ ] Rows pass **behind** the heading and stay legible against it rather than merging into it.
-- [ ] A hidden shelf's heading is tinted as well as carrying the Hidden pill.
+- [ ] A hidden inventory's heading is tinted as well as carrying the Hidden pill.
 - [ ] The search box does not scroll with the headings; it stays above them.
 
 ### Scrollbars
@@ -542,10 +542,10 @@ Three policies, set per shelf in Merchant Settings, `Same as the shop` inheritin
 - [ ] Labels line up down one edge and figures down the other; the block reads as a sum.
 - [ ] The rule under the total runs unbroken across both columns.
 - [ ] The totals sit on a tinted panel distinct from the lists below.
-- [ ] **Buying** and **Selling** headings are the same size and weight as a shelf heading.
+- [ ] **Buying** and **Selling** headings are the same size and weight as an inventory heading.
 - [ ] A small **Sell** button in the slate header opens the picker — **with items already on the slate**,
       not only when it is empty.
-- [ ] That button is absent on a merchant with no Buyback shelf, and disabled with no character to sell as.
+- [ ] That button is absent on a merchant with no Buyback inventory, and disabled with no character to sell as.
 
 ### Shopping as the party
 
@@ -630,7 +630,7 @@ The cart is a column to the right of the stock, sticky, and always present.
 - [ ] The caret does not jump while typing, and it saves when you click away.
 - [ ] A player sees the shop name, not the Actor's, in the window title and the titlebar.
 
-## 2g. Kind, description, and the shelf menu
+## 2g. Kind, description, and the inventory menu
 
 - [ ] Merchant Settings shows **The Shop** with a kind dropdown and a description box.
 - [ ] The kind dropdown is wide enough to read its longest option without an ellipsis.
@@ -639,27 +639,27 @@ The cart is a column to the right of the stock, sticky, and always present.
 - [ ] The description appears under the shop name for a player, in italics.
 - [ ] A description containing `@UUID[...]` renders as a working link rather than as raw text.
 - [ ] Clearing the description removes the block rather than leaving an empty bordered strip.
-- [ ] The **+** on the Shelves header opens a menu of the five presets, each with its artwork and hint.
-- [ ] Picking one adds that shelf; the old row of five buttons is gone.
-- [ ] Shelf artwork is the Foundry container icons — a crate, two chests, a basket, a sack.
+- [ ] The **+** on the Inventories header opens a menu of the five presets, each with its artwork and hint.
+- [ ] Picking one adds that inventory; the old row of five buttons is gone.
+- [ ] Inventory artwork is the Foundry container icons — a crate, two chests, a basket, a sack.
 - [ ] The trading-hours **opening** handle is green and the **closing** handle red, and the readout labels
       match. Drag either; the colours stay put.
 
-## 2h. Editing a shelf outside Merchant
+## 2h. Editing an inventory outside Merchant
 
 **The GM can reach these containers through Foundry's own UI, and nothing stops them.** Everything here is
 about following that rather than fighting it.
 
-- [ ] Rename a shelf container on the Actor sheet → the name changes in Merchant Settings **and** in an open
+- [ ] Rename an inventory container on the Actor sheet → the name changes in Merchant Settings **and** in an open
       shop window, without pressing Refresh.
 - [ ] Rename it to something long → the row still lays out; the name does not shove the buttons off.
 - [ ] Change an item's quantity on the container sheet → a shop window open on another client updates.
-- [ ] Delete a shelf from the Actor sheet rather than the trash icon → it leaves an open shop window.
-- [ ] Drag an item from one shelf to another on the Actor sheet → it moves sections in an open shop.
-- [ ] **Drag one shelf inside another shelf** → the nested shelf still renders as its own section, and does
+- [ ] Delete an inventory from the Actor sheet rather than the trash icon → it leaves an open shop window.
+- [ ] Drag an item from one inventory to another on the Actor sheet → it moves sections in an open shop.
+- [ ] **Drag one inventory inside another inventory** → the nested inventory still renders as its own section, and does
       **not** also appear as an item for sale on its parent.
-- [ ] A crafted request to buy a shelf is refused with "That is not for sale."
-- [ ] An ordinary container that is *not* a shelf — a backpack on the Storefront — still sells normally.
+- [ ] A crafted request to buy an inventory is refused with "That is not for sale."
+- [ ] An ordinary container that is *not* an inventory — a backpack on the Storefront — still sells normally.
 
 ## 2f. Searching the shop
 
@@ -669,16 +669,16 @@ it is wired to the box and survives the things that redraw the window.
 - [ ] Type into the search box — the list narrows as you type, with **no flicker and no lost caret**.
       *A re-render per keystroke would show as the cursor jumping to the end. That is the bug this design
       exists to avoid.*
-- [ ] A shelf with nothing matching disappears, heading and all; so does an empty category heading.
-- [ ] The count on each shelf header shows how many are showing, and goes back to the real total on clear.
+- [ ] An inventory with nothing matching disappears, heading and all; so does an empty category heading.
+- [ ] The count on each inventory header shows how many are showing, and goes back to the real total on clear.
 - [ ] No matches at all → "Nothing here matches that."
 - [ ] The **×** clears the search and puts focus back in the box; **Escape** does the same.
 - [ ] Searching by kind works: "weapon" finds the weapons, "consumable" the consumables.
 - [ ] With a search active, hit titlebar **Refresh** → the search survives and still applies.
 - [ ] With a search active, have a GM add stock → the list updates and the search still applies to it.
 - [ ] With a search active, buy something → the row updates and the search is still there.
-- [ ] Search, then buy the only visible item on a finite shelf → it goes out of stock rather than vanishing.
-- [ ] A GM searching still sees hidden shelves among the results, still marked hidden.
+- [ ] Search, then buy the only visible item on a finite inventory → it goes out of stock rather than vanishing.
+- [ ] A GM searching still sees hidden inventories among the results, still marked hidden.
 - [ ] Close and reopen the shop → the search is **empty**, not yesterday's filter.
 
 ## 2h2. The till
@@ -696,7 +696,7 @@ it is wired to the box and survives the things that redraw the window.
 
 The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
 
-- [ ] A merchant **with** a Buyback shelf shows a **Selling** panel under the cart; one without shows none.
+- [ ] A merchant **with** a Buyback inventory shows a **Selling** panel under the cart; one without shows none.
 - [ ] Empty, it reads "Drag something here to sell it" and offers *Or choose from your pack*.
 - [ ] The button lists what the merchant would take, each with its offer.
 - [ ] Picking one asks a quantity, then it appears in the basket — it does **not** sell immediately.
@@ -710,7 +710,7 @@ The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
 - [ ] Add the same item twice → the line grows rather than doubling, and it will not offer more than you have.
 - [ ] Basket full of everything you own → the picker says so rather than listing them again.
 - [ ] **Sell** confirms with the itemised list and the total, then pays **once**.
-- [ ] Everything sold lands on the **Buyback** shelf and is immediately on sale there.
+- [ ] Everything sold lands on the **Buyback** inventory and is immediately on sale there.
 - [ ] Sell to a merchant whose till cannot cover it → refused, and **nothing** leaves your sheet.
 - [ ] Switch "Buying as" to another character → the basket empties of the first character's things rather
       than trying to sell them.
@@ -742,8 +742,8 @@ The basket mirrors the cart: it accumulates, and one **Sell** settles the lot.
 
 ## 3. The window
 
-- [ ] Shelf sections list only physical items; features, spells and class items are absent.
-- [ ] Within a shelf, stock is grouped under Weapons, Armor & Gear, Consumables, Tools, Containers, Goods.
+- [ ] Inventory sections list only physical items; features, spells and class items are absent.
+- [ ] Within an inventory, stock is grouped under Weapons, Armor & Gear, Consumables, Tools, Containers, Goods.
 - [ ] Merchant card is tinted blue, "Buying as" row green, both pinned while stock scrolls.
 - [ ] Resize the window; the pinned header stays put.
 - [ ] Footer reads `[ Done ]` on the left.
@@ -762,8 +762,8 @@ Curator's loot window settled this pattern; the shop uses the same one.
 - [ ] Enter commits; clicking away commits; **Escape** abandons.
 - [ ] Setting a slate line to **0 removes it**.
 - [ ] Setting one above what is in stock is clamped rather than accepted.
-- [ ] As GM, double-click a shelf row's **QTY** → same behaviour, and it sets the restock target too.
-- [ ] A player double-clicking a shelf row's QTY does nothing; only a GM gets an editable stock cell.
+- [ ] As GM, double-click an inventory row's **QTY** → same behaviour, and it sets the restock target too.
+- [ ] A player double-clicking an inventory row's QTY does nothing; only a GM gets an editable stock cell.
 - [ ] The stock cell is a **number with a QTY caption**, not a form field sitting in every row.
 - [ ] Editing while a request is in flight is refused rather than racing it.
 
@@ -776,15 +776,15 @@ One dialog serves four actions, and it must name the one you pressed.
 - [ ] Sell → title "Sell {item}", confirm reads **Sell**.
 - [ ] The GM's give → title "Give {item}", confirm reads **Give**.
 - [ ] The word "Acquire" appears nowhere.
-- [ ] The slider ends read "Yours" and "Left on the shelf", not "Take" and "Leave".
+- [ ] The slider ends read "Yours" and "Left on the inventory", not "Take" and "Leave".
 - [ ] **Dragging the slider updates the numbers.**
 - [ ] Dialog buttons are `[ Cancel ]` left, the action right.
 - [ ] The item arrives on the buying character.
-- [ ] **On an infinite shelf the merchant still has it, at the same quantity.** If the count drops, or the
+- [ ] **On an infinite inventory the merchant still has it, at the same quantity.** If the count drops, or the
       row vanishes, `transferItem` semantics have crept in where `grantItem` belongs.
 - [ ] Acquire the same item twice → the buyer's stack grows rather than gaining a second row.
-- [ ] Two players acquire the same item simultaneously from an **infinite** shelf → both succeed, merchant
-      unchanged. On a **finite** shelf with one left, exactly one succeeds — see *Two buyers, one item*.
+- [ ] Two players acquire the same item simultaneously from an **infinite** inventory → both succeed, merchant
+      unchanged. On a **finite** inventory with one left, exactly one succeeds — see *Two buyers, one item*.
 
 ---
 
@@ -825,6 +825,66 @@ Not bugs; do not chase these.
 - **Buying for another character or the party is refused** (`THIRD_PARTY_DELIVERY`). The shopper pays while
   someone else receives is a three-party transaction; `exchange` is two-sided. Raised with Blacksmith.
 - A packed container cannot be acquired. `api.inventory` v1 refuses it in both directions.
-- A sold-out row stays on its shelf, dimmed. That is deliberate, not a failure to clean up.
+- A sold-out row stays on its inventory, dimmed. That is deliberate, not a failure to clean up.
 - A GM cannot temporarily lower a count without also lowering what it restocks to. Judged rare; say so if it
   turns out not to be.
+
+## 20. Inventory types, stacking and reputation
+
+New on 2026-08-19. The first two are the ones that touch data you already have.
+
+### 20a. Migration — do this first, on a world with shops in it
+
+1. Load as GM. The console reports `Migrated N inventories to the typed schema.`
+2. Every existing inventory keeps its name, its contents, its visibility and its stock policy.
+3. Each lands on a sensible type: the buyback one reads **Purchased**, a negotiate one reads **Unpriced**,
+   a hidden one reads **Hidden**, one with a markup above 1 reads **Premium**, below 1 **Discounted**.
+4. Reload. The console does **not** report a migration a second time.
+5. On the container's flags (`Actor → item → flags`), `coffee-pub-merchant.inventory` exists and
+   `coffee-pub-merchant.shelf` is gone. Not both.
+
+### 20b. Naming and types
+
+6. Merchant Settings shows a **name field** on every inventory, with the type beneath it. Rename one; the
+   shop window and the container's own sheet both follow.
+7. Clear the name entirely. It falls back to the type's name rather than becoming blank.
+8. Add two inventories of the same type. Both work, and telling them apart is what the names are for.
+9. A **Premium** inventory still has the eye toggle in the shop window, and hiding it works. The type sets
+   the default; it does not remove the control.
+
+### 20c. Pricing — the stacking rule
+
+10. Set Global Markup 1.0, a Premium inventory 1.5. A 50gp item lists at 75gp.
+11. Set Global Markup 1.2. The same item now lists at **90gp**, not 75gp. This is the change: the inventory
+    markup multiplies against the shop's baseline rather than replacing it.
+12. A Discounted inventory at 0.75 in that 1.2 shop lists it at 45gp.
+13. Type a markup of `0`, a negative, or letters. It reads as 1 and the price does not collapse.
+
+### 20d. Purchased — two rates
+
+14. A **Purchased** inventory shows **× purchase** and **× sell**, and no stock policy — it says items are
+    removed and never restocked instead.
+15. Sell something worth 50gp at a purchase rate of 0.5. The shop pays 25gp.
+16. That item then lists on the purchased inventory at its **sell** rate — 50gp at 1.0, not 25gp. A shop
+    buying at half price must not resell at half price.
+17. Raise the purchase rate above 1.0. The shop pays over the odds, which is a scene a GM may want.
+
+### 20e. Reputation
+
+18. With the checkbox **off**, changing party reputation moves nothing. This is the default and the
+    commonest state.
+19. Turn it on. Merchant Settings names the band and what it is doing — *"The party is Distrusted on this
+    scene, so prices here are 15% dearer."*
+20. At **neutral** reputation with the modifier on, prices are **unchanged**. Check this one specifically.
+21. Positive reputation: prices drop **and** the shop pays more when the party sells. Both directions.
+22. An agreed price on the slate does not move with reputation. A haggled number is the number.
+23. Change reputation while a shop window is open. It redraws by itself, on every client.
+24. Two scenes with different reputation, one merchant with a token on each: each shop prices to **its own**
+    scene. Open both and compare — a GM standing on one map must not reprice the other.
+25. Settle a purchase with reputation on. What is actually charged matches what the slate showed.
+
+### 20f. The ceilings
+
+26. An inventory with **no** roll table shows no *products* limit — it could never have fired there.
+27. Add a table; the *products* limit appears.
+28. An inventory that never runs out shows no *each* limit either. One that counts its stock does.

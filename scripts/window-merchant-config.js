@@ -1,13 +1,13 @@
-// By path rather than from `module.api`: module scripts evaluate before `game`
-// exists. See the note above `ShopWindow` in `window-shop.js`.
-import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/scripts/window-tool-base.js';
+import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
-    MODULE, SHELF_PRESETS, hoursPerDay, formatHour, STOCK, DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
+    MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
+    DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase } from './merchant-pricing.js';
 import { startProgress } from './merchant-progress.js';
 import { notify, playFeedback, SOUND } from './merchant-feedback.js';
+import { resolveReputation, reputationLabel } from './merchant-reputation.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
@@ -21,9 +21,11 @@ const STOCK_LABELS = {
     [STOCK.RESTOCKING]: 'Runs out, refills'
 };
 
-/** `''` is "use the merchant's", which is how `markup: null` already behaves. */
+/**
+ * Every inventory states its own. There is no "same as the shop" any more: the
+ * shop-wide default was a second place that set one thing, silently.
+ */
 const STOCK_OPTIONS = [
-    { value: '', label: 'Same as the shop' },
     { value: STOCK.INFINITE, label: STOCK_LABELS[STOCK.INFINITE] },
     { value: STOCK.FINITE, label: STOCK_LABELS[STOCK.FINITE] },
     { value: STOCK.RESTOCKING, label: STOCK_LABELS[STOCK.RESTOCKING] }
@@ -33,7 +35,7 @@ const STOCK_OPTIONS = [
  * Marking and configuring a merchant.
  *
  * A window rather than a confirmation dialog on purpose: stock policy, markup,
- * trading hours and per-shelf settings all land here, and they need somewhere to go
+ * trading hours and per-inventory settings all land here, and they need somewhere to go
  * that is not a growing pile of prompts.
  */
 export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
@@ -56,14 +58,14 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
-        addShelf: (event, target, win) => void win.openShelfMenu(event, target),
-        openShelf: (_event, target, win) => void win.openShelf(target.dataset.shelfId),
-        removeShelf: (_event, target, win) => void win.removeShelf(target.dataset.shelfId),
-        restockShelf: (_event, target, win) => void win.restockShelf(target.dataset.shelfId),
-        clearShelf: (_event, target, win) => void win.clearShelf(target.dataset.shelfId),
+        addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
+        openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
+        removeInventory: (_event, target, win) => void win.removeInventory(target.dataset.inventoryId),
+        restockInventory: (_event, target, win) => void win.restockInventory(target.dataset.inventoryId),
+        clearInventory: (_event, target, win) => void win.clearInventory(target.dataset.inventoryId),
         restockAll: (_event, _target, win) => void win.restockAll(),
-        removeShelfTable: (_event, target, win) =>
-            void win.removeShelfTable(target.dataset.shelfId, target.dataset.tableUuid)
+        removeInventoryTable: (_event, target, win) =>
+            void win.removeInventoryTable(target.dataset.inventoryId, target.dataset.tableUuid)
     };
 
     constructor(actor, options = {}) {
@@ -151,32 +153,64 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             till.addEventListener('change', (event) => void this._setTill(event.target.value));
         }
 
-        const stock = this.element?.querySelector('[data-merchant-stock]');
-        if (stock && stock.dataset.merchantBound !== 'true') {
-            stock.dataset.merchantBound = 'true';
-            stock.addEventListener('change', (event) => void this._setStock(event.target.value));
+        const reputation = this.element?.querySelector('[data-merchant-reputation]');
+        if (reputation && reputation.dataset.merchantBound !== 'true') {
+            reputation.dataset.merchantBound = 'true';
+            reputation.addEventListener('change', (event) => void this._setReputation(event.target.checked));
         }
 
-        // Per-shelf policy and cadence. Both write through the same helper, since
-        // both are one field of a shelf's configuration.
-        for (const select of this.element?.querySelectorAll('[data-shelf-stock]') ?? []) {
+        // An inventory's name is the container's name. Written on change rather than
+        // per keystroke, and without a redraw, because the field already shows what
+        // was typed and a re-render would take the caret with it.
+        for (const input of this.element?.querySelectorAll('[data-inventory-name]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+            input.addEventListener('change', (event) => {
+                void this._setInventoryName(input.getAttribute('data-inventory-name'), event.target.value);
+            });
+        }
+
+        // Markup, and the purchased type's Purchase Rate. Both are rates on the
+        // inventory, so both go through the same writer.
+        for (const [attribute, field] of [
+            ['data-inventory-markup', 'markup'],
+            ['data-inventory-buy-rate', 'buyRate']
+        ]) {
+            for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
+                if (input.dataset.merchantBound === 'true') continue;
+                input.dataset.merchantBound = 'true';
+                input.addEventListener('change', (event) => {
+                    const value = Number(event.target.value);
+                    if (!Number.isFinite(value) || value <= 0) {
+                        notify.warn('That rate must be a number above zero.');
+                        void this.render(false);
+                        return;
+                    }
+                    void this._commitInventoryStock(input.getAttribute(attribute), { [field]: value });
+                });
+            }
+        }
+
+        // Per-inventory policy and cadence. Both write through the same helper, since
+        // both are one field of an inventory's configuration.
+        for (const select of this.element?.querySelectorAll('[data-inventory-stock]') ?? []) {
             if (select.dataset.merchantBound === 'true') continue;
             select.dataset.merchantBound = 'true';
             select.addEventListener('change', (event) => {
                 // Empty means "same as the shop", stored as null so it reads as
                 // absent rather than as a policy named "".
-                void this._commitShelfStock(select.getAttribute('data-shelf-stock'), {
+                void this._commitInventoryStock(select.getAttribute('data-inventory-stock'), {
                     stock: event.target.value || null
                 });
             });
         }
 
-        for (const input of this.element?.querySelectorAll('[data-shelf-table-rolls]') ?? []) {
+        for (const input of this.element?.querySelectorAll('[data-inventory-table-rolls]') ?? []) {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
             input.addEventListener('change', (event) => {
                 void this._setTableRolls(
-                    input.getAttribute('data-shelf-table-rolls'),
+                    input.getAttribute('data-inventory-table-rolls'),
                     input.getAttribute('data-table-uuid'),
                     event.target.value
                 );
@@ -184,25 +218,25 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
 
         for (const [attribute, field, ceiling] of [
-            ['data-shelf-max-products', 'maxProducts', 500],
-            ['data-shelf-max-per-item', 'maxPerItem', 999]
+            ['data-inventory-max-products', 'maxProducts', 500],
+            ['data-inventory-max-per-item', 'maxPerItem', 999]
         ]) {
             for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
                 if (input.dataset.merchantBound === 'true') continue;
                 input.dataset.merchantBound = 'true';
                 input.addEventListener('change', (event) => {
                     const value = Math.min(ceiling, Math.max(1, Math.trunc(Number(event.target.value) || 1)));
-                    void this._commitShelfStock(input.getAttribute(attribute), { [field]: value });
+                    void this._commitInventoryStock(input.getAttribute(attribute), { [field]: value });
                 });
             }
         }
 
-        for (const box of this.element?.querySelectorAll('[data-shelf-table-auto]') ?? []) {
+        for (const box of this.element?.querySelectorAll('[data-inventory-table-auto]') ?? []) {
             if (box.dataset.merchantBound === 'true') continue;
             box.dataset.merchantBound = 'true';
             box.addEventListener('change', (event) => {
                 void this._setTableAuto(
-                    box.getAttribute('data-shelf-table-auto'),
+                    box.getAttribute('data-inventory-table-auto'),
                     box.getAttribute('data-table-uuid'),
                     event.target.checked
                 );
@@ -212,7 +246,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         for (const zone of this.element?.querySelectorAll('[data-drop-table]') ?? []) {
             if (zone.dataset.merchantBoundDrop === 'true') continue;
             zone.dataset.merchantBoundDrop = 'true';
-            const shelfId = zone.getAttribute('data-drop-table');
+            const inventoryId = zone.getAttribute('data-drop-table');
 
             zone.addEventListener('dragover', (event) => {
                 event.preventDefault();
@@ -222,16 +256,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             zone.addEventListener('drop', (event) => {
                 event.preventDefault();
                 zone.classList.remove('is-dropping');
-                void this._onDropTable(event, shelfId);
+                void this._onDropTable(event, inventoryId);
             });
         }
 
-        for (const input of this.element?.querySelectorAll('[data-shelf-restock-days]') ?? []) {
+        for (const input of this.element?.querySelectorAll('[data-inventory-restock-days]') ?? []) {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
             input.addEventListener('change', (event) => {
                 const days = Math.max(1, Math.trunc(Number(event.target.value) || DEFAULT_RESTOCK_DAYS));
-                void this._commitShelfStock(input.getAttribute('data-shelf-restock-days'), {
+                void this._commitInventoryStock(input.getAttribute('data-inventory-restock-days'), {
                     restockDays: days
                 });
             });
@@ -273,16 +307,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Add a roll table to a shelf by dropping one on it.
+     * Add a roll table to an inventory by dropping one on it.
      *
      * Adds rather than replaces: a shop is rarely one table, and dropping a second
-     * should extend the shelf's sources rather than silently discard the first.
+     * should extend the inventory's sources rather than silently discard the first.
      *
      * Dragged rather than picked from a list, matching how stock itself gets onto a
-     * shelf — and a table in a compendium drags the same as one in the world, which a
+     * inventory — and a table in a compendium drags the same as one in the world, which a
      * picker of world tables would have missed.
      */
-    async _onDropTable(event, shelfId) {
+    async _onDropTable(event, inventoryId) {
         let data = null;
         try {
             data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
@@ -297,8 +331,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
-            const added = await MerchantManager.addShelfTable(actor, shelfId, data.uuid);
-            if (!added) notify.info('That table is already on this shelf.');
+            const added = await MerchantManager.addInventoryTable(actor, inventoryId, data.uuid);
+            if (!added) notify.info('That table is already on this inventory.');
             else MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that table:`, error);
@@ -307,17 +341,50 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    /** The shop-wide default. A shelf may still say otherwise. */
-    async _setStock(value) {
+    /**
+     * Whether the party's standing here moves this shop's prices.
+     *
+     * Opt-in per shop rather than world-wide: a table using reputation for NPC
+     * attitude has not thereby asked for it to reprice every merchant they meet.
+     */
+    async _setReputation(enabled) {
         const actor = await this._resolveActor();
         if (!actor) return;
-        if (!Object.values(STOCK).includes(value)) return this.render(false);
         try {
-            await MerchantManager.setConfig(actor, { stock: value });
+            const config = MerchantManager.getConfig(actor) ?? {};
+            await MerchantManager.setConfig(actor, {
+                pricing: { ...(config.pricing ?? {}), reputation: Boolean(enabled) }
+            });
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not set the stock policy:`, error);
-            notify.error('Could not set the stock policy.');
+            console.error(`${MODULE.TITLE} | Could not set the reputation modifier:`, error);
+            notify.error('Could not change that.');
+        }
+        await this.render(false);
+    }
+
+    /**
+     * Rename an inventory.
+     *
+     * Writes the container's own name, because that *is* the inventory's name — there
+     * is no copy in the flag to keep in step. Blank falls back to the type's name
+     * rather than leaving a container called nothing.
+     */
+    async _setInventoryName(inventoryId, value) {
+        const actor = await this._resolveActor();
+        const item = actor?.items?.get(inventoryId);
+        if (!item) return;
+
+        const config = MerchantManager.getInventoryConfig(item);
+        const name = String(value ?? '').trim() || inventoryType(config?.type).name;
+        if (name === item.name) return;
+
+        try {
+            await item.update({ name });
+            MerchantManager.broadcastActorRefresh(actor);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not rename that inventory:`, error);
+            notify.error('Could not rename that inventory.');
         }
         await this.render(false);
     }
@@ -430,15 +497,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Which kind of shelf, asked on click.
+     * Which kind of inventory, asked on click.
      *
-     * A menu rather than the row of five buttons this replaced: adding a shelf happens
+     * A menu rather than the row of five buttons this replaced: adding an inventory happens
      * roughly once per shop, and a permanent row of presets was paying for that in
      * window height every time the window was open for anything else.
      */
-    openShelfMenu(event, target) {
+    openInventoryMenu(event, target) {
         const blacksmith = _blacksmith();
-        const presets = Object.values(SHELF_PRESETS);
+        const presets = Object.values(INVENTORY_TYPES);
 
         const items = presets.map((preset) => ({
             name: preset.name,
@@ -446,79 +513,79 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // Raw HTML is an injection path, so it is only ever safe for strings we
             // own. These are module constants; nothing here comes from a document.
             icon: `<img src="${preset.img}" alt="">`,
-            callback: () => this.addShelf(preset.key)
+            callback: () => this.addInventory(preset.key)
         }));
 
         if (typeof blacksmith?.uiContextMenu?.show !== 'function') {
             // No menu API: fall back to the picker rather than losing the ability to
-            // add a shelf at all.
-            void this._pickShelfPreset(presets);
+            // add an inventory at all.
+            void this._pickInventoryType(presets);
             return;
         }
 
         const rect = target?.getBoundingClientRect();
         blacksmith.uiContextMenu.show({
-            id: `merchant-add-shelf-${this.actorUuid}`,
+            id: `merchant-add-inventory-${this.actorUuid}`,
             // Anchored under the button rather than at the pointer, so a keyboard
             // activation with no coordinates still lands somewhere sensible.
             x: rect ? rect.left : (event?.clientX ?? 0),
             y: rect ? rect.bottom + 4 : (event?.clientY ?? 0),
             root: this.element ?? document.body,
-            className: 'merchant-shelf-menu',
+            className: 'merchant-inventory-menu',
             zones: items
         });
     }
 
-    async _pickShelfPreset(presets) {
+    async _pickInventoryType(presets) {
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.choose !== 'function') return;
         const picked = await blacksmith.dialog.choose({
-            title: 'Add a shelf',
+            title: 'Add an inventory',
             classes: ['merchant-dialog'],
-            content: '<p>What kind of shelf?</p>',
+            content: '<p>What kind of inventory?</p>',
             choices: presets.map((preset) => ({ id: preset.key, label: preset.name }))
         });
-        if (picked?.action === 'submit' && picked.value) await this.addShelf(picked.value);
+        if (picked?.action === 'submit' && picked.value) await this.addInventory(picked.value);
     }
 
-    async addShelf(presetKey) {
+    async addInventory(presetKey) {
         const actor = await this._resolveActor();
         if (!actor || !presetKey) return;
         try {
-            await MerchantManager.addShelf(actor, presetKey);
+            await MerchantManager.addInventory(actor, presetKey);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not add that shelf:`, error);
-            notify.error('Could not add that shelf.');
+            console.error(`${MODULE.TITLE} | Could not add that inventory:`, error);
+            notify.error('Could not add that inventory.');
         }
         await this.render(false);
     }
 
-    async removeShelf(shelfId) {
+    async removeInventory(inventoryId) {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
-            const removed = await MerchantManager.removeShelf(actor, shelfId);
+            const removed = await MerchantManager.removeInventory(actor, inventoryId);
             if (removed) MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not remove that shelf:`, error);
-            notify.error('Could not remove that shelf.');
+            console.error(`${MODULE.TITLE} | Could not remove that inventory:`, error);
+            notify.error('Could not remove that inventory.');
         }
         await this.render(false);
     }
 
     /**
-     * Restock every shelf at once.
+     * Restock every inventory at once.
      *
      * A press, so every table rolls whether or not it is marked to reroll — the same
-     * rule the per-shelf button follows. Setting a shop up means filling all of it,
-     * and doing that a shelf at a time is the sort of chore a GM does once and then
+     * rule the per-inventory button follows. Setting a shop up means filling all of it,
+     * and doing that an inventory at a time is the sort of chore a GM does once and then
      * stops using the feature.
      *
-     * Reports the total rather than per shelf: five notifications for five shelves is
+     * Reports the total rather than per inventory: five notifications for five inventories is
      * a worse answer than one.
      *
-     * **Confirmed, unlike the per-shelf button.** This one touches the whole shop at
+     * **Confirmed, unlike the per-inventory button.** This one touches the whole shop at
      * once, rolls every table on it, and cannot be undone by dragging one thing back
      * — the scale is what makes it worth a question.
      */
@@ -526,15 +593,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const actor = await this._resolveActor();
         if (!actor) return;
 
-        const shelves = MerchantManager.getShelves(actor, { includeHidden: true });
-        if (!shelves.length) return;
+        const inventories = MerchantManager.getInventories(actor, { includeHidden: true });
+        if (!inventories.length) return;
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.confirm === 'function') {
             const confirmed = await blacksmith.dialog.confirm({
                 title: 'Restock Everything',
                 classes: ['merchant-dialog'],
-                content: `<p>Bring all ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'} on `
+                content: `<p>Bring all ${inventories.length} inventory${inventories.length === 1 ? '' : 'ves'} on `
                     + `<strong>${actor.name}</strong> back to their quantities, and roll every table on them.</p>`
                     + '<p>Rolled stock is added, not replaced.</p>',
                 confirmLabel: 'Restock Everything',
@@ -548,7 +615,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // table rolls and a compendium lookup for each result -- seconds of apparently
         // nothing, which reads as nothing having happened, which is how a GM comes to
         // press the button twice.
-        const total = shelves.reduce(
+        const total = inventories.reduce(
             (sum, { item }) => sum + MerchantManager.restockWorkUnits(actor, item.id, { force: true }),
             0
         );
@@ -556,9 +623,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         let stocked = 0;
         try {
-            for (const { item } of shelves) {
+            for (const { item } of inventories) {
                 try {
-                    stocked += await MerchantManager.restockShelf(actor, item.id, {
+                    stocked += await MerchantManager.restockInventory(actor, item.id, {
                         force: true,
                         onStep: (message) => bar.step(message)
                     });
@@ -569,77 +636,77 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         } finally {
             if (stocked) playFeedback(SOUND.RESTOCK);
             bar.finish(stocked
-                ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${shelves.length} shelf${shelves.length === 1 ? '' : 'ves'}.`
-                : 'Every shelf was already full.');
+                ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${inventories.length} inventory${inventories.length === 1 ? '' : 'ves'}.`
+                : 'Every inventory was already full.');
         }
         await this.render(false);
     }
 
     /**
-     * Refill a shelf to its par levels now.
+     * Refill an inventory to its par levels now.
      *
-     * Offered on finite shelves as well as restocking ones — "the party cleared me
-     * out last night" is an ordinary thing to say about either, and a finite shelf
+     * Offered on finite inventories as well as restocking ones — "the party cleared me
+     * out last night" is an ordinary thing to say about either, and a finite inventory
      * still knows what it holds.
      */
-    async restockShelf(shelfId) {
+    async restockInventory(inventoryId) {
         const actor = await this._resolveActor();
         if (!actor) return;
 
-        const shelfName = actor.items.get(shelfId)?.name ?? 'the shelf';
+        const inventoryName = actor.items.get(inventoryId)?.name ?? 'the inventory';
         const bar = startProgress(
-            MerchantManager.restockWorkUnits(actor, shelfId, { force: true }),
-            `Restocking ${shelfName}`
+            MerchantManager.restockWorkUnits(actor, inventoryId, { force: true }),
+            `Restocking ${inventoryName}`
         );
         try {
-            const filled = await MerchantManager.restockShelf(actor, shelfId, {
+            const filled = await MerchantManager.restockInventory(actor, inventoryId, {
                 force: true,
                 onStep: (message) => bar.step(message)
             });
             if (filled) playFeedback(SOUND.RESTOCK);
             bar.finish(filled
-                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${shelfName}.`
-                : `${shelfName} was already full.`);
+                ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${inventoryName}.`
+                : `${inventoryName} was already full.`);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not restock that shelf:`, error);
-            bar.finish('Could not restock that shelf.');
-            notify.error('Could not restock that shelf.');
+            console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
+            bar.finish('Could not restock that inventory.');
+            notify.error('Could not restock that inventory.');
         }
         await this.render(false);
     }
 
-    /** Take everything off a shelf, leaving the shelf. Confirmed -- see the shop window. */
-    async clearShelf(shelfId) {
+    /** Take everything off an inventory, leaving the inventory. Confirmed -- see the shop window. */
+    async clearInventory(inventoryId) {
         const actor = await this._resolveActor();
-        const shelf = actor?.items?.get(shelfId);
-        if (!shelf) return;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!inventory) return;
 
-        const count = MerchantManager.getShelfContents(actor, shelf).length;
+        const count = MerchantManager.getInventoryContents(actor, inventory).length;
         if (!count) {
-            notify.info(`${shelf.name} is already empty.`);
+            notify.info(`${inventory.name} is already empty.`);
             return;
         }
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.confirm === 'function') {
             const confirmed = await blacksmith.dialog.confirm({
-                title: 'Clear Shelf',
+                title: 'Clear Inventory',
                 classes: ['merchant-dialog'],
                 content: `<p>Take all ${count} item${count === 1 ? '' : 's'} off `
-                    + `<strong>${shelf.name}</strong>.</p>`
-                    + '<p>The shelf itself stays, with everything it is set to. This cannot be undone.</p>',
-                confirmLabel: 'Clear Shelf',
+                    + `<strong>${inventory.name}</strong>.</p>`
+                    + '<p>The inventory itself stays, with everything it is set to. This cannot be undone.</p>',
+                confirmLabel: 'Clear Inventory',
                 confirmIcon: 'fa-solid fa-broom'
             });
             if (!confirmed) return;
         }
 
         try {
-            const cleared = await MerchantManager.clearShelf(actor, shelfId);
-            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${shelf.name}.`);
+            const cleared = await MerchantManager.clearInventory(actor, inventoryId);
+            notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${inventory.name}.`);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not clear that shelf:`, error);
-            notify.error('Could not clear that shelf.');
+            console.error(`${MODULE.TITLE} | Could not clear that inventory:`, error);
+            notify.error('Could not clear that inventory.');
         }
         await this.render(false);
     }
@@ -654,11 +721,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async _setTableRolls(shelfId, uuid, value) {
+    async _setTableRolls(inventoryId, uuid, value) {
         const actor = await this._resolveActor();
         if (!actor || !uuid) return;
         try {
-            await MerchantManager.setShelfTableRolls(actor, shelfId, uuid, value);
+            await MerchantManager.setInventoryTableRolls(actor, inventoryId, uuid, value);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that roll count:`, error);
@@ -666,11 +733,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async _setTableAuto(shelfId, uuid, auto) {
+    async _setTableAuto(inventoryId, uuid, auto) {
         const actor = await this._resolveActor();
         if (!actor || !uuid) return;
         try {
-            await MerchantManager.setShelfTableAuto(actor, shelfId, uuid, auto);
+            await MerchantManager.setInventoryTableAuto(actor, inventoryId, uuid, auto);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that table to reroll:`, error);
@@ -678,11 +745,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async removeShelfTable(shelfId, uuid) {
+    async removeInventoryTable(inventoryId, uuid) {
         const actor = await this._resolveActor();
         if (!actor || !uuid) return;
         try {
-            await MerchantManager.removeShelfTable(actor, shelfId, uuid);
+            await MerchantManager.removeInventoryTable(actor, inventoryId, uuid);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove that table:`, error);
@@ -690,64 +757,87 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    /** Stock policy and restock cadence, both per shelf. */
-    async _commitShelfStock(shelfId, changes) {
+    /** Stock policy and restock cadence, both per inventory. */
+    async _commitInventoryStock(inventoryId, changes) {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
-            await MerchantManager.setShelfConfig(actor, shelfId, changes);
+            await MerchantManager.setInventoryConfig(actor, inventoryId, changes);
             MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not update that shelf:`, error);
-            notify.error('Could not update that shelf.');
+            console.error(`${MODULE.TITLE} | Could not update that inventory:`, error);
+            notify.error('Could not update that inventory.');
         }
         await this.render(false);
     }
 
-    /** Opening the shelf is how a GM stocks it — dnd5e's own container sheet. */
-    async openShelf(shelfId) {
+    /** Opening the inventory is how a GM stocks it — dnd5e's own container sheet. */
+    async openInventory(inventoryId) {
         const actor = await this._resolveActor();
-        const shelf = actor?.items?.get(shelfId);
-        if (!shelf) return;
-        shelf.sheet?.render(true);
+        const inventory = actor?.items?.get(inventoryId);
+        if (!inventory) return;
+        inventory.sheet?.render(true);
     }
 
     async getData() {
         const actor = await this._resolveActor();
         const enabled = MerchantManager.isMerchant(actor);
 
-        // Hidden shelves included: this window is GM-only, and a shelf you cannot see
+        // Hidden inventories included: this window is GM-only, and an inventory you cannot see
         // in your own configuration is worse than useless.
-        const shelves = enabled
-            ? MerchantManager.getShelves(actor, { includeHidden: true }).map(({ item, config }) => {
-                const count = MerchantManager.getShelfContents(actor, item).length;
+        const inventories = enabled
+            ? MerchantManager.getInventories(actor, { includeHidden: true }).map(({ item, config }) => {
+                const count = MerchantManager.getInventoryContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);
-                const limits = MerchantManager.getShelfLimits(config);
+                const limits = MerchantManager.getInventoryLimits(config);
+                const definition = inventoryType(config.type);
+                const tables = MerchantManager.getInventoryTables(item);
                 return {
                     id: item.id,
                     img: item.img,
-                    // The container's name, which is the only name a shelf has.
+                    // The container's name, which is the only name an inventory has.
+                    // Editable here as well as on the container's own sheet: several
+                    // inventories of one type is ordinary, and they need telling apart.
                     label: item.name,
+                    typeKey: definition.key,
+                    typeLabel: definition.name,
+                    typeHint: definition.hint,
                     hidden: config.visible === false,
                     count,
                     one: count === 1,
-                    // `null` on the shelf means "whatever the merchant says", which is
-                    // the same inheritance markup already uses.
+
+                    // Which pricing control this type gets. One flag per shape rather
+                    // than a string the template has to compare against, because
+                    // Handlebars cannot and should not do that comparison.
+                    pricingMarkup: definition.pricing === 'markup',
+                    pricingTrade: definition.pricing === 'trade',
+                    pricingNone: definition.pricing === 'none',
+                    markup: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
+                    buyRate: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
+
+                    // Restock is stated per inventory now, never inherited, and every
+                    // type has it except the one that cannot mean it.
+                    restocks: definition.restocks,
                     stockOptions: STOCK_OPTIONS.map((option) => ({
                         ...option,
-                        selected: option.value === (config.stock ?? '')
+                        selected: option.value === policy
                     })),
                     stockLabel: STOCK_LABELS[policy] ?? policy,
-                    inherited: !config.stock,
                     restocking: policy === STOCK.RESTOCKING,
-                    // Restocking is the only policy with a cadence, but every shelf
-                    // that counts its stock can be refilled by hand.
-                    countable: policy !== STOCK.INFINITE,
                     restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
+
+                    // A ceiling is only shown where it can actually fire. `maxPerItem`
+                    // clamps a table roll and a quantity a GM types, so it appears
+                    // wherever stock is counted; `maxProducts` is enforced only when
+                    // rolling a table, so on an inventory with no table it would be a
+                    // control that does nothing at all.
+                    countable: policy !== STOCK.INFINITE,
+                    showMaxProducts: tables.length > 0,
                     maxProducts: limits.maxProducts,
                     maxPerItem: limits.maxPerItem,
-                    tables: MerchantManager.getShelfTables(item).map((entry) => ({
+
+                    tables: tables.map((entry) => ({
                         uuid: entry.uuid,
                         // A uuid that no longer resolves is named as missing rather
                         // than left blank, so a GM can see which one to remove.
@@ -755,7 +845,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         rolls: entry.rolls,
                         auto: entry.auto
                     })),
-                    hasTables: MerchantManager.getShelfTables(item).length > 0
+                    hasTables: tables.length > 0
                 };
             })
             : [];
@@ -763,6 +853,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const hours = enabled ? MerchantManager.getHours(actor) : null;
         const max = hoursPerDay() - 1;
         const dayEnd = hoursPerDay();
+
+        // What the party's standing is doing here, said in words and in a number.
+        // Resolved from the scene the GM is looking at: this window is not attached to
+        // a token, so there is no better answer, and it is a report rather than the
+        // figure anything is charged by.
+        const reputationOn = Boolean(MerchantManager.getConfig(actor)?.pricing?.reputation);
+        const repLabel = enabled ? await reputationLabel(canvas?.scene ?? null, reputationOn) : null;
+        const repRate = enabled ? await resolveReputation(canvas?.scene ?? null, reputationOn) : 1;
+        const repEffect = repRate === 1
+            ? null
+            : `${Math.round(Math.abs(1 - repRate) * 100)}% ${repRate > 1 ? 'dearer' : 'cheaper'}`;
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
@@ -785,11 +886,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 label: option.label,
                 selected: option.key === (MerchantManager.getConfig(actor)?.kind ?? DEFAULT_SHOP_KIND)
             })),
-            // The shop-wide default has no "same as the shop" to inherit from.
-            merchantStockOptions: STOCK_OPTIONS.filter((option) => option.value).map((option) => ({
-                ...option,
-                selected: option.value === (MerchantManager.getConfig(actor)?.stock ?? STOCK.INFINITE)
-            })),
+            // Reputation is opt-in per shop, and says what it is currently doing when
+            // it is on: "15% dearer" with no reason given reads as a bug, and
+            // "Distrusted here" reads as the game working.
+            reputationOn: Boolean(MerchantManager.getConfig(actor)?.pricing?.reputation),
+            reputationLabel: repLabel,
+            reputationEffect: repEffect,
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
             // No schedule shows as the whole day rather than as an invented 9 to 6:
@@ -805,12 +907,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             dayStartLabel: formatHour(0),
             dayEndLabel: formatHour(dayEnd),
             overridden: enabled && MerchantManager.isOverridden(actor),
-            shelves,
-            shelfCount: shelves.length,
-            hasShelves: shelves.length > 0
+            inventories,
+            inventoryCount: inventories.length,
+            hasInventories: inventories.length > 0
         });
 
-        const hasShelves = shelves.length > 0;
+        const hasInventories = inventories.length > 0;
 
         return {
             appId: this.id,
@@ -821,13 +923,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     <i class="fa-solid fa-check"></i> Done
                 </button>`,
             // The main action, right-justified, and only where there is something to
-            // restock: on a shop with no shelves it would be a button that does
+            // restock: on a shop with no inventories it would be a button that does
             // nothing but say so.
-            toolFooterRight: hasShelves
+            toolFooterRight: hasInventories
                 ? `
                 <button type="button" class="blacksmith-window-btn-primary merchant-config-restock-all"
                         data-action="restockAll"
-                        data-tooltip="Bring every shelf back to its quantities and roll all of its tables">
+                        data-tooltip="Bring every inventory back to its quantities and roll all of its tables">
                     <i class="fa-solid fa-arrows-rotate"></i> Restock Everything
                 </button>`
                 : ''
@@ -837,7 +939,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * Titlebar actions.
      *
-     * **Refresh**, because this window shows things it does not own — a shelf's item
+     * **Refresh**, because this window shows things it does not own — an inventory's item
      * count, a roll table's name — and nothing pushes a change here when a GM edits
      * the Actor sheet beside it.
      *

@@ -30,8 +30,8 @@ export const MERCHANT_FLAG = 'merchant';
 // ==================================================================
 //
 // **Stock is a count, not a document.** Every policy grants the buyer a *copy* and
-// adjusts a number on the merchant's own item; nothing is ever moved off a shelf by
-// a sale. That is what lets a sold-out row stay on the shelf marked out of stock
+// adjusts a number on the merchant's own item; nothing is ever moved off an inventory by
+// a sale. That is what lets a sold-out row stay on the inventory marked out of stock
 // instead of vanishing -- which finite stock merely prefers and restocking stock
 // requires, since a row that has been deleted is not a row anything can restock.
 //
@@ -47,7 +47,7 @@ export const STOCK = Object.freeze({
 });
 
 /**
- * What a restocking shelf refills *to*.
+ * What a restocking inventory refills *to*.
  *
  * Not a separate editor. A GM setting a quantity by hand in the shop window sets
  * both the count and the par, so the rule is "what I keep six of, I restock to six".
@@ -67,16 +67,16 @@ export const PAR_FLAG = 'par';
  */
 export const DEFAULT_TILL = Object.freeze({ gp: 250 });
 
-/** Days between restocks when a shelf does not say otherwise. */
+/** Days between restocks when an inventory does not say otherwise. */
 export const DEFAULT_RESTOCK_DAYS = 1;
 
 /**
- * How much a shelf will hold, unless it says otherwise.
+ * How much an inventory will hold, unless it says otherwise.
  *
  * Two different ceilings, because they answer two different runaway conditions.
- * `PRODUCTS` counts distinct rows: a shelf rolling a table every week would
+ * `PRODUCTS` counts distinct rows: an inventory rolling a table every week would
  * otherwise grow a longer and longer list of one-offs until the shop window is
- * unreadable. `PER_ITEM` caps any single row: without it a shelf that keeps
+ * unreadable. `PER_ITEM` caps any single row: without it an inventory that keeps
  * restocking rations builds toward thousands of them.
  *
  * A hundred rows totalling three hundred items is a fine shop. A hundred rows
@@ -108,7 +108,7 @@ export function secondsPerDay() {
 // ==================================================================
 //
 // What sort of shop this is. Flavour rather than mechanism — nothing keys off it,
-// and a weaponsmith with a shelf of potions is a perfectly good shop. It replaces
+// and a weaponsmith with an inventory of potions is a perfectly good shop. It replaces
 // the word "Merchant" above the name, which was telling the player something they
 // could already see.
 //
@@ -139,87 +139,189 @@ export function shopKind(key) {
 }
 
 // ==================================================================
-// ===== SHELVES ====================================================
+// ===== INVENTORIES ================================================
 // ==================================================================
 //
-// A shelf is a container Item on the merchant carrying this flag. Its contents are
-// the stock; anything on the Actor outside a shelf is the shopkeeper's own gear and
-// is never for sale.
+// An inventory is a container Item on the merchant carrying this flag. Its contents
+// are the stock; anything on the Actor outside an inventory is the shopkeeper's own
+// gear and is never for sale.
 //
-// **One schema, several presets — not several types.** Every use case raised so far
-// differs only in visibility, markup, and mode: a back room is hidden, premium is a
-// markup, barter is a mode, buyback is a mode with a rate. Hard-coding five kinds
-// would leave the sixth idea — seasonal stock, faction-only, consignment — with
-// nowhere to go, so the presets below are data rather than code paths.
+// **The type is what the GM meant, and the settings follow from it.** These used to
+// be five presets over one schema, which stored nothing about the choice — a Premium
+// and a Storefront were indistinguishable once created, so nothing downstream could
+// offer a control that only made sense for one of them. The type is stored, and each
+// type brings only the settings it can act on.
+//
+// A shop may hold several inventories of the same type, each with its own name.
 
-export const SHELF_FLAG = 'shelf';
+export const INVENTORY_FLAG = 'inventory';
 
-export const SHELF_MODE = Object.freeze({
-    SALE: 'sale',
-    BARTER: 'barter',
-    BUYBACK: 'buyback'
+/**
+ * The flag key these used to live under.
+ *
+ * Kept for the one-time migration in `MerchantManager.migrateWorld`, and for nothing
+ * else. Nothing reads it after that runs.
+ */
+export const LEGACY_INVENTORY_FLAG = 'shelf';
+
+export const INVENTORY_TYPE = Object.freeze({
+    GENERAL: 'general',
+    HIDDEN: 'hidden',
+    PREMIUM: 'premium',
+    DISCOUNTED: 'discounted',
+    UNPRICED: 'unpriced',
+    PURCHASED: 'purchased'
 });
 
 /**
- * Created with `weightlessContents` and no capacity, so a shelf is unlimited and
+ * What each type is, and what it is allowed to configure.
+ *
+ * Created with `weightlessContents` and no capacity, so an inventory is unlimited and
  * weighs nothing however much is on it. Both are real dnd5e behaviours rather than
  * workarounds: `computeCapacity` starts at Infinity unless a capacity is set, and
  * `weightlessContents` makes a container report only its own weight.
  *
  * Artwork is Foundry's own container icons rather than the monochrome `icons/svg`
- * set: a shelf is a physical thing in the shop and reads better as one, and these
- * ship with core so there is nothing to install.
+ * set: an inventory is a physical thing in the shop and reads better as one, and
+ * these ship with core so there is nothing to install.
  *
- * **`name` is the shelf's name and the flag carries no copy of it.** The preset names
- * the container at creation and nothing owns the name after that: a GM renaming the
- * container in dnd5e's own sheet renames the shelf, because there is only one name to
- * rename. The flag used to carry a `label` as well, which meant a rename changed the
- * container everywhere in Foundry and nowhere in Merchant. Nothing stops a GM
- * renaming a container, so the answer is to follow the rename rather than to fight
- * it. Old flags may still carry a vestigial `label`; it is ignored.
+ * **`name` is the inventory's name and the flag carries no copy of it.** The type
+ * names the container at creation and nothing owns the name after that: a GM renaming
+ * the container — in Merchant Settings or in dnd5e's own sheet — renames the
+ * inventory, because there is only one name to rename.
+ *
+ * `pricing` says which control the settings window offers:
+ *   `baseline` — nothing of its own; the shop's Global Markup is the whole story.
+ *   `markup`   — its own multiplier, applied on top of the baseline.
+ *   `none`     — no price until one is agreed on the slate.
+ *   `trade`    — two rates: what the shop pays, and what it resells at.
  */
-export const SHELF_PRESETS = Object.freeze({
-    storefront: {
-        key: 'storefront',
-        name: 'Storefront',
+export const INVENTORY_TYPES = Object.freeze({
+    general: {
+        key: INVENTORY_TYPE.GENERAL,
+        name: 'General',
         img: 'icons/containers/boxes/crate-wooden-beige.webp',
         hint: 'Ordinary stock, on display to everyone.',
-        shelf: { order: 0, visible: true, mode: SHELF_MODE.SALE, markup: null, stock: null }
+        pricing: 'baseline',
+        restocks: true,
+        defaults: { order: 0, visible: true, markup: 1, stock: STOCK.INFINITE }
     },
-    backroom: {
-        key: 'backroom',
-        name: 'Back Room',
+    hidden: {
+        key: INVENTORY_TYPE.HIDDEN,
+        name: 'Hidden',
         img: 'icons/containers/chest/chest-reinforced-box-brown.webp',
-        hint: 'Hidden from players until you move it out front.',
-        shelf: { order: 10, visible: false, mode: SHELF_MODE.SALE, markup: null, stock: null }
+        hint: 'Out of sight until you bring it out front.',
+        pricing: 'markup',
+        restocks: true,
+        // A back room is where the good stuff is kept, not a different price list, so
+        // it starts at the baseline and has a field for a GM who disagrees.
+        defaults: { order: 10, visible: false, markup: 1, stock: STOCK.INFINITE }
     },
     premium: {
-        key: 'premium',
+        key: INVENTORY_TYPE.PREMIUM,
         name: 'Premium',
         img: 'icons/containers/chest/chest-steel-purple.webp',
         hint: 'On display, priced above the going rate.',
-        shelf: { order: 20, visible: true, mode: SHELF_MODE.SALE, markup: 1.5, stock: null }
+        pricing: 'markup',
+        restocks: true,
+        defaults: { order: 20, visible: true, markup: 1.5, stock: STOCK.INFINITE }
     },
-    barter: {
-        key: 'barter',
-        // Called Negotiate on screen, stored as `barter`: renaming the label costs
-        // nothing, renaming the stored value would silently un-mode every shelf a
-        // GM has already made.
-        name: 'Negotiate',
-        img: 'icons/containers/misc/basket-handle-woven-yellow.webp',
+    discounted: {
+        key: INVENTORY_TYPE.DISCOUNTED,
+        name: 'Discounted',
+        img: 'icons/containers/boxes/crates-wooden-stacked.webp',
+        hint: 'On display, priced below the going rate.',
+        pricing: 'markup',
+        restocks: true,
+        defaults: { order: 30, visible: true, markup: 0.75, stock: STOCK.INFINITE }
+    },
+    unpriced: {
+        key: INVENTORY_TYPE.UNPRICED,
+        name: 'Unpriced',
+        img: 'icons/containers/boxes/box-gift-white.webp',
         hint: 'No price until you agree one. The GM sets it on the slate.',
-        shelf: { order: 30, visible: true, mode: SHELF_MODE.BARTER, markup: null, stock: null }
+        pricing: 'none',
+        restocks: true,
+        defaults: { order: 40, visible: true, markup: 1, stock: STOCK.INFINITE }
     },
-    buyback: {
-        key: 'buyback',
-        name: 'Buyback',
+    purchased: {
+        key: INVENTORY_TYPE.PURCHASED,
+        name: 'Purchased',
         img: 'icons/containers/bags/sack-cloth-tan.webp',
         hint: 'Where things bought from the party end up.',
-        shelf: { order: 40, visible: true, mode: SHELF_MODE.BUYBACK, markup: 0.5, stock: STOCK.FINITE }
+        pricing: 'trade',
+        // Never. Its stock is whatever the party sold, so there is no level to
+        // return to and a refill would conjure duplicates of somebody's old sword.
+        restocks: false,
+        defaults: { order: 50, visible: true, markup: 1, buyRate: 0.5, stock: STOCK.FINITE }
     }
 });
 
-/** Stock is grouped under these headings within each shelf, in this order. */
+/** The type's definition, falling back to general rather than to nothing. */
+export function inventoryType(key) {
+    return INVENTORY_TYPES[key] ?? INVENTORY_TYPES[INVENTORY_TYPE.GENERAL];
+}
+
+/** No list price until one is agreed. */
+export function isUnpriced(type) {
+    return type === INVENTORY_TYPE.UNPRICED;
+}
+
+/** Where the party's own goods land, and the only type the shop buys into. */
+export function isPurchased(type) {
+    return type === INVENTORY_TYPE.PURCHASED;
+}
+
+/** What the shop pays for a thing, before anything else is applied. */
+export const DEFAULT_BUY_RATE = 0.5;
+
+// ==================================================================
+// ===== REPUTATION =================================================
+// ==================================================================
+//
+// What the party's standing does to a price.
+//
+// **The curve is Merchant's, and deliberately so.** Blacksmith's scale carried an
+// `effects.merchantModifier` slot, and the obvious move was to read it. They removed
+// it instead, and the reasoning is right: they own *how liked the party is*, we own
+// *what a shop does about it*. A shop's economy is not the hub's to set, and a table
+// that wants gentler prices should not have to edit a scale that also drives NPC
+// attitude and what information people will share.
+//
+// Keyed on their band, not on our own thresholds, so the boundaries stay theirs and
+// only the consequence is ours. **This table is meant to be tuned.**
+
+export const REPUTATION_MARKUP = Object.freeze({
+    hated: 1.30,
+    reviled: 1.25,
+    despised: 1.20,
+    distrusted: 1.15,
+    unwelcome: 1.08,
+    neutral: 1.00,
+    known: 0.97,
+    respected: 0.94,
+    admired: 0.90,
+    revered: 0.87,
+    legendary: 0.85
+});
+
+/**
+ * What to do when the band cannot be resolved at all.
+ *
+ * A scale a world has customised may name bands we have never heard of, so the sign
+ * of the score is the part that is always true: disliked is dearer, liked is cheaper.
+ */
+export const REPUTATION_FALLBACK = Object.freeze({ disliked: 1.15, neutral: 1.00, liked: 0.85 });
+
+/**
+ * No standing may take a price below a quarter or above four times.
+ *
+ * Not a position on how much a town can hate you — a guard, so a mis-typed entry in
+ * the table above cannot turn a shop into a giveaway.
+ */
+export const REPUTATION_LIMITS = Object.freeze({ min: 0.25, max: 4 });
+
+/** Stock is grouped under these headings within each inventory, in this order. */
 export const ITEM_CATEGORIES = Object.freeze([
     { type: 'weapon', label: 'Weapons', icon: 'fa-solid fa-gavel' },
     { type: 'equipment', label: 'Armor & Gear', icon: 'fa-solid fa-shield-halved' },
@@ -234,7 +336,7 @@ export const ITEM_CATEGORIES = Object.freeze([
  *
  * **Price decides this, not type.** There was a whitelist of stackable *types* here
  * -- consumables and loot stack, gear does not -- and it was wrong about the
- * ordinary case. A general store's shelf is daggers, vials, clothes, chests and
+ * ordinary case. A general store's inventory is daggers, vials, clothes, chests and
  * tools, every one of which a shop plainly keeps several of, and every one of which
  * the whitelist excluded. The result was a depth feature that changed nothing
  * anybody could see.
@@ -246,7 +348,7 @@ export const ITEM_CATEGORIES = Object.freeze([
  * head at the moment somebody is asking why their shop looks wrong, which is
  * exactly when one is already too many.
  *
- * These are **caps, not counts**. The depth is rolled within the band, so a shelf
+ * These are **caps, not counts**. The depth is rolled within the band, so an inventory
  * stocked twice does not look stocked twice the same way. Thresholds are in base
  * units (copper) and are deliberately coarse: this is a shop's character, not a
  * simulation, and a GM who wants exact numbers sets them by hand.

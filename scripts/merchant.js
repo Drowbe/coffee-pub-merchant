@@ -2,7 +2,7 @@
 // ===== COFFEE PUB MERCHANT — ENTRY POINT ==========================
 // ==================================================================
 
-import { MODULE, PAR_FLAG, SHELF_FLAG } from './const.js';
+import { MODULE, PAR_FLAG, INVENTORY_FLAG } from './const.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import { MerchantManager } from './manager-merchant.js';
 import { registerSettings } from './settings.js';
@@ -70,14 +70,14 @@ Hooks.once('ready', async function () {
     // yet, which no other module can see coming. The obligation sits with whoever
     // writes the flag, and that is us.
     //
-    // Both qualify: a restock target and a shelf's configuration describe where a
+    // Both qualify: a restock target and an inventory's configuration describe where a
     // thing is kept, not what it is. Two identical potions are the same potion
     // whether the shop keeps six of them or three.
     //
     // Optional-chained because it lands with api.inventory, which may be newer than
     // the Blacksmith a given world has installed.
     blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${PAR_FLAG}`);
-    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${SHELF_FLAG}`);
+    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${INVENTORY_FLAG}`);
 
     // Sounds are a world setting read on every client, and the toast channels give a
     // GM a checkbox per class of message. Both before anything can want them.
@@ -88,6 +88,16 @@ Hooks.once('ready', async function () {
     // request path both have to exist on a player's client.
     MerchantManager.initialize();
     registerSheetControls();
+
+    // Shelves became typed inventories and the stored flag moved with the word, so
+    // every shop configured before that needs walking over. GM-only and idempotent —
+    // it stamps a schema version per merchant — and awaited here rather than fired
+    // and forgotten, so nothing reads a half-migrated world.
+    try {
+        await MerchantManager.migrateWorld();
+    } catch (error) {
+        console.error(`${MODULE.TITLE} | Inventory migration failed:`, error);
+    }
 
     // Exposed for the same reason Curator exposes its loot manager — the permission
     // bypass can only be verified from a non-GM client.

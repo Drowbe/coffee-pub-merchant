@@ -44,6 +44,7 @@
     "scripts/merchant-inventory.js",
     "scripts/merchant-pricing.js",
     "scripts/merchant-progress.js",
+    "scripts/merchant-reputation.js",
     "scripts/gm-request.js",
     "scripts/window-shop.js",
     "scripts/window-merchant-config.js",

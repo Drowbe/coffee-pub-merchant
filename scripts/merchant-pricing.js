@@ -10,7 +10,7 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE, SHELF_MODE, STOCK_DEPTH_BANDS } from './const.js';
+import { MODULE, STOCK_DEPTH_BANDS, isUnpriced, DEFAULT_BUY_RATE } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -43,7 +43,7 @@ export function toBase(value, denomination) {
 }
 
 /**
- * How many of this thing a table roll should put on the shelf.
+ * How many of this thing a table roll should put on the inventory.
  *
  * Two rules, in order:
  *
@@ -52,19 +52,19 @@ export function toBase(value, denomination) {
  *    arrow, which threw away the only statement anybody had actually made.
  * 2. **What it costs.** Cheap things come in piles and dear things come singly, which
  *    is what a shop looks like. The band sets a ceiling and the die fills it, so
- *    stocking the same shelf twice does not produce the same shop twice.
+ *    stocking the same inventory twice does not produce the same shop twice.
  *
  * There was a third rule between them -- a whitelist of *types* that stack -- and it
- * made the whole feature invisible. A general store's shelf is daggers, vials,
+ * made the whole feature invisible. A general store's inventory is daggers, vials,
  * clothes, chests and tools, and the whitelist excluded every one of them. Price was
  * always what the intuition meant. See `STOCK_DEPTH_BANDS`.
  *
- * The shelf's own "each" limit clamps the result, so a ceiling a GM set by hand is
+ * The inventory's own "each" limit clamps the result, so a ceiling a GM set by hand is
  * never argued with by a die.
  *
  * `random` is injected so this is testable; it is an ordinary integer roll rather
  * than a `Roll`, because nothing here belongs in chat and a dice animation for
- * restocking a shelf is not a thing anybody asked for.
+ * restocking an inventory is not a thing anybody asked for.
  */
 export function stockDepth(item, { maxPerItem = Infinity, random = Math.random } = {}) {
     const ceiling = Math.max(1, Math.trunc(Number(maxPerItem)) || 1);
@@ -290,42 +290,62 @@ export function formatBase(base) {
 }
 
 /**
+ * A multiplier that is a positive number, or 1.
+ *
+ * Every rate in this file goes through here. A zero, a negative or a typo becomes
+ * "no adjustment" rather than a free item or a nonsense price.
+ */
+function rate(value, fallback = 1) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+/**
  * What a merchant charges for an item, in base units.
  *
- * Three sources, resolved in order:
- *   1. A per-item override on the merchant. Absolute, wins outright.
- *   2. The shelf's markup, or the merchant's, applied to the item's own price.
- *   3. The item's own `system.price`.
+ * **The multipliers stack, and that is the point.** The shop's Global Markup is a
+ * baseline — this shop is in an expensive quarter, or in the middle of nowhere, and
+ * everything in it is dearer for the same reason. An inventory's own markup is then
+ * an adjustment *within* that shop: premium stock is dearer than this shop's ordinary
+ * stock, a discounted rack is cheaper than it. Applying one instead of the other
+ * would mean a premium inventory in an expensive shop quietly priced as though the
+ * shop were ordinary.
  *
- * @returns {number|null} null when the item has no price at all — which is a
- *   configuration gap on a sale shelf and deliberate on a barter one.
+ *     item price  ×  global markup  ×  inventory markup  ×  reputation
+ *
+ * Reputation stacks too, and for a related reason: it is a fact about the town rather
+ * than about the inventory.
+ *
+ * @param {object} [options]
+ * @param {number} [options.reputation] Multiplier from the party's standing, or 1.
+ * @returns {number|null} null when the item has no price at all — a configuration gap
+ *   on a priced inventory, and deliberate on an unpriced one.
  */
-export function resolvePrice(merchantConfig, shelfConfig, item) {
-    // An agreed price wins outright, which is what makes it agreed.
+export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1 } = {}) {
+    // An agreed price wins outright, which is what makes it agreed. Nothing is applied
+    // on top: a haggled number is the number, not the start of an arithmetic.
     const negotiated = negotiatedPrice(merchantConfig, item?.id);
     if (negotiated !== null) return negotiated;
 
-    // A negotiate shelf has no list price by definition: what a thing costs there is
-    // whatever the two of you settle on, and until you have settled there is no
-    // number. Anything else would be putting a price on the shelf that exists so as
-    // not to have one.
-    if (shelfConfig?.mode === SHELF_MODE.BARTER) return null;
+    // An unpriced inventory has no list price by definition: what a thing costs there
+    // is whatever the two of you settle on, and until you have settled there is no
+    // number. Anything else would be putting a price on the inventory that exists so
+    // as not to have one.
+    if (isUnpriced(inventoryConfig?.type)) return null;
 
     const price = item?.system?.price;
     const value = Number(price?.value);
     if (!Number.isFinite(value) || value <= 0) return null;
 
-    // A buyback shelf's `markup` is what the shop *pays*, not what it charges — see
-    // resolveBuybackPrice. Reading it here too would have the shop buy a sword at half
-    // price and resell it at half price: no profit, and a permanent half-price
-    // second-hand rack. Second-hand stock is sold at the shop's ordinary rate.
-    const shelfMarkup = shelfConfig?.mode === SHELF_MODE.BUYBACK ? null : shelfConfig?.markup;
-    const markup = Number.isFinite(Number(shelfMarkup))
-        ? Number(shelfMarkup)
-        : Number(merchantConfig?.pricing?.markup);
+    // A purchased inventory resells at its own Sell Rate, which is an ordinary markup
+    // and is read here like any other. It used to be skipped, because one number did
+    // both jobs and reading it would have meant buying a sword at half price and
+    // reselling it at half price. Two rates, so there is nothing left to guard.
+    const total = rate(merchantConfig?.pricing?.markup)
+        * rate(inventoryConfig?.markup)
+        * rate(reputation);
 
-    const multiplier = Number.isFinite(markup) && markup > 0 ? markup : 1;
-    return Math.max(1, Math.round(toBase(value, price?.denomination ?? 'gp') * multiplier));
+    return Math.max(1, Math.round(toBase(value, price?.denomination ?? 'gp') * total));
 }
 
 /**
@@ -355,21 +375,39 @@ export function negotiatedBuyback(merchantConfig, itemId) {
 /**
  * What a merchant pays for an item the party sells, in base units.
  *
- * A fraction of what the thing is worth, not a fraction of the shop's asking price —
- * hence the blanked overrides and the `null` shelf. A shop marking everything up 2x
- * should not therefore pay double.
+ * **A fraction of what the thing is worth, not of what this shop charges for it.**
+ * Hence the blanked overrides and the `null` inventory passed below: a shop marking
+ * everything up 2x should not therefore pay double, and one in an expensive quarter
+ * does not pay more for your old sword because its own rent is high.
  *
- * The buyback shelf's `markup` is that fraction. It is the only place that reads it
- * as a rate paid rather than a rate charged.
+ * The **Purchase Rate** on the purchased inventory is that fraction, and it is the
+ * only rate in this module read as a price paid rather than a price charged. Its
+ * sibling, the Sell Rate, is an ordinary markup and is read by `resolvePrice`.
+ *
+ * Reputation applies **inverted**: the same standing that buys you a discount should
+ * get you a better price for your goods, or a beloved party would be rewarded in one
+ * direction and ignored in the other, which reads as a bug rather than a rule.
+ *
+ * @param {object} [options]
+ * @param {number} [options.reputation] The buying-side multiplier. Inverted here.
  */
-export function resolveBuybackPrice(merchantConfig, shelfConfig, item) {
+export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { reputation = 1 } = {}) {
     const agreed = negotiatedBuyback(merchantConfig, item?.id);
     if (agreed !== null) return agreed;
 
-    const price = resolvePrice({ ...merchantConfig, pricing: { ...merchantConfig?.pricing, overrides: {} } }, null, item);
-    if (price === null) return null;
-    const rate = Number.isFinite(Number(shelfConfig?.markup)) ? Number(shelfConfig.markup) : 0.5;
-    return Math.max(1, Math.round(price * (rate > 0 ? rate : 0.5)));
+    // No inventory, and no overrides: what the item is worth, not what it is sold for.
+    const worth = resolvePrice(
+        { ...merchantConfig, pricing: { ...merchantConfig?.pricing, markup: 1, overrides: {} } },
+        null,
+        item
+    );
+    if (worth === null) return null;
+
+    const buyRate = rate(inventoryConfig?.buyRate, DEFAULT_BUY_RATE);
+    // A modifier of 0.85 means "cheaper to buy from"; the same standing should mean
+    // "paid more when selling", so it is turned over rather than applied as it stands.
+    const standing = 1 / rate(reputation);
+    return Math.max(1, Math.round(worth * buyRate * standing));
 }
 
 /**

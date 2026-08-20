@@ -56,16 +56,16 @@ export function isPhysical(type) {
  * **This is the delivery path for every stock policy, not just the infinite one.** A
  * merchant's item is a template carrying a count: a sale grants a copy and the
  * manager adjusts the number. `transferItem` would move the document and delete it
- * on the last unit, which loses the shelf layout and leaves a restocking shelf with
+ * on the last unit, which loses the inventory layout and leaves a restocking inventory with
  * nothing to restock.
  *
  * What finite stock does reintroduce is the race — two buyers reading the same count
  * — which `MerchantManager._withStockLock` answers rather than this file.
  *
- * `container` names the shelf the copy lands on. Honoured by the primitive itself
+ * `container` names the inventory the copy lands on. Honoured by the primitive itself
  * since 2026-08-18: it always writes `system.container` rather than inheriting the
  * source's, and container membership is part of merge identity, so a merge can only
- * land on a row already on that shelf. Merchant carried a post-write correction for
+ * land on a row already on that inventory. Merchant carried a post-write correction for
  * this until then; it is gone.
  */
 export async function grantItem(request) {

@@ -13,7 +13,7 @@
 .merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
 
 /* The merchant and the buyer stay put while the stock scrolls under them. */
-/* The left column: what the shop is, who is shopping, and what is on the shelves.
+/* The left column: what the shop is, who is shopping, and what is on the inventories.
    The cart runs the full height beside all of it, and the only thing spanning both
    is the action bar in the footer. */
 .merchant-shop-main { flex: 4 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
@@ -39,12 +39,12 @@
 .merchant-shop-actor-image { width: 34px; height: 34px; flex: 0 0 34px; }
 .merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
 
-/* Artwork sitting inline: the shelf rows in Settings and the shelf headings in the
+/* Artwork sitting inline: the inventory rows in Settings and the inventory headings in the
    shop. The same border and radius as the stock rows, which is the treatment that
    appears most often and is therefore the one to match. No shadow: a drop shadow on
    a 20px thumbnail is soot. */
-.merchant-config-shelf > img,
-.merchant-shop-shelf-icon { display: block; object-fit: cover; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-inventory > img,
+.merchant-shop-inventory-icon { display: block; object-fit: cover; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); }
 
 /* Blue for the merchant, green for the buyer, so the pair reads as who is trading
    with whom. Mixed into the theme surfaces rather than painted over them, so the
@@ -115,40 +115,40 @@
 .merchant-config-toggle { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: start; cursor: pointer; }
 .merchant-config-toggle small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; }
 
-/* --- Shelves --------------------------------------------------------- */
+/* --- Inventories --------------------------------------------------------- */
 .merchant-shop-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
-.merchant-shop-shelf-icon { width: 20px !important; height: 20px !important; max-width: 20px !important; }
+.merchant-shop-inventory-icon { width: 20px !important; height: 20px !important; max-width: 20px !important; }
 .merchant-shop-head-actions { display: flex; gap: 6px; align-items: center; }
 .merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
 
-/* GM toggle: bring a shelf out front, or put it away, without leaving the shop. */
-.merchant-shop-shelf-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
-.merchant-shop-shelf-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
-.merchant-shop-shelf-toggle.is-hidden { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
+/* GM toggle: bring an inventory out front, or put it away, without leaving the shop. */
+.merchant-shop-inventory-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
+.merchant-shop-inventory-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-inventory-toggle.is-hidden { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
 
-/* A hidden shelf is GM-only. Dashed, so it does not read as ordinary stock. */
-.merchant-shop-shelf-hidden { border-style: dashed; border-color: color-mix(in srgb, #8c2f22 30%, var(--blacksmith-tool-divider)); }
+/* A hidden inventory is GM-only. Dashed, so it does not read as ordinary stock. */
+.merchant-shop-inventory-hidden { border-style: dashed; border-color: color-mix(in srgb, #8c2f22 30%, var(--blacksmith-tool-divider)); }
 
-/* --- Configuration: shelves ------------------------------------------ */
+/* --- Configuration: inventories ------------------------------------------ */
 .merchant-config-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; }
 .merchant-config-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
 .merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
 
-.merchant-config-shelf-list { display: flex; flex-direction: column; gap: 4px; }
-.merchant-config-shelf { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
-.merchant-config-shelf:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
-.merchant-config-shelf > img { width: 32px !important; height: 32px !important; max-width: 32px !important; }
-.merchant-config-shelf-copy { min-width: 0; }
-.merchant-config-shelf-copy strong, .merchant-config-shelf-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.merchant-config-shelf-copy strong { font-size: .8rem; }
-.merchant-config-shelf-copy span { margin-top: 1px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; }
-.merchant-config-shelf-actions { display: flex; gap: 4px; align-items: center; }
+.merchant-config-inventory-list { display: flex; flex-direction: column; gap: 4px; }
+.merchant-config-inventory { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-inventory:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
+.merchant-config-inventory > img { width: 32px !important; height: 32px !important; max-width: 32px !important; }
+.merchant-config-inventory-copy { min-width: 0; }
+.merchant-config-inventory-copy strong, .merchant-config-inventory-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-config-inventory-copy strong { font-size: .8rem; }
+.merchant-config-inventory-copy span { margin-top: 1px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; }
+.merchant-config-inventory-actions { display: flex; gap: 4px; align-items: center; }
 .merchant-config-icon-btn { min-height: 26px; margin: 0; padding: 2px 8px; }
 .merchant-config-remove:hover { border-color: #a4432f; color: #a4432f; }
-/* Clearing a shelf is destructive, so it warns on approach like the other two
+/* Clearing an inventory is destructive, so it warns on approach like the other two
    destructive controls do. It is not red at rest -- a row of red buttons reads
-   as a warning about the shelf rather than about the click. */
-.merchant-shop-shelf-clear:hover { color: #a4432f; }
+   as a warning about the inventory rather than about the click. */
+.merchant-shop-inventory-clear:hover { color: #a4432f; }
 .merchant-config-icon-btn i { margin: 0; }
 
 .merchant-config-empty { padding: 6px 3px; color: var(--blacksmith-tool-text-muted); font-size: .74rem; font-style: italic; text-align: center; }
@@ -174,14 +174,14 @@
 
 .merchant-shop-browsing { display: flex; gap: 9px; align-items: center; padding: 8px 10px; border: 1px dashed color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); border-radius: 6px; background: color-mix(in srgb, #8c2f22 7%, var(--blacksmith-tool-surface-sunken)); color: var(--blacksmith-tool-text); font-size: .74rem; }
 
-/* --- Categories within a shelf --------------------------------------- */
-.merchant-shop-shelf-body { display: flex; flex-direction: column; gap: 9px; }
-.merchant-shop-shelf-body.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
+/* --- Categories within an inventory --------------------------------------- */
+.merchant-shop-inventory-body { display: flex; flex-direction: column; gap: 9px; }
+.merchant-shop-inventory-body.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
 
-.merchant-shop-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
-.merchant-shop-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-inventory-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
+.merchant-shop-inventory-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 
 /* --- Trading hours ---------------------------------------------------- */
 /* A row of facts that wraps cleanly: the separator is drawn between items rather
@@ -243,7 +243,7 @@
 .merchant-shop-sides > .merchant-shop-side:hover:not(:disabled) { color: var(--blacksmith-tool-text); }
 .merchant-shop-sides > .merchant-shop-side.is-on { background: var(--blacksmith-tool-surface-hover, rgba(0,0,0,.07)); color: var(--blacksmith-tool-text); }
 .merchant-shop-sides > .merchant-shop-side:disabled { opacity: .45; cursor: default; }
-/* Hidden rather than unrendered: the search keeps its text and the shelves keep
+/* Hidden rather than unrendered: the search keeps its text and the inventories keep
    their scroll position, so switching back is where you left it. */
 .merchant-shop-stock .is-hidden { display: none; }
 .merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
@@ -284,20 +284,20 @@
 .merchant-shop-item-qty > input { width: 100%; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .76rem; text-align: center; }
 .merchant-shop-item-qty > input:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
 
-/* Out of stock stays on the shelf rather than vanishing, so a GM can still see
-   what the shop normally carries and a restocking shelf has something to refill. */
+/* Out of stock stays on the inventory rather than vanishing, so a GM can still see
+   what the shop normally carries and a restocking inventory has something to refill. */
 .merchant-shop-item.is-out { opacity: .55; }
 .merchant-shop-item.is-out .merchant-shop-item-qty { color: #a4432f; font-weight: 600; }
 
-.merchant-config-shelf { grid-template-areas: "img copy actions" "stock stock stock"; }
-.merchant-config-shelf > img { grid-area: img; }
-.merchant-config-shelf-copy { grid-area: copy; }
-.merchant-config-shelf-actions { grid-area: actions; }
-.merchant-config-shelf-stock { grid-area: stock; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--blacksmith-tool-divider); }
-.merchant-config-shelf-stock > select { min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; }
-.merchant-config-shelf-inherited { color: var(--blacksmith-tool-text-muted); font-size: .7rem; font-style: italic; }
-.merchant-config-shelf-days { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
-.merchant-config-shelf-days > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+.merchant-config-inventory { grid-template-areas: "img copy actions" "stock stock stock"; }
+.merchant-config-inventory > img { grid-area: img; }
+.merchant-config-inventory-copy { grid-area: copy; }
+.merchant-config-inventory-actions { grid-area: actions; }
+.merchant-config-inventory-stock { grid-area: stock; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-config-inventory-stock > select { min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; }
+.merchant-config-inventory-inherited { color: var(--blacksmith-tool-text-muted); font-size: .7rem; font-style: italic; }
+.merchant-config-inventory-days { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
+.merchant-config-inventory-days > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
 
 /* --- Merchant Settings, resizable -------------------------------------- */
 /* Height stays `auto` so it opens fitted to its content; dragging the handle
@@ -328,7 +328,7 @@
 .merchant-shop-search-clear:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 .merchant-shop-no-matches { border-style: dashed; }
 
-/* --- Settings: handles, fields, and the shelf menu ---------------------- */
+/* --- Settings: handles, fields, and the inventory menu ---------------------- */
 
 /* Open is green and close is red, on the handles themselves. The band between
    them says the same thing, but a 4px bar of dark green over a sunken track is
@@ -343,12 +343,12 @@
 
 /* The policy select takes what it needs and the rest is pushed right, so an
    inherited label no longer wraps into two lines beside a full-width control. */
-.merchant-config-shelf-stock > select { flex: 0 1 220px; }
-.merchant-config-shelf-inherited { flex: 0 0 auto; white-space: nowrap; }
+.merchant-config-inventory-stock > select { flex: 0 1 220px; }
+.merchant-config-inventory-inherited { flex: 0 0 auto; white-space: nowrap; }
 
 .merchant-config-head-actions { display: inline-flex; gap: 7px; align-items: center; }
-.merchant-config-shelf-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
-.merchant-config-shelf-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-config-inventory-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
+.merchant-config-inventory-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 
 /* --- Shop description --------------------------------------------------- */
 .merchant-config-description { display: flex; flex-direction: column; gap: 6px; }
@@ -376,9 +376,9 @@
    region — two half-height scrollers stacked would be worse than one. */
 .merchant-shop-columns { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; min-width: 0; min-height: 0; overflow-y: auto; }
 .merchant-shop-stock { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
-.merchant-shop-shelves { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-/* The pack needs no rules of its own: it renders as a `.merchant-shop-shelf` inside
-   the same scrolling container the shelves use, so the card, the spacing and the
+.merchant-shop-inventories { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* The pack needs no rules of its own: it renders as a `.merchant-shop-inventory` inside
+   the same scrolling container the inventories use, so the card, the spacing and the
    scrolling are all already answered. Three near-copies of those lived here. */
 /* Grows a quarter as fast as the stock, so a wide window spends its room on the
    thing being browsed. When the window narrows past the two bases the cart wraps
@@ -390,7 +390,7 @@
    *behind* it. The offset is the header's measured height — it varies with the
    description, the browsing notice and the override line, so it cannot be a
    constant. Set from _onRender; the fallback keeps this sane if that never runs. */
-/* Side by side: each pane scrolls on its own, so a long shelf list does not carry
+/* Side by side: each pane scrolls on its own, so a long inventory list does not carry
    the slate off the bottom of the window and a full slate does not lengthen the
    page. The breakpoint is the two flex bases plus the gap — the width at which
    they stop wrapping — so the layout and the scrolling change at the same moment,
@@ -409,7 +409,7 @@
     .merchant-shop-cart { display: flex; flex-direction: column; min-height: 0; width: 100%; }
     /* `scrollbar-gutter` so a row's right edge never sits under the bar, and the
        layout does not shift the moment a list grows long enough to need one. */
-    .merchant-shop-shelves,
+    .merchant-shop-inventories,
     .merchant-shop-cart-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 
 }
@@ -417,7 +417,7 @@
 .merchant-shop-cart-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 14px 6px; }
 .merchant-shop-cart-empty > i { font-size: 1.1rem; opacity: .5; }
 
-/* Every one of these is in your own cart: dimmed like an empty shelf, but tinted
+/* Every one of these is in your own cart: dimmed like an empty inventory, but tinted
    rather than greyed, because the stock is not gone — it is spoken for by you. */
 .merchant-shop-item.is-reserved { opacity: .7; }
 .merchant-shop-item.is-reserved .merchant-shop-item-qty { color: var(--blacksmith-tool-accent); font-weight: 600; }
@@ -551,27 +551,27 @@
    FLATTENING — two panels, not boxes inside boxes
    ==================================================================
    The window had four levels of frame: a panel around the column, a bordered
-   card per shelf, a card per row, and the same again on the cart side. Every
+   card per inventory, a card per row, and the same again on the cart side. Every
    level was legible on its own and together they read as packaging rather than
    as content.
    One box per column now. Inside them, headings and rules do the separating,
    and a row is a tint rather than a card. */
 
 /* The stock column is the box; the search sits inside its top edge. */
-/* The column is not a box; each shelf is. One level of frame either way, and a
-   shelf is the thing that actually wants a boundary. */
+/* The column is not a box; each inventory is. One level of frame either way, and a
+   inventory is the thing that actually wants a boundary. */
 .merchant-shop-stock { padding: 0; border: 0; background: none; }
-.merchant-shop-stock .merchant-shop-shelf { padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); overflow: visible; }
-.merchant-shop-shelves { gap: 12px; }
+.merchant-shop-stock .merchant-shop-inventory { padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); overflow: visible; }
+.merchant-shop-inventories { gap: 12px; }
 /* Clear of the scrollbar, which the gutter reserves but does not pad away from. */
-.merchant-shop-shelves { padding-right: 3px; }
-/* A hidden shelf loses its dashed frame and says so on the heading instead. */
-.merchant-shop-stock .merchant-shop-shelf-hidden { border-style: none; opacity: .82; }
+.merchant-shop-inventories { padding-right: 3px; }
+/* A hidden inventory loses its dashed frame and says so on the heading instead. */
+.merchant-shop-stock .merchant-shop-inventory-hidden { border-style: none; opacity: .82; }
 
 /* The search is an input, not a panel. */
 .merchant-shop-stock > .merchant-shop-search { padding: 0; border: 0; border-radius: 0; background: none; }
 
-/* The no-shelves and no-matches notices are lines of text, not cards. */
+/* The no-inventories and no-matches notices are lines of text, not cards. */
 .merchant-shop-stock .merchant-shop-no-matches,
 .merchant-shop-columns > .merchant-shop-stock > .merchant-shop-section:not(.merchant-shop-search) { border: 0; background: none; }
 
@@ -594,17 +594,17 @@
    used to be. The tooltip still carries the reason it is disabled. */
 .merchant-shop-cart-add { display: inline-grid; width: 26px; height: 24px; place-items: center; padding: 0; }
 
-/* --- Shelf headings do the grouping ------------------------------------- */
+/* --- Inventory headings do the grouping ------------------------------------- */
 /*
  * Removing the cards removed the group boundaries with them: seven items on the
  * Storefront and one in the Back Room ran together into a single list.
  *
  * The heading carries it now — a filled band rather than a line of text, and
- * sticky inside the list, so the shelf you are looking at names itself while you
+ * sticky inside the list, so the inventory you are looking at names itself while you
  * scroll through it. That is a stronger grouping signal than a frame was, and it
- * answers a question a frame never did: which shelf is this, forty rows down.
+ * answers a question a frame never did: which inventory is this, forty rows down.
  */
-.merchant-shop-stock .merchant-shop-shelf > h3 {
+.merchant-shop-stock .merchant-shop-inventory > h3 {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -621,19 +621,19 @@
     font-size: .72rem;
 }
 /* The name reads first; the controls beside it stay quiet. */
-.merchant-shop-stock .merchant-shop-shelf > h3 > span:first-child { color: var(--blacksmith-tool-accent); font-weight: 700; }
+.merchant-shop-stock .merchant-shop-inventory > h3 > span:first-child { color: var(--blacksmith-tool-accent); font-weight: 700; }
 
-/* Hidden shelves lost their dashed frame with everything else, so the band
+/* Hidden inventories lost their dashed frame with everything else, so the band
    carries that too rather than leaving the pill to say it alone. */
-.merchant-shop-stock .merchant-shop-shelf-hidden > h3 { border-color: color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); background: color-mix(in srgb, #8c2f22 8%, var(--blacksmith-tool-surface-raised)); }
-.merchant-shop-stock .merchant-shop-shelf-hidden { opacity: 1; }
+.merchant-shop-stock .merchant-shop-inventory-hidden > h3 { border-color: color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); background: color-mix(in srgb, #8c2f22 8%, var(--blacksmith-tool-surface-raised)); }
+.merchant-shop-stock .merchant-shop-inventory-hidden { opacity: 1; }
 
 /* Rows sit in from the heading, so the group reads as one thing hanging off it. */
-.merchant-shop-shelf-body { padding: 9px; }
+.merchant-shop-inventory-body { padding: 9px; }
 .merchant-shop-category + .merchant-shop-category { margin-top: 8px; }
 
 /* The drop outline follows the card it is offered on, not a square inside it. */
-.merchant-shop-shelf-body.is-dropping { outline-offset: -4px; border-radius: 5px; }
+.merchant-shop-inventory-body.is-dropping { outline-offset: -4px; border-radius: 5px; }
 
 /* --- Merchant card: identity across the top, prose beneath --------------- */
 /* The description used to share the portrait's column, so a sentence wrapped in a
@@ -661,7 +661,7 @@
    the same fact -- a player never sees an affordance their click would not honour. */
 .merchant-shop-openable { cursor: pointer; }
 .merchant-shop-openable:hover { outline: 1px solid var(--blacksmith-tool-divider); outline-offset: 1px; }
-/* Said, not priced. The label is the whole statement a negotiate shelf makes. */
+/* Said, not priced. The label is the whole statement a negotiate inventory makes. */
 .merchant-shop-negotiate { font-style: italic; opacity: .85; }
 /* A price still being haggled over. Not an error -- the row is fine, the
    number is simply the part of it that is still outstanding. */
@@ -675,7 +675,7 @@
  * One line: icon, name, quantity with its delete beside it, price.
  *
  * It was two rows, which left a void under the icon and made each entry read as
- * two things. A different layout from a shelf row is fine — they are different
+ * two things. A different layout from an inventory row is fine — they are different
  * lists — but it has to be a *simpler* one, and two rows in a narrow column was
  * not.
  *
@@ -722,30 +722,30 @@
 .merchant-config-field input[type="text"] { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .78rem; }
 .merchant-config-field input[type="text"]:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
 
-/* --- Roll tables on a shelf --------------------------------------------- */
-/* A third line on the shelf row, quiet when empty: most shelves are stocked by
+/* --- Roll tables on an inventory --------------------------------------------- */
+/* A third line on the inventory row, quiet when empty: most inventories are stocked by
    hand and should not have to look at a control they will not use. */
-.merchant-config-shelf { grid-template-areas: "img copy actions" "stock stock stock" "table table table"; }
-.merchant-config-shelf-table { grid-area: table; display: flex; align-items: center; gap: 8px; min-height: 22px; margin-top: 3px; }
-.merchant-config-shelf-table-name { display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; color: var(--blacksmith-tool-text); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
-.merchant-config-shelf-table-empty { display: inline-flex; gap: 6px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; opacity: .7; }
-.merchant-config-shelf-rolls { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
-.merchant-config-shelf-rolls > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
-.merchant-config-shelf.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
+.merchant-config-inventory { grid-template-areas: "img copy actions" "stock stock stock" "table table table"; }
+.merchant-config-inventory-table { grid-area: table; display: flex; align-items: center; gap: 8px; min-height: 22px; margin-top: 3px; }
+.merchant-config-inventory-table-name { display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; color: var(--blacksmith-tool-text); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-config-inventory-table-empty { display: inline-flex; gap: 6px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; opacity: .7; }
+.merchant-config-inventory-rolls { display: flex; align-items: center; gap: 5px; margin-left: auto; color: var(--blacksmith-tool-text-muted); font-size: .72rem; white-space: nowrap; }
+.merchant-config-inventory-rolls > input { width: 46px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+.merchant-config-inventory.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
 
-/* A shelf can name several tables, so they stack. */
-.merchant-config-shelf-tables { grid-area: table; display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
-.merchant-config-shelf-tables .merchant-config-shelf-table { margin-top: 0; }
+/* An inventory can name several tables, so they stack. */
+.merchant-config-inventory-tables { grid-area: table; display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
+.merchant-config-inventory-tables .merchant-config-inventory-table { margin-top: 0; }
 
 /* Whether a table also delivers on the clock, beside the count it delivers. */
-.merchant-config-shelf-reroll { display: inline-flex; gap: 5px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; white-space: nowrap; cursor: pointer; }
-.merchant-config-shelf-reroll > input { margin: 0; }
-.merchant-config-shelf-rolls { margin-left: auto; }
+.merchant-config-inventory-reroll { display: inline-flex; gap: 5px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; white-space: nowrap; cursor: pointer; }
+.merchant-config-inventory-reroll > input { margin: 0; }
+.merchant-config-inventory-rolls { margin-left: auto; }
 
 /* The two ceilings, beside the policy they bound. */
-.merchant-config-shelf-cap { display: flex; align-items: center; gap: 5px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; white-space: nowrap; }
-.merchant-config-shelf-cap > input { width: 50px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
-.merchant-config-shelf-stock { flex-wrap: wrap; }
+.merchant-config-inventory-cap { display: flex; align-items: center; gap: 5px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; white-space: nowrap; }
+.merchant-config-inventory-cap > input { width: 50px; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .74rem; text-align: center; }
+.merchant-config-inventory-stock { flex-wrap: wrap; }
 
 /* Said rather than offered: the slider covering the day is what makes it true. */
 /* A label, not a control -- the box around it read as a button to press. */
@@ -877,3 +877,18 @@
 .merchant-shop-cart-sum-net > dd { font-weight: 700; }
 .merchant-shop-cart-net-pay > dd { color: #a4432f; }
 .merchant-shop-cart-net-receive > dd { color: #2f6b33; }
+
+/* --- Inventory types -------------------------------------------------- */
+/* The name is an input that reads as a heading until you touch it: it is the
+   inventory's title, and a boxed field beside a portrait would say "form" when the
+   row is really a card. */
+.merchant-config-inventory-name { width: 100%; padding: 1px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text); font-family: inherit; font-size: .82rem; font-weight: 700; }
+.merchant-config-inventory-name:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
+.merchant-config-inventory-name:focus { border-color: var(--blacksmith-tool-field-focus-border); background: var(--blacksmith-tool-field-background); outline: none; }
+.merchant-config-inventory-copy em { color: var(--blacksmith-tool-accent); font-style: normal; font-weight: 600; }
+
+/* The rates sit on their own row, above stock: they are what the type is *for*. */
+.merchant-config-inventory-rates { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 5px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
+.merchant-config-inventory-unpriced { font-style: italic; }
+.merchant-config-inventory-norestock { color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; }
+.merchant-config-reputation { margin-top: 9px; }
