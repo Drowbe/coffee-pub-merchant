@@ -6,6 +6,9 @@ import { MODULE, PAR_FLAG, SHELF_FLAG } from './const.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import { MerchantManager } from './manager-merchant.js';
 import { registerSettings } from './settings.js';
+
+/** Kept beside the pin in `module.json`; both have to move together. */
+const REQUIRED_BLACKSMITH = '13.19.0';
 import { registerToastChannels } from './merchant-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 
@@ -90,6 +93,19 @@ Hooks.once('ready', async function () {
     // bypass can only be verified from a non-GM client.
     const module = game.modules.get(MODULE.ID);
     if (module) module.api = { ...(module.api ?? {}), merchant: MerchantManager };
+
+    // A Blacksmith older than the APIs this module calls fails in ways that look like
+    // Merchant bugs: `readIdsFrom` is absent, so picking a character throws a
+    // TypeError from a click that should have opened a dialog. `module.json` pins the
+    // minimum and Foundry enforces it on install -- this catches the world where
+    // somebody downgraded Blacksmith afterwards, and says which of the two is wrong.
+    const blacksmithVersion = game.modules.get('coffee-pub-blacksmith')?.version;
+    if (blacksmithVersion && foundry.utils.isNewerVersion(REQUIRED_BLACKSMITH, blacksmithVersion)) {
+        const message = `${MODULE.TITLE} needs Coffee Pub Blacksmith ${REQUIRED_BLACKSMITH} or newer; `
+            + `this world has ${blacksmithVersion}. Shopping will fail until it is updated.`;
+        console.error(`${MODULE.TITLE} | ${message}`);
+        if (game.user.isGM) ui.notifications?.error(message, { permanent: true });
+    }
 
     console.log(`${MODULE.TITLE} | Ready.`);
 });
