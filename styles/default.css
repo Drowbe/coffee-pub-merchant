@@ -49,12 +49,18 @@
 /* Blue for the merchant, green for the buyer, so the pair reads as who is trading
    with whom. Mixed into the theme surfaces rather than painted over them, so the
    cards follow Light, Dark and Glass instead of fighting them. */
-.merchant-shop-subject { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 11px; align-items: center; padding: 10px; border-color: color-mix(in srgb, #2c5a8c 22%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #2c5a8c 10%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #2c5a8c 5%, var(--blacksmith-tool-surface-sunken))); }
+/* Leather and polished wood, not the blue this used to be.
+   The blue was there at 10% and 5%, which on a warm parchment ground is not a blue
+   card -- it is a grey one. A cool hue that faint reads as an absence of colour
+   against a warm background, so the shop front looked drab for the one reason nobody
+   would guess from the stylesheet: it was tinted, just in the wrong direction.
+   Warm, and a little stronger, so it reads as a deliberate surface. */
+.merchant-shop-subject { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 11px; align-items: center; padding: 10px; border-color: color-mix(in srgb, #8a5a2b 34%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #8a5a2b 15%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #6b4420 9%, var(--blacksmith-tool-surface-sunken))); }
 /* A row inside the shop's card rather than a card of its own: it says who is
    visiting, which belongs to the shop being looked at. A rule above it instead of a
    border around it, which also gives the stock and the slate back the height a
    second bordered box was spending. */
-.merchant-shop-actor { display: flex; gap: 9px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-shop-actor { display: flex; gap: 9px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, #8a5a2b 30%, var(--blacksmith-tool-divider)); }
 .merchant-shop-subject-copy { min-width: 0; }
 .merchant-shop-actor-copy { flex: 1 1 auto; min-width: 0; }
 .merchant-shop-actor-copy small, .merchant-shop-actor-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
