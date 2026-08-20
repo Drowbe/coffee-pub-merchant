@@ -34,6 +34,23 @@ The money comes from the player who is shopping. There is no separate payer and 
 - **D&D 5e.** Stock and pricing read `system.price`, `system.quantity`, and `CONFIG.DND5E.currencies`.
 - **Foundry v13.**
 
+## Installation
+
+1. In Foundry, go to **Configuration and Setup → Add-on Modules → Install Module** and paste this manifest URL:
+
+   ```
+   https://github.com/Drowbe/coffee-pub-merchant/releases/latest/download/module.json
+   ```
+
+2. Do the same for **Coffee Pub Blacksmith**, which Merchant does not run without:
+
+   ```
+   https://github.com/Drowbe/coffee-pub-blacksmith/releases/latest/download/module.json
+   ```
+
+3. Alternatively, download the [latest zip](https://github.com/Drowbe/coffee-pub-merchant/releases/latest/download/coffee-pub-merchant.zip) and extract it into your `Data/modules/coffee-pub-merchant` directory.
+4. Enable both modules in your world's module settings.
+
 ## Getting started
 
 1. Open any Actor's sheet and use the **Merchant Settings** header button.

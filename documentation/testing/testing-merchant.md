@@ -252,7 +252,8 @@ game.modules.get('coffee-pub-merchant').api.merchant
 - [ ] **Sell** shows your pack in the stock column, not a modal.
 - [ ] Press `+` on a row → it lands on the slate **immediately**. This is the one that was broken.
 - [ ] Switch back to Buy → the shop's search text and scroll position are as you left them.
-- [ ] Rows look like shelf rows: picture, name, price, `+`.
+- [ ] The pack looks **exactly like a shelf** — same card, same header, same spacing, same rows.
+- [ ] It scrolls in the same region the shelves do, and its header scrolls with it as a shelf's does.
 - [ ] The slate is **visible while you add**, and updates as you press `+`.
 - [ ] Add several things without reopening anything.
 - [ ] The pack has its **own search**; typing in it does not filter the shop's shelves, and vice versa.

@@ -182,43 +182,42 @@
 
                 {{!-- The scrolling region starts here, below the search, so the
                       scrollbar does not run up behind a box that never moves. --}}
-            {{!-- Your own pack, in the same column and the same row layout as the
-                  shelves. It was a modal picker: you could not see the slate you were
-                  filling, could not search, and added one thing per opening. The shop
-                  already answered all three for buying, so selling uses the answer
-                  rather than a second one. --}}
+                {{!-- The pack is a shelf. Same section, same header, same body, same
+                      row partial -- so it inherits the card, the spacing and the
+                      scrolling rather than reimplementing three of them slightly
+                      differently, which is what it was doing and what looked wrong.
+                      One list is showing at a time, so one container holds it. --}}
+                <div class="merchant-shop-shelves">
             {{#if sell.open}}
-                <section class="merchant-shop-section merchant-shop-sell">
-                    <h3>
-                        <span><i class="fa-solid fa-hand-holding-dollar"></i> {{sell.title}}</span>
-                        <span class="merchant-shop-head-actions">
-                            <button type="button" class="merchant-shop-shelf-add"
-                                    data-action="sortSell" data-tooltip="{{sell.sortTooltip}}">
-                                <i class="{{sell.sortIcon}}"></i>
-                            </button>
-                            <span class="merchant-shop-count">{{sell.count}}</span>
-                        </span>
-                    </h3>
-                    <div class="merchant-shop-shelf-body">
-                        {{#if sell.hasItems}}
-                            {{#each sell.groups}}
-                                <div class="merchant-shop-category">
-                                    {{#if label}}<h4><i class="{{icon}}"></i> {{label}}</h4>{{/if}}
-                                    <div class="merchant-shop-item-list">
-                                        {{#each items}}
-                                            {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
-                                        {{/each}}
-                                    </div>
+            <section class="merchant-shop-section merchant-shop-shelf">
+                <h3>
+                    <span><i class="fa-solid fa-hand-holding-dollar"></i> {{sell.title}}</span>
+                    <span class="merchant-shop-head-actions">
+                        <button type="button" class="merchant-shop-shelf-add"
+                                data-action="sortSell" data-tooltip="{{sell.sortTooltip}}">
+                            <i class="{{sell.sortIcon}}"></i>
+                        </button>
+                        <span class="merchant-shop-count">{{sell.count}}</span>
+                    </span>
+                </h3>
+                <div class="merchant-shop-shelf-body">
+                    {{#if sell.hasItems}}
+                        {{#each sell.groups}}
+                            <div class="merchant-shop-category">
+                                {{#if label}}<h4><i class="{{icon}}"></i> {{label}}</h4>{{/if}}
+                                <div class="merchant-shop-item-list">
+                                    {{#each items}}
+                                        {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                                    {{/each}}
                                 </div>
-                            {{/each}}
-                        {{else}}
-                            <div class="merchant-shop-empty">{{sell.emptyMessage}}</div>
-                        {{/if}}
-                    </div>
-                </section>
-            {{/if}}
-
-                <div class="merchant-shop-shelves{{#if sell.open}} is-hidden{{/if}}">
+                            </div>
+                        {{/each}}
+                    {{else}}
+                        <div class="merchant-shop-empty">{{sell.emptyMessage}}</div>
+                    {{/if}}
+                </div>
+            </section>
+            {{else}}
             {{#each shelves}}
                 <section class="merchant-shop-section merchant-shop-shelf{{#if hidden}} merchant-shop-shelf-hidden{{/if}}">
                     <h3>
@@ -284,6 +283,7 @@
                     </div>
                 </section>
             {{/each}}
+            {{/if}}
             {{!-- Shown by the filter, never by the context: whether a search matches
                   is a question about the rendered list, not about the merchant. --}}
             <section class="merchant-shop-section merchant-shop-no-matches" data-shop-no-matches hidden>
