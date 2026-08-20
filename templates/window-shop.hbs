@@ -154,6 +154,19 @@
                     </section>
                 {{/if}}
 
+                {{!-- The pack's search, in the same slot as the shop's rather than
+                      inside the pack itself. Two boxes, because they filter two
+                      different piles and one box doing both would mean typing "rope" to
+                      find yours and hiding half the shop as a side effect -- but one
+                      *position*, because there is only one place a search belongs. --}}
+                {{#if sell.open}}
+                    <section class="merchant-shop-section merchant-shop-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search" placeholder="Search your pack" aria-label="Search your pack"
+                               data-sell-search value="{{sell.search}}" autocomplete="off" spellcheck="false">
+                    </section>
+                {{/if}}
+
                 {{!-- Pinned to the top of the stock column: it belongs to the list it
                       filters, not to the window, and stays put while that list scrolls
                       under it. --}}
@@ -186,10 +199,6 @@
                             <span class="merchant-shop-count">{{sell.count}}</span>
                         </span>
                     </h3>
-                    <div class="merchant-shop-sell-search">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="search" placeholder="Search your pack" data-sell-search value="{{sell.search}}">
-                    </div>
                     <div class="merchant-shop-shelf-body">
                         {{#if sell.hasItems}}
                             {{#each sell.groups}}

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [13.0.0]
 
 ### Added
 - Module scaffold: manifest, constants, entry point, documentation structure.
@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GM-authoritative request path** (`scripts/gm-request.js`): built on Foundry v13's query API — `CONFIG.queries` plus `game.users.activeGM.query()` — rather than a hand-rolled socket envelope. Request ids, the pending map, the timeout and response routing are all core's, and `game.users.activeGM` is core's own single-GM designation, so every module agrees on which GM acts. The envelope routes and elects; it does not authorize. Blacksmith intends to own this surface, at which point this file should be a deletion rather than a rewrite.
 
 - **Shelves** (`scripts/const.js`, `scripts/manager-merchant.js`, `scripts/window-merchant-config.js`): stock now lives in flagged container Items on the merchant rather than being every physical item on the Actor — so a shopkeeper's worn armour and belt dagger are no longer on the shelf. Five presets ship: Storefront, Back Room, Premium, Barter, Buyback. They are one schema with three properties — visibility, markup, mode — rather than five types, so a sixth idea has somewhere to go. Each visible shelf renders as its own section in the shop window. A hidden shelf is enforced as a **permission** on the GM handler, not merely omitted from the window. Shelves are created from the config window with `weightlessContents` and no capacity, making them unlimited and weightless, and enabling a merchant auto-creates a Storefront so the zero-config path shows the shape.
+
+- **Fixed: the Buy/Sell row collapsed to a sliver.** The stock column is a flex column whose list takes the remaining height, so anything else in it has to declare `flex: 0 0 auto` or get squeezed to nothing. The search says so; the toggle did not, and rendered three pixels tall. Two goes at the *font* metrics, and the real cause was the row never claiming its own height.
+
+- **The pack's search moved into the same slot as the shop's**, above the list rather than inside the panel. Still two boxes, because they filter two different piles and one doing both would mean typing "rope" to find yours and hiding half the shop as a side effect — but one *position*, because there is only one place a search belongs, and having it move depending on which side you were on was the sort of thing you notice without being able to say why.
 
 - **Fixed: `+` on a sell row still did nothing.** The handler was never registered. The edit that would have added it sat in a shell chain whose earlier step failed, so it silently never ran — leaving a method that existed, a template that pointed at it, and a handler map that had never heard of it. A `data-action` with no handler is the quietest failure in this codebase: the delegated listener finds the element, looks the name up, gets `undefined`, and returns. Nothing throws, nothing logs, and `node --check` is perfectly happy.
 

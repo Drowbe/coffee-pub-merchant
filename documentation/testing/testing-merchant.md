@@ -245,7 +245,9 @@ game.modules.get('coffee-pub-merchant').api.merchant
 
 ## 2d-x. Selling from the pack
 
-- [ ] **Buy / Sell** sit above the search as a pair, with the current side lit.
+- [ ] **Buy / Sell** sit above the search as a pair, on **their own full-height row**, with the current side lit.
+- [ ] The row does not collapse when the list below it is long.
+- [ ] The search sits in the **same place** on both sides — it must not jump when you switch.
 - [ ] Pressing the side you are already on does nothing — it is a choice, not a toggle.
 - [ ] **Sell** shows your pack in the stock column, not a modal.
 - [ ] Press `+` on a row → it lands on the slate **immediately**. This is the one that was broken.

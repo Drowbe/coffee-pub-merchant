@@ -215,9 +215,8 @@
 .merchant-shop-shopper.has-slate { border-color: #2f6b33; box-shadow: 0 0 0 1px rgba(47,107,51,.35), 0 2px 7px rgba(0,0,0,.22); }
 
 /* The pack: its own search, because it filters a different pile from the shop's. */
-.merchant-shop-sell-search { display: flex; gap: 7px; align-items: center; padding: 5px 9px; }
-.merchant-shop-sell-search > i { color: var(--blacksmith-tool-text-muted); font-size: .78rem; }
-.merchant-shop-sell-search > input { flex: 1 1 auto; min-width: 0; }
+/* The pack's search is an ordinary `.merchant-shop-search` now, in the same slot as
+   the shop's, so it needs no rules of its own. */
 
 /* The face on the slate title. Small enough to read as a label rather than as a
    second portrait competing with the one on the bar. */
@@ -377,7 +376,6 @@
    their regions explicitly, and a new region has to say it is one. */
 .merchant-shop-sell { display: flex; flex-direction: column; gap: 0; min-height: 0; padding: 0; }
 .merchant-shop-sell > h3 { flex: 0 0 auto; }
-.merchant-shop-sell > .merchant-shop-sell-search { flex: 0 0 auto; }
 /* Grows a quarter as fast as the stock, so a wide window spends its room on the
    thing being browsed. When the window narrows past the two bases the cart wraps
    onto its own row, where it is the only item and grows to full width — which is
@@ -538,7 +536,8 @@
 /* --- Search, pinned to its list ------------------------------------------ */
 /* It filters the list, so it travels with the list rather than sitting in the
    window header, and stays put while the list scrolls under it. */
-.merchant-shop-stock > .merchant-shop-search { flex: 0 0 auto; }
+.merchant-shop-stock > .merchant-shop-search,
+.merchant-shop-stock > .merchant-shop-sides { flex: 0 0 auto; }
 /* Narrow, where the whole columns area is one scroller: these ride along with it,
    so sticky keeps them in view. Wide, they are fixed heads and sticky never
    engages. One rule covers both. */
