@@ -62,7 +62,7 @@ The money comes from the player who is shopping. There is no separate payer and 
 
 - **No localisation.** Every string is hardcoded English. See `documentation/TODO.md`.
 - **The GM cannot hand something over for free** from the shop window; drag it from the merchant's sheet instead.
-- Two seams wait on Blacksmith — the request envelope does not yet forward the verified caller, and a shop's till is written directly rather than through the inventory API. Both are documented in `documentation/architecture/architecture-merchant.md` § *Known seams*.
+- **One seam waits on Blacksmith**: the request envelope does not yet forward the verified caller, so Merchant asserts it in its own payload. Documented in `documentation/architecture/architecture-merchant.md` § *Known seams*. The till is no longer among them — it goes through `inventory.setCurrency` and takes the lock.
 
 ## Documentation
 
