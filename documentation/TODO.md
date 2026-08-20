@@ -34,6 +34,7 @@ Two things to read before changing anything load-bearing:
 
 | Severity | Item | Where |
 |---|---|---|
+| **High** | **Inventory types** — shelves become typed inventories, per-type settings, restock per inventory, reputation pricing. Planned, not built | `plans/plan-inventory-types.md` |
 | **High** | Adopt `blacksmith.gmRequest` — deletes `gm-request.js` and closes the caller-identity hole | `gm-request.js`, `manager-merchant.js` |
 | **High** | Adopt `blacksmith.party` — `acting()`, `actor()`, `hasPrimaryParty()` | `manager-merchant.js:1075` |
 | **Medium** | Windows import a Blacksmith script by path; the documented `module.api` fix cannot work — raise the doc with them | both windows, line 3 |
@@ -48,7 +49,25 @@ Two things to read before changing anything load-bearing:
 
 ---
 
-## 1. Adopt what Blacksmith shipped
+## 1. Inventory types — planned, awaiting five decisions
+
+`plans/plan-inventory-types.md` is the whole of it. Shelves become **inventories with a type** — general,
+hidden, premium, discounted, unpriced, purchased — each carrying only the settings its type can act on. The
+merchant-wide stock setting goes, restock becomes part of every inventory, each inventory gets a name field,
+and the global markup gains an optional reputation modifier read from Blacksmith's own scale.
+
+Three calls are already made and recorded in the plan: the type sets defaults without taking the show/hide
+toggle away; the reputation mapping is Blacksmith's `merchantModifier` rather than a table of ours; and it
+gets planned before it gets built. **Section 9 holds five that are still open**, none of which blocks
+starting but two of which decide what a control means on screen.
+
+**One thing to settle with Blacksmith before any of it is written:** `merchantModifier` is `0` at neutral,
+not `1.0`, so the field is a delta or a percentage rather than a multiplier. Read as a multiplier, a neutral
+party gets every item free. Confirm the unit; treat `0` as no change under any reading.
+
+---
+
+## 2. Adopt what Blacksmith shipped
 
 Both landed in **Blacksmith 13.19.0** (`a13e0984`, committed), and `module.json` already pins that
 minimum. Each of these deletes code here.
@@ -97,7 +116,7 @@ odd Buying-as list far better than the list does.
 
 ---
 
-## 2. Couplings and gaps
+## 3. Couplings and gaps
 
 ### Both windows import a Blacksmith script by path — and the documented fix does not work
 
@@ -177,7 +196,7 @@ debounce, and `once` with `debounceMs` never runs the callback at all.
 
 ---
 
-## 3. Nits and known gaps
+## 4. Nits and known gaps
 
 - **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
   `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
