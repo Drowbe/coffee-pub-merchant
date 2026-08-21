@@ -1,0 +1,62 @@
+/* ==================================================================
+   COFFEE PUB MERCHANT — SHARED
+   ==================================================================
+
+   Components both windows use, defined once.
+
+   `default.css` has said since the split that the day two windows genuinely shared a
+   component it would live here and be imported first, so a window can override it.
+   This is that day: the settings window's inventory cards carry the same header
+   controls as the shop window's inventory sections, and they had drifted — same job,
+   two sizes, two paddings, because they were written a fortnight apart in two files.
+
+   **Both windows' class names are listed on each rule rather than one being renamed.**
+   The alternative is a sweep through markup that currently works, for a cosmetic gain;
+   this way the two names are provably one definition and neither window had to move.
+*/
+
+/* --- Header action rows ------------------------------------------------
+   The strip of controls at the right-hand end of a section heading. */
+.merchant-shop-head-actions,
+.merchant-config-head-actions { display: flex; gap: 6px; align-items: center; }
+
+/* --- Icon buttons ------------------------------------------------------
+   A 20px square that is quiet until hovered. Quiet because a heading full of
+   loud buttons reads as a toolbar, and these are things you occasionally do to
+   the section beneath rather than the point of the screen. */
+.merchant-shop-inventory-add,
+.merchant-config-inventory-add,
+.merchant-config-inv-btn {
+    display: inline-grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .6rem;
+    cursor: pointer;
+}
+.merchant-shop-inventory-add:hover,
+.merchant-config-inventory-add:hover,
+.merchant-config-inv-btn:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+
+/* Destructive ones warn on hover and only on hover: a permanently red button in a
+   row of quiet ones is read as an alarm rather than as an option. */
+.merchant-config-inv-btn.merchant-config-remove:hover { border-color: #a4432f; color: #a4432f; }
+
+/* --- Count badges ------------------------------------------------------
+   How many things are in the section this heading names. */
+.merchant-shop-count,
+.merchant-config-count {
+    min-width: 20px;
+    padding: 1px 6px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 4px;
+    background: var(--blacksmith-tool-surface-sunken);
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .68rem;
+    text-align: center;
+}

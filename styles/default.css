@@ -11,12 +11,14 @@
    be written in, so finding the rule for a control meant searching rather than
    opening the file it belongs to. Curator and Squire both do it this way.
 
-   **Order is load order.** Nothing here is shared vocabulary yet — each window owns
-   its own rules — so the sequence below is only alphabetical-by-purpose. The day two
-   windows genuinely share a component, it goes in a `common.css` imported *first*, so
-   a window can override it.
+   **Order is load order, and `common.css` comes first** so a window can override it.
+   It holds what both windows genuinely share — the header action rows, the icon
+   buttons and the count badges that appear on a shop's inventory sections and on the
+   settings window's inventory cards. They had drifted into two sizes doing one job,
+   which is what a shared component exists to prevent.
 */
 
+@import "common.css";
 @import "window-shop.css";
 @import "window-merchant-config.css";
 @import "dialog.css";

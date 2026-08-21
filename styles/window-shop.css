@@ -14,7 +14,6 @@
 .merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 8px; color: var(--blacksmith-tool-text); container-type: inline-size; }
 .merchant-shop-section { min-width: 0; padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
 .merchant-shop-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
-.merchant-shop-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; text-align: center; }
 
 /* The merchant and the buyer stay put while the stock scrolls under them. */
 /* The left column: what the shop is, who is shopping, and what is on the inventories.
@@ -88,7 +87,6 @@
 /* --- Inventories --------------------------------------------------------- */
 .merchant-shop-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
 .merchant-shop-inventory-icon { width: 20px !important; height: 20px !important; max-width: 20px !important; }
-.merchant-shop-head-actions { display: flex; gap: 6px; align-items: center; }
 .merchant-shop-hidden-tag { display: inline-flex; gap: 4px; align-items: center; padding: 1px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .03em; text-transform: none; }
 
 /* GM toggle: bring an inventory out front, or put it away, without leaving the shop. */
@@ -130,8 +128,6 @@
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
 
-.merchant-shop-inventory-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
-.merchant-shop-inventory-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
 
 /* --- Trading hours ---------------------------------------------------- */
 /* A row of facts that wraps cleanly: the separator is drawn between items rather
