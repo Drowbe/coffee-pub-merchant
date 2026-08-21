@@ -16,7 +16,7 @@ globalThis.CONFIG = {
 };
 globalThis.console.warn = () => {};
 
-const P = await import('../scripts/merchant-pricing.js');
+const P = await import('../scripts/utility-pricing.js');
 
 const purse = (c) => ({ system: { currency: c } });
 const CP_PER = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };

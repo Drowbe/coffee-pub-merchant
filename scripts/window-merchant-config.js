@@ -4,10 +4,10 @@ import {
     DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
-import { purseValue, formatBase } from './merchant-pricing.js';
-import { startProgress } from './merchant-progress.js';
-import { notify, playFeedback, SOUND } from './merchant-feedback.js';
-import { resolveReputation, reputationLabel } from './merchant-reputation.js';
+import { purseValue, formatBase } from './utility-pricing.js';
+import { startProgress } from './utility-progress.js';
+import { notify, playFeedback, SOUND } from './utility-feedback.js';
+import { resolveReputation, reputationLabel } from './utility-reputation.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 
@@ -30,6 +30,29 @@ const STOCK_OPTIONS = [
     { value: STOCK.FINITE, label: STOCK_LABELS[STOCK.FINITE] },
     { value: STOCK.RESTOCKING, label: STOCK_LABELS[STOCK.RESTOCKING] }
 ];
+
+/**
+ * A rate, said as a number and as what it means.
+ *
+ * "×1.35" is precise and says nothing; "35% dearer" is what the GM is deciding. Both,
+ * because the number is what they type back in and the words are what they meant.
+ */
+function markupLabel(value) {
+    const rate = Number(value);
+    if (!Number.isFinite(rate) || rate <= 0) return '—';
+    if (rate === 1) return '×1.00 · list price';
+    const percent = Math.round(Math.abs(1 - rate) * 100);
+    return `×${rate.toFixed(2)} · ${percent}% ${rate > 1 ? 'dearer' : 'cheaper'}`;
+}
+
+/** What the shop pays, which is a share of an item's worth rather than a markup. */
+function buyRateLabel(value) {
+    const rate = Number(value);
+    if (!Number.isFinite(rate) || rate <= 0) return '—';
+    const percent = Math.round(rate * 100);
+    if (rate > 1) return `×${rate.toFixed(2)} · pays ${percent}% — over the odds`;
+    return `×${rate.toFixed(2)} · pays ${percent}% of worth`;
+}
 
 /**
  * Marking and configuring a merchant.
@@ -170,8 +193,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
-        // Markup, and the purchased type's Purchase Rate. Both are rates on the
-        // inventory, so both go through the same writer.
+        // Markup, and the purchased type's Purchase Rate. Sliders, for the reason the
+        // trading hours are: a rate is a position on a range. The readout repaints on
+        // `input` so it keeps up with the drag, and the write happens on `change` —
+        // one document update per gesture rather than one per pixel.
         for (const [attribute, field] of [
             ['data-inventory-markup', 'markup'],
             ['data-inventory-buy-rate', 'buyRate']
@@ -179,16 +204,34 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
                 if (input.dataset.merchantBound === 'true') continue;
                 input.dataset.merchantBound = 'true';
-                input.addEventListener('change', (event) => {
-                    const value = Number(event.target.value);
-                    if (!Number.isFinite(value) || value <= 0) {
-                        notify.warn('That rate must be a number above zero.');
-                        void this.render(false);
-                        return;
-                    }
+
+                const readout = input.closest('[data-rate-row]')?.querySelector('[data-rate-readout]');
+                const paint = () => {
+                    if (!readout) return;
+                    const value = Number(input.value);
+                    readout.textContent = input.getAttribute('data-rate-kind') === 'buy'
+                        ? buyRateLabel(value)
+                        : markupLabel(value);
+                };
+                input.addEventListener('input', paint);
+                input.addEventListener('change', () => {
+                    const value = Number(input.value);
+                    if (!Number.isFinite(value) || value <= 0) return void this.render(false);
                     void this._commitInventoryStock(input.getAttribute(attribute), { [field]: value });
                 });
+                paint();
             }
+        }
+
+        // The artwork opens a file picker. Foundry namespaced FilePicker in v13, so
+        // it is reached through `foundry.applications.apps` rather than the global.
+        for (const button of this.element?.querySelectorAll('[data-inventory-image]') ?? []) {
+            if (button.dataset.merchantBound === 'true') continue;
+            button.dataset.merchantBound = 'true';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                void this._pickInventoryImage(button.getAttribute('data-inventory-image'));
+            });
         }
 
         // Per-inventory policy and cadence. Both write through the same helper, since
@@ -217,8 +260,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        // Only one ceiling is on screen now. `maxProducts` is still enforced when a
+        // table rolls, as a backstop against an unattended reroll filling a shop, but
+        // it is a constant rather than a control — the roll count is what a GM uses to
+        // say how much arrives, and two numbers for one idea was the confusion.
         for (const [attribute, field, ceiling] of [
-            ['data-inventory-max-products', 'maxProducts', 500],
             ['data-inventory-max-per-item', 'maxPerItem', 999]
         ]) {
             for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
@@ -361,6 +407,43 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             notify.error('Could not change that.');
         }
         await this.render(false);
+    }
+
+    /**
+     * Choose different artwork for an inventory.
+     *
+     * The container's own `img`, so it changes everywhere at once — this window, the
+     * inventory header in the shop, and dnd5e's own sheet. Foundry's picker already
+     * knows about the user's permissions and the world's directories, so there is
+     * nothing here but opening it at the current file.
+     */
+    async _pickInventoryImage(inventoryId) {
+        const actor = await this._resolveActor();
+        const item = actor?.items?.get(inventoryId);
+        if (!item) return;
+
+        // v13 namespaced it; the bare global is deprecated.
+        const Picker = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+        if (!Picker) {
+            notify.warn('The file picker is unavailable.');
+            return;
+        }
+
+        try {
+            await new Picker({
+                type: 'image',
+                current: item.img,
+                callback: async (path) => {
+                    if (!path || path === item.img) return;
+                    await item.update({ img: path });
+                    MerchantManager.broadcastActorRefresh(actor);
+                    await this.render(false);
+                }
+            }).browse();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not open the file picker:`, error);
+            notify.error('Could not open the file picker.');
+        }
     }
 
     /**
@@ -815,6 +898,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     pricingNone: definition.pricing === 'none',
                     markup: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
                     buyRate: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
+                    markupLabel: markupLabel(Number(config.markup) || 1),
+                    buyRateLabel: buyRateLabel(Number(config.buyRate) || DEFAULT_BUY_RATE),
+
+                    // Rolling stocks an inventory from a table. A purchased one is
+                    // stocked by the party selling to it and by nothing else, so it
+                    // has no tables, no drop target and no restock.
+                    canRoll: definition.restocks,
 
                     // Restock is stated per inventory now, never inherited, and every
                     // type has it except the one that cannot mean it.
@@ -827,14 +917,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     restocking: policy === STOCK.RESTOCKING,
                     restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
 
-                    // A ceiling is only shown where it can actually fire. `maxPerItem`
-                    // clamps a table roll and a quantity a GM types, so it appears
-                    // wherever stock is counted; `maxProducts` is enforced only when
-                    // rolling a table, so on an inventory with no table it would be a
-                    // control that does nothing at all.
+                    // One ceiling on screen, not two. `maxPerItem` earns its place
+                    // because it clamps a table roll *and* a quantity a GM types in
+                    // the shop window; `maxProducts` only ever trimmed a table roll,
+                    // which the roll count already bounds, so it is a constant now.
                     countable: policy !== STOCK.INFINITE,
-                    showMaxProducts: tables.length > 0,
-                    maxProducts: limits.maxProducts,
                     maxPerItem: limits.maxPerItem,
 
                     tables: tables.map((entry) => ({

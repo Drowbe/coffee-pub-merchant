@@ -12,14 +12,14 @@ import {
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
-} from './merchant-inventory.js';
+} from './utility-inventory.js';
 import {
     resolvePrice, resolveBuybackPrice, planSettlement, purseValue, formatBase, toBase, fromBase, stockDepth
-} from './merchant-pricing.js';
+} from './utility-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
-import { notify } from './merchant-feedback.js';
-import { resolveReputation, watchReputation } from './merchant-reputation.js';
+import { notify } from './utility-feedback.js';
+import { resolveReputation, watchReputation } from './utility-reputation.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -1071,6 +1071,11 @@ export class MerchantManager {
         const inventory = actor?.items?.get(inventoryId);
         const config = this.getInventoryConfig(inventory);
         if (!config) return 0;
+        // A purchased inventory holds what the party sold and nothing else. There is
+        // no level to return to, and refilling to one would conjure duplicates of
+        // somebody's old sword. The window hides the control; this is what makes it
+        // true, including for `restockAll` and the clock.
+        if (isPurchased(config.type)) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
         if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING
             && !this.getInventoryTables(inventory).some((entry) => entry.auto)) return 0;

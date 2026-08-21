@@ -47,7 +47,7 @@ they are methods on a class that needs a live Foundry to construct. **That is a 
 either changes in `manager-merchant.js`, change it here too — or better, if these grow, move the pure
 functions out of the class so the test can import the real ones.
 
-`test-pricing.mjs` has no such problem: it imports `merchant-pricing.js` directly and runs the real code.
+`test-pricing.mjs` has no such problem: it imports `utility-pricing.js` directly and runs the real code.
 
 `test-actions.mjs` needs nothing at all and catches the quietest bug class here: a
 button whose `data-action` no handler answers. That fails by doing nothing — no throw,

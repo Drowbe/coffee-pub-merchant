@@ -135,7 +135,7 @@
 .merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
 
 .merchant-config-inventory-list { display: flex; flex-direction: column; gap: 4px; }
-.merchant-config-inventory { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-inventory { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
 .merchant-config-inventory:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
 .merchant-config-inventory > img { width: 32px !important; height: 32px !important; max-width: 32px !important; }
 .merchant-config-inventory-copy { min-width: 0; }
@@ -289,8 +289,8 @@
 .merchant-shop-item.is-out { opacity: .55; }
 .merchant-shop-item.is-out .merchant-shop-item-qty { color: #a4432f; font-weight: 600; }
 
-.merchant-config-inventory { grid-template-areas: "img copy actions" "stock stock stock"; }
-.merchant-config-inventory > img { grid-area: img; }
+.merchant-config-inventory { grid-template-areas: "img copy actions" "rates rates rates" "stock stock stock"; }
+.merchant-config-inventory-art { grid-area: img; }
 .merchant-config-inventory-copy { grid-area: copy; }
 .merchant-config-inventory-actions { grid-area: actions; }
 .merchant-config-inventory-stock { grid-area: stock; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--blacksmith-tool-divider); }
@@ -725,7 +725,7 @@
 /* --- Roll tables on an inventory --------------------------------------------- */
 /* A third line on the inventory row, quiet when empty: most inventories are stocked by
    hand and should not have to look at a control they will not use. */
-.merchant-config-inventory { grid-template-areas: "img copy actions" "stock stock stock" "table table table"; }
+.merchant-config-inventory { grid-template-areas: "img copy actions" "rates rates rates" "stock stock stock" "table table table"; }
 .merchant-config-inventory-table { grid-area: table; display: flex; align-items: center; gap: 8px; min-height: 22px; margin-top: 3px; }
 .merchant-config-inventory-table-name { display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; color: var(--blacksmith-tool-text); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-config-inventory-table-empty { display: inline-flex; gap: 6px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; opacity: .7; }
@@ -888,7 +888,25 @@
 .merchant-config-inventory-copy em { color: var(--blacksmith-tool-accent); font-style: normal; font-weight: 600; }
 
 /* The rates sit on their own row, above stock: they are what the type is *for*. */
-.merchant-config-inventory-rates { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 5px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
+.merchant-config-inventory-rates { grid-area: rates; display: flex; flex-direction: column; gap: 3px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
+.merchant-config-inventory-rates:empty { display: none; }
+.merchant-config-inventory-rates:empty { display: none; }
 .merchant-config-inventory-unpriced { font-style: italic; }
 .merchant-config-inventory-norestock { color: var(--blacksmith-tool-text-muted); font-size: .68rem; font-style: italic; }
 .merchant-config-reputation { margin-top: 9px; }
+
+/* Artwork worth the space: it is the one thing on the row read at a glance, and it
+   is a button because clicking it changes it. The pencil sits in the corner and comes
+   up on hover rather than living there permanently. */
+.merchant-config-inventory-art { position: relative; width: 56px; height: 56px; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-sunken); cursor: pointer; overflow: hidden; }
+.merchant-config-inventory-art > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
+.merchant-config-inventory-art > i { position: absolute; right: 2px; bottom: 2px; padding: 2px 3px; border-radius: 3px; background: var(--blacksmith-tool-scrim); color: var(--blacksmith-tool-text); font-size: .6rem; opacity: 0; transition: opacity .12s; }
+.merchant-config-inventory-art:hover { border-color: var(--blacksmith-tool-accent); }
+.merchant-config-inventory-art:hover > i { opacity: 1; }
+
+/* A rate is a position on a range, so it gets a track. Label, track, readout —
+   the readout last because it is the answer. */
+.merchant-config-rate { display: grid; grid-template-columns: 62px minmax(0,1fr) auto; gap: 8px; align-items: center; }
+.merchant-config-rate-label { color: var(--blacksmith-tool-text-muted); font-size: .66rem; letter-spacing: .04em; text-transform: uppercase; }
+.merchant-config-rate > input[type="range"] { width: 100%; margin: 0; }
+.merchant-config-rate-readout { min-width: 148px; color: var(--blacksmith-tool-text); font-size: .68rem; text-align: right; font-variant-numeric: tabular-nums; }

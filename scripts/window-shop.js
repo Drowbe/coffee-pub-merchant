@@ -2,19 +2,19 @@ import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/b
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased
 } from './const.js';
-import { startProgress } from './merchant-progress.js';
+import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolveBuybackPrice, formatBase, purseValue, planSettlement, toBase, fromBase,
     negotiatedPrice
-} from './merchant-pricing.js';
-import { hasExchange, isPhysical } from './merchant-inventory.js';
-import { resolveReputation } from './merchant-reputation.js';
+} from './utility-pricing.js';
+import { hasExchange, isPhysical } from './utility-inventory.js';
+import { resolveReputation } from './utility-reputation.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
 // resolves at call time rather than at module evaluation.
 import { MerchantManager } from './manager-merchant.js';
-import { notify, playFeedback, SOUND } from './merchant-feedback.js';
+import { notify, playFeedback, SOUND } from './utility-feedback.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-shop.hbs';
 const ROW_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-shop-row.hbs';

@@ -14,9 +14,9 @@
 // So this file reads a score, asks them which band it falls in, and looks the answer
 // up in `REPUTATION_MARKUP` — a table in `const.js` that is meant to be tuned.
 //
-// **Thin on purpose**, like `merchant-inventory.js` and `merchant-feedback.js`. The
+// **Thin on purpose**, like `utility-inventory.js` and `utility-feedback.js`. The
 // caching and the band lookup live here; no pricing arithmetic does. That is
-// `merchant-pricing.js`, which takes a multiplier and knows nothing about towns.
+// `utility-pricing.js`, which takes a multiplier and knows nothing about towns.
 
 import { MODULE, REPUTATION_MARKUP, REPUTATION_FALLBACK, REPUTATION_LIMITS } from './const.js';
 

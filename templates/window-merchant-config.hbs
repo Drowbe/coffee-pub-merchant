@@ -165,8 +165,16 @@
             {{#if hasInventories}}
                 <div class="merchant-config-inventory-list">
                     {{#each inventories}}
-                        <div class="merchant-config-inventory" data-drop-table="{{id}}">
-                            <img src="{{img}}" alt="">
+                        <div class="merchant-config-inventory"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
+                            {{!-- A button, because it does something. The artwork is the
+                                  one thing on this row a GM recognises at a glance, so
+                                  it is worth the size and worth being able to change. --}}
+                            <button type="button" class="merchant-config-inventory-art"
+                                    data-inventory-image="{{id}}"
+                                    data-tooltip="Click to choose different artwork">
+                                <img src="{{img}}" alt="">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
                             {{!-- The name is the container's own, editable here as well
                                   as on its sheet: several inventories of one type is
                                   ordinary, and they need telling apart. The type sits
@@ -211,41 +219,48 @@
                             {{!-- What this type is allowed to price with. One control,
                                   never two, and none at all where a price is agreed
                                   rather than set. --}}
-                            {{#if pricingMarkup}}
-                                <div class="merchant-config-inventory-rates">
-                                    <label class="merchant-config-inventory-cap"
-                                           data-tooltip="Multiplied against the shop's Global Markup. Above 1 is dearer, below 1 is cheaper.">
-                                        <input type="number" min="0.05" step="0.05" value="{{markup}}"
-                                               data-inventory-markup="{{id}}" aria-label="Markup for this inventory">
-                                        &times; markup
-                                    </label>
-                                </div>
-                            {{/if}}
-                            {{#if pricingTrade}}
-                                <div class="merchant-config-inventory-rates">
+                            {{!-- Sliders rather than number boxes, for the same reason
+                                  trading hours got one: a rate is a position on a
+                                  range, and dragging it says "dearer" or "cheaper" in
+                                  a way that typing 1.35 does not. The readout carries
+                                  the number and what it means in words, repainted mid
+                                  drag so the two never disagree. --}}
+                            <div class="merchant-config-inventory-rates">
+                                {{#if pricingMarkup}}
+                                    <div class="merchant-config-rate" data-rate-row>
+                                        <span class="merchant-config-rate-label">Markup</span>
+                                        <input type="range" min="0.1" max="3" step="0.05" value="{{markup}}"
+                                               data-inventory-markup="{{id}}" data-rate-kind="markup"
+                                               aria-label="Markup for this inventory">
+                                        <span class="merchant-config-rate-readout" data-rate-readout>{{markupLabel}}</span>
+                                    </div>
+                                {{/if}}
+                                {{#if pricingTrade}}
                                     {{!-- Two rates, because they are two different
                                           transactions. What the shop hands over for
                                           your old sword is not what it asks for it
                                           afterwards, and one number cannot be both. --}}
-                                    <label class="merchant-config-inventory-cap"
-                                           data-tooltip="What the shop pays, as a share of what the item is worth. Lower is a better margin for the shop.">
-                                        <input type="number" min="0.05" step="0.05" value="{{buyRate}}"
-                                               data-inventory-buy-rate="{{id}}" aria-label="Purchase rate">
-                                        &times; purchase
-                                    </label>
-                                    <label class="merchant-config-inventory-cap"
-                                           data-tooltip="What second-hand stock is then sold at, multiplied against the Global Markup.">
-                                        <input type="number" min="0.05" step="0.05" value="{{markup}}"
-                                               data-inventory-markup="{{id}}" aria-label="Sell rate">
-                                        &times; sell
-                                    </label>
-                                </div>
-                            {{/if}}
-                            {{#if pricingNone}}
-                                <div class="merchant-config-inventory-rates merchant-config-inventory-unpriced">
-                                    No price until one is agreed on the slate.
-                                </div>
-                            {{/if}}
+                                    <div class="merchant-config-rate" data-rate-row>
+                                        <span class="merchant-config-rate-label">Purchase</span>
+                                        <input type="range" min="0.05" max="1.5" step="0.05" value="{{buyRate}}"
+                                               data-inventory-buy-rate="{{id}}" data-rate-kind="buy"
+                                               aria-label="What the shop pays">
+                                        <span class="merchant-config-rate-readout" data-rate-readout>{{buyRateLabel}}</span>
+                                    </div>
+                                    <div class="merchant-config-rate" data-rate-row>
+                                        <span class="merchant-config-rate-label">Sell</span>
+                                        <input type="range" min="0.1" max="3" step="0.05" value="{{markup}}"
+                                               data-inventory-markup="{{id}}" data-rate-kind="markup"
+                                               aria-label="What second-hand stock sells for">
+                                        <span class="merchant-config-rate-readout" data-rate-readout>{{markupLabel}}</span>
+                                    </div>
+                                {{/if}}
+                                {{#if pricingNone}}
+                                    <span class="merchant-config-inventory-unpriced">
+                                        No price until one is agreed on the slate.
+                                    </span>
+                                {{/if}}
+                            </div>
 
                             <div class="merchant-config-inventory-stock">
                                 {{#if restocks}}
@@ -264,20 +279,13 @@
                                         Items bought from this inventory are removed and never restocked.
                                     </span>
                                 {{/if}}
-                                {{#if showMaxProducts}}
-                                    <label class="merchant-config-inventory-cap"
-                                           data-tooltip="How many different things a table roll may leave here. Not the total quantity, and only ever applied when rolling.">
-                                        <input type="number" min="1" max="500" step="1" value="{{maxProducts}}"
-                                               data-inventory-max-products="{{id}}" aria-label="Most products on this inventory">
-                                        products
-                                    </label>
-                                {{/if}}
                                 {{#if countable}}
                                     <label class="merchant-config-inventory-cap"
-                                           data-tooltip="The most of any one thing. Clamps a table roll and a quantity you type in the shop.">
+                                           data-tooltip="The most of any one thing this inventory will hold. Clamps a table roll, and a quantity you type in the shop window.">
+                                        max
                                         <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
-                                               data-inventory-max-per-item="{{id}}" aria-label="Most of any one product">
-                                        each
+                                               data-inventory-max-per-item="{{id}}" aria-label="Maximum item quantity">
+                                        of each item
                                     </label>
                                 {{/if}}
                                 {{#if restocking}}
@@ -290,6 +298,7 @@
                                 {{/if}}
                             </div>
 
+                            {{#if canRoll}}
                             {{!-- An inventory may also be stocked by rolling. Dragged on
                                   rather than picked from a list, the same way stock
                                   itself is put on an inventory. --}}
@@ -331,6 +340,7 @@
                                     {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock it by rolling{{/if}}
                                 </span>
                             </div>
+                            {{/if}}
                         </div>
                     {{/each}}
                 </div>

@@ -26,15 +26,15 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/manager-merchant.js` | All state and the entire GM-side transaction. The heart of the module. |
 | `scripts/window-shop.js` | The shop window. Slate state, rendering context, every player-facing gesture. |
 | `scripts/window-merchant-config.js` | Merchant Settings. Inventories, hours, till, tables, presets. |
-| `scripts/merchant-pricing.js` | Pure arithmetic: denominations, prices, making change. No documents. |
-| `scripts/merchant-inventory.js` | Thin accessors over `blacksmith.inventory`. Deliberately thin. |
-| `scripts/merchant-feedback.js` | Everything the module says to a person: toasts and sounds. |
-| `scripts/merchant-progress.js` | The restock progress bar. Core's notification, not a toast. |
-| `scripts/merchant-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
+| `scripts/utility-pricing.js` | Pure arithmetic: denominations, prices, making change. No documents. |
+| `scripts/utility-inventory.js` | Thin accessors over `blacksmith.inventory`. Deliberately thin. |
+| `scripts/utility-feedback.js` | Everything the module says to a person: toasts and sounds. |
+| `scripts/utility-progress.js` | The restock progress bar. Core's notification, not a toast. |
+| `scripts/utility-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
 | `scripts/settings.js` | The six sound settings, and nothing else. |
 | `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
-`merchant-pricing.js` and the schedule half of `const.js` are the only modules with no Foundry documents in
+`utility-pricing.js` and the schedule half of `const.js` are the only modules with no Foundry documents in
 them, which is exactly why they are the parts `tests/` can cover.
 
 ---
@@ -148,14 +148,24 @@ The whole policy is expressed as two flags on the exchange transfer. There is no
 
 ### Ceilings and restocking
 
-An inventory has `maxItems` (how many distinct rows) and `maxPerItem` (how many of any one thing). Both are
-enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }` so the window can say
-what happened rather than silently correcting a number a GM typed.
+**One ceiling is a control; the other is a backstop.** `maxPerItem` — *max N of each item* — is on screen
+wherever stock is counted, because it clamps two different things: how deep a table roll stacks a row, and
+what a GM may type into the quantity column in the shop window (which also sets the restock target).
+
+`maxProducts` is **not** a control any more. It only ever trimmed a table roll, and the table's own roll
+count is how a GM says how much arrives — two numbers for one idea, one of which did nothing on the many
+inventories that have no table. It survives as a constant, enforced in `_withinLimits`, so an unattended
+reroll cannot grow a shop past the point where its window is readable. If that limit is ever reached, the
+answer is the roll count or the reroll flag, not a bigger number.
+
+Both are enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }` so the window
+can say what happened rather than silently correcting a number a GM typed.
 
 **Both are ceilings, not targets.** They only ever refuse. Nothing fills an inventory *to* them, and reading
-either as "how many I want" is the single most natural wrong assumption about this screen.
+either as "how many I want" is the single most natural wrong assumption about this screen — which is most of
+why one of them is no longer offered.
 
-How deep a table-rolled row goes is `stockDepth()` in `merchant-pricing.js`, in three steps:
+How deep a table-rolled row goes is `stockDepth()` in `utility-pricing.js`, in three steps:
 
 1. **The item's own `system.quantity`**, if it is more than one. A compendium entry authored as a quiver of
    twenty arrows is a quiver of twenty arrows.
@@ -197,7 +207,7 @@ so on screen only — `isScheduledOpen` already answers the question that matter
 
 ## 6. Prices
 
-All arithmetic is in **base units** (copper, in dnd5e) and converted only at the edges. `merchant-pricing.js`
+All arithmetic is in **base units** (copper, in dnd5e) and converted only at the edges. `utility-pricing.js`
 holds it and touches no documents, which is why 5,151 purse/price combinations can be checked in `tests/`.
 `api.inventory` will never convert denominations, so this arithmetic is ours permanently and nobody else was
 going to catch it being wrong.
@@ -241,7 +251,7 @@ scale briefly carried an `effects.merchantModifier` and they removed it rather t
 right call — the same scale drives NPC attitude and what people will tell you, and a table wanting gentler
 prices should not have to edit that.
 
-Two constraints shape the implementation, both in `merchant-reputation.js`:
+Two constraints shape the implementation, both in `utility-reputation.js`:
 
 - **The band lookup is async**, so it is resolved **once per render** and the multiplier passed down. Per
   row it would be a promise per price and a list resolving in a different order than it drew.
@@ -401,7 +411,7 @@ has cost this suite real time twice. What is used:
 | `utils.playSound` + `arrSoundChoices` | the sound settings |
 
 **Nothing calls `ui.notifications` directly.** Two exceptions, both deliberate: the fallback inside
-`merchant-feedback.js`, for a Blacksmith too old to have the toast API — a world one version behind should
+`utility-feedback.js`, for a Blacksmith too old to have the toast API — a world one version behind should
 lose the styling, not the message — and the restock progress bar, because a toast has no progress shape and
 core's does. Everything else goes through `notify`.
 

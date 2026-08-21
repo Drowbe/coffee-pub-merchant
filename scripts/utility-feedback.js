@@ -9,7 +9,7 @@
 // toast API is the suite's answer to that, so a Merchant message looks like a Coffee
 // Pub message rather than like a Foundry one.
 //
-// **Thin on purpose**, the same way `merchant-inventory.js` is thin. What lives here
+// **Thin on purpose**, the same way `utility-inventory.js` is thin. What lives here
 // is Merchant's own defaults -- its icons, its palette, its module id, its channels --
 // and the fallback for a world whose Blacksmith predates the API. No behaviour of
 // Blacksmith's is reimplemented, and nothing here should grow into a second toast

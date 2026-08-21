@@ -888,3 +888,21 @@ New on 2026-08-19. The first two are the ones that touch data you already have.
 26. An inventory with **no** roll table shows no *products* limit — it could never have fired there.
 27. Add a table; the *products* limit appears.
 28. An inventory that never runs out shows no *each* limit either. One that counts its stock does.
+
+### 20g. Artwork, sliders, and what Purchased does not have
+
+29. Each inventory's artwork is **56px** and hovering it shows a pencil. Click it: Foundry's file picker
+    opens at the current image. Choose another; it changes here, in the shop window, and on the container's
+    own sheet.
+30. Cancel the picker. Nothing changes.
+31. Markup is a **slider**. Dragging it repaints the readout mid-drag — *"×1.35 · 35% dearer"* — and the
+    document is written once, on release, not once per pixel.
+32. Drag a Discounted inventory below 1. The readout says *cheaper*, not *dearer*.
+33. A **Purchased** inventory shows two sliders, Purchase and Sell, and the Purchase readout says what it
+    means: *"pays 50% of worth"*. Above 1.0 it says *over the odds*.
+34. A **Purchased** inventory has **no** roll-table row, **no** drop target for tables, and **no** restock
+    button. Dragging a roll table onto it does nothing.
+35. Press **Restock Everything** on a shop with a Purchased inventory. Everything else refills; the
+    purchased stock is untouched. Advance the clock a week: same.
+36. The *products* limit is gone from every inventory. The only ceiling is **max N of each item**, and it
+    appears wherever stock is counted.

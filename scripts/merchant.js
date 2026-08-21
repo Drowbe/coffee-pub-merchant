@@ -9,7 +9,7 @@ import { registerSettings } from './settings.js';
 
 /** Kept beside the pin in `module.json`; both have to move together. */
 const REQUIRED_BLACKSMITH = '13.19.0';
-import { registerToastChannels } from './merchant-feedback.js';
+import { registerToastChannels } from './utility-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 
 /**
