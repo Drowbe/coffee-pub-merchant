@@ -275,6 +275,42 @@ export function isPurchased(type) {
 /** What the shop pays for a thing, before anything else is applied. */
 export const DEFAULT_BUY_RATE = 0.5;
 
+// ==================================================================
+// ===== THE LOCAL MARKET ===========================================
+// ==================================================================
+//
+// What goods are worth *here*, regardless of who is asking.
+//
+// **This is the lever that makes trade possible, and it is not reputation.**
+// Reputation is an area's disposition toward the party: being liked makes buying
+// cheaper *and* selling dearer, both in your favour, so the best place to buy is
+// also the best place to sell and no two areas differing only in reputation can be
+// arbitraged. That is correct for what reputation is.
+//
+// A market rate is the opposite shape. It multiplies both sides in the *same*
+// direction: where goods are dear, you pay more and you are paid more. That
+// asymmetry — bad to buy in, good to sell in — is exactly what a trade route is.
+// Buy grain in the farming valley, sell it in the besieged city.
+//
+// It lives on the **Scene**, which is the same scope Blacksmith gives reputation and
+// the scope a shop already reads. A city spread over three maps means setting it
+// three times; named regions spanning scenes would fix that and are a bigger feature
+// than this one, so they wait until the repetition is actually annoying somebody.
+
+export const MARKET_FLAG = 'market';
+
+export const DEFAULT_MARKET_RATE = 1.0;
+
+/**
+ * How far a market can swing.
+ *
+ * Four times up and four times down, so two scenes can differ by sixteen — ample for
+ * any trade route, and short of the point where one number makes an economy
+ * meaningless. A GM who wants the legendary run from the mine to the capital has it
+ * inside this range.
+ */
+export const MARKET_LIMITS = Object.freeze({ min: 0.25, max: 4 });
+
 /**
  * The most a shop will ever pay, as a share of what it would charge for the same item.
  *

@@ -14,12 +14,13 @@ import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
 } from './utility-inventory.js';
 import {
-    resolvePrice, resolveBuybackPrice, planSettlement, purseValue, formatBase, toBase, fromBase, stockDepth
+    resolvePrice, resolveBuybackPrice, planSettlement, purseValue, fromBase, stockDepth
 } from './utility-pricing.js';
 import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
 import { resolveReputation, watchReputation } from './utility-reputation.js';
+import { marketRate } from './utility-market.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -837,9 +838,6 @@ export class MerchantManager {
     }
 
     /** Whether this table also fires when the clock brings a restock round. */
-    static async setInventoryTableAuto(actor, inventoryId, uuid, auto) {
-        return this._updateInventoryTable(actor, inventoryId, uuid, { auto: Boolean(auto) });
-    }
 
     static async _updateInventoryTable(actor, inventoryId, uuid, changes) {
         const inventory = actor?.items?.get(inventoryId);
@@ -1442,7 +1440,7 @@ export class MerchantManager {
     }
 
     /** Price the buy side. Every line re-resolved and re-priced on the GM. */
-    static _priceBuying(merchant, requested, user, reputation = 1) {
+    static _priceBuying(merchant, requested, user, reputation = 1, market = 1) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -1464,7 +1462,7 @@ export class MerchantManager {
             // No `BARTER_ONLY` refusal any more. A negotiate inventory has no list price,
             // so `resolvePrice` returns null until one is agreed — and refusing an
             // unpriced line is the same refusal either way.
-            const unit = resolvePrice(config, inventoryConfig, item, { reputation });
+            const unit = resolvePrice(config, inventoryConfig, item, { reputation, market });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
@@ -1475,7 +1473,7 @@ export class MerchantManager {
     }
 
     /** Price the sell side, against the buyback inventory's rate. */
-    static _priceSelling(merchant, seller, inventory, requested, reputation = 1) {
+    static _priceSelling(merchant, seller, inventory, requested, reputation = 1, market = 1) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -1491,7 +1489,7 @@ export class MerchantManager {
                 return { ok: false, code: 'INSUFFICIENT_QUANTITY', available, itemName: item.name };
             }
 
-            const unit = resolveBuybackPrice(config, inventory.config, item, { reputation });
+            const unit = resolveBuybackPrice(config, inventory.config, item, { reputation, market });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             total += unit * quantity;
@@ -1533,8 +1531,12 @@ export class MerchantManager {
         // the same band, but this is the one that decides what changes hands — a
         // client's arithmetic is an explanation, never the answer.
         const reputation = await resolveReputation(scene, this.getConfig(merchant)?.pricing?.reputation);
+        // What goods are worth where this shop stands. Read from the same scene as
+        // reputation and for the same reason: the shop is priced where it is, not
+        // where whoever answers the request happens to be looking.
+        const market = marketRate(scene);
 
-        const bought = buying.length ? this._priceBuying(merchant, buying, user, reputation) : { ok: true, lines: [], total: 0 };
+        const bought = buying.length ? this._priceBuying(merchant, buying, user, reputation, market) : { ok: true, lines: [], total: 0 };
         if (!bought.ok) return bought;
 
         let inventory = null;
@@ -1543,7 +1545,7 @@ export class MerchantManager {
             inventory = this.getInventories(merchant, { includeHidden: true })
                 .find(({ config }) => isPurchased(config.type));
             if (!inventory) return { ok: false, code: 'NO_PURCHASED_INVENTORY' };
-            sold = this._priceSelling(merchant, shopper, inventory, selling, reputation);
+            sold = this._priceSelling(merchant, shopper, inventory, selling, reputation, market);
             if (!sold.ok) return sold;
         }
 

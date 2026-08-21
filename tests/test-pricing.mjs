@@ -220,6 +220,42 @@ for (const markup of [0.5, 1, 1.2, 2, 3]) {
 }
 console.log('ok  no round trip at one merchant can turn a profit');
 
+// --- the local market ----------------------------------------------------
+// **The lever trade actually runs on.** Market is what goods are worth in a place,
+// whoever is asking, so it multiplies both sides in the *same* direction — unlike
+// reputation, which inverts. That asymmetry is what makes a route: a place where
+// goods are dear is bad to buy in and good to sell in.
+const DEAR_TOWN = { market: 4 };
+const CHEAP_TOWN = { market: 0.25 };
+
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 100), DEAR_TOWN), 40000, 'goods cost more where they are scarce');
+assert.strictEqual(P.resolvePrice({}, SALE, item('a', 100), CHEAP_TOWN), 2500, 'and less at the source');
+assert.ok(
+    P.resolveBuybackPrice({}, BUYBACK, item('a', 100), DEAR_TOWN)
+    > P.resolveBuybackPrice({}, BUYBACK, item('a', 100), CHEAP_TOWN),
+    'and a dear town also pays more — which reputation, being a favour, never does');
+
+// The route itself: buy at the source, carry it to where it is scarce.
+const atSource = P.resolvePrice({}, SALE, item('a', 100), CHEAP_TOWN);
+const atMarket = P.resolveBuybackPrice({}, BUYBACK, item('a', 100), DEAR_TOWN);
+assert.ok(atMarket > atSource * 3, `carrying goods pays: ${atSource} -> ${atMarket}`);
+console.log('ok  a market makes a trade route, and pays both ways');
+
+// And it cannot be turned into a machine either: the same clamp holds, because both
+// sides move together and cancel.
+for (const market of [0.25, 1, 2, 4]) {
+    for (const rep of [0.85, 1, 1.3]) {
+        for (const buyRate of [0.5, 0.9, 1.5]) {
+            const inv = { type: 'purchased', markup: 1, buyRate };
+            const paidToYou = P.resolveBuybackPrice({}, inv, item('a', 50), { reputation: rep, market });
+            const chargedBack = P.resolvePrice({}, inv, item('a', 50), { reputation: rep, market });
+            assert.ok(paidToYou < chargedBack,
+                `market ${market}, rep ${rep}, rate ${buyRate}: pays ${paidToYou} charges ${chargedBack}`);
+        }
+    }
+}
+console.log('ok  a market cannot open the loop either');
+
 // **Trade between merchants is possible, which is the point.** Buy from a merchant
 // pricing at the going rate, sell to one who deals dear — the profit is the
 // difference between their two markups, less the second one's spread.

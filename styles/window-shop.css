@@ -606,3 +606,9 @@
 .merchant-shop-cart-sum-net > dd { font-weight: 700; }
 .merchant-shop-cart-net-pay > dd { color: #a4432f; }
 .merchant-shop-cart-net-receive > dd { color: #2f6b33; }
+
+/* Where the party stands here, under who is doing the shopping. Only rendered when
+   the shop has opted into reputation and the standing is not neutral, so it is never
+   a line that says nothing. */
+.merchant-shop-reputation { display: flex; gap: 7px; align-items: center; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-text-muted); font-size: .7rem; }
+.merchant-shop-reputation > strong { margin-left: auto; color: var(--blacksmith-tool-text); }

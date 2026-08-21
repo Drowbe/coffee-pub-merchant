@@ -63,3 +63,13 @@ by an optional dependency — but it means a fresh clone reports success while c
 
 The release workflow installs them for the same reason: a skipped test counted as a pass is the one outcome
 worth twenty seconds to avoid.
+
+**`test-imports.mjs`** — the one mistake a module can make that looks like nothing until it runs: calling a
+function that was never imported. It cost a shop that would not open — `_refreshReputation` called
+`reputationLabel`, which existed, was exported, and was simply not named in the import at the top of
+`window-shop.js`. Every file parsed and every other test passed; the window threw a `ReferenceError` on its
+first render, which `openSafely` turned into "Could not open that shop" — a message that says nothing about
+the cause. It reports unused imports too, since a name left behind in an import is a rename half-finished.
+
+A heuristic, not a type checker: it looks at bare `name(` calls only, nothing dotted and nothing dynamic. It
+under-reports on purpose, because a checker that cries wolf gets switched off.

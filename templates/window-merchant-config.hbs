@@ -142,15 +142,14 @@
                 <input type="checkbox" data-merchant-reputation {{#if reputationOn}}checked{{/if}}>
                 <span>Reputation impacts prices</span>
             </label>
-            {{#if reputationOn}}
-                {{!-- Three facts, in the order they are asked: what being disliked
-                      costs, what being liked saves, and where this party stands. --}}
-                <div class="merchant-config-facts">
-                    <span>Negative reputation: <strong>up to {{reputationPenalty}} penalty</strong></span>
-                    <span>Positive reputation: <strong>up to {{reputationBenefit}} benefit</strong></span>
-                    <span>Party reputation: <strong>{{reputationLabel}}{{#if reputationEffect}} ({{reputationEffect}}){{/if}}</strong></span>
-                </div>
-            {{/if}}
+            {{!-- One sentence, and only the range. **Where this party actually stands
+                  belongs in the shop**, under who you are shopping as — it is a fact
+                  about a visit, not a setting, and it was taking three lines in the
+                  window where a GM is configuring rather than trading. --}}
+            <small class="merchant-config-hint">
+                Reputation can adjust prices from a {{reputationPenalty}} penalty to a
+                {{reputationBenefit}} benefit.
+            </small>
         </section>
 
         <section class="merchant-config-section">
@@ -172,44 +171,58 @@
                           that grew settings. --}}
                     <div class="merchant-config-inv"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
 
-                        <div class="merchant-config-inv-head">
+                        {{!-- **The category is the heading; the name is content.** The
+                              type is what this card *is* and cannot be changed, which
+                              is what a heading says; the name is a thing the GM writes,
+                              so it belongs in the card with the artwork it goes with. --}}
+                        <h3 class="merchant-config-inv-head">
+                            <span>
+                                {{typeLabel}}
+                                {{#if hidden}}
+                                    <span class="merchant-config-inv-hidden"
+                                          data-tooltip="Players are never sent this inventory">
+                                        <i class="fa-solid fa-eye-slash"></i> Hidden
+                                    </span>
+                                {{/if}}
+                            </span>
+                            <span class="merchant-config-head-actions">
+                                {{#if canRoll}}
+                                    <button type="button" class="merchant-config-inv-btn"
+                                            data-action="restockInventory" data-inventory-id="{{id}}"
+                                            data-tooltip="Refill this inventory now">
+                                        <i class="fa-solid fa-arrows-rotate"></i>
+                                    </button>
+                                {{/if}}
+                                <button type="button" class="merchant-config-inv-btn"
+                                        data-action="openInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Open this inventory to stock it">
+                                    <i class="fa-solid fa-box-open"></i>
+                                </button>
+                                <button type="button" class="merchant-config-inv-btn"
+                                        data-action="clearInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Take everything off this inventory">
+                                    <i class="fa-solid fa-broom"></i>
+                                </button>
+                                <button type="button" class="merchant-config-inv-btn merchant-config-remove"
+                                        data-action="removeInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Remove this inventory">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                <span class="merchant-config-count"
+                                      data-tooltip="{{count}} item{{#unless one}}s{{/unless}} on this inventory">{{count}}</span>
+                            </span>
+                        </h3>
+
+                        <div class="merchant-config-inv-identity">
                             <button type="button" class="merchant-config-inventory-art"
                                     data-inventory-image="{{id}}"
                                     data-tooltip="Click to choose different artwork">
                                 <img src="{{img}}" alt="">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <div class="merchant-config-inv-copy">
-                                <input type="text" class="merchant-config-inventory-name" value="{{label}}"
-                                       data-inventory-name="{{id}}" aria-label="Inventory name">
-                                <span class="merchant-config-inv-meta">
-                                    <em>{{typeLabel}}</em> · {{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}
-                                </span>
-                            </div>
-                            <div class="merchant-config-inventory-actions">
-                                {{#if canRoll}}
-                                    <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                            data-action="restockInventory" data-inventory-id="{{id}}"
-                                            data-tooltip="Refill this inventory now">
-                                        <i class="fa-solid fa-arrows-rotate"></i>
-                                    </button>
-                                {{/if}}
-                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                        data-action="openInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Open this inventory to stock it">
-                                    <i class="fa-solid fa-box-open"></i>
-                                </button>
-                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                        data-action="clearInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Take everything off this inventory">
-                                    <i class="fa-solid fa-broom"></i>
-                                </button>
-                                <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn merchant-config-remove"
-                                        data-action="removeInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Remove this inventory">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
+                            <input type="text" class="merchant-config-inventory-name" value="{{label}}"
+                                   data-inventory-name="{{id}}" aria-label="Inventory name"
+                                   placeholder="{{typeLabel}}">
                         </div>
 
                         {{#if hasRates}}
@@ -279,22 +292,23 @@
                                 {{#if hasTables}}
                                     <div class="merchant-config-grid">
                                         {{#each tables}}
+                                            {{!-- What the table will do is on the input
+                                                  as a tooltip rather than as a line of
+                                                  prose under every row: five tables
+                                                  meant five sentences saying almost the
+                                                  same thing. --}}
                                             <div class="merchant-config-row merchant-config-row-inline merchant-config-table">
                                                 <span class="merchant-config-label merchant-config-table-name"
                                                       data-tooltip="{{name}}">
                                                     <i class="fa-solid fa-dice-d20"></i> {{name}}
                                                 </span>
                                                 <div class="merchant-config-table-controls">
-                                                    <label class="merchant-config-inline">
-                                                        <span>Items drawn</span>
+                                                    <label class="merchant-config-inline"
+                                                           data-tooltip="{{drawTooltip}}">
+                                                        <span>Draw</span>
                                                         <input type="number" min="1" max="20" step="1" value="{{rolls}}"
                                                                data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
                                                                aria-label="How many items to draw from this table">
-                                                    </label>
-                                                    <label class="merchant-config-inline merchant-config-inline-check">
-                                                        <input type="checkbox" data-inventory-table-auto="{{../id}}"
-                                                               data-table-uuid="{{uuid}}" {{#if auto}}checked{{/if}}>
-                                                        <span>Draw again on every restock</span>
                                                     </label>
                                                     <button type="button" class="merchant-config-icon-btn merchant-config-remove"
                                                             data-action="removeInventoryTable" data-inventory-id="{{../id}}"
@@ -303,10 +317,6 @@
                                                         <i class="fa-solid fa-xmark"></i>
                                                     </button>
                                                 </div>
-                                                <small class="merchant-config-hint">
-                                                    Draws {{rolls}} item{{#unless oneRoll}}s{{/unless}} from this table
-                                                    {{#if auto}}every time this inventory restocks{{else}}only when you press Restock{{/if}}.
-                                                </small>
                                             </div>
                                         {{/each}}
                                     </div>

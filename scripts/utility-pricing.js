@@ -311,17 +311,20 @@ function rate(value, fallback = 1) {
  * would mean a premium inventory in an expensive shop quietly priced as though the
  * shop were ordinary.
  *
- *     item price  ×  global markup  ×  inventory markup  ×  reputation
+ *     item price  ×  market  ×  global markup  ×  inventory markup  ×  reputation
  *
- * Reputation stacks too, and for a related reason: it is a fact about the town rather
- * than about the inventory.
+ * The outer two are facts about the *place* rather than about the inventory, and they
+ * are not the same fact. **Market** is what goods are worth here whoever is asking;
+ * **reputation** is what this town makes of this party. Only one of them can create a
+ * trade route, for reasons set out beside `MARKET_FLAG` in `const.js`.
  *
  * @param {object} [options]
+ * @param {number} [options.market] What goods are worth in this place, or 1.
  * @param {number} [options.reputation] Multiplier from the party's standing, or 1.
  * @returns {number|null} null when the item has no price at all — a configuration gap
  *   on a priced inventory, and deliberate on an unpriced one.
  */
-export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1 } = {}) {
+export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
     // An agreed price wins outright, which is what makes it agreed. Nothing is applied
     // on top: a haggled number is the number, not the start of an arithmetic.
     const negotiated = negotiatedPrice(merchantConfig, item?.id);
@@ -341,7 +344,8 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
     // and is read here like any other. It used to be skipped, because one number did
     // both jobs and reading it would have meant buying a sword at half price and
     // reselling it at half price. Two rates, so there is nothing left to guard.
-    const total = rate(merchantConfig?.pricing?.markup)
+    const total = rate(market)
+        * rate(merchantConfig?.pricing?.markup)
         * rate(inventoryConfig?.markup)
         * rate(reputation);
 
@@ -391,12 +395,13 @@ export function negotiatedBuyback(merchantConfig, itemId) {
  * @param {object} [options]
  * @param {number} [options.reputation] The buying-side multiplier. Inverted here.
  */
-export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { reputation = 1 } = {}) {
+export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
     const agreed = negotiatedBuyback(merchantConfig, item?.id);
     if (agreed !== null) return agreed;
 
-    // The item's own worth: no overrides, and no *inventory* markup, because what a
-    // Premium shelf charges says nothing about what the shop pays for your sword.
+    // The item's own worth: no overrides, no *inventory* markup, and no market —
+    // every place-and-shop multiplier is applied once, below, so this stays the
+    // item's own value rather than something already half-adjusted.
     const worth = resolvePrice(
         { ...merchantConfig, pricing: { ...merchantConfig?.pricing, markup: 1, overrides: {} } },
         null,
@@ -417,14 +422,20 @@ export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { rep
     // "paid more when selling", so it is turned over rather than applied as it stands.
     const standing = 1 / rate(reputation);
 
-    const offer = worth * shop * buyRate * standing;
+    // **The market applies here exactly as it does when buying, and does not invert.**
+    // That is what makes it the lever trade runs on: where goods are dear you pay more
+    // *and* are paid more, so carrying them from a cheap place to a dear one profits.
+    // Reputation inverts because it is a favour to the party; a market rate is not a
+    // favour, it is what the thing is worth here.
+    const local = rate(market);
+    const offer = worth * local * shop * buyRate * standing;
 
     // **A shop never pays more than it would charge.** Reputation applies twice over a
     // round trip — cheaper to buy *and* dearer to sell — so `buyRate` alone cannot
     // hold the line: at 0.9 with a beloved party, selling a sword and buying it back
     // turns a profit, and repeats. Clamping against this inventory's own resale price
-    // closes it wherever the two rates and the town's mood happen to land.
-    const resale = worth * shop * rate(inventoryConfig?.markup) * rate(reputation);
+    // closes it wherever the rates, the market and the town's mood happen to land.
+    const resale = worth * local * shop * rate(inventoryConfig?.markup) * rate(reputation);
     return Math.max(1, Math.round(Math.min(offer, resale * MAX_BUYBACK_RATIO)));
 }
 

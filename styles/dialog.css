@@ -14,3 +14,12 @@
    rather than growing the dialog past the screen. */
 .merchant-sell-dialog .merchant-sell-list { max-height: min(52vh, 460px); overflow-y: auto; }
 .merchant-sell-dialog .blacksmith-field { min-width: min(560px, 70vw); }
+
+/* --- The local market ---------------------------------------------------- */
+/* A scene-wide fact, so it gets room to say what it is before the slider. */
+.merchant-market-dialog .merchant-market-blurb { margin: 0 0 10px; color: var(--blacksmith-tool-text-muted); font-size: .74rem; line-height: 1.45; }
+.merchant-market-control { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.merchant-market-control > input[type="range"] { width: 100%; margin: 0; }
+.merchant-market-readout { margin-top: 8px; padding: 5px 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-size: .78rem; font-weight: 600; text-align: center; }
+.merchant-market-dialog .blacksmith-field,
+.merchant-market-dialog .dialog-content { min-width: min(460px, 70vw); }

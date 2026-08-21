@@ -2,14 +2,16 @@
 // ===== COFFEE PUB MERCHANT — ENTRY POINT ==========================
 // ==================================================================
 
-import { MODULE, PAR_FLAG, INVENTORY_FLAG } from './const.js';
+import { MODULE, PAR_FLAG, INVENTORY_FLAG, MARKET_LIMITS, DEFAULT_MARKET_RATE } from './const.js';
+import { marketRate, setMarketRate, marketLabel } from './utility-market.js';
+import { ShopWindow } from './window-shop.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import { MerchantManager } from './manager-merchant.js';
 import { registerSettings } from './settings.js';
 
 /** Kept beside the pin in `module.json`; both have to move together. */
 const REQUIRED_BLACKSMITH = '13.19.0';
-import { registerToastChannels } from './utility-feedback.js';
+import { registerToastChannels, notify } from './utility-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 
 /**
@@ -38,6 +40,103 @@ function registerSheetControls() {
         });
 
     });
+}
+
+/**
+ * The way in to a scene's market.
+ *
+ * On the **Scene** sheet, because that is what a market belongs to — every merchant
+ * standing on that map prices against it, and a rate set on one shop would be a fact
+ * about the place hidden inside one of the things in it.
+ *
+ * The same header-menu pattern as Merchant Settings on an Actor: always present, one
+ * unobtrusive row, and it opens the control rather than being one.
+ */
+function registerSceneControls() {
+    Hooks.on('getHeaderControlsApplicationV2', (app, controls) => {
+        const scene = app?.document;
+        if (scene?.documentName !== 'Scene') return;
+        if (!game.user.isGM) return;
+
+        controls.push({
+            icon: 'fa-solid fa-scale-balanced',
+            label: 'Local Market',
+            action: 'merchantMarket',
+            onClick: () => void openMarketDialog(scene)
+        });
+    });
+}
+
+/**
+ * Set what goods are worth on this scene.
+ *
+ * A slider, like every other rate in this module, with the readout saying what the
+ * number means rather than only what it is. Written on confirm rather than on drag:
+ * this is a scene-wide fact, and a document write per pixel would be broadcast to
+ * every client.
+ */
+async function openMarketDialog(scene) {
+    const blacksmith = game.modules.get('coffee-pub-blacksmith')?.api;
+    const current = marketRate(scene);
+
+    if (typeof blacksmith?.dialog?.wait !== 'function') {
+        notify.warn('The Blacksmith dialog API is unavailable.');
+        return;
+    }
+
+    let chosen = current;
+    const content = `
+        <p class="merchant-market-blurb">
+            What goods are worth on <strong>${foundry.utils.escapeHTML(scene.name)}</strong>, whoever is
+            asking. Every merchant here prices against it, and it applies to what they pay as well as what
+            they charge &mdash; which is what makes running goods between two places worth doing.
+        </p>
+        <div class="merchant-market-control">
+            <span class="merchant-config-rate-bound">&times;${MARKET_LIMITS.min.toFixed(2)}</span>
+            <input type="range" min="${MARKET_LIMITS.min}" max="${MARKET_LIMITS.max}" step="0.05"
+                   value="${current}" data-market-rate aria-label="Local market rate">
+            <span class="merchant-config-rate-bound">&times;${MARKET_LIMITS.max.toFixed(2)}</span>
+        </div>
+        <div class="merchant-market-readout" data-market-readout>${marketLabel(current)}</div>`;
+
+    const outcome = await blacksmith.dialog.wait({
+        title: 'Local Market',
+        content,
+        classes: ['merchant-dialog', 'merchant-market-dialog'],
+        onRender: (element) => {
+            const input = element.querySelector('[data-market-rate]');
+            const readout = element.querySelector('[data-market-readout]');
+            if (!input) return;
+            input.addEventListener('input', () => {
+                chosen = Number(input.value);
+                if (readout) readout.textContent = marketLabel(chosen);
+            });
+        },
+        buttons: [
+            { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
+            {
+                action: 'reset',
+                label: 'The going rate',
+                icon: 'fa-solid fa-rotate-left',
+                callback: () => { chosen = DEFAULT_MARKET_RATE; }
+            },
+            { action: 'set', label: 'Set Market', icon: 'fa-solid fa-check', default: true }
+        ],
+        closeValue: null,
+        cancelValue: null
+    });
+
+    if (outcome?.value !== 'set' && outcome?.value !== 'reset') return;
+
+    try {
+        const value = await setMarketRate(scene, chosen);
+        notify.info(`${scene.name}: ${marketLabel(value)}`);
+        // Every open shop on that scene is now priced differently.
+        for (const win of ShopWindow.openWindows()) void win.render(false);
+    } catch (error) {
+        console.error(`${MODULE.TITLE} | Could not set the market:`, error);
+        notify.error('Could not set the market.');
+    }
 }
 
 Hooks.once('ready', async function () {
@@ -88,6 +187,7 @@ Hooks.once('ready', async function () {
     // request path both have to exist on a player's client.
     MerchantManager.initialize();
     registerSheetControls();
+    registerSceneControls();
 
     // Shelves became typed inventories and the stored flag moved with the word, so
     // every shop configured before that needs walking over. GM-only and idempotent —

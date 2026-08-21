@@ -31,6 +31,7 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-feedback.js` | Everything the module says to a person: toasts and sounds. |
 | `scripts/utility-progress.js` | The restock progress bar. Core's notification, not a toast. |
 | `scripts/utility-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
+| `scripts/utility-market.js` | What goods are worth in a place. A number on the Scene. |
 | `scripts/settings.js` | The six sound settings, and nothing else. |
 | `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
@@ -116,6 +117,22 @@ now, through `isUnpriced()` and `isPurchased()`. One word per concept, in the in
 **The inventory's name is the container's name.** The flag carries no copy of it, so a GM renaming the
 container — in Merchant Settings or in dnd5e's own sheet — renames the inventory. A shop may hold several
 inventories of one type, which is why naming them matters.
+
+### The market flag — `flags['coffee-pub-merchant'].market` on a **Scene**
+
+```js
+{ rate: 2.0 }     // 0.25 .. 4.00; absent means the going rate
+```
+
+The only state this module keeps outside an Actor, and it is on a Scene because that is what it is about:
+every merchant standing on that map prices against it. Setting it back to 1.00 **unsets the flag** rather
+than storing a no-op, so a scene either has a market or does not.
+
+Set from the Scene sheet's header menu — the same pattern as Merchant Settings on an Actor, for the same
+reason: always reachable, one unobtrusive row, and it opens the control rather than being one.
+
+A city spread over three maps means setting it three times. Named regions spanning scenes would fix that and
+are a larger feature than this one; they wait until the repetition annoys somebody.
 
 ### The par flag — `flags['coffee-pub-merchant'].par` on a stock Item
 
@@ -247,17 +264,38 @@ marks everything up and then pays the going rate is not a dealer, it is a one-wa
 Reputation is applied **inverted**: the standing that buys you a discount gets you more for your goods, or a
 beloved party is rewarded in one direction and ignored in the other.
 
-### The two levers, and what each is for
+### The three levers, and what each is for
 
-- **Reputation** is the *area's* disposition toward this party. Save a city and its shops treat you well;
-  wreck one and they gouge you. It moves both directions in the party's favour at once.
-- **Global Markup** is *one merchant's* choice against their competitors in the same place.
+| lever | scope | stored on | inverts when selling? |
+|---|---|---|---|
+| **Market** | the place | Scene flag `market` | **no** |
+| **Reputation** | the place | Blacksmith, per scene | **yes** |
+| **Global Markup** | one merchant | the merchant flag | no |
 
-**Reputation cannot create a trade route, and that is correct.** Because it improves buying and selling
-together, the best place to buy is also the best place to sell, and no pair of areas differing only in
-reputation can turn a profit. What makes a route is a *merchant* who deals dear: buy from one pricing at the
-going rate, sell to one at ×2.00, and the difference between their markups less the second one's spread is
-the margin. Reputation then makes a good route better.
+- **Market** is what goods are worth here, whoever is asking. Grain is cheap in the valley and dear in the
+  besieged city.
+- **Reputation** is what this town makes of *this party*. Save a city and its shops treat you well; wreck
+  one and they gouge you.
+- **Global Markup** is one merchant's pricing against their competitors on the same street.
+
+**Whether a lever inverts on the sell side is the whole design, and it decides which one can make a trade
+route.** Reputation is a *favour*, so it moves both directions in the party's favour: being liked means
+buying cheaper **and** selling dearer. That makes the best place to buy also the best place to sell, so no
+two areas differing only in reputation can be arbitraged — which is correct for what reputation is, and is
+why it was never going to be the trade mechanic however it was tuned.
+
+A market rate is not a favour. It is what the thing is worth, so it moves both sides the *same* way: where
+goods are dear you pay more and are paid more. Bad to buy in, good to sell in — and that asymmetry is a
+trade route. Buy at ×0.50 for 50, carry it to ×3.00 and a merchant dealing dear pays 270.
+
+Merchant markup makes routes too, on a smaller scale and between shops rather than places.
+
+### Nothing opens the loop
+
+The clamp holds against all three, because at one counter every place-and-shop multiplier appears on both
+sides and cancels. `tests/test-pricing.mjs` sweeps markets, reputations, markups and purchase rates and
+asserts the shop always charges more than it pays; at the extreme worked above, selling and buying back in
+the same city loses 405 per turn.
 
 ### A shop never pays more than it charges
 

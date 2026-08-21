@@ -1,13 +1,13 @@
 {{!--
-    One rate, as a labelled row: what it is, what it currently means, and the range it
-    can take.
+    One rate, as a labelled row.
 
-        MARKUP        ×2.10 · 110% markup
-                      ×0.10 [--------O-----] ×3.00
+        MARKUP
+        −90%  [══════╪════●═══]  +200%   │ 200% markup │
 
-    Both ends are on screen because a slider with no bounds is a guess about how far it
-    goes, and the readout carries the number *and* what it means — "110% markup" rather
-    than a word like "dearer", which nobody has to look up.
+    **The bounds are percentages, not multipliers.** ×1.20 is how it is stored; "20%
+    markup" is what a shopkeeper is deciding, and only one of those two is read at a
+    glance. The channel is red below list price and green above it, so which side of
+    neutral the handle sits on is legible before any number is.
 
     Used for the shop's Global Markup and for every inventory rate, so the three read
     the same and are bound by the same code.
@@ -16,9 +16,11 @@
     <span class="merchant-config-label">{{label}}</span>
     <div class="merchant-config-rate-track">
         <span class="merchant-config-rate-bound">{{minLabel}}</span>
-        <input type="range" min="{{min}}" max="{{max}}" step="{{step}}" value="{{value}}"
-               data-rate-kind="{{kind}}" {{#if inventoryId}}data-inventory-{{field}}="{{inventoryId}}"{{else}}data-merchant-markup{{/if}}
-               aria-label="{{label}}">
+        <div class="merchant-config-rate-slider" style="--merchant-rate-neutral: {{neutralPercent}}">
+            <input type="range" min="{{min}}" max="{{max}}" step="{{step}}" value="{{value}}"
+                   data-rate-kind="{{kind}}" {{#if inventoryId}}data-inventory-{{field}}="{{inventoryId}}"{{else}}data-merchant-markup{{/if}}
+                   aria-label="{{label}}">
+        </div>
         <span class="merchant-config-rate-bound">{{maxLabel}}</span>
         <output class="merchant-config-rate-value" data-rate-readout>{{readout}}</output>
     </div>

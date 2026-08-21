@@ -919,3 +919,19 @@ New on 2026-08-19. The first two are the ones that touch data you already have.
     has high reputation — that was the exact case that used to profit.
 40. Reputation alone cannot make a route: a scene where the party is loved is cheaper to buy in *and* pays
     more, so there is no pair of scenes to run goods between on reputation alone.
+
+### 20i. The local market
+
+41. Open a Scene sheet as GM. Its header menu has **Local Market**. It opens a slider from ×0.25 to ×4.00
+    with a readout saying what the number means — *"goods cost 100% more here"*.
+42. Set a scene to ×2.00. Every merchant on that map now lists at double, and the shop window's card says
+    **"Prices here run high"**. Set it to ×0.50: half, and *"Prices here run low"*.
+43. At ×1.00 the shop card says **nothing** about the market, and the scene's flag is removed rather than
+    storing a 1.
+44. **The route.** Put one merchant on a ×0.50 scene and one on a ×3.00 scene. Buy a trade good cheaply from
+    the first, carry it to the second, and sell it for a profit. This is the feature.
+45. The dear scene also *charges* more — it is not a place to shop, it is a place to sell.
+46. **The loop still loses.** On the ×3.00 scene, sell something to the merchant and immediately buy it
+    back. You must be out of pocket, and by a lot.
+47. Change a scene's market while a shop on it is open. It reprices without needing a refresh.
+48. A merchant with a token on two scenes with different markets prices differently in each — open both.

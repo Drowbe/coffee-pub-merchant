@@ -52,6 +52,10 @@
                             <div class="merchant-shop-description">
                                 <span><i class="{{kindIcon}}"></i> {{kindLabel}}</span>
                                 {{#if hoursLabel}}<span><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
+                                {{!-- Said only where it is true. A bill twice what you
+                                      expected is the town, not the shopkeeper, and a
+                                      player should be able to tell which. --}}
+                                {{#if marketLabel}}<span><i class="fa-solid fa-scale-balanced"></i> {{marketLabel}}</span>{{/if}}
                             </div>
                         </div>
                     </div>
@@ -121,6 +125,17 @@
                         </button>
                     {{/if}}
                     </div>
+                    {{!-- Where this party stands here, under who is doing the
+                          shopping — because it is a fact about *this visit by these
+                          people*, not a setting. Only when the shop has opted in and
+                          there is something to say. --}}
+                    {{#if reputationLine}}
+                        <div class="merchant-shop-reputation" data-tooltip="{{reputationTooltip}}">
+                            <i class="fa-solid fa-hand-holding-heart"></i>
+                            <span>Your reputation in this area</span>
+                            <strong>{{reputationLine}}</strong>
+                        </div>
+                    {{/if}}
                 </section>
 
             {{#if browsing}}

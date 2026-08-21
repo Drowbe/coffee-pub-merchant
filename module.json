@@ -42,6 +42,7 @@
     "scripts/settings.js",
     "scripts/utility-feedback.js",
     "scripts/utility-inventory.js",
+    "scripts/utility-market.js",
     "scripts/utility-pricing.js",
     "scripts/utility-progress.js",
     "scripts/utility-reputation.js",

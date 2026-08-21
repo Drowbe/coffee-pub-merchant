@@ -7,7 +7,7 @@ import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations } from './utility-pricing.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
-import { resolveReputation, reputationLabel } from './utility-reputation.js';
+
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 const RATE_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-rate.hbs';
@@ -17,21 +17,45 @@ function _blacksmith() {
     return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
 }
 
-const STOCK_LABELS = {
-    [STOCK.INFINITE]: 'Never runs out',
-    [STOCK.FINITE]: 'Runs out, never restocks',
-    [STOCK.RESTOCKING]: 'Runs out, then restocks'
+/**
+ * What happens to this inventory when something is bought.
+ *
+ * **Four answers in one control, where there used to be a policy *and* a checkbox on
+ * every roll table.** "Restocking, and also tick reroll on each table" is one decision
+ * a GM makes, and splitting it across two places meant an inventory could be set to
+ * restock while every table it owned quietly declined to — a state nobody wants and
+ * nothing warned about.
+ *
+ * The last two differ only in what the restock does, so they map onto the same stored
+ * policy plus the tables' `auto` flag. Nothing new is stored; the control simply
+ * writes both halves of the decision at once.
+ */
+const METHOD = Object.freeze({
+    INFINITE: STOCK.INFINITE,
+    FINITE: STOCK.FINITE,
+    SAME: 'same',
+    NEW: 'new'
+});
+
+const METHOD_LABELS = {
+    [METHOD.INFINITE]: 'Never runs out',
+    [METHOD.FINITE]: 'Runs out permanently',
+    [METHOD.SAME]: 'Restocks the same items',
+    [METHOD.NEW]: 'Restocks with new items'
 };
 
-/**
- * Every inventory states its own. There is no "same as the shop" any more: the
- * shop-wide default was a second place that set one thing, silently.
- */
-const STOCK_OPTIONS = [
-    { value: STOCK.INFINITE, label: STOCK_LABELS[STOCK.INFINITE] },
-    { value: STOCK.FINITE, label: STOCK_LABELS[STOCK.FINITE] },
-    { value: STOCK.RESTOCKING, label: STOCK_LABELS[STOCK.RESTOCKING] }
-];
+/** The stored policy and table flags a chosen method implies. */
+function methodToStorage(method) {
+    if (method === METHOD.NEW) return { stock: STOCK.RESTOCKING, auto: true };
+    if (method === METHOD.SAME) return { stock: STOCK.RESTOCKING, auto: false };
+    return { stock: method, auto: false };
+}
+
+/** Which method an inventory is currently in, read back from what is stored. */
+function methodFromStorage(policy, tables) {
+    if (policy !== STOCK.RESTOCKING) return policy;
+    return tables.some((entry) => entry.auto) ? METHOD.NEW : METHOD.SAME;
+}
 
 /**
  * A rate, said as a number and as what it means.
@@ -43,17 +67,33 @@ const STOCK_OPTIONS = [
 function markupLabel(value) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
-    if (rate === 1) return '×1.00 · list price';
+    if (rate === 1) return 'List price';
     const percent = Math.round(Math.abs(1 - rate) * 100);
-    return `×${rate.toFixed(2)} · ${percent}% ${rate > 1 ? 'markup' : 'discount'}`;
+    return `${percent}% ${rate > 1 ? 'markup' : 'discount'}`;
 }
 
 /** What the shop pays, which is a share of an item's value rather than a markup. */
 function buyRateLabel(value) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
-    const percent = Math.round(rate * 100);
-    return `×${rate.toFixed(2)} · pays ${percent}% of value`;
+    return `Pays ${Math.round(rate * 100)}% of value`;
+}
+
+/**
+ * A slider bound, as a percentage.
+ *
+ * **Nobody reads ×1.20 as "a fifth dearer".** The multiplier is how it is stored and
+ * how the arithmetic works; a percentage is what a shopkeeper is deciding. Signed, so
+ * the two ends of a markup slider say which way they go without a legend.
+ */
+function markupBound(value) {
+    const percent = Math.round((Number(value) - 1) * 100);
+    if (percent === 0) return 'list';
+    return `${percent > 0 ? '+' : '−'}${Math.abs(percent)}%`;
+}
+
+function buyRateBound(value) {
+    return `${Math.round(Number(value) * 100)}%`;
 }
 
 function rateReadout(kind, value) {
@@ -63,17 +103,23 @@ function rateReadout(kind, value) {
 /** The shape `partial-rate.hbs` renders. One builder, so the three rates agree. */
 function rateRow({ label, kind, value, inventoryId = null, field = null, hint = null }) {
     const buy = kind === 'buy';
+    const min = buy ? 0.05 : 0.1;
+    const max = buy ? 1.5 : 3;
     return {
         label,
         kind,
         field,
         inventoryId,
         value,
-        min: buy ? 0.05 : 0.1,
-        max: buy ? 1.5 : 3,
+        min,
+        max,
         step: 0.05,
-        minLabel: buy ? '×0.05' : '×0.10',
-        maxLabel: buy ? '×1.50' : '×3.00',
+        minLabel: buy ? buyRateBound(min) : markupBound(min),
+        maxLabel: buy ? buyRateBound(max) : markupBound(max),
+        // Where list price sits on this track, as a percentage of its width, so the
+        // channel can be red below it and green above without the template doing
+        // arithmetic. Both sliders cross 1.0, but at different points.
+        neutralPercent: `${(((1 - min) / (max - min)) * 100).toFixed(2)}%`,
         readout: rateReadout(kind, value),
         hint
     };
@@ -258,11 +304,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (select.dataset.merchantBound === 'true') continue;
             select.dataset.merchantBound = 'true';
             select.addEventListener('change', (event) => {
-                // Empty means "same as the shop", stored as null so it reads as
-                // absent rather than as a policy named "".
-                void this._commitInventoryStock(select.getAttribute('data-inventory-stock'), {
-                    stock: event.target.value || null
-                });
+                void this._setMethod(select.getAttribute('data-inventory-stock'), event.target.value);
             });
         }
 
@@ -295,17 +337,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             }
         }
 
-        for (const box of this.element?.querySelectorAll('[data-inventory-table-auto]') ?? []) {
-            if (box.dataset.merchantBound === 'true') continue;
-            box.dataset.merchantBound = 'true';
-            box.addEventListener('change', (event) => {
-                void this._setTableAuto(
-                    box.getAttribute('data-inventory-table-auto'),
-                    box.getAttribute('data-table-uuid'),
-                    event.target.checked
-                );
-            });
-        }
 
         for (const zone of this.element?.querySelectorAll('[data-drop-table]') ?? []) {
             if (zone.dataset.merchantBoundDrop === 'true') continue;
@@ -895,18 +926,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
-    async _setTableAuto(inventoryId, uuid, auto) {
-        const actor = await this._resolveActor();
-        if (!actor || !uuid) return;
-        try {
-            await MerchantManager.setInventoryTableAuto(actor, inventoryId, uuid, auto);
-            MerchantManager.broadcastActorRefresh(actor);
-            this.flashSaved();
-        } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not set that table to reroll:`, error);
-        }
-        await this.render(false);
-    }
 
     async removeInventoryTable(inventoryId, uuid) {
         const actor = await this._resolveActor();
@@ -917,6 +936,40 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove that table:`, error);
+        }
+        await this.render(false);
+    }
+
+    /**
+     * Set what happens when something is bought.
+     *
+     * One control, two things written: the inventory's policy, and whether its tables
+     * draw again on a restock. They were a dropdown and a checkbox-per-table, which
+     * let an inventory be set to restock while every table on it declined to — a
+     * contradiction with no warning and no way to see it.
+     */
+    async _setMethod(inventoryId, method) {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+
+        const { stock, auto } = methodToStorage(method);
+        const inventory = actor.items.get(inventoryId);
+        const tables = MerchantManager.getInventoryTables(inventory);
+
+        try {
+            await MerchantManager.setInventoryConfig(actor, inventoryId, {
+                stock,
+                // Every table on it, so the setting is true of the inventory rather
+                // than of whichever table happened to be edited last.
+                tables: tables.map((entry) => ({ ...entry, auto })),
+                table: null,
+                tableRolls: null
+            });
+            MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not set the restock method:`, error);
+            notify.error('Could not update that inventory.');
         }
         await this.render(false);
     }
@@ -1020,11 +1073,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // Restock is stated per inventory now, never inherited, and every
                     // type has it except the one that cannot mean it.
                     restocks: definition.restocks,
-                    stockOptions: STOCK_OPTIONS.map((option) => ({
-                        ...option,
-                        selected: option.value === policy
-                    })),
-                    stockLabel: STOCK_LABELS[policy] ?? policy,
+                    // "Restocks with new items" only where there is a table to draw
+                    // them from — otherwise it is a choice that would behave exactly
+                    // like the one above it.
+                    stockOptions: [METHOD.INFINITE, METHOD.FINITE, METHOD.SAME, METHOD.NEW]
+                        .filter((value) => value !== METHOD.NEW || tables.length > 0)
+                        .map((value) => ({
+                            value,
+                            label: METHOD_LABELS[value],
+                            selected: value === methodFromStorage(policy, tables)
+                        })),
+                    stockLabel: METHOD_LABELS[methodFromStorage(policy, tables)] ?? policy,
                     restocking: policy === STOCK.RESTOCKING,
                     // Frequency only exists for the one method that has a cadence, so
                     // the two controls cannot contradict each other: a shelf that never
@@ -1047,8 +1106,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         // than left blank, so a GM can see which one to remove.
                         name: this._tableName(entry.uuid) ?? 'Missing table',
                         rolls: entry.rolls,
-                        oneRoll: entry.rolls === 1,
-                        auto: entry.auto
+                        auto: entry.auto,
+                        // On the control rather than under it. Five tables meant five
+                        // near-identical sentences filling the card.
+                        drawTooltip: `How many items to take from this table. `
+                            + (entry.auto
+                                ? 'Drawn again every time this inventory restocks.'
+                                : 'Drawn only when you press Restock.')
                     })),
                     hasTables: tables.length > 0
                 };
@@ -1064,11 +1128,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // a token, so there is no better answer, and it is a report rather than the
         // figure anything is charged by.
         const reputationOn = Boolean(MerchantManager.getConfig(actor)?.pricing?.reputation);
-        const repLabel = enabled ? await reputationLabel(canvas?.scene ?? null, reputationOn) : null;
-        const repRate = enabled ? await resolveReputation(canvas?.scene ?? null, reputationOn) : 1;
-        const repEffect = repRate === 1
-            ? null
-            : `${Math.round(Math.abs(1 - repRate) * 100)}% ${repRate > 1 ? 'penalty' : 'benefit'}`;
 
         // The two ends of the curve, read from the curve rather than restated, so
         // tuning `REPUTATION_MARKUP` moves what this promises.
@@ -1119,10 +1178,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // it is on: "15% dearer" with no reason given reads as a bug, and
             // "Distrusted here" reads as the game working.
             reputationOn: Boolean(MerchantManager.getConfig(actor)?.pricing?.reputation),
-            reputationLabel: repLabel ?? 'not recorded here',
             reputationPenalty: repPenalty,
             reputationBenefit: repBenefit,
-            reputationEffect: repEffect,
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
             // No schedule shows as the whole day rather than as an invented 9 to 6:

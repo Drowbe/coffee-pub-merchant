@@ -7,8 +7,9 @@ import {
     resolvePrice, resolveBuybackPrice, formatBase, purseValue, planSettlement, toBase, fromBase,
     negotiatedPrice
 } from './utility-pricing.js';
-import { hasExchange, isPhysical } from './utility-inventory.js';
-import { resolveReputation } from './utility-reputation.js';
+import { isPhysical } from './utility-inventory.js';
+import { resolveReputation, reputationLabel } from './utility-reputation.js';
+import { marketRate, marketShortLabel } from './utility-market.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 // Circular with manager-merchant.js by design: that module imports this one to open
 // the window. Safe because every use below is inside a method, so the binding
@@ -293,12 +294,38 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const token = await this._resolveToken();
         const config = MerchantManager.getConfig(token?.actor);
         this._reputation = await resolveReputation(token?.parent, config?.pricing?.reputation);
+        // Synchronous — a market is a number on the Scene, with no scale to fetch —
+        // but resolved here so both place-multipliers are settled in one step and
+        // every price in the render sees the same pair.
+        this._market = marketRate(token?.parent);
+
+        // Said in the shop, in the party's own terms: the band they stand in, and what
+        // it is doing to the bill. A neutral standing says nothing rather than "0%",
+        // which would be a line that never changes and never matters.
+        const enabled = Boolean(config?.pricing?.reputation);
+        const band = enabled ? await reputationLabel(token?.parent, true) : null;
+        if (!enabled || this._reputation === 1) {
+            this._reputationLine = null;
+            this._reputationTooltip = null;
+        } else {
+            const percent = Math.round(Math.abs(1 - this._reputation) * 100);
+            const effect = this._reputation < 1 ? `${percent}% benefit` : `${percent}% penalty`;
+            this._reputationLine = band ? `${band} · ${effect}` : effect;
+            this._reputationTooltip = this._reputation < 1
+                ? 'You are thought well of here, so this shop treats you better — on what you buy and on what it pays you.'
+                : 'You are poorly thought of here, so this shop charges you more and pays you less.';
+        }
         return this._reputation;
     }
 
     /** The last resolved multiplier. 1 until the first render says otherwise. */
     get reputation() {
         return this._reputation ?? 1;
+    }
+
+    /** What goods are worth where this shop stands. */
+    get market() {
+        return this._market ?? 1;
     }
 
     // ==============================================================
@@ -1021,7 +1048,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // An unpriced line stays, showing as not yet agreed. Dropping it would
             // make adding something from a negotiate inventory look like nothing
             // happened, which is the opposite of asking about it.
-            const unit = resolvePrice(config, MerchantManager.getInventoryConfig(inventory), item, { reputation: this.reputation });
+            const unit = resolvePrice(config, MerchantManager.getInventoryConfig(inventory), item, { reputation: this.reputation, market: this.market });
 
             // Stock sold out from under a standing cart trims the line rather than
             // failing the whole checkout. A line trimmed to nothing drops out.
@@ -1079,7 +1106,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
         if (!this._wouldTake(item)) return null;
-        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation });
+        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation, market: this.market });
     }
 
     /**
@@ -1305,7 +1332,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             inventories = MerchantManager.getInventories(merchant, { includeHidden: isGM }).map(({ item: inventory, config }) => {
                 const isUnpricedInventory = isUnpriced(config.type);
                 const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
-                    const price = resolvePrice(config0, config, item, { reputation: this.reputation });
+                    const price = resolvePrice(config0, config, item, { reputation: this.reputation, market: this.market });
                     const stock = MerchantManager.getStock(merchant, item, config);
                     // What the cart holds is spoken for, so the inventory shows what is
                     // still available to take rather than what is physically there.
@@ -1439,6 +1466,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             hoursLabel: hours && !isAlwaysOpen(hours) && !isAlwaysClosed(hours)
                 ? `${formatHour(hours.open)} \u2013 ${formatHour(hours.close)}`
                 : null,
+            // Only when there is something to say. A shop at the going rate says
+            // nothing, and "prices here are normal" is noise on every other shop in
+            // the world \u2014 but a player looking at a bill twice what they expected
+            // deserves to know it is the town rather than the shopkeeper.
+            marketLabel: marketShortLabel(this.market),
+            // The party's standing here, said where the shopping happens rather than
+            // in the settings window. Absent when the shop has not opted in, or when
+            // the standing is neutral and there is nothing to report.
+            reputationLine: this._reputationLine,
+            reputationTooltip: this._reputationTooltip,
             // Anyone *else* with lines on a slate here. Excludes the current character,
             // who is already named beside them, and anyone with nothing on the go --
             // a face that means "this person once opened the shop" is noise.
