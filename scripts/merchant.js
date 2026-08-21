@@ -27,7 +27,7 @@ import { MerchantConfigWindow } from './window-merchant-config.js';
  * carries setup and nothing else.
  */
 function registerSheetControls() {
-    Hooks.on('getHeaderControlsApplicationV2', (app, controls) => {
+    MerchantManager.hook('getHeaderControlsApplicationV2', 'Merchant Settings on an Actor sheet', (app, controls) => {
         const actor = app?.document;
         if (actor?.documentName !== 'Actor') return;
         if (!game.user.isGM) return;
@@ -53,7 +53,7 @@ function registerSheetControls() {
  * unobtrusive row, and it opens the control rather than being one.
  */
 function registerSceneControls() {
-    Hooks.on('getHeaderControlsApplicationV2', (app, controls) => {
+    MerchantManager.hook('getHeaderControlsApplicationV2', 'Local Market on a Scene sheet', (app, controls) => {
         const scene = app?.document;
         if (scene?.documentName !== 'Scene') return;
         if (!game.user.isGM) return;

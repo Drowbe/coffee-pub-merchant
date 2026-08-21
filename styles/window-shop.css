@@ -192,6 +192,10 @@
 .merchant-shop-item-price strong { font-size: .86rem; color: var(--blacksmith-tool-accent); }
 .merchant-shop-item-price em { font-size: .68rem; font-style: normal; color: var(--blacksmith-tool-text-muted); }
 .merchant-shop-item-price .merchant-shop-unpriced { color: #a4432f; }
+/* The hover pill, without moving the figure. This column is right-aligned against
+   the row's edge, so the editable padding alone would set every price a GM sees a few
+   pixels in from where a player sees it -- the same shop, drawn two ways. */
+.merchant-shop-item-price.merchant-shop-qty-editable { margin-right: -5px; }
 
 /* --- Cart ------------------------------------------------------------- */
 .merchant-shop-cart { padding-top: 0; border-color: color-mix(in srgb, #2f6b33 30%, var(--blacksmith-tool-divider)); }

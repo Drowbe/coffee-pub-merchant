@@ -18,6 +18,7 @@
 // differently is how the next person learns it twice.
 
 import { MODULE } from './const.js';
+import { MerchantManager } from './manager-merchant.js';
 
 /** The sound settings, in the order they appear in the menu. */
 export const SOUND_SETTINGS = Object.freeze([
@@ -78,7 +79,7 @@ export function registerSettings() {
 
     // The choice list can arrive after we register. Rebinding it in place updates the
     // dropdowns without touching anything a GM has already chosen.
-    Hooks.on('blacksmithUpdated', (data) => {
+    MerchantManager.hook('blacksmithUpdated', 'Re-read sound choices when Blacksmith republishes them', (data) => {
         if (data?.type !== 'ready') return;
         const later = soundChoices();
         if (!later || Object.keys(later).length <= 1) return;

@@ -443,3 +443,28 @@
     letter-spacing: 0;
     text-transform: none;
 }
+
+/* --- Restock on one line ----------------------------------------------
+   Method, Frequency and Max stack are one decision made in one glance, so they
+   share a row and wrap rather than squeeze when the window is narrow. Method takes
+   the space it needs because its options are sentences; the other two are short. */
+.merchant-config-restock { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.merchant-config-restock > .merchant-config-row { flex: 0 1 auto; min-width: 0; }
+.merchant-config-restock-method { flex: 1 1 200px; }
+.merchant-config-restock-stack { flex: 0 0 auto; }
+.merchant-config-restock-stack input[type="number"] { width: 86px; }
+.merchant-config-restock select { width: 100%; }
+
+/* A roll table switched off keeps its place and stops contributing, so it reads as
+   present-and-dormant rather than as an error. */
+.merchant-config-table-enabled { margin: 0 4px 0 0; }
+
+/* **Off is quiet, not crossed out.** A strike-through said "deleted" about a row that
+   is merely dormant — and because the checkbox sits inside the name, the line ran
+   through the box as well.
+   Dimming is by colour on the text rather than `opacity` on the row, for the same
+   reason: opacity compounds and cannot be undone by a child, so a dimmed row would
+   dim the one control that switches it back on. The checkbox stays at full strength
+   because it is the way back. */
+.merchant-config-table.is-off .merchant-config-table-name { color: var(--blacksmith-tool-text-muted); }
+.merchant-config-table.is-off .merchant-config-table-controls { opacity: .5; }

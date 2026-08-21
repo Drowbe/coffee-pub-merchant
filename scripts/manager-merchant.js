@@ -18,7 +18,7 @@ import {
 } from './utility-pricing.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
-import { resolveReputation, watchReputation } from './utility-reputation.js';
+import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 
 const CONTEXT = 'merchant-interaction';
@@ -45,7 +45,8 @@ export class MerchantManager {
         this._registerStockWatcher();
         // Every client, because every client is showing prices. Blacksmith emits the
         // change to all of them, so this needs no GM gate and no broadcast of ours.
-        watchReputation(() => {
+        this.hook('blacksmith.partyReputationChanged', 'Reprice open shops when the party\'s standing changes', (data) => {
+            invalidateReputation(data);
             for (const win of ShopWindow.openWindows()) void win.render(false);
         });
     }
@@ -76,7 +77,7 @@ export class MerchantManager {
      * second one's refresh entirely. The coalescing belongs on the broadcast, where it
      * knows what it is merging — see `broadcastActorRefresh`.
      */
-    static _hook(name, description, callback) {
+    static hook(name, description, callback) {
         const manager = globalThis.BlacksmithHookManager;
         if (typeof manager?.registerHook === 'function') {
             return manager.registerHook({ name, description, context: CONTEXT, callback });
@@ -232,7 +233,7 @@ export class MerchantManager {
      * so advancing eight hours at once still lands on the right state.
      */
     static _registerScheduleWatcher() {
-        this._hook('updateWorldTime', 'Open, close and restock shops as the clock moves', () => {
+        this.hook('updateWorldTime', 'Open, close and restock shops as the clock moves', () => {
             if (!game.user.isGM) return;
             void this._onWorldTimeChange();
         });
@@ -770,6 +771,39 @@ export class MerchantManager {
     }
 
     /**
+     * Set what an item is worth, in base units. GM only.
+     *
+     * **The item's own price, not an agreement.** An agreement is one price for one
+     * trade and is cleared when that trade settles; this is what the thing costs, and
+     * it outlives the person standing at the counter. So it is written to
+     * `system.price` — where the item sheet shows it, where a copy dragged out of the
+     * shop carries it, and where every multiplier in `resolvePrice` starts from.
+     *
+     * Stored in **gp** whatever the item arrived in. Base units are copper and writing
+     * 1000 cp for a 10 gp potion would be true and unreadable on the sheet; the
+     * denomination is a display choice, and gp is the one dnd5e prices in.
+     *
+     * `null` clears the price, putting the item back to having none.
+     */
+    static async setListPrice(actor, itemId, base) {
+        if (!game.user.isGM) return null;
+        const item = actor?.items?.get(itemId);
+        if (!item) return null;
+
+        if (base === null) {
+            await item.update({ 'system.price.value': 0 });
+            return { item, base: null };
+        }
+
+        const value = Math.max(0, Number(base) || 0);
+        await item.update({
+            'system.price.value': fromBase(value, 'gp'),
+            'system.price.denomination': 'gp'
+        });
+        return { item, base: value };
+    }
+
+    /**
      * Agree a price for one thing, in base units.
      *
      * **Written to the merchant, not carried in the request.** A price is the one
@@ -855,11 +889,15 @@ export class MerchantManager {
                     // Off by default: a table that fires on every restock adds stock
                     // for ever, and a shop quietly filling up is a worse surprise than
                     // one that needs a switch thrown.
-                    auto: entry.auto === true
+                    auto: entry.auto === true,
+                    // **Absent means on.** A table configured before this existed was
+                    // rolling, and a flag that silently switched off every table in
+                    // every world would be a bad way to introduce a switch.
+                    enabled: entry.enabled !== false
                 }));
         }
         return config.table
-            ? [{ uuid: config.table, rolls: this._rollCount(config.tableRolls), auto: false }]
+            ? [{ uuid: config.table, rolls: this._rollCount(config.tableRolls), auto: false, enabled: true }]
             : [];
     }
 
@@ -891,6 +929,11 @@ export class MerchantManager {
 
     static async setInventoryTableRolls(actor, inventoryId, uuid, rolls) {
         return this._updateInventoryTable(actor, inventoryId, uuid, { rolls: this._rollCount(rolls) });
+    }
+
+    /** Whether a table contributes at all. Off keeps it configured and dormant. */
+    static async setInventoryTableEnabled(actor, inventoryId, uuid, enabled) {
+        return this._updateInventoryTable(actor, inventoryId, uuid, { enabled: Boolean(enabled) });
     }
 
     /** Whether this table also fires when the clock brings a restock round. */
@@ -926,6 +969,9 @@ export class MerchantManager {
 
         const drawn = [];
         for (const entry of this.getInventoryTables(inventory)) {
+            // A table switched off is configured and dormant: it keeps its rolls and
+            // its place, and contributes nothing until it is switched back on.
+            if (!entry.enabled) continue;
             if (automatic && !entry.auto) continue;
             let table = null;
             try {
@@ -1128,6 +1174,7 @@ export class MerchantManager {
 
         let units = 1;
         for (const entry of this.getInventoryTables(inventory)) {
+            if (!entry.enabled) continue;
             if (!force && !entry.auto) continue;
             units += Math.max(0, Math.trunc(Number(entry.rolls) || 0));
         }
@@ -1869,7 +1916,7 @@ export class MerchantManager {
             if (relevant) this.broadcastActorRefresh(actor);
         };
 
-        this._hook('updateItem', 'Redraw shops when their stock is edited outside Merchant', (item, changes) => {
+        this.hook('updateItem', 'Redraw shops when their stock is edited outside Merchant', (item, changes) => {
             // Quantity, name and our own flag are the three that change what a shop
             // window renders. Anything else is an edit to an item that happens to be
             // in a shop.
@@ -1879,10 +1926,10 @@ export class MerchantManager {
                 || changes?.flags?.[MODULE.ID] !== undefined;
             if (touches) react(item);
         });
-        this._hook('createItem', 'Redraw shops when stock is added outside Merchant', (item) => react(item));
+        this.hook('createItem', 'Redraw shops when stock is added outside Merchant', (item) => react(item));
         // On delete the item is already off the Actor, so `getInventoryFor` cannot see
         // where it was. The container id is still on the document being removed.
-        this._hook('deleteItem', 'Redraw shops when stock is removed outside Merchant', (item) => {
+        this.hook('deleteItem', 'Redraw shops when stock is removed outside Merchant', (item) => {
             if (!game.user.isGM) return;
             const actor = item?.parent;
             if (!actor?.items || !this.isMerchant(actor)) return;
@@ -1892,7 +1939,7 @@ export class MerchantManager {
 
     static _registerRefreshListener() {
         // A user who disconnects should not leave a face standing in the shop.
-        this._hook('userConnected', 'Drop a departing user from every shop room', (user, connected) => {
+        this.hook('userConnected', 'Drop a departing user from every shop room', (user, connected) => {
             if (!connected) ShopWindow.dropUser(user.id);
         });
 

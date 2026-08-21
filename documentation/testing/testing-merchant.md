@@ -978,3 +978,48 @@ is testable: if the op did not register, nothing can be bought or sold at all.
 17. Two merchants changed at once both redraw — coalescing merges per merchant and must not lose either.
 18. Nothing in the shop or settings windows looks unstyled: thirty-four dead CSS rules were removed, and a
     mistake there would show as a control losing its box or its colour.
+
+### 21e. Restock row, table switches, and the reputation sentence
+
+19. The shop card reads as a sentence: *"Your reputation in this area is **Known**, so you get a **3%
+    benefit** on pricing."*
+20. Method, Frequency and Max stack sit on **one row**, and wrap rather than squeeze when the window is
+    narrowed. Frequency is absent unless the method restocks.
+21. **Max stack now appears on a "Never runs out" inventory that has a roll table** — it was hidden there,
+    while still quietly capping every roll. On an unlimited inventory with no table it stays hidden, because
+    then it genuinely cannot act.
+22. Its explanation is a tooltip rather than a line of text, and says something different on an unlimited
+    inventory than on a counted one.
+23. Click into a **Draw** box: the current value is selected, so typing replaces it.
+24. Type `0` into Draw and tab away. It becomes `1` — a table that draws nothing is not a table, and the
+    clamp has always been there; this only makes it reachable by typing.
+25. **Uncheck a roll table.** It stays on the inventory, its name and controls quieten but the checkbox stays crisp, it keeps its Draw count,
+    and contributes nothing to a restock. Check it again and it works as before.
+26. Restock an inventory with one table switched off: the progress bar counts only the tables that will
+    actually roll.
+
+### 21f. Setting a price from the shelf, and selling with a card
+
+27. Put an item with **no price** on a general inventory (a rolled table result often is one; `system.price`
+    at 0 is the case). The row reads **no price** and its `+` is disabled — this is the state that used to
+    have no way out, because the row cannot reach the slate to be priced there.
+28. **Double-click that cell** as a GM. An empty box opens with a `gp` placeholder. Type `25`, press Enter.
+    The row prices, the `+` enables, and the item sheet shows 25 gp — it is the item's own price, not an
+    agreement, so it does not vanish when the trade settles.
+29. Double-click a **priced** row. The box opens showing the item's **own** price, not the marked-up figure
+    on the shelf. Press Enter without changing it and the shelf price is unchanged — pressing Enter must not
+    quietly bake the shop's markup into the item.
+30. Set a price on a row in an inventory with a markup, and confirm the shelf figure is your number times
+    that markup, times the shop's Global Markup, times the market and standing.
+31. Escape abandons; clearing the box and pressing Enter puts the row back to **no price**.
+32. As a **player**, the same cell does nothing and its tooltip says only that there is no price set — no
+    editing affordance, no cursor change.
+33. On an **unpriced (negotiate) inventory** the cell still reads *negotiate* and is not editable for anyone.
+    A list price there would be written and then ignored.
+34. Prices set this way reach other clients: a second browser sees the row price without a reload.
+35. **Switch to selling.** Hover an item's **name or image** in your own pack — dnd5e's item card appears,
+    exactly as it does on the buying side. It did not before.
+36. As a GM in sell mode, **click the image** of a pack row. The shopper's item sheet opens — not the
+    merchant's, and not nothing.
+37. The price column lines up identically for a GM and for a player. The editable cell must not shift the
+    figure in from the row's edge.

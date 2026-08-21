@@ -97,16 +97,14 @@ export async function reputationLabel(scene, enabled) {
 }
 
 /**
- * Follow reputation changes.
+ * Drop what we cached when the party's standing changes.
  *
  * Blacksmith emits on **every** client whenever the value changes, however it was
  * changed — it rides Foundry's `updateSetting` rather than their setter — so this is
- * the whole of keeping up to date: drop the cache and let the caller redraw.
+ * the whole of keeping up to date. The manager owns the registration, so every hook
+ * this module has is in one place and disposable — see `MerchantManager.hook`.
  */
-export function watchReputation(onChange) {
-    Hooks.on('blacksmith.partyReputationChanged', (data) => {
-        if (data?.sceneId) _cache.delete(data.sceneId);
-        else _cache.clear();
-        onChange?.(data);
-    });
+export function invalidateReputation(data) {
+    if (data?.sceneId) _cache.delete(data.sceneId);
+    else _cache.clear();
 }

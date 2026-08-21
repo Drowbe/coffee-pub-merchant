@@ -17,7 +17,7 @@
 {{!-- `data-search` is built in the context rather than read back out of the
       markup: the filter then never depends on what the row happens to render, and
       matching stays a substring test on a string that is already lowercased. --}}
-<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}{{#if reserved}} is-reserved{{/if}}" data-item-id="{{id}}"
+<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}{{#if reserved}} is-reserved{{/if}}" data-item-id="{{id}}" data-owner="{{owner}}"
      data-search="{{searchKey}}">
     <img src="{{img}}" alt="">
 
@@ -40,7 +40,14 @@
         </div>
     {{/if}}
 
-    <div class="merchant-shop-item-price">
+    {{!-- **The cell carries the editor, not the figure in it.** An unpriced row has no
+          figure to double-click, and that is precisely the row that most needs one:
+          without a price it cannot go on the slate, so the slate's own price control
+          can never be reached. GM only, and the same double-click as the quantity
+          beside it. --}}
+    <div class="merchant-shop-item-price{{#if canPrice}} merchant-shop-qty-editable{{/if}}"
+         {{#if canPrice}}data-edit-list-price="{{id}}" data-price-each="{{priceEach}}"
+         data-tooltip="{{listPriceTooltip}}"{{/if}}>
         {{!-- A negotiate inventory is checked *first*, before any figure. Once a price has
               been agreed `priceLabel` would otherwise have something in it, and showing
               it here would publish a private agreement to the next player who opened
@@ -52,7 +59,8 @@
         {{else if priceLabel}}
             <strong>{{priceLabel}}</strong>
         {{else}}
-            <em class="merchant-shop-unpriced" data-tooltip="Set a price, or move it to a negotiate inventory">no price</em>
+            <em class="merchant-shop-unpriced"
+                {{#unless canPrice}}data-tooltip="This has no price set"{{/unless}}>no price</em>
         {{/if}}
     </div>
 

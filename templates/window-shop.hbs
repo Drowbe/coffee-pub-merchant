@@ -132,8 +132,10 @@
                     {{#if reputationLine}}
                         <div class="merchant-shop-reputation" data-tooltip="{{reputationTooltip}}">
                             <i class="fa-solid fa-hand-holding-heart"></i>
-                            <span>Your reputation in this area</span>
-                            <strong>{{reputationLine}}</strong>
+                            <span>
+                                Your reputation in this area is <strong>{{reputationBand}}</strong>,
+                                so you get a <strong>{{reputationEffect}}</strong> on pricing.
+                            </span>
                         </div>
                     {{/if}}
                 </section>

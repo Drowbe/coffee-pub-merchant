@@ -311,11 +311,27 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         for (const input of this.element?.querySelectorAll('[data-inventory-table-rolls]') ?? []) {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
+            // Select on focus, because these are two-character values that are always
+            // replaced rather than edited: clicking in and typing should give you the
+            // number you typed, not the one you typed appended to the old one.
+            input.addEventListener('focus', () => input.select());
             input.addEventListener('change', (event) => {
                 void this._setTableRolls(
                     input.getAttribute('data-inventory-table-rolls'),
                     input.getAttribute('data-table-uuid'),
                     event.target.value
+                );
+            });
+        }
+
+        for (const box of this.element?.querySelectorAll('[data-inventory-table-enabled]') ?? []) {
+            if (box.dataset.merchantBound === 'true') continue;
+            box.dataset.merchantBound = 'true';
+            box.addEventListener('change', (event) => {
+                void this._setTableEnabled(
+                    box.getAttribute('data-inventory-table-enabled'),
+                    box.getAttribute('data-table-uuid'),
+                    event.target.checked
                 );
             });
         }
@@ -902,6 +918,26 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
+    /**
+     * Switch a table on or off without removing it.
+     *
+     * A table a shop uses in autumn and not in spring should not have to be deleted
+     * and dragged back, losing its roll count on the way.
+     */
+    async _setTableEnabled(inventoryId, uuid, enabled) {
+        const actor = await this._resolveActor();
+        if (!actor || !uuid) return;
+        try {
+            await MerchantManager.setInventoryTableEnabled(actor, inventoryId, uuid, enabled);
+            MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not switch that table:`, error);
+            notify.error('Could not switch that table.');
+        }
+        await this.render(false);
+    }
+
     async _setTableRolls(inventoryId, uuid, value) {
         const actor = await this._resolveActor();
         if (!actor || !uuid) return;
@@ -1087,6 +1123,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // the shop window; `maxProducts` only ever trimmed a table roll,
                     // which the roll count already bounds, so it is a constant now.
                     countable: policy !== STOCK.INFINITE,
+                    // **Shown wherever it can act, which is not only where stock is
+                    // counted.** `maxPerItem` clamps three things: the restock target,
+                    // a quantity a GM types in the shop window, and how deep a table
+                    // roll stacks a row — and that last one applies whatever the
+                    // method, including "never runs out". Keying the control off
+                    // `countable` alone hid a limit that was still quietly capping
+                    // every roll on an unlimited inventory.
+                    showMaxStack: policy !== STOCK.INFINITE || tables.length > 0,
+                    maxStackTooltip: policy === STOCK.INFINITE
+                        ? 'The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.'
+                        : 'The most of any one item this inventory will hold — a table roll, and a quantity you type in the shop window.',
                     maxPerItem: limits.maxPerItem,
 
                     tables: tables.map((entry) => ({
@@ -1096,6 +1143,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         name: this._tableName(entry.uuid) ?? 'Missing table',
                         rolls: entry.rolls,
                         auto: entry.auto,
+                        // **This mapping is the whole context the template sees**, so a
+                        // field left out of it does not read as absent — it reads as
+                        // false. Omitting `enabled` rendered every table unchecked and
+                        // struck through however many times you clicked it: the write
+                        // landed, the re-render threw the answer away, and the symptom
+                        // was a control that appeared dead.
+                        enabled: entry.enabled,
                         // On the control rather than under it. Five tables meant five
                         // near-identical sentences filling the card.
                         drawTooltip: `How many items to take from this table. `

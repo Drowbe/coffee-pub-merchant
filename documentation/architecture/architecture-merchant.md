@@ -330,6 +330,25 @@ Two constraints shape the implementation, both in `utility-reputation.js`:
   the GM's client. A GM answering a request from another map must not price the shop differently from the
   players standing in it.
 
+### The list price, and where a GM sets it
+
+`listPriceBase(item)` is the item's own worth in base units — before market, markup or standing — and it is
+the single reading of `system.price` in the module. `resolvePrice` multiplies it; the shelf's price editor
+writes it back. One reading, so the editor cannot open showing a figure the shelf would price differently.
+
+A GM **double-clicks the price on a stock row** to set it, the same gesture as the quantity beside it, and
+`MerchantManager.setListPrice` writes `system.price` in gp. Not an agreement: an agreement is one price for
+one trade and is cleared when that trade settles, where this is what the thing costs and outlives whoever is
+standing at the counter. It shows on the item sheet, and a copy dragged out of the shop carries it.
+
+**An unpriced row is why the editor is on the cell rather than the figure.** A row with no price cannot go on
+the slate — `canCart` requires one — so the slate's own price control could never be reached, and an item
+that arrived without a price was stuck with no way at all to give it one. The cell carries the editor so
+there is something to double-click when there is no figure to double-click.
+
+Not offered on an **unpriced inventory**: having no list price is what that inventory is for, `resolvePrice`
+returns `null` there whatever `system.price` says, and the figure would be written and then ignored.
+
 ### Negotiation
 
 A GM double-clicks the price on any slate line and names it. The figure is written to the **merchant

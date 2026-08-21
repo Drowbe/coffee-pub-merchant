@@ -324,6 +324,26 @@ function rate(value, fallback = 1) {
  * @returns {number|null} null when the item has no price at all — a configuration gap
  *   on a priced inventory, and deliberate on an unpriced one.
  */
+/**
+ * What the item itself says it is worth, in base units, or null.
+ *
+ * The number **before** anywhere and anyone: no market, no markup, no standing. It is
+ * what `resolvePrice` multiplies and what the GM's price editor writes back, and
+ * having one reading of the field means the editor cannot open showing a figure that
+ * the shelf would then price differently.
+ *
+ * Null rather than 0 for "unpriced": dnd5e leaves `price.value` at 0 on anything
+ * nobody has valued, so 0 is the absence of a price rather than a price of nothing.
+ * A GM who means free can still agree 0 as a price — that is a decision, and it is
+ * recorded somewhere that can tell the two apart.
+ */
+export function listPriceBase(item) {
+    const price = item?.system?.price;
+    const value = Number(price?.value);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return toBase(value, price?.denomination ?? 'gp');
+}
+
 export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
     // An agreed price wins outright, which is what makes it agreed. Nothing is applied
     // on top: a haggled number is the number, not the start of an arithmetic.
@@ -336,9 +356,8 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
     // as not to have one.
     if (isUnpriced(inventoryConfig?.type)) return null;
 
-    const price = item?.system?.price;
-    const value = Number(price?.value);
-    if (!Number.isFinite(value) || value <= 0) return null;
+    const worth = listPriceBase(item);
+    if (worth === null) return null;
 
     // A purchased inventory resells at its own Sell Rate, which is an ordinary markup
     // and is read here like any other. It used to be skipped, because one number did
@@ -349,7 +368,7 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
         * rate(inventoryConfig?.markup)
         * rate(reputation);
 
-    return Math.max(1, Math.round(toBase(value, price?.denomination ?? 'gp') * total));
+    return Math.max(1, Math.round(worth * total));
 }
 
 /**

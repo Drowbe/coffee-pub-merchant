@@ -5,7 +5,7 @@ import {
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
-    negotiatedPrice
+    negotiatedPrice, listPriceBase
 } from './utility-pricing.js';
 import { isPhysical } from './utility-inventory.js';
 import { resolveReputation, reputationLabel } from './utility-reputation.js';
@@ -307,9 +307,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!enabled || this._reputation === 1) {
             this._reputationLine = null;
             this._reputationTooltip = null;
+            this._reputationBand = null;
+            this._reputationEffect = null;
         } else {
             const percent = Math.round(Math.abs(1 - this._reputation) * 100);
             const effect = this._reputation < 1 ? `${percent}% benefit` : `${percent}% penalty`;
+            // Written as a sentence rather than a label and a value. It is a fact
+            // about this party in this place, and a fact reads as prose; "Known ·
+            // 3% benefit" is a row in a table about something else.
+            this._reputationBand = band;
+            this._reputationEffect = effect;
             this._reputationLine = band ? `${band} · ${effect}` : effect;
             this._reputationTooltip = this._reputation < 1
                 ? 'You are thought well of here, so this shop treats you better — on what you buy and on what it pays you.'
@@ -603,6 +610,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     priceLabel: offer === null ? null : formatBase(offer),
                     isUnpricedInventory: offer === null,
                     negotiateTooltip: null,
+                    // Whose item this is. Two Actors put rows through the same partial
+                    // and nothing else in the markup tells them apart, so the hover
+                    // card and the GM's click-to-open both looked the wrong one up.
+                    owner: 'shopper',
+                    // What the shop offers is arithmetic on what the thing is worth,
+                    // not a figure anyone types. Setting it here would be editing the
+                    // shopper's own item on the shop's screen.
+                    canPrice: false,
                     qtyLabel: String(left),
                     qtyTooltip: promised
                         ? `${held} carried, ${promised} already on the slate`
@@ -1357,6 +1372,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     const allInCart = out && held > 0;
                     // Refused on the GM too; this is the honest path, not the guard.
                     const inStock = !out;
+                    // What the item itself says it is worth, which is what the price
+                    // editor writes and reads. `price` above is that number after
+                    // market, markup and standing have been applied.
+                    const listPrice = listPriceBase(item);
 
                     return {
                         id: item.id,
@@ -1364,6 +1383,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         name: item.name,
                         img: item.img,
                         typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                        owner: 'merchant',
                         // Name and kind both, so "potion" finds a Potion of Healing
                         // and "consumable" finds the whole category.
                         searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
@@ -1397,6 +1417,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // A GM sets the count by hand here, and that also sets what a
                         // restocking inventory refills to.
                         canEditStock: isGM && !stock.unlimited,
+                        // **A GM names the list price here.** Not on an unpriced
+                        // inventory: having no list price is what that inventory is
+                        // for, and the figure would be written and then ignored.
+                        canPrice: isGM && !isUnpricedInventory,
+                        // The item's **own** price, not the marked-up one on the row.
+                        // Prefilling the shelf price would mean opening the editor and
+                        // pressing Enter quietly baked this shop's markup into the item.
+                        priceEach: listPrice === null ? '' : fromBase(listPrice, 'gp'),
+                        listPriceTooltip: price === null
+                            ? 'No price set — double-click to name one'
+                            : 'Double-click to set what this is worth, before markup',
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         // A disabled button with no reason on it is the thing
@@ -1406,7 +1437,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                             : !trading ? 'The shop is closed'
                             : !recipient ? 'You have no character able to buy'
                             : (price === null && isUnpricedInventory) ? 'Add to the slate and agree a price'
-                            : price === null ? 'This has no price set'
+                            : price === null ? (isGM
+                                ? 'This has no price set — double-click the price to name one'
+                                : 'This has no price set')
                             : 'Add to the slate',
                         // A negotiate row has no price *yet*, which is not the same
                         // as having none. It goes on the slate at TBD and settling
@@ -1488,6 +1521,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // in the settings window. Absent when the shop has not opted in, or when
             // the standing is neutral and there is nothing to report.
             reputationLine: this._reputationLine,
+            reputationBand: this._reputationBand,
+            reputationEffect: this._reputationEffect,
             reputationTooltip: this._reputationTooltip,
             // Anyone *else* with lines on a slate here. Excludes the current character,
             // who is already named beside them, and anyone with nothing on the go --
@@ -1689,7 +1724,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         // Below here is GM-only. Quantity editing is bound for everyone, because a
         // slate line belongs to whoever is shopping; only the shop's own stock cells
-        // carry `data-edit-stock`, and only a GM is given those.
+        // carry `data-edit-stock` and `data-edit-list-price`, and only a GM is given
+        // those -- and `setStockQuantity` and `setListPrice` refuse anyone else besides.
         if (!game.user.isGM) return;
 
         this._bindItemSheets();
@@ -1768,8 +1804,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         };
 
         for (const row of root.querySelectorAll('.merchant-shop-item[data-item-id]')) {
-            const item = merchant?.items?.get(row.dataset.itemId);
-            decorate([row.querySelector('.merchant-shop-item-copy strong'), row.querySelector('img')], item);
+            // **The row says whose it is.** Selling puts the shopper's own pack through
+            // this same markup, and looking every row up on the merchant meant a pack
+            // row resolved to nothing and got no card at all.
+            const owner = row.dataset.owner === 'shopper' ? shopper : merchant;
+            const name = row.querySelector('.merchant-shop-item-copy strong');
+            decorate([name, row.querySelector('img')], owner?.items?.get(row.dataset.itemId),
+                name?.textContent?.trim());
         }
 
         for (const line of root.querySelectorAll('.merchant-shop-cart-line[data-item-id]')) {
@@ -1817,7 +1858,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             img.dataset.merchantBound = 'true';
             img.classList.add('merchant-shop-openable');
 
-            const fromBasket = row.querySelector('[data-line-side]')?.getAttribute('data-line-side') === 'basket';
+            // A slate line says which side it is on; a stock row says whose it is.
+            // Both mean the same thing here: is this the shopper's or the shop's.
+            const fromBasket = row.dataset.owner === 'shopper'
+                || row.querySelector('[data-line-side]')?.getAttribute('data-line-side') === 'basket';
             img.addEventListener('click', (event) => {
                 // The row underneath is a drop target and the slate line is not a
                 // button, but neither should hear this.
@@ -1868,11 +1912,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * what the committed number is written to.
      */
     _bindQuantityEdits() {
-        const cells = this.element?.querySelectorAll('[data-edit-stock], [data-edit-line], [data-edit-price]') ?? [];
+        const cells = this.element?.querySelectorAll(
+            '[data-edit-stock], [data-edit-line], [data-edit-price], [data-edit-list-price]'
+        ) ?? [];
         for (const cell of cells) {
             if (cell.dataset.merchantBound === 'true') continue;
             cell.dataset.merchantBound = 'true';
-            const price = cell.hasAttribute('data-edit-price');
+            const price = cell.hasAttribute('data-edit-price') || cell.hasAttribute('data-edit-list-price');
             cell.addEventListener('dblclick', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1932,7 +1978,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _beginPriceEdit(cell) {
         if (this.busy || cell.querySelector('input')) return;
-        const value = cell.querySelector('strong');
+        // `em` as well as `strong`: an unpriced row reads "no price" in em, and it is
+        // the one row where this gesture matters most.
+        const value = cell.querySelector('strong, em');
         if (!value) return;
 
         const input = document.createElement('input');
@@ -1968,11 +2016,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     async _commitPrice(cell, gold) {
-        const itemId = cell.getAttribute('data-edit-price');
+        const listId = cell.getAttribute('data-edit-list-price');
+        const itemId = listId ?? cell.getAttribute('data-edit-price');
         if (!itemId) return;
         const token = await this._resolveToken();
         const merchant = token?.actor;
         if (!merchant) return;
+
+        // **Two different questions, told apart by which cell was double-clicked.** On
+        // a shelf it is what the thing costs, which stays on the item. On a slate line
+        // it is what these two have agreed for this trade, which is cleared when the
+        // trade settles.
+        if (listId) {
+            try {
+                await MerchantManager.setListPrice(merchant, listId, gold === null ? null : toBase(gold, 'gp'));
+                playFeedback(SOUND.SLATE_UPDATE);
+                MerchantManager.broadcastActorRefresh(merchant);
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not set that price:`, error);
+                notify.error('Could not set that price.');
+            }
+            return;
+        }
 
         // Which way the money runs decides which agreement this is. What the shop
         // charges for its own goods and what it will pay for one of yours are two

@@ -247,8 +247,13 @@
                         <div class="merchant-config-inv-group">
                             <h4>Restock</h4>
                             {{#if canRoll}}
-                                <div class="merchant-config-grid">
-                                    <label class="merchant-config-row">
+                                {{!-- One row: what happens, how often, and how deep it
+                                      stacks are one decision made in one glance. They
+                                      wrap when the window is narrow rather than
+                                      squeezing, and Frequency is simply absent on a
+                                      method that has no cadence. --}}
+                                <div class="merchant-config-restock">
+                                    <label class="merchant-config-row merchant-config-restock-method">
                                         <span class="merchant-config-label">Method</span>
                                         <select data-inventory-stock="{{id}}">
                                             {{#each stockOptions}}
@@ -268,13 +273,13 @@
                                         </label>
                                     {{/if}}
 
-                                    {{#if countable}}
-                                        <label class="merchant-config-row">
+                                    {{#if showMaxStack}}
+                                        <label class="merchant-config-row merchant-config-restock-stack"
+                                               data-tooltip="{{maxStackTooltip}}">
                                             <span class="merchant-config-label">Max stack</span>
                                             <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
                                                    data-inventory-max-per-item="{{id}}"
                                                    aria-label="Maximum quantity of any one item">
-                                            <small class="merchant-config-hint">The most of any one item this inventory will hold.</small>
                                         </label>
                                     {{/if}}
                                 </div>
@@ -297,9 +302,18 @@
                                                   prose under every row: five tables
                                                   meant five sentences saying almost the
                                                   same thing. --}}
-                                            <div class="merchant-config-row merchant-config-row-inline merchant-config-table">
+                                            <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#unless enabled}} is-off{{/unless}}">
                                                 <span class="merchant-config-label merchant-config-table-name"
                                                       data-tooltip="{{name}}">
+                                                    {{!-- Off keeps the table and its
+                                                          settings and simply stops it
+                                                          contributing — a seasonal
+                                                          table should not have to be
+                                                          removed and re-dropped. --}}
+                                                    <input type="checkbox" class="merchant-config-table-enabled"
+                                                           data-inventory-table-enabled="{{../id}}"
+                                                           data-table-uuid="{{uuid}}" {{#if enabled}}checked{{/if}}
+                                                           aria-label="Use this table">
                                                     <i class="fa-solid fa-dice-d20"></i> {{name}}
                                                 </span>
                                                 <div class="merchant-config-table-controls">
