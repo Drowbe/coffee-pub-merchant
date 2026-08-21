@@ -256,6 +256,27 @@ export class MerchantManager {
      * Only gold, so a shop with mixed coin does not lose its silver to a round number
      * typed in a settings box.
      */
+    static async setTillCoin(actor, denomination, amount) {
+        if (!game.user.isGM || !actor || !denomination) return null;
+        const value = Math.max(0, Math.trunc(Number(amount) || 0));
+
+        // Only the named coin is written, which is what makes a five-box till safe:
+        // editing the silver leaves the gold exactly where it was, and `setCurrency`
+        // writes only the denominations it is handed.
+        if (hasSetCurrency()) {
+            const result = await setCurrency({ targetActorUuid: actor.uuid, currency: { [denomination]: value } });
+            if (!result?.ok) {
+                console.error(`${MODULE.TITLE} | Could not set the till on ${actor.name}:`, result);
+                return null;
+            }
+            return actor;
+        }
+
+        await actor.update({ [`system.currency.${denomination}`]: value });
+        return actor;
+    }
+
+    /** @deprecated Kept for the gold-only call sites; `setTillCoin` is the general one. */
     static async setTillGold(actor, gold) {
         if (!game.user.isGM || !actor) return null;
         const value = Math.max(0, Math.trunc(Number(gold) || 0));

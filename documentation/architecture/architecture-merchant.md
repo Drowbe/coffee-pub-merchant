@@ -34,6 +34,12 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/settings.js` | The six sound settings, and nothing else. |
 | `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
+**Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
+stylesheet `module.json` names, so it is the door; `window-shop.css`, `window-merchant-config.css` and
+`dialog.css` are the rooms, each named after what renders it. The same shape Curator and Squire use. When
+two windows genuinely share a component it goes in a `common.css` imported first, so a window can override
+it — there is nothing shared enough to warrant one yet.
+
 `utility-pricing.js` and the schedule half of `const.js` are the only modules with no Foundry documents in
 them, which is exactly why they are the parts `tests/` can cover.
 
@@ -232,10 +238,38 @@ than about the inventory.
 
 Any rate that is zero, negative or unparseable is read as 1. A price of nothing is never what a typo meant.
 
-`resolveBuybackPrice` is the mirror with two differences that matter. It reads a share of what the item is
-**worth** — the global markup is blanked before it computes — because a shop in a dear quarter does not pay
-more for your old sword. And reputation is applied **inverted**: the standing that buys you a discount gets
-you more for your goods, or a beloved party is rewarded in one direction and ignored in the other.
+`resolveBuybackPrice` is the mirror. It reads a share of what the item is **worth** — no per-item overrides
+and no *inventory* markup, since what a Premium shelf charges says nothing about what the shop pays for your
+sword — but the **merchant's own markup applies to both sides**. That markup is one dealer's pricing against
+their competitors, so a shop that charges above the going rate is a shop dealing in dearer goods; one that
+marks everything up and then pays the going rate is not a dealer, it is a one-way valve.
+
+Reputation is applied **inverted**: the standing that buys you a discount gets you more for your goods, or a
+beloved party is rewarded in one direction and ignored in the other.
+
+### The two levers, and what each is for
+
+- **Reputation** is the *area's* disposition toward this party. Save a city and its shops treat you well;
+  wreck one and they gouge you. It moves both directions in the party's favour at once.
+- **Global Markup** is *one merchant's* choice against their competitors in the same place.
+
+**Reputation cannot create a trade route, and that is correct.** Because it improves buying and selling
+together, the best place to buy is also the best place to sell, and no pair of areas differing only in
+reputation can turn a profit. What makes a route is a *merchant* who deals dear: buy from one pricing at the
+going rate, sell to one at ×2.00, and the difference between their markups less the second one's spread is
+the margin. Reputation then makes a good route better.
+
+### A shop never pays more than it charges
+
+`MAX_BUYBACK_RATIO` (0.95) clamps every offer to a fraction of what that same inventory would resell the
+item for. **This is the guard against a gold machine and it has to be in code.**
+
+Sell an item and buy it back and the merchant's markup cancels, leaving `buyRate / rep²` — reputation twice,
+because it makes buying cheaper *and* selling dearer. A beloved party at a generous merchant pushes that
+above 1, and the round trip profits, and repeats. Capping `buyRate` cannot fix it: the safe ceiling moves
+with reputation, so a fixed limit is either too tight for a neutral town or too loose for a beloved one.
+`tests/test-pricing.mjs` sweeps 300 combinations of the three rates and asserts the shop always charges more
+than it pays.
 
 The purchased type carries both halves of that: `buyRate` is what it pays, `markup` is what it then charges.
 They used to be one number, and `resolvePrice` had to refuse to read it or a shop buying at half price would

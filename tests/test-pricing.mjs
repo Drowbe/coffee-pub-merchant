@@ -187,11 +187,51 @@ assert.strictEqual(
     P.resolveBuybackPrice({ pricing: { buybackOverrides: { a: 900 } } }, BUYBACK, item('a', 50), { reputation: 0.5 }),
     900, 'nor an agreed buyback');
 
-// What the shop pays is a share of what the thing is *worth*, never of what this
-// shop charges for it: a dear quarter does not raise what your old sword fetches.
-assert.strictEqual(P.resolveBuybackPrice(DEAR, BUYBACK, item('a', 50)), 2500,
-    'the shop baseline does not move what it pays');
 console.log('ok  reputation, both directions');
+
+// --- two levers, two scopes ----------------------------------------------
+// **Reputation is the area's disposition; markup is one merchant's choice.** Both
+// apply to buying and to selling, or a merchant becomes a one-way valve: marking
+// everything up while paying the going rate.
+assert.strictEqual(P.resolveBuybackPrice(DEAR, BUYBACK, item('a', 50)), 3000,
+    'a merchant who charges 1.2x also pays 1.2x');
+assert.strictEqual(P.resolvePrice(DEAR, SALE, item('a', 50)), 6000, 'and still charges it');
+
+// **A shop never pays more than it charges, and that is what stops a gold machine.**
+// The real loop is: sell a sword to a merchant, then buy it back off the inventory it
+// landed on. The merchant's markup cancels, leaving `buyRate / rep²` — reputation
+// twice, because it makes buying cheaper *and* selling dearer — which a generous
+// merchant in a beloved town can push above 1. Held by a clamp rather than by
+// tuning, so no combination of the three rates can open it.
+for (const markup of [0.5, 1, 1.2, 2, 3]) {
+    for (const invMarkup of [0.5, 1, 1.5]) {
+        for (const rep of [0.85, 0.9, 1, 1.15, 1.3]) {
+            for (const buyRate of [0.1, 0.5, 0.9, 1.5]) {
+                const shop = { pricing: { markup } };
+                const inv = { type: 'purchased', markup: invMarkup, buyRate };
+                const paidToYou = P.resolveBuybackPrice(shop, inv, item('a', 50), { reputation: rep });
+                const chargedBack = P.resolvePrice(shop, inv, item('a', 50), { reputation: rep });
+                assert.ok(paidToYou < chargedBack,
+                    `pays ${paidToYou} but charges ${chargedBack} `
+                    + `(shop ${markup}, inv ${invMarkup}, rep ${rep}, rate ${buyRate})`);
+            }
+        }
+    }
+}
+console.log('ok  no round trip at one merchant can turn a profit');
+
+// **Trade between merchants is possible, which is the point.** Buy from a merchant
+// pricing at the going rate, sell to one who deals dear — the profit is the
+// difference between their two markups, less the second one's spread.
+const iowa = { pricing: { markup: 1 } };
+const california = { pricing: { markup: 2 } };
+const generous = { type: 'purchased', markup: 2, buyRate: 0.6 };
+const boughtFor = P.resolvePrice(iowa, SALE, item('a', 100));
+const soldFor = P.resolveBuybackPrice(california, generous, item('a', 100));
+assert.strictEqual(boughtFor, 10000, 'bought at the going rate');
+assert.strictEqual(soldFor, 12000, 'sold where goods are dear');
+assert.ok(soldFor > boughtFor, 'a trade route exists');
+console.log('ok  buying cheap and selling dear turns a profit');
 
 // The purchased type's two rates are independent, which is the whole reason there
 // are two: what the shop hands over is not what it asks for the thing afterwards.

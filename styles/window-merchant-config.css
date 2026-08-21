@@ -1,0 +1,386 @@
+/* ==================================================================
+   COFFEE PUB MERCHANT — Merchant Settings
+   ================================================================== */
+
+/* One shared thumbnail treatment, in two forms.
+ *
+ * The wrapper form below is for a portrait that must fill a fixed box whatever its
+ * aspect ratio. The bare-image form after it is for artwork sitting inline, where a
+ * wrapper would be markup for nothing.
+ *
+ * Both frame the image, and they have to: these are photographic webp assets, not
+ * the flat monochrome `icons/svg` set they replaced. A line-art glyph looks
+ * deliberate unframed; a photograph of a crate looks like a mistake. The backing
+ * fill matters as much as the border, because container artwork is often
+ * transparent and loses its edges against the panel. */
+.merchant-shop-subject-image,
+.merchant-shop-actor-image,
+.merchant-config-image { overflow: hidden; border: 1px solid var(--blacksmith-tool-border); border-radius: 6px; box-shadow: 0 2px 7px rgba(0,0,0,.22); }
+.merchant-shop-subject-image > img,
+.merchant-shop-actor-image > img,
+.merchant-config-image > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
+.merchant-config-image { width: 48px; height: 48px; flex: 0 0 48px; }
+
+/* --- Configuration window ------------------------------------------- */
+.merchant-config-content { display: flex; flex-direction: column; gap: 10px; padding: 8px; color: var(--blacksmith-tool-text); }
+.merchant-config-section { padding: 10px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
+.merchant-config-subject { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 11px; align-items: center; }
+.merchant-config-copy { min-width: 0; }
+.merchant-config-kicker { color: var(--blacksmith-tool-accent); font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.merchant-config-title { font-size: 1.0rem; font-weight: 700; }
+.merchant-config-toggle { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: start; cursor: pointer; }
+.merchant-config-toggle small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .7rem; }
+
+/* --- Configuration: inventories ------------------------------------------ */
+.merchant-config-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; }
+.merchant-config-section > h3 > span:first-child { display: inline-flex; gap: 7px; align-items: center; }
+.merchant-config-count { min-width: 20px; padding: 1px 6px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .66rem; text-align: center; }
+
+.merchant-config-inventory-actions { display: flex; gap: 4px; align-items: center; }
+.merchant-config-icon-btn { min-height: 26px; margin: 0; padding: 2px 8px; }
+.merchant-config-remove:hover { border-color: #a4432f; color: #a4432f; }
+.merchant-config-icon-btn i { margin: 0; }
+
+.merchant-config-empty { padding: 6px 3px; color: var(--blacksmith-tool-text-muted); font-size: .74rem; font-style: italic; text-align: center; }
+
+.merchant-config-hours { display: flex; flex-direction: column; gap: 8px; }
+
+.merchant-config-hours-note { color: #a4432f; font-size: .68rem; }
+.merchant-config-markup { display: grid; grid-template-columns: minmax(0,1fr) 82px; gap: 10px; align-items: center; }
+.merchant-config-markup small { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
+.merchant-config-markup input { width: 100%; padding: 4px 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-variant-numeric: tabular-nums; text-align: center; }
+
+/* --- Merchant Settings, resizable -------------------------------------- */
+/* Height stays `auto` so it opens fitted to its content; dragging the handle
+   sets a real height from there. The chain below is what makes that shrink into
+   a scroll rather than a clip — each level has to give up min-height: auto, or
+   a flex child refuses to be smaller than its content and the overflow never
+   engages. Same three rules as the shop window, for the same reason. */
+.merchant-config-window .window-content { min-height: 0; overflow: hidden; }
+.merchant-config-window .blacksmith-window-tool-root { min-height: 0; max-height: 100%; }
+.merchant-config-window .blacksmith-window-tool-body { min-height: 0; overflow: auto; }
+
+/* --- Settings: handles, fields, and the inventory menu ---------------------- */
+
+/* Open is green and close is red, on the handles themselves. The band between
+   them says the same thing, but a 4px bar of dark green over a sunken track is
+   nearly invisible on the light themes -- so the colour that has to read is on
+   the thing you grab. The band is thicker and lighter here for the same reason. */
+
+/* A select needs room for its longest option; the 82px column is sized for the
+   markup's number input and squeezed "Runs out, refills" into an ellipsis. */
+.merchant-config-field { grid-template-columns: minmax(0,1fr) 180px; }
+.merchant-config-field select { width: 100%; height: 28px; padding: 0 6px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .76rem; }
+
+/* The policy select takes what it needs and the rest is pushed right, so an
+   inherited label no longer wraps into two lines beside a full-width control. */
+
+.merchant-config-head-actions { display: inline-flex; gap: 7px; align-items: center; }
+.merchant-config-inventory-add { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .6rem; cursor: pointer; }
+.merchant-config-inventory-add:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+
+/* --- Shop description --------------------------------------------------- */
+.merchant-config-description { display: flex; flex-direction: column; gap: 6px; }
+.merchant-config-description textarea { width: 100%; min-height: 62px; padding: 6px 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .78rem; line-height: 1.45; resize: vertical; }
+.merchant-config-description textarea:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
+
+/* The till's total sits in the header pill, so the number field below can be just
+   the gold without having to carry the whole purse. */
+.merchant-config-till-total { border-radius: 5px; font-variant-numeric: tabular-nums; }
+
+/* A text field in the settings rows, matching the number ones beside it. */
+.merchant-config-field input[type="text"] { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--blacksmith-tool-field-border, var(--blacksmith-tool-divider)); border-radius: 5px; background: var(--blacksmith-tool-field-background, #fff); color: var(--blacksmith-tool-field-text, inherit); font-family: inherit; font-size: .78rem; }
+.merchant-config-field input[type="text"]:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
+
+/* --- Roll tables on an inventory --------------------------------------------- */
+/* A third line on the inventory row, quiet when empty: most inventories are stocked by
+   hand and should not have to look at a control they will not use. */
+
+/* An inventory can name several tables, so they stack. */
+
+/* Whether a table also delivers on the clock, beside the count it delivers. */
+
+/* The two ceilings, beside the policy they bound. */
+
+/* Said rather than offered: the slider covering the day is what makes it true. */
+/* A label, not a control -- the box around it read as a button to press. */
+.merchant-config-hours-always { color: #2f6b33; font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; }
+.merchant-config-hours-always.is-closed { color: #8a2f2f; }
+
+/* The one main action in Settings, right-justified like the shop's. */
+.merchant-config-restock-all { display: inline-flex; gap: 7px; align-items: center; }
+
+/* ==================================================================
+   TRADING HOURS SLIDER
+   ==================================================================
+   One block. This was fourteen rules spread over three places, several
+   contradicting each other, which is why adjusting it kept not working.
+
+   The thin dark line was never ours: an `input[type=range]` draws its own track,
+   and Foundry styles it. Setting `appearance: none` on the input does not remove
+   that track -- the track pseudo-elements have to be blanked explicitly, and
+   until they were, every change fought a line drawn underneath it.
+
+   The channel is a real bar rather than a hairline, the band fills it exactly,
+   and the handles sit centred on it by an offset that is stated rather than
+   hoped for.
+*/
+.merchant-config-hours-readout { margin-bottom: 7px; font-size: .82rem; }
+.merchant-config-hours-readout strong { font-variant-numeric: tabular-nums; }
+.merchant-config-hours-readout [data-hours-open-label] { color: #2f6b33; }
+.merchant-config-hours-readout [data-hours-close-label] { color: #a4432f; }
+
+/* A band means nothing without the span it sits in, so the day's ends flank it. */
+.merchant-config-hours-row { display: flex; align-items: center; gap: 12px; }
+.merchant-config-hours-bound { flex: 0 0 auto; color: var(--blacksmith-tool-text-muted); font-size: .7rem; font-weight: 600; white-space: nowrap; }
+
+.merchant-config-hours-slider {
+    --merchant-hours-height: 24px;
+    --merchant-hours-bar: 14px;
+    --merchant-hours-thumb: 20px;
+    --merchant-open-bar: #3f8a45;
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: var(--merchant-hours-height);
+}
+
+/* The closed channel, the full width of the day. */
+.merchant-config-hours-slider::before {
+    content: '';
+    position: absolute;
+    top: calc((var(--merchant-hours-height) - var(--merchant-hours-bar)) / 2);
+    right: 0;
+    left: 0;
+    height: var(--merchant-hours-bar);
+    border-radius: 999px;
+    background: #7c332c;
+}
+
+/* The open band, painted between the handles by `paint()`. Exactly the channel's
+   height, so it fills it rather than floating in it. */
+.merchant-config-hours-fill {
+    position: absolute;
+    top: calc((var(--merchant-hours-height) - var(--merchant-hours-bar)) / 2);
+    right: 0;
+    left: 0;
+    height: var(--merchant-hours-bar);
+    border-radius: 999px;
+}
+
+/* Two ranges stacked on one channel, so a single control carries both handles.
+   Transparent throughout: the channel above is what is seen. */
+.merchant-config-hours-slider input[type="range"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--merchant-hours-height);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+/* The line that would not go away. */
+.merchant-config-hours-slider input[type="range"]::-webkit-slider-runnable-track {
+    height: var(--merchant-hours-height);
+    border: 0;
+    background: transparent;
+}
+.merchant-config-hours-slider input[type="range"]::-moz-range-track {
+    height: var(--merchant-hours-height);
+    border: 0;
+    background: transparent;
+}
+.merchant-config-hours-slider input[type="range"]::-moz-range-progress { background: transparent; }
+
+/* Webkit hangs the thumb from the top of the track, so centring is an explicit
+   offset rather than something that happens on its own. Firefox centres it. */
+.merchant-config-hours-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--merchant-hours-thumb);
+    height: var(--merchant-hours-thumb);
+    margin-top: calc((var(--merchant-hours-height) - var(--merchant-hours-thumb)) / 2);
+    border: 1px solid rgba(0, 0, 0, .35);
+    border-radius: 50%;
+    background: #c8a077;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    pointer-events: auto;
+    cursor: grab;
+}
+.merchant-config-hours-slider input[type="range"]::-moz-range-thumb {
+    width: var(--merchant-hours-thumb);
+    height: var(--merchant-hours-thumb);
+    border: 1px solid rgba(0, 0, 0, .35);
+    border-radius: 50%;
+    background: #c8a077;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    pointer-events: auto;
+    cursor: grab;
+}
+.merchant-config-hours-slider input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+.merchant-config-hours-slider input[type="range"]:active::-moz-range-thumb { cursor: grabbing; }
+
+/* --- Inventory types -------------------------------------------------- */
+/* The name is an input that reads as a heading until you touch it: it is the
+   inventory's title, and a boxed field beside a portrait would say "form" when the
+   row is really a card. */
+.merchant-config-inventory-name { width: 100%; padding: 1px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text); font-family: inherit; font-size: .82rem; font-weight: 700; }
+.merchant-config-inventory-name:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }
+.merchant-config-inventory-name:focus { border-color: var(--blacksmith-tool-field-focus-border); background: var(--blacksmith-tool-field-background); outline: none; }
+
+/* The rates sit on their own row, above stock: they are what the type is *for*. */
+.merchant-config-reputation { margin-top: 9px; }
+
+/* Artwork worth the space: it is the one thing on the row read at a glance, and it
+   is a button because clicking it changes it. The pencil sits in the corner and comes
+   up on hover rather than living there permanently. */
+.merchant-config-inventory-art { position: relative; width: 56px; height: 56px; padding: 0; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-sunken); cursor: pointer; overflow: hidden; }
+.merchant-config-inventory-art > img { display: block; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; border: 0; }
+.merchant-config-inventory-art > i { position: absolute; right: 2px; bottom: 2px; padding: 2px 3px; border-radius: 3px; background: var(--blacksmith-tool-scrim); color: var(--blacksmith-tool-text); font-size: .6rem; opacity: 0; transition: opacity .12s; }
+.merchant-config-inventory-art:hover { border-color: var(--blacksmith-tool-accent); }
+.merchant-config-inventory-art:hover > i { opacity: 1; }
+
+/* A rate is a position on a range, so it gets a track. Label, track, readout —
+   the readout last because it is the answer. */
+
+/* ====================================================================
+   MERCHANT SETTINGS — LAYOUT
+   ====================================================================
+   One grid for every setting in this window: label in a fixed column, control in
+   the next, hint beneath the control. Each section used to invent its own
+   arrangement, which is why nothing lined up with anything. */
+
+.merchant-config-grid { display: flex; flex-direction: column; gap: 9px; }
+.merchant-config-row { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: 4px 10px; align-items: center; }
+.merchant-config-row > .merchant-config-label { grid-column: 1; }
+.merchant-config-row > :nth-child(2) { grid-column: 2; min-width: 0; }
+/* The hint sits under the control, not under both: it explains the thing beside
+   it, where a full-width line would read as a note about the section. */
+.merchant-config-row > .merchant-config-hint { grid-column: 2; }
+.merchant-config-row-tall { align-items: start; }
+.merchant-config-row-tall > .merchant-config-label { padding-top: 5px; }
+
+.merchant-config-label { color: var(--blacksmith-tool-text); font-size: .72rem; font-weight: 600; }
+.merchant-config-hint { color: var(--blacksmith-tool-text-muted); font-size: .66rem; line-height: 1.35; }
+
+.merchant-config-row input[type="text"],
+.merchant-config-row input[type="number"],
+.merchant-config-row select,
+.merchant-config-row textarea { width: 100%; min-width: 0; margin: 0; }
+.merchant-config-row input[type="number"] { max-width: 90px; }
+
+/* A note is about its section, so it spans one. */
+.merchant-config-note { margin-top: 7px; padding: 6px 8px; border-left: 2px solid var(--blacksmith-tool-divider); border-radius: 3px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; line-height: 1.4; }
+.merchant-config-note.is-warning { border-left-color: #b07a2a; }
+
+/* The enable toggle lives in the subject card, where the biggest fact belongs. */
+.merchant-config-subject { grid-template-columns: 48px minmax(0,1fr) auto; }
+.merchant-config-enable { display: inline-flex; gap: 7px; align-items: center; padding: 6px 10px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .72rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.merchant-config-enable.is-on { border-color: color-mix(in srgb, #2f6b33 40%, var(--blacksmith-tool-divider)); color: var(--blacksmith-tool-text); }
+.merchant-config-enable-inline { display: flex; margin-top: 9px; }
+
+/* Reputation: three facts, one per line, rather than a paragraph to parse. */
+.merchant-config-facts { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 7px 9px; border-radius: 4px; background: var(--blacksmith-tool-surface-sunken); color: var(--blacksmith-tool-text-muted); font-size: .68rem; }
+.merchant-config-facts strong { color: var(--blacksmith-tool-text); }
+
+/* The till: a box per coin, wrapping, rather than a single gold field that said
+   the other four denominations did not exist. */
+.merchant-config-till { display: flex; flex-wrap: wrap; gap: 8px; }
+.merchant-config-coin { display: flex; flex-direction: column; gap: 3px; }
+.merchant-config-coin-label { color: var(--blacksmith-tool-text-muted); font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; }
+.merchant-config-coin > input { width: 76px; margin: 0; text-align: right; }
+
+/* --- Rate sliders ----------------------------------------------------- */
+/* Value above; track between its two bounds below. Every number the control can
+   express is on screen: where it stands, and how far it goes either way. */
+.merchant-config-rate-body { display: flex; flex-direction: column; gap: 3px; }
+.merchant-config-rate-value { color: var(--blacksmith-tool-text); font-size: .72rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.merchant-config-rate-track { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; align-items: center; }
+.merchant-config-rate-track > input[type="range"] { width: 100%; margin: 0; }
+.merchant-config-rate-bound { color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-variant-numeric: tabular-nums; }
+
+/* --- An inventory as a card ------------------------------------------- */
+.merchant-config-inv { margin-top: 9px; padding: 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-sunken); }
+.merchant-config-inv.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
+.merchant-config-inv-head { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.merchant-config-inv-copy { min-width: 0; }
+.merchant-config-inv-meta { display: block; margin-top: 2px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; }
+.merchant-config-inv-meta em { color: var(--blacksmith-tool-accent); font-style: normal; font-weight: 600; }
+
+/* Group headings inside a card: quieter than a section heading, same shape. */
+.merchant-config-inv-group { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-config-inv-group > h4 { margin: 0 0 7px; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+
+/* Roll tables: the name in the label column, its controls beside it, and what it
+   will actually do spelled out underneath — "rolls" and "reroll" were two words
+   nobody could act on. */
+.merchant-config-table-name { display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-config-table-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.merchant-config-inline { display: inline-flex; gap: 6px; align-items: center; color: var(--blacksmith-tool-text-muted); font-size: .68rem; white-space: nowrap; }
+.merchant-config-inline > input[type="number"] { width: 56px; margin: 0; text-align: center; }
+.merchant-config-inline-check { cursor: pointer; }
+.merchant-config-drop { display: flex; gap: 7px; align-items: center; justify-content: center; margin-top: 7px; padding: 7px; border: 1px dashed var(--blacksmith-tool-divider); border-radius: 4px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; font-style: italic; }
+
+/* Saved: the acknowledgement a window that writes as you type otherwise lacks. */
+.merchant-config-saved { display: inline-flex; gap: 5px; align-items: center; margin-right: 9px; color: #2f6b33; font-size: .68rem; font-weight: 600; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.merchant-config-saved.is-visible { opacity: 1; }
+
+/* ====================================================================
+   MERCHANT SETTINGS — CORRECTIONS
+   ==================================================================== */
+
+/* **Labels above their control, not beside it.** A 104px label column made every
+   field start a third of the way across the card and left the name box too narrow
+   to show "Storefront". Stacking is also what the card layout wants: a setting is
+   a heading and a thing, read downward. Rows of settings — the roll tables — opt
+   back into a side-by-side layout below. */
+.merchant-config-row { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.merchant-config-row > .merchant-config-label,
+.merchant-config-row > :nth-child(2),
+.merchant-config-row > .merchant-config-hint { grid-column: auto; }
+.merchant-config-row-tall > .merchant-config-label { padding-top: 0; }
+.merchant-config-row input[type="number"] { max-width: 110px; }
+
+/* The exception: a row whose label and controls sit on one line, for the tables,
+   where the name is the label and the settings belong beside it. */
+.merchant-config-row-inline { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 10px; align-items: center; }
+.merchant-config-row-inline > .merchant-config-hint { grid-column: 1 / -1; }
+
+/* --- The rate slider -------------------------------------------------
+   Label above (every other setting here reads that way), then one line:
+   the bounds flanking the track, and the current value at the end where the
+   eye lands after dragging. All three numbers legible — the bounds were .62rem,
+   which is a size you squint at rather than read. */
+.merchant-config-rate-track { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(150px, auto); gap: 10px; align-items: center; }
+.merchant-config-rate-track > input[type="range"] { width: 100%; margin: 0; }
+.merchant-config-rate-bound { color: var(--blacksmith-tool-text-muted); font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.merchant-config-rate-value { padding: 2px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+
+/* Narrow windows: the value drops under the track rather than crushing it. */
+@container (max-width: 460px) {
+    .merchant-config-rate-track { grid-template-columns: auto minmax(0,1fr) auto; }
+    .merchant-config-rate-value { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* --- The inventory card ----------------------------------------------
+   The head is art, name, actions on one line. It broke because rules from the old
+   row markup were still assigning `grid-area: img` and friends to these elements,
+   and a named area that does not exist in the grid places the item somewhere of
+   its own choosing. Those rules are deleted; this is the whole layout now. */
+.merchant-config-inv-head { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.merchant-config-inv-head > .merchant-config-inventory-art { width: 56px; height: 56px; }
+.merchant-config-inventory-actions { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: flex-end; }
+.merchant-config-inventory-name { font-size: .86rem; }
+
+/* The type and count under the name, on one line, never wrapping mid-phrase. */
+.merchant-config-inv-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Roll table rows: name on the left, its controls on the right, what it will do
+   spelled out underneath both. */
+.merchant-config-table { align-items: center; }
+.merchant-config-table-name { font-size: .74rem; font-weight: 600; color: var(--blacksmith-tool-text); }

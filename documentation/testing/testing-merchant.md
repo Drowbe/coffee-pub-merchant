@@ -906,3 +906,16 @@ New on 2026-08-19. The first two are the ones that touch data you already have.
     purchased stock is untouched. Advance the clock a week: same.
 36. The *products* limit is gone from every inventory. The only ceiling is **max N of each item**, and it
     appears wherever stock is counted.
+
+### 20h. Trade routes and the gold machine
+
+37. Two merchants, one at Global Markup ×1.00 and one at ×2.00 with a purchase rate of 0.6. A 100gp item
+    costs 100 at the first and the second pays 120 for it. **That profit is the point** — it is the trade
+    route, and it comes from the two merchants' markups, not from reputation.
+38. The dear merchant also *charges* more: the same item lists at 200 there. A shop that pays well sells
+    dear; the two move together.
+39. **The loop that must never pay.** At one merchant, sell an item and immediately buy it back. You must
+    always be out of pocket. Try it with a generous purchase rate (0.9 or higher) in a scene where the party
+    has high reputation — that was the exact case that used to profit.
+40. Reputation alone cannot make a route: a scene where the party is loved is cheaper to buy in *and* pays
+    more, so there is no pair of scenes to run goods between on reputation alone.

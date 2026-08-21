@@ -10,7 +10,7 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE, STOCK_DEPTH_BANDS, isUnpriced, DEFAULT_BUY_RATE } from './const.js';
+import { MODULE, STOCK_DEPTH_BANDS, isUnpriced, DEFAULT_BUY_RATE, MAX_BUYBACK_RATIO } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -395,7 +395,8 @@ export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { rep
     const agreed = negotiatedBuyback(merchantConfig, item?.id);
     if (agreed !== null) return agreed;
 
-    // No inventory, and no overrides: what the item is worth, not what it is sold for.
+    // The item's own worth: no overrides, and no *inventory* markup, because what a
+    // Premium shelf charges says nothing about what the shop pays for your sword.
     const worth = resolvePrice(
         { ...merchantConfig, pricing: { ...merchantConfig?.pricing, markup: 1, overrides: {} } },
         null,
@@ -403,11 +404,28 @@ export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { rep
     );
     if (worth === null) return null;
 
+    // **The shop's own markup applies to both sides.** It used to be blanked here, on
+    // the reasoning that a dear quarter should not pay more for second-hand goods —
+    // which was wrong twice over. `markup` is this *merchant's* pricing, not the
+    // district's: a shop that charges above its competitors is a shop that deals in
+    // dearer goods, and a dealer who marks everything up and then pays the going rate
+    // is not a dealer, it is a one-way valve. It also made trade impossible, because
+    // nothing about where you sell could ever change what you were paid.
+    const shop = rate(merchantConfig?.pricing?.markup);
     const buyRate = rate(inventoryConfig?.buyRate, DEFAULT_BUY_RATE);
     // A modifier of 0.85 means "cheaper to buy from"; the same standing should mean
     // "paid more when selling", so it is turned over rather than applied as it stands.
     const standing = 1 / rate(reputation);
-    return Math.max(1, Math.round(worth * buyRate * standing));
+
+    const offer = worth * shop * buyRate * standing;
+
+    // **A shop never pays more than it would charge.** Reputation applies twice over a
+    // round trip — cheaper to buy *and* dearer to sell — so `buyRate` alone cannot
+    // hold the line: at 0.9 with a beloved party, selling a sword and buying it back
+    // turns a profit, and repeats. Clamping against this inventory's own resale price
+    // closes it wherever the two rates and the town's mood happen to land.
+    const resale = worth * shop * rate(inventoryConfig?.markup) * rate(reputation);
+    return Math.max(1, Math.round(Math.min(offer, resale * MAX_BUYBACK_RATIO)));
 }
 
 /**

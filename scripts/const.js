@@ -275,6 +275,23 @@ export function isPurchased(type) {
 /** What the shop pays for a thing, before anything else is applied. */
 export const DEFAULT_BUY_RATE = 0.5;
 
+/**
+ * The most a shop will ever pay, as a share of what it would charge for the same item.
+ *
+ * **This is the guard against a gold machine, and it has to live in code.** Sell an
+ * item and buy it back and the merchant's markup cancels, leaving `buyRate / rep²` —
+ * reputation twice, because it makes buying cheaper *and* selling dearer. A beloved
+ * party at a generous merchant can push that above 1, at which point the round trip
+ * turns a profit and repeats forever.
+ *
+ * Capping `buyRate` instead would not do it: the safe ceiling moves with reputation,
+ * so any fixed limit is either too tight for a neutral town or too loose for a
+ * beloved one. A shop that never pays more than it charges is the same rule stated
+ * where it cannot be tuned out — and it is true of every dealer that has ever
+ * existed, so it needs no explaining to a GM who meets it.
+ */
+export const MAX_BUYBACK_RATIO = 0.95;
+
 // ==================================================================
 // ===== REPUTATION =================================================
 // ==================================================================

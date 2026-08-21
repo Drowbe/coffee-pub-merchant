@@ -1,116 +1,128 @@
+{{!--
+    Merchant Settings.
+
+    **Every setting is a labelled pair, never a sentence.** There used to be controls
+    embedded in prose — "every [4] days", "[25] products [3] each" — which asks the
+    reader to parse a sentence to find out what a box does, and leaves nothing to
+    align. A label in one column and its control in the next can be scanned down.
+
+    Saving is live. The Saved pip in the title row is the feedback for that; the
+    footer's primary button closes rather than commits, because there is nothing
+    outstanding to commit.
+--}}
 <div class="merchant-config-content">
+
+    {{!-- The subject card carries the toggle, because whether this Actor is a shop at
+          all is the biggest fact on the screen and belongs with its name. --}}
     <section class="merchant-config-section merchant-config-subject">
         <div class="merchant-config-image"><img src="{{portraitImg}}" alt="{{actorName}}"></div>
         <div class="merchant-config-copy">
             <div class="merchant-config-kicker">Merchant Settings</div>
             <div class="merchant-config-title">{{actorName}}</div>
         </div>
-    </section>
-
-    <section class="merchant-config-section">
-        <label class="merchant-config-toggle">
+        <label class="merchant-config-enable{{#if enabled}} is-on{{/if}}"
+               data-tooltip="Players can double-click this token to open its shop.">
             <input type="checkbox" data-merchant-enabled {{#if enabled}}checked{{/if}}>
-            <span>
-                <strong>Is a merchant</strong>
-                <small>Players can double-click this token to open its shop.</small>
-            </span>
+            <span>Is a merchant</span>
         </label>
     </section>
 
     {{#if enabled}}
         <section class="merchant-config-section">
             <h3>
+                <span><i class="fa-solid fa-store"></i> The Shop</span>
+            </h3>
+
+            <div class="merchant-config-grid">
+                <label class="merchant-config-row">
+                    <span class="merchant-config-label">Shop name</span>
+                    <input type="text" value="{{shopName}}" placeholder="{{actorName}}" data-merchant-name>
+                    <small class="merchant-config-hint">Blank names the shop after whoever runs it.</small>
+                </label>
+
+                <label class="merchant-config-row">
+                    <span class="merchant-config-label">Kind</span>
+                    <select data-merchant-kind>
+                        {{#each kindOptions}}
+                            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                        {{/each}}
+                    </select>
+                    <small class="merchant-config-hint">Flavour only. Shown above the name in the shop.</small>
+                </label>
+
+                <label class="merchant-config-row merchant-config-row-tall">
+                    <span class="merchant-config-label">Description</span>
+                    <textarea data-merchant-description rows="3"
+                              placeholder="A cramped shop that smells of oil and iron filings.">{{description}}</textarea>
+                    <small class="merchant-config-hint">Shown to players. Links and inline rolls work.</small>
+                </label>
+            </div>
+        </section>
+
+        <section class="merchant-config-section">
+            <h3>
                 <span><i class="fa-solid fa-clock"></i> Trading Hours</span>
-                {{!-- Said, not offered. The slider itself *is* the statement -- band
-                      across the whole day, or band shut to nothing -- so a button
-                      that also meant it would be a second way to say one thing and a
-                      way for the two to disagree. --}}
-                {{!-- One element, repainted mid-drag, so what it says keeps up with
-                      the handles instead of arriving a beat later on release. --}}
                 <span class="merchant-config-hours-always{{#if alwaysClosed}} is-closed{{/if}}"
                       data-hours-badge {{#unless hoursBadge}}hidden{{/unless}}>{{hoursBadge}}</span>
             </h3>
 
-            <div class="merchant-config-hours">
-                <div class="merchant-config-hours-readout">
-                    Open <strong data-hours-open-label>{{openLabel}}</strong>
-                    to <strong data-hours-close-label>{{closeLabel}}</strong>
-                </div>
-
-                {{!-- The day's ends flank the track, so the band is read against the
-                      whole day rather than against nothing. Two ranges stacked into
-                      one track, so a single control carries both handles. --}}
-                <div class="merchant-config-hours-row">
-                    <span class="merchant-config-hours-bound">{{dayStartLabel}}</span>
-                    <div class="merchant-config-hours-slider" data-hours-slider>
-                        <div class="merchant-config-hours-fill" data-hours-fill></div>
-                        <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
-                        <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+            <div class="merchant-config-grid">
+                <div class="merchant-config-row">
+                    <span class="merchant-config-label">Open</span>
+                    <div class="merchant-config-hours">
+                        <div class="merchant-config-hours-row">
+                            <span class="merchant-config-hours-bound">{{dayStartLabel}}</span>
+                            <div class="merchant-config-hours-slider" data-hours-slider>
+                                <div class="merchant-config-hours-fill" data-hours-fill></div>
+                                <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
+                                <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                            </div>
+                            <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
+                        </div>
                     </div>
-                    <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
+                    <small class="merchant-config-hint">
+                        <strong data-hours-open-label>{{openLabel}}</strong> to
+                        <strong data-hours-close-label>{{closeLabel}}</strong>
+                    </small>
                 </div>
-
-                {{#if overridden}}
-                    <div class="merchant-config-hours-note">
-                        Currently overriding the schedule. The next opening or closing hour will set it straight.
-                    </div>
-                {{/if}}
             </div>
+
+            {{#if overridden}}
+                <div class="merchant-config-note">
+                    Currently overriding the schedule. The next opening or closing hour will set it straight.
+                </div>
+            {{/if}}
         </section>
-
-        <section class="merchant-config-section">
-            <h3><span><i class="fa-solid fa-store"></i> The Shop</span></h3>
-            <label class="merchant-config-markup merchant-config-field">
-                <span>
-                    <strong>Shop name</strong>
-                    <small>What the sign says. Leave it blank and the shop is called after whoever
-                           runs it.</small>
-                </span>
-                <input type="text" value="{{shopName}}" placeholder="{{actorName}}" data-merchant-name>
-            </label>
-
-            <label class="merchant-config-markup merchant-config-field">
-                <span>
-                    <strong>Kind of shop</strong>
-                    <small>Flavour only &mdash; nothing is restricted by it. Shown above the name.</small>
-                </span>
-                <select data-merchant-kind>
-                    {{#each kindOptions}}
-                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                    {{/each}}
-                </select>
-            </label>
-
-            <div class="merchant-config-description">
-                <span>
-                    <strong>Description</strong>
-                    <small>Optional. Shown to players under the shop name. Links and rolls work.</small>
-                </span>
-                <textarea data-merchant-description rows="3"
-                          placeholder="A cramped shop that smells of oil and iron filings.">{{description}}</textarea>
-            </div>
-        </section>
-
-        {{!-- The shop-wide stock default used to live here. It is gone: each
-              inventory states what happens when something is bought, on the
-              inventory, where it can be read at the same moment as everything else
-              about that inventory. --}}
 
         <section class="merchant-config-section">
             <h3>
                 <span><i class="fa-solid fa-sack-dollar"></i> The Till</span>
-                <span class="merchant-config-count merchant-config-till-total">{{tillLabel}}</span>
-            </h3>
-            <label class="merchant-config-markup">
-                <span>
-                    <strong>Gold to spend</strong>
-                    <small>What this shop can pay out when the party sells to it. Other coin it holds is
-                           left alone.</small>
+                {{!-- What the coins below come to in total. It reads as a different
+                      number from the boxes because it *is* one: everything converted
+                      to the coins a price is quoted in, so 400 platinum shows up as
+                      gold. Unlabelled it looked like a contradiction. --}}
+                <span class="merchant-config-count merchant-config-till-total"
+                      data-tooltip="Everything in the till, converted to the coins prices are quoted in">
+                    Worth {{tillLabel}}
                 </span>
-                <input type="number" min="0" step="1" value="{{tillGold}}" data-merchant-till>
-            </label>
+            </h3>
+
+            {{!-- Every denomination the system defines, pre-filled with what the shop
+                  actually holds. It used to be a single gold box, which quietly said
+                  the other four coins did not exist and could not show a shop its own
+                  silver. --}}
+            <div class="merchant-config-till">
+                {{#each till}}
+                    <label class="merchant-config-coin">
+                        <span class="merchant-config-coin-label">{{label}}</span>
+                        <input type="number" min="0" step="1" value="{{value}}"
+                               data-merchant-coin="{{key}}" aria-label="{{label}} in the till">
+                    </label>
+                {{/each}}
+            </div>
+            <small class="merchant-config-hint">What this shop can pay out when the party sells to it.</small>
             {{#if tillEmpty}}
-                <div class="merchant-config-hours-note">
+                <div class="merchant-config-note is-warning">
                     An empty till cannot buy anything &mdash; the party will be refused when they try to sell.
                 </div>
             {{/if}}
@@ -118,34 +130,25 @@
 
         <section class="merchant-config-section">
             <h3><span><i class="fa-solid fa-tags"></i> Pricing</span></h3>
-            <label class="merchant-config-markup">
-                <span>
-                    <strong>Global Markup</strong>
-                    <small>The baseline for everything in this shop &mdash; an expensive quarter, or the
-                           middle of nowhere. Every inventory multiplies against it: a Premium at 1.5
-                           inside a shop at 1.2 asks 1.8 times the going rate.</small>
-                </span>
-                <input type="number" min="0" step="0.05" value="{{markup}}" data-merchant-markup>
-            </label>
 
-            <label class="merchant-config-toggle merchant-config-reputation">
+            <div class="merchant-config-grid">
+                {{> "modules/coffee-pub-merchant/templates/partial-rate.hbs" globalMarkup}}
+            </div>
+            <small class="merchant-config-hint">
+                The baseline for everything in this shop. Each inventory multiplies against it.
+            </small>
+
+            <label class="merchant-config-enable merchant-config-enable-inline{{#if reputationOn}} is-on{{/if}}">
                 <input type="checkbox" data-merchant-reputation {{#if reputationOn}}checked{{/if}}>
-                <span>
-                    <strong>Reputation moves prices</strong>
-                    <small>How the party is thought of here changes what they are charged &mdash; and what
-                           they are paid when they sell. Off unless you say so.</small>
-                </span>
+                <span>Reputation impacts prices</span>
             </label>
             {{#if reputationOn}}
-                {{!-- Said in words, because "15% dearer" with no reason given reads as
-                      a bug and "Distrusted here" reads as the game working. --}}
-                <div class="merchant-config-hours-note">
-                    {{#if reputationLabel}}
-                        The party is <strong>{{reputationLabel}}</strong> on this scene{{#if reputationEffect}},
-                        so prices here are {{reputationEffect}}{{/if}}.
-                    {{else}}
-                        No standing recorded on this scene, so prices are unchanged.
-                    {{/if}}
+                {{!-- Three facts, in the order they are asked: what being disliked
+                      costs, what being liked saves, and where this party stands. --}}
+                <div class="merchant-config-facts">
+                    <span>Negative reputation: <strong>up to {{reputationPenalty}} penalty</strong></span>
+                    <span>Positive reputation: <strong>up to {{reputationBenefit}} benefit</strong></span>
+                    <span>Party reputation: <strong>{{reputationLabel}}{{#if reputationEffect}} ({{reputationEffect}}){{/if}}</strong></span>
                 </div>
             {{/if}}
         </section>
@@ -163,193 +166,162 @@
             </h3>
 
             {{#if hasInventories}}
-                <div class="merchant-config-inventory-list">
-                    {{#each inventories}}
-                        <div class="merchant-config-inventory"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
-                            {{!-- A button, because it does something. The artwork is the
-                                  one thing on this row a GM recognises at a glance, so
-                                  it is worth the size and worth being able to change. --}}
+                {{#each inventories}}
+                    {{!-- Each inventory is its own card with its own headings, so it
+                          reads like the shop window rather than like a row in a table
+                          that grew settings. --}}
+                    <div class="merchant-config-inv"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
+
+                        <div class="merchant-config-inv-head">
                             <button type="button" class="merchant-config-inventory-art"
                                     data-inventory-image="{{id}}"
                                     data-tooltip="Click to choose different artwork">
                                 <img src="{{img}}" alt="">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            {{!-- The name is the container's own, editable here as well
-                                  as on its sheet: several inventories of one type is
-                                  ordinary, and they need telling apart. The type sits
-                                  beneath it, because it is what the settings follow
-                                  from and cannot be changed once created. --}}
-                            <div class="merchant-config-inventory-copy">
+                            <div class="merchant-config-inv-copy">
                                 <input type="text" class="merchant-config-inventory-name" value="{{label}}"
-                                       data-inventory-name="{{id}}" aria-label="Inventory name"
-                                       data-tooltip="{{typeHint}}">
-                                <span>
+                                       data-inventory-name="{{id}}" aria-label="Inventory name">
+                                <span class="merchant-config-inv-meta">
                                     <em>{{typeLabel}}</em> · {{count}} item{{#unless one}}s{{/unless}}{{#if hidden}} · hidden from players{{/if}}
                                 </span>
                             </div>
                             <div class="merchant-config-inventory-actions">
-                                {{#if countable}}
+                                {{#if canRoll}}
                                     <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
                                             data-action="restockInventory" data-inventory-id="{{id}}"
-                                            data-tooltip="Refill this inventory to the quantities you set">
+                                            data-tooltip="Refill this inventory now">
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </button>
                                 {{/if}}
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
-                                        data-action="openInventory" data-inventory-id="{{id}}" data-tooltip="Open this inventory to stock it">
+                                        data-action="openInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Open this inventory to stock it">
                                     <i class="fa-solid fa-box-open"></i>
                                 </button>
-                                {{!-- Between opening the inventory and deleting it, which is
-                                      where it sits in meaning too: empty it, or be rid
-                                      of it. --}}
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn"
                                         data-action="clearInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Clear this inventory — take everything off it">
+                                        data-tooltip="Take everything off this inventory">
                                     <i class="fa-solid fa-broom"></i>
                                 </button>
                                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-icon-btn merchant-config-remove"
-                                        data-action="removeInventory" data-inventory-id="{{id}}" data-tooltip="Remove this inventory">
+                                        data-action="removeInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="Remove this inventory">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
+                        </div>
 
-                            {{!-- A second row under the inventory's identity rather than
-                                  beside it, so the name stays on one line. --}}
-                            {{!-- What this type is allowed to price with. One control,
-                                  never two, and none at all where a price is agreed
-                                  rather than set. --}}
-                            {{!-- Sliders rather than number boxes, for the same reason
-                                  trading hours got one: a rate is a position on a
-                                  range, and dragging it says "dearer" or "cheaper" in
-                                  a way that typing 1.35 does not. The readout carries
-                                  the number and what it means in words, repainted mid
-                                  drag so the two never disagree. --}}
-                            <div class="merchant-config-inventory-rates">
-                                {{#if pricingMarkup}}
-                                    <div class="merchant-config-rate" data-rate-row>
-                                        <span class="merchant-config-rate-label">Markup</span>
-                                        <input type="range" min="0.1" max="3" step="0.05" value="{{markup}}"
-                                               data-inventory-markup="{{id}}" data-rate-kind="markup"
-                                               aria-label="Markup for this inventory">
-                                        <span class="merchant-config-rate-readout" data-rate-readout>{{markupLabel}}</span>
-                                    </div>
-                                {{/if}}
-                                {{#if pricingTrade}}
-                                    {{!-- Two rates, because they are two different
-                                          transactions. What the shop hands over for
-                                          your old sword is not what it asks for it
-                                          afterwards, and one number cannot be both. --}}
-                                    <div class="merchant-config-rate" data-rate-row>
-                                        <span class="merchant-config-rate-label">Purchase</span>
-                                        <input type="range" min="0.05" max="1.5" step="0.05" value="{{buyRate}}"
-                                               data-inventory-buy-rate="{{id}}" data-rate-kind="buy"
-                                               aria-label="What the shop pays">
-                                        <span class="merchant-config-rate-readout" data-rate-readout>{{buyRateLabel}}</span>
-                                    </div>
-                                    <div class="merchant-config-rate" data-rate-row>
-                                        <span class="merchant-config-rate-label">Sell</span>
-                                        <input type="range" min="0.1" max="3" step="0.05" value="{{markup}}"
-                                               data-inventory-markup="{{id}}" data-rate-kind="markup"
-                                               aria-label="What second-hand stock sells for">
-                                        <span class="merchant-config-rate-readout" data-rate-readout>{{markupLabel}}</span>
-                                    </div>
-                                {{/if}}
-                                {{#if pricingNone}}
-                                    <span class="merchant-config-inventory-unpriced">
-                                        No price until one is agreed on the slate.
-                                    </span>
-                                {{/if}}
+                        {{#if hasRates}}
+                            <div class="merchant-config-inv-group">
+                                <h4>Pricing</h4>
+                                <div class="merchant-config-grid">
+                                    {{#each rates}}
+                                        {{> "modules/coffee-pub-merchant/templates/partial-rate.hbs" this}}
+                                    {{/each}}
+                                </div>
                             </div>
-
-                            <div class="merchant-config-inventory-stock">
-                                {{#if restocks}}
-                                    <select data-inventory-stock="{{id}}"
-                                            data-tooltip="What happens to this inventory when something is bought">
-                                        {{#each stockOptions}}
-                                            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                        {{/each}}
-                                    </select>
-                                {{else}}
-                                    {{!-- Purchased is the one type with nothing to
-                                          restock to: its stock is whatever the party
-                                          sold, so a refill would conjure duplicates of
-                                          somebody's old sword. --}}
-                                    <span class="merchant-config-inventory-norestock">
-                                        Items bought from this inventory are removed and never restocked.
-                                    </span>
-                                {{/if}}
-                                {{#if countable}}
-                                    <label class="merchant-config-inventory-cap"
-                                           data-tooltip="The most of any one thing this inventory will hold. Clamps a table roll, and a quantity you type in the shop window.">
-                                        max
-                                        <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
-                                               data-inventory-max-per-item="{{id}}" aria-label="Maximum item quantity">
-                                        of each item
-                                    </label>
-                                {{/if}}
-                                {{#if restocking}}
-                                    <label class="merchant-config-inventory-days" data-tooltip="In-world days between refills">
-                                        every
-                                        <input type="number" min="1" step="1" value="{{restockDays}}"
-                                               data-inventory-restock-days="{{id}}" aria-label="Days between restocks">
-                                        days
-                                    </label>
-                                {{/if}}
+                        {{/if}}
+                        {{#if pricingNone}}
+                            <div class="merchant-config-inv-group">
+                                <h4>Pricing</h4>
+                                <div class="merchant-config-note">
+                                    No price until one is agreed with the party on the slate.
+                                </div>
                             </div>
+                        {{/if}}
 
+                        <div class="merchant-config-inv-group">
+                            <h4>Restock</h4>
                             {{#if canRoll}}
-                            {{!-- An inventory may also be stocked by rolling. Dragged on
-                                  rather than picked from a list, the same way stock
-                                  itself is put on an inventory. --}}
-                            <div class="merchant-config-inventory-tables">
-                                {{#each tables}}
-                                    <div class="merchant-config-inventory-table">
-                                        <span class="merchant-config-inventory-table-name" data-tooltip="{{name}} — rolled when this inventory restocks">
-                                            <i class="fa-solid fa-dice-d20"></i> {{name}}
-                                        </span>
-                                        <label class="merchant-config-inventory-rolls" data-tooltip="How many times to roll it">
-                                            <input type="number" min="1" max="20" step="1" value="{{rolls}}"
-                                                   data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
-                                                   aria-label="Rolls per restock">
-                                            {{!-- Always plural: "roll" and "rolls" are
-                                                  different widths, so pluralising it
-                                                  moved the box every time the number
-                                                  crossed one. --}}
-                                            rolls
+                                <div class="merchant-config-grid">
+                                    <label class="merchant-config-row">
+                                        <span class="merchant-config-label">Method</span>
+                                        <select data-inventory-stock="{{id}}">
+                                            {{#each stockOptions}}
+                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                            {{/each}}
+                                        </select>
+                                    </label>
+
+                                    {{#if restocking}}
+                                        <label class="merchant-config-row">
+                                            <span class="merchant-config-label">Frequency</span>
+                                            <select data-inventory-frequency="{{id}}">
+                                                {{#each frequencyOptions}}
+                                                    <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                                {{/each}}
+                                            </select>
                                         </label>
-                                        {{!-- Off means the table furnishes the inventory when
-                                              a GM asks and never again. On means it also
-                                              delivers on the clock. --}}
-                                        <label class="merchant-config-inventory-reroll"
-                                               data-tooltip="Also roll this every time the clock brings a restock. Off, it only rolls when you press Restock.">
-                                            <input type="checkbox" data-inventory-table-auto="{{../id}}"
-                                                   data-table-uuid="{{uuid}}" {{#if auto}}checked{{/if}}>
-                                            <span>reroll</span>
+                                    {{/if}}
+
+                                    {{#if countable}}
+                                        <label class="merchant-config-row">
+                                            <span class="merchant-config-label">Max stack</span>
+                                            <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
+                                                   data-inventory-max-per-item="{{id}}"
+                                                   aria-label="Maximum quantity of any one item">
+                                            <small class="merchant-config-hint">The most of any one item this inventory will hold.</small>
                                         </label>
-                                        <button type="button" class="merchant-config-icon-btn merchant-config-remove"
-                                                data-action="removeInventoryTable" data-inventory-id="{{../id}}"
-                                                data-table-uuid="{{uuid}}"
-                                                data-tooltip="Take this table off the inventory">
-                                            <i class="fa-solid fa-xmark"></i>
-                                        </button>
-                                    </div>
-                                {{/each}}
-                                <span class="merchant-config-inventory-table-empty">
-                                    <i class="fa-solid fa-dice-d20"></i>
-                                    {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock it by rolling{{/if}}
-                                </span>
-                            </div>
+                                    {{/if}}
+                                </div>
+                            {{else}}
+                                <div class="merchant-config-note">
+                                    Items bought from this inventory are removed and never restocked. Its stock is
+                                    whatever the party has sold to the shop.
+                                </div>
                             {{/if}}
                         </div>
-                    {{/each}}
-                </div>
+
+                        {{#if canRoll}}
+                            <div class="merchant-config-inv-group">
+                                <h4>Roll Tables</h4>
+                                {{#if hasTables}}
+                                    <div class="merchant-config-grid">
+                                        {{#each tables}}
+                                            <div class="merchant-config-row merchant-config-row-inline merchant-config-table">
+                                                <span class="merchant-config-label merchant-config-table-name"
+                                                      data-tooltip="{{name}}">
+                                                    <i class="fa-solid fa-dice-d20"></i> {{name}}
+                                                </span>
+                                                <div class="merchant-config-table-controls">
+                                                    <label class="merchant-config-inline">
+                                                        <span>Items drawn</span>
+                                                        <input type="number" min="1" max="20" step="1" value="{{rolls}}"
+                                                               data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
+                                                               aria-label="How many items to draw from this table">
+                                                    </label>
+                                                    <label class="merchant-config-inline merchant-config-inline-check">
+                                                        <input type="checkbox" data-inventory-table-auto="{{../id}}"
+                                                               data-table-uuid="{{uuid}}" {{#if auto}}checked{{/if}}>
+                                                        <span>Draw again on every restock</span>
+                                                    </label>
+                                                    <button type="button" class="merchant-config-icon-btn merchant-config-remove"
+                                                            data-action="removeInventoryTable" data-inventory-id="{{../id}}"
+                                                            data-table-uuid="{{uuid}}"
+                                                            data-tooltip="Take this table off the inventory">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+                                                <small class="merchant-config-hint">
+                                                    Draws {{rolls}} item{{#unless oneRoll}}s{{/unless}} from this table
+                                                    {{#if auto}}every time this inventory restocks{{else}}only when you press Restock{{/if}}.
+                                                </small>
+                                            </div>
+                                        {{/each}}
+                                    </div>
+                                {{/if}}
+                                <div class="merchant-config-drop">
+                                    <i class="fa-solid fa-dice-d20"></i>
+                                    {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock this inventory by rolling{{/if}}
+                                </div>
+                            </div>
+                        {{/if}}
+                    </div>
+                {{/each}}
             {{else}}
                 <div class="merchant-config-empty">No inventories yet. Add one to start stocking this merchant.</div>
             {{/if}}
-
         </section>
     {{/if}}
-
-    {{!-- Markup and per-item price overrides land here in phase 2. --}}
 </div>

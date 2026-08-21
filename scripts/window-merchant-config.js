@@ -1,15 +1,17 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
-    DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed
+    DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
-import { purseValue, formatBase } from './utility-pricing.js';
+import { purseValue, formatBase, denominations } from './utility-pricing.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
 import { resolveReputation, reputationLabel } from './utility-reputation.js';
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
+const RATE_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-rate.hbs';
+let _partialsReady = null;
 
 function _blacksmith() {
     return game.modules.get('coffee-pub-blacksmith')?.api ?? null;
@@ -17,8 +19,8 @@ function _blacksmith() {
 
 const STOCK_LABELS = {
     [STOCK.INFINITE]: 'Never runs out',
-    [STOCK.FINITE]: 'Runs out',
-    [STOCK.RESTOCKING]: 'Runs out, refills'
+    [STOCK.FINITE]: 'Runs out, never restocks',
+    [STOCK.RESTOCKING]: 'Runs out, then restocks'
 };
 
 /**
@@ -34,25 +36,64 @@ const STOCK_OPTIONS = [
 /**
  * A rate, said as a number and as what it means.
  *
- * "×1.35" is precise and says nothing; "35% dearer" is what the GM is deciding. Both,
- * because the number is what they type back in and the words are what they meant.
+ * **"markup" and "discount", never "dearer".** Those are the words already printed on
+ * the section that holds them, and they are what a shopkeeper says. A comparative
+ * adjective makes the reader work out what it is being compared to.
  */
 function markupLabel(value) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
     if (rate === 1) return '×1.00 · list price';
     const percent = Math.round(Math.abs(1 - rate) * 100);
-    return `×${rate.toFixed(2)} · ${percent}% ${rate > 1 ? 'dearer' : 'cheaper'}`;
+    return `×${rate.toFixed(2)} · ${percent}% ${rate > 1 ? 'markup' : 'discount'}`;
 }
 
-/** What the shop pays, which is a share of an item's worth rather than a markup. */
+/** What the shop pays, which is a share of an item's value rather than a markup. */
 function buyRateLabel(value) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
     const percent = Math.round(rate * 100);
-    if (rate > 1) return `×${rate.toFixed(2)} · pays ${percent}% — over the odds`;
-    return `×${rate.toFixed(2)} · pays ${percent}% of worth`;
+    return `×${rate.toFixed(2)} · pays ${percent}% of value`;
 }
+
+function rateReadout(kind, value) {
+    return kind === 'buy' ? buyRateLabel(value) : markupLabel(value);
+}
+
+/** The shape `partial-rate.hbs` renders. One builder, so the three rates agree. */
+function rateRow({ label, kind, value, inventoryId = null, field = null, hint = null }) {
+    const buy = kind === 'buy';
+    return {
+        label,
+        kind,
+        field,
+        inventoryId,
+        value,
+        min: buy ? 0.05 : 0.1,
+        max: buy ? 1.5 : 3,
+        step: 0.05,
+        minLabel: buy ? '×0.05' : '×0.10',
+        maxLabel: buy ? '×1.50' : '×3.00',
+        readout: rateReadout(kind, value),
+        hint
+    };
+}
+
+/**
+ * How often a restocking inventory refills.
+ *
+ * A named cadence rather than a number of days in a sentence. "Every [7] days" made
+ * the reader assemble the setting out of a phrase; a list of the answers people
+ * actually want is one glance, and the custom case is still expressible by a GM who
+ * edits the flag.
+ */
+const FREQUENCY_OPTIONS = [
+    { value: 1, label: 'Daily' },
+    { value: 3, label: 'Every 3 days' },
+    { value: 7, label: 'Weekly' },
+    { value: 14, label: 'Fortnightly' },
+    { value: 30, label: 'Monthly' }
+];
 
 /**
  * Marking and configuring a merchant.
@@ -135,13 +176,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
         this._bindHoursSlider();
 
-        const markup = this.element?.querySelector('[data-merchant-markup]');
-        if (markup && markup.dataset.merchantBound !== 'true') {
-            markup.dataset.merchantBound = 'true';
-            // On change rather than input: typing "1.25" passes through 1, 1.2 and
-            // 1.25, and only the last of those is what the GM meant.
-            markup.addEventListener('change', (event) => void this._setMarkup(event.target.value));
-        }
+        this._bindRateSliders();
 
         const shopName = this.element?.querySelector('[data-merchant-name]');
         if (shopName && shopName.dataset.merchantBound !== 'true') {
@@ -170,10 +205,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
-        const till = this.element?.querySelector('[data-merchant-till]');
-        if (till && till.dataset.merchantBound !== 'true') {
-            till.dataset.merchantBound = 'true';
-            till.addEventListener('change', (event) => void this._setTill(event.target.value));
+        // One box per denomination, each writing only its own coin.
+        for (const input of this.element?.querySelectorAll('[data-merchant-coin]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+            input.addEventListener('change', (event) => {
+                void this._setTillCoin(input.getAttribute('data-merchant-coin'), event.target.value);
+            });
+        }
+
+        for (const select of this.element?.querySelectorAll('[data-inventory-frequency]') ?? []) {
+            if (select.dataset.merchantBound === 'true') continue;
+            select.dataset.merchantBound = 'true';
+            select.addEventListener('change', (event) => {
+                void this._commitInventoryStock(select.getAttribute('data-inventory-frequency'), {
+                    restockDays: Math.max(1, Math.trunc(Number(event.target.value) || DEFAULT_RESTOCK_DAYS))
+                });
+            });
         }
 
         const reputation = this.element?.querySelector('[data-merchant-reputation]');
@@ -191,36 +239,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             input.addEventListener('change', (event) => {
                 void this._setInventoryName(input.getAttribute('data-inventory-name'), event.target.value);
             });
-        }
-
-        // Markup, and the purchased type's Purchase Rate. Sliders, for the reason the
-        // trading hours are: a rate is a position on a range. The readout repaints on
-        // `input` so it keeps up with the drag, and the write happens on `change` —
-        // one document update per gesture rather than one per pixel.
-        for (const [attribute, field] of [
-            ['data-inventory-markup', 'markup'],
-            ['data-inventory-buy-rate', 'buyRate']
-        ]) {
-            for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
-                if (input.dataset.merchantBound === 'true') continue;
-                input.dataset.merchantBound = 'true';
-
-                const readout = input.closest('[data-rate-row]')?.querySelector('[data-rate-readout]');
-                const paint = () => {
-                    if (!readout) return;
-                    const value = Number(input.value);
-                    readout.textContent = input.getAttribute('data-rate-kind') === 'buy'
-                        ? buyRateLabel(value)
-                        : markupLabel(value);
-                };
-                input.addEventListener('input', paint);
-                input.addEventListener('change', () => {
-                    const value = Number(input.value);
-                    if (!Number.isFinite(value) || value <= 0) return void this.render(false);
-                    void this._commitInventoryStock(input.getAttribute(attribute), { [field]: value });
-                });
-                paint();
-            }
         }
 
         // The artwork opens a file picker. Foundry namespaced FilePicker in v13, so
@@ -331,6 +349,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.setConfig(actor, changes);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update this merchant:`, error);
             notify.error('Could not update this merchant.');
@@ -339,17 +358,35 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /** What the shop can pay out. A merchant with an empty till cannot buy anything. */
-    async _setTill(value) {
+    async _setTillCoin(denomination, value) {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
-            await MerchantManager.setTillGold(actor, value);
+            await MerchantManager.setTillCoin(actor, denomination, value);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the till:`, error);
             notify.error('Could not set the till.');
         }
         await this.render(false);
+    }
+
+    /**
+     * Say that a write landed.
+     *
+     * Settings save as they are changed, which is right — a form you can lose by
+     * closing is worse — but live saving with no acknowledgement reads as nothing
+     * happening. A pip in the title row, shown for a moment after each successful
+     * write, is the smallest honest answer: it appears *because* something was
+     * written, so it cannot claim a save that did not happen.
+     */
+    flashSaved() {
+        const pip = this.element?.querySelector('[data-saved-pip]');
+        if (!pip) return;
+        pip.classList.add('is-visible');
+        clearTimeout(this._savedTimer);
+        this._savedTimer = setTimeout(() => pip.classList.remove('is-visible'), 1400);
     }
 
     /**
@@ -402,6 +439,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 pricing: { ...(config.pricing ?? {}), reputation: Boolean(enabled) }
             });
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the reputation modifier:`, error);
             notify.error('Could not change that.');
@@ -437,6 +475,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     if (!path || path === item.img) return;
                     await item.update({ img: path });
                     MerchantManager.broadcastActorRefresh(actor);
+                    this.flashSaved();
                     await this.render(false);
                 }
             }).browse();
@@ -465,6 +504,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await item.update({ name });
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not rename that inventory:`, error);
             notify.error('Could not rename that inventory.');
@@ -484,10 +524,47 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             const config = MerchantManager.getConfig(actor) ?? {};
             await MerchantManager.setConfig(actor, { pricing: { ...(config.pricing ?? {}), markup } });
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set markup:`, error);
         }
         await this.render(false);
+    }
+
+    /**
+     * Every rate slider, wherever it is.
+     *
+     * One loop, because the shop's Global Markup and an inventory's own rates are the
+     * same control about different things — they render through one partial and they
+     * should be bound by one piece of code, or they will drift.
+     *
+     * The readout repaints on `input`, so it keeps up with the drag; the document is
+     * written on `change`, so a drag across the track is one update rather than forty.
+     * Which attribute the input carries is what decides where the number goes.
+     */
+    _bindRateSliders() {
+        for (const input of this.element?.querySelectorAll('[data-rate-row] input[type="range"]') ?? []) {
+            if (input.dataset.merchantBound === 'true') continue;
+            input.dataset.merchantBound = 'true';
+
+            const readout = input.closest('[data-rate-row]')?.querySelector('[data-rate-readout]');
+            const paint = () => {
+                if (readout) readout.textContent = rateReadout(input.getAttribute('data-rate-kind'), input.value);
+            };
+
+            input.addEventListener('input', paint);
+            input.addEventListener('change', () => {
+                const value = Number(input.value);
+                if (!Number.isFinite(value) || value <= 0) return void this.render(false);
+
+                const inventoryMarkup = input.getAttribute('data-inventory-markup');
+                const inventoryBuyRate = input.getAttribute('data-inventory-buy-rate');
+                if (inventoryMarkup) void this._commitInventoryStock(inventoryMarkup, { markup: value });
+                else if (inventoryBuyRate) void this._commitInventoryStock(inventoryBuyRate, { buyRate: value });
+                else void this._setMarkup(value);
+            });
+            paint();
+        }
     }
 
     /**
@@ -637,6 +714,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.addInventory(actor, presetKey);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that inventory:`, error);
             notify.error('Could not add that inventory.');
@@ -810,6 +888,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.setInventoryTableRolls(actor, inventoryId, uuid, value);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that roll count:`, error);
         }
@@ -822,6 +901,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.setInventoryTableAuto(actor, inventoryId, uuid, auto);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that table to reroll:`, error);
         }
@@ -834,6 +914,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.removeInventoryTable(actor, inventoryId, uuid);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove that table:`, error);
         }
@@ -847,6 +928,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             await MerchantManager.setInventoryConfig(actor, inventoryId, changes);
             MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update that inventory:`, error);
             notify.error('Could not update that inventory.');
@@ -893,13 +975,42 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // Which pricing control this type gets. One flag per shape rather
                     // than a string the template has to compare against, because
                     // Handlebars cannot and should not do that comparison.
-                    pricingMarkup: definition.pricing === 'markup',
-                    pricingTrade: definition.pricing === 'trade',
+                    hasRates: definition.pricing === 'markup' || definition.pricing === 'trade',
+
                     pricingNone: definition.pricing === 'none',
                     markup: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
                     buyRate: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
-                    markupLabel: markupLabel(Number(config.markup) || 1),
-                    buyRateLabel: buyRateLabel(Number(config.buyRate) || DEFAULT_BUY_RATE),
+                    // One list, so a type with two rates and a type with one render
+                    // through the same partial and cannot drift apart.
+                    rates: definition.pricing === 'trade'
+                        ? [
+                            rateRow({
+                                label: 'Purchase',
+                                kind: 'buy',
+                                field: 'buy-rate',
+                                inventoryId: item.id,
+                                value: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
+                                hint: 'What the shop pays the party for their goods.'
+                            }),
+                            rateRow({
+                                label: 'Sell',
+                                kind: 'markup',
+                                field: 'markup',
+                                inventoryId: item.id,
+                                value: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
+                                hint: 'What it then charges for them, on top of the Global Markup.'
+                            })
+                        ]
+                        : definition.pricing === 'markup'
+                            ? [rateRow({
+                                label: 'Markup',
+                                kind: 'markup',
+                                field: 'markup',
+                                inventoryId: item.id,
+                                value: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
+                                hint: 'Multiplied against the shop\'s Global Markup.'
+                            })]
+                            : [],
 
                     // Rolling stocks an inventory from a table. A purchased one is
                     // stocked by the party selling to it and by nothing else, so it
@@ -915,7 +1026,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     })),
                     stockLabel: STOCK_LABELS[policy] ?? policy,
                     restocking: policy === STOCK.RESTOCKING,
-                    restockDays: Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS,
+                    // Frequency only exists for the one method that has a cadence, so
+                    // the two controls cannot contradict each other: a shelf that never
+                    // restocks is never asked how often it does.
+                    frequencyOptions: FREQUENCY_OPTIONS.map((option) => ({
+                        ...option,
+                        selected: option.value === (Number.isFinite(days) && days > 0 ? days : DEFAULT_RESTOCK_DAYS)
+                    })),
 
                     // One ceiling on screen, not two. `maxPerItem` earns its place
                     // because it clamps a table roll *and* a quantity a GM types in
@@ -930,6 +1047,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         // than left blank, so a GM can see which one to remove.
                         name: this._tableName(entry.uuid) ?? 'Missing table',
                         rolls: entry.rolls,
+                        oneRoll: entry.rolls === 1,
                         auto: entry.auto
                     })),
                     hasTables: tables.length > 0
@@ -950,7 +1068,20 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const repRate = enabled ? await resolveReputation(canvas?.scene ?? null, reputationOn) : 1;
         const repEffect = repRate === 1
             ? null
-            : `${Math.round(Math.abs(1 - repRate) * 100)}% ${repRate > 1 ? 'dearer' : 'cheaper'}`;
+            : `${Math.round(Math.abs(1 - repRate) * 100)}% ${repRate > 1 ? 'penalty' : 'benefit'}`;
+
+        // The two ends of the curve, read from the curve rather than restated, so
+        // tuning `REPUTATION_MARKUP` moves what this promises.
+        const rates = Object.values(REPUTATION_MARKUP);
+        const worst = Math.max(...rates);
+        const best = Math.min(...rates);
+        const repPenalty = `${Math.round((worst - 1) * 100)}%`;
+        const repBenefit = `${Math.round((1 - best) * 100)}%`;
+
+        // The rate partial is shared by the shop's Global Markup and every inventory
+        // rate, so it is registered once rather than inlined three times.
+        _partialsReady ??= foundry.applications.handlebars.loadTemplates([RATE_PARTIAL]);
+        await _partialsReady;
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
@@ -962,10 +1093,21 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             alwaysOpen: isAlwaysOpen(hours),
             alwaysClosed: isAlwaysClosed(hours),
             hoursBadge: isAlwaysOpen(hours) ? 'Always open' : (isAlwaysClosed(hours) ? 'Always closed' : null),
-            markup: MerchantManager.getConfig(actor)?.pricing?.markup ?? 1,
+            globalMarkup: rateRow({
+                label: 'Global Markup',
+                kind: 'markup',
+                value: Number(MerchantManager.getConfig(actor)?.pricing?.markup) || 1
+            }),
+            // Every denomination the system defines, pre-filled with what the shop
+            // actually holds. Read from CONFIG rather than listed here, so a world that
+            // adds a coin gets a box for it.
+            till: denominations().map((d) => ({
+                key: d.key,
+                label: d.abbreviation,
+                value: Math.trunc(Number(actor?.system?.currency?.[d.key]) || 0)
+            })),
             description: MerchantManager.getConfig(actor)?.description ?? '',
             shopName: MerchantManager.getConfig(actor)?.name ?? '',
-            tillGold: Math.trunc(Number(actor?.system?.currency?.gp ?? 0)),
             tillLabel: enabled ? formatBase(purseValue(actor)) : null,
             tillEmpty: enabled && purseValue(actor) === 0,
             kindOptions: SHOP_KINDS.map((option) => ({
@@ -977,7 +1119,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // it is on: "15% dearer" with no reason given reads as a bug, and
             // "Distrusted here" reads as the game working.
             reputationOn: Boolean(MerchantManager.getConfig(actor)?.pricing?.reputation),
-            reputationLabel: repLabel,
+            reputationLabel: repLabel ?? 'not recorded here',
+            reputationPenalty: repPenalty,
+            reputationBenefit: repBenefit,
             reputationEffect: repEffect,
             // Sensible defaults for a shop that has never had a schedule, so the
             // handles start somewhere a GM would recognise rather than at midnight.
@@ -1005,21 +1149,28 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             appId: this.id,
             bodyContent,
             showToolFooter: true,
-            toolFooterLeft: `
-                <button type="button" class="blacksmith-window-btn-secondary" data-action="close">
-                    <i class="fa-solid fa-check"></i> Done
-                </button>`,
-            // The main action, right-justified, and only where there is something to
-            // restock: on a shop with no inventories it would be a button that does
-            // nothing but say so.
-            toolFooterRight: hasInventories
+            // **Restock is not the primary action.** It was, by default, because it was
+            // the only button on the right — which made the loudest control on a
+            // settings window the one that rolls dice and changes stock. Setting a shop
+            // up and restocking it are different errands.
+            toolFooterLeft: hasInventories
                 ? `
-                <button type="button" class="blacksmith-window-btn-primary merchant-config-restock-all"
+                <button type="button" class="blacksmith-window-btn-secondary merchant-config-restock-all"
                         data-action="restockAll"
                         data-tooltip="Bring every inventory back to its quantities and roll all of its tables">
                     <i class="fa-solid fa-arrows-rotate"></i> Restock Everything
                 </button>`
-                : ''
+                : '',
+            // Settings save as they are made, so this closes rather than commits. It
+            // says so: "I'm Done" claims nothing about writing, where "Save" would
+            // imply the window had been holding changes back.
+            toolFooterRight: `
+                <span class="merchant-config-saved" data-saved-pip>
+                    <i class="fa-solid fa-check"></i> Saved
+                </span>
+                <button type="button" class="blacksmith-window-btn-primary" data-action="close">
+                    <i class="fa-solid fa-shop"></i> I'm Done
+                </button>`
         };
     }
 

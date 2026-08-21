@@ -1,0 +1,26 @@
+{{!--
+    One rate, as a labelled row: what it is, what it currently means, and the range it
+    can take.
+
+        MARKUP        ×2.10 · 110% markup
+                      ×0.10 [--------O-----] ×3.00
+
+    Both ends are on screen because a slider with no bounds is a guess about how far it
+    goes, and the readout carries the number *and* what it means — "110% markup" rather
+    than a word like "dearer", which nobody has to look up.
+
+    Used for the shop's Global Markup and for every inventory rate, so the three read
+    the same and are bound by the same code.
+--}}
+<div class="merchant-config-row merchant-config-rate" data-rate-row>
+    <span class="merchant-config-label">{{label}}</span>
+    <div class="merchant-config-rate-track">
+        <span class="merchant-config-rate-bound">{{minLabel}}</span>
+        <input type="range" min="{{min}}" max="{{max}}" step="{{step}}" value="{{value}}"
+               data-rate-kind="{{kind}}" {{#if inventoryId}}data-inventory-{{field}}="{{inventoryId}}"{{else}}data-merchant-markup{{/if}}
+               aria-label="{{label}}">
+        <span class="merchant-config-rate-bound">{{maxLabel}}</span>
+        <output class="merchant-config-rate-value" data-rate-readout>{{readout}}</output>
+    </div>
+    {{#if hint}}<small class="merchant-config-hint">{{hint}}</small>{{/if}}
+</div>
