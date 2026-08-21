@@ -4,7 +4,7 @@ import {
 } from './const.js';
 import { startProgress } from './utility-progress.js';
 import {
-    resolvePrice, resolveBuybackPrice, formatBase, purseValue, planSettlement, toBase, fromBase,
+    resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
     negotiatedPrice
 } from './utility-pricing.js';
 import { isPhysical } from './utility-inventory.js';
@@ -459,11 +459,18 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
-    async _send(payload, busy = {}, op = 'settle') {
+    /**
+     * Ask the GM to settle. There is one operation, so there is no `op` to pass.
+     *
+     * **No caller id in the payload.** The envelope resolves the User from the
+     * authenticated socket and hands it to the handler; anything we put here about who
+     * is asking would be a claim, not an identity.
+     */
+    async _send(payload, busy = {}) {
         this._busy = { row: busy.row ?? null, label: busy.label ?? 'Working' };
         await this.render(false);
         try {
-            return await MerchantManager.request(op, { tokenUuid: this.tokenUuid, ...payload });
+            return await MerchantManager.request({ tokenUuid: this.tokenUuid, ...payload });
         } finally {
             this._busy = null;
         }
@@ -558,7 +565,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _sellContext(merchant) {
         const seller = this.recipient;
-        const buyback = merchant ? this._buyback(merchant) : null;
+        const buyback = merchant ? this._purchasedInventory(merchant) : null;
         const sort = this.sellSort;
 
         if (!this._selling) return { open: false };
@@ -997,8 +1004,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 sell: basket.map((line) => ({ itemId: line.id, quantity: line.quantity })),
                 shopperUuid: shopper.uuid
             },
-            { label: 'Settling up' },
-            'settle'
+            { label: 'Settling up' }
         );
 
         if (result?.ok) {
@@ -1078,7 +1084,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      *
      * That inventory existing *is* "this shop buys things"; there is no separate setting.
      */
-    _buyback(merchant) {
+    _purchasedInventory(merchant) {
         return MerchantManager.getInventories(merchant, { includeHidden: true })
             .find(({ config }) => isPurchased(config.type)) ?? null;
     }
@@ -1106,7 +1112,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
         if (!this._wouldTake(item)) return null;
-        return resolveBuybackPrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation, market: this.market });
+        return resolvePurchasePrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation, market: this.market });
     }
 
     /**
@@ -1131,7 +1137,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const seller = this.recipient;
         const token = await this._resolveToken();
         const merchant = token?.actor;
-        const buyback = merchant ? this._buyback(merchant) : null;
+        const buyback = merchant ? this._purchasedInventory(merchant) : null;
         if (!item || !seller || !buyback) return;
 
         if (item.parent?.uuid !== seller.uuid) {
@@ -1174,7 +1180,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const seller = this.recipient;
         const token = await this._resolveToken();
         const merchant = token?.actor;
-        const buyback = merchant ? this._buyback(merchant) : null;
+        const buyback = merchant ? this._purchasedInventory(merchant) : null;
         if (!seller || !buyback) return [];
 
         const lines = [];
@@ -1280,6 +1286,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'NO_PURCHASED_INVENTORY': return 'This merchant does not buy anything.';
             case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
             case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
+            // The envelope's own codes. `IDENTITY_UNVERIFIED` is a refusal to report
+            // rather than work around: it means the GM's client could not establish who
+            // asked, and answering from a claimed identity would be worse than not
+            // answering. It is a Blacksmith problem, and saying so is the whole job.
+            case 'UNKNOWN_OP': return 'The GM’s client is not answering shop requests. It may need a reload.';
+            case 'QUERY_UNAVAILABLE': return 'Shop requests are unavailable — Blacksmith may need updating.';
+            case 'IDENTITY_UNVERIFIED': return 'The GM could not confirm who was asking, so nothing was done. Tell your GM.';
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
                 ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
                 : 'That container cannot be sold while it holds anything.';
@@ -1529,7 +1542,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             hasBasket: basketLines.length > 0,
             basketTotalLabel: formatBase(basketTotal),
             // The buyback inventory existing is what "this shop buys things" means.
-            canSell: !missing && Boolean(this._buyback(merchant)),
+            canSell: !missing && Boolean(this._purchasedInventory(merchant)),
             sellTooltip: !recipient
                 ? 'You have no character able to sell'
                 : 'Choose something to sell',

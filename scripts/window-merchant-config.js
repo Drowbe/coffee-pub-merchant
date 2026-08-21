@@ -354,17 +354,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 void this._onDropTable(event, inventoryId);
             });
         }
-
-        for (const input of this.element?.querySelectorAll('[data-inventory-restock-days]') ?? []) {
-            if (input.dataset.merchantBound === 'true') continue;
-            input.dataset.merchantBound = 'true';
-            input.addEventListener('change', (event) => {
-                const days = Math.max(1, Math.trunc(Number(event.target.value) || DEFAULT_RESTOCK_DAYS));
-                void this._commitInventoryStock(input.getAttribute('data-inventory-restock-days'), {
-                    restockDays: days
-                });
-            });
-        }
     }
 
     /**

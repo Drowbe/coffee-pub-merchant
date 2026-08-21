@@ -371,8 +371,12 @@ export function negotiatedPrice(merchantConfig, itemId) {
 }
 
 /** What the GM has agreed to pay for one thing the party is selling, or null. */
-export function negotiatedBuyback(merchantConfig, itemId) {
-    const agreed = merchantConfig?.pricing?.buybackOverrides?.[itemId];
+export function negotiatedPurchase(merchantConfig, itemId) {
+    // The old key is read as well as the new one, for the window between a world
+    // loading and its GM logging in to run the migration: a player who opens a shop
+    // first should not watch an agreed price vanish and come back.
+    const agreed = merchantConfig?.pricing?.purchaseOverrides?.[itemId]
+        ?? merchantConfig?.pricing?.buybackOverrides?.[itemId];
     return Number.isFinite(Number(agreed)) ? Math.max(0, Math.round(Number(agreed))) : null;
 }
 
@@ -395,8 +399,8 @@ export function negotiatedBuyback(merchantConfig, itemId) {
  * @param {object} [options]
  * @param {number} [options.reputation] The buying-side multiplier. Inverted here.
  */
-export function resolveBuybackPrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
-    const agreed = negotiatedBuyback(merchantConfig, item?.id);
+export function resolvePurchasePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
+    const agreed = negotiatedPurchase(merchantConfig, item?.id);
     if (agreed !== null) return agreed;
 
     // The item's own worth: no overrides, no *inventory* markup, and no market —

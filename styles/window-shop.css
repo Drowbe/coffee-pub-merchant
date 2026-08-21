@@ -128,7 +128,6 @@
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
 
-
 /* --- Trading hours ---------------------------------------------------- */
 /* A row of facts that wraps cleanly: the separator is drawn between items rather
    than attached to one, so a line that breaks does not start with a divider or end
@@ -138,9 +137,6 @@
 .merchant-shop-description > span { display: inline-flex; gap: 5px; align-items: center; }
 .merchant-shop-description > span + span::before { content: ''; width: 1px; height: .85em; margin-right: 10px; background: var(--blacksmith-tool-divider); }
 .merchant-shop-override { margin-top: 5px; color: #a4432f; font-size: .66rem; }
-
-/* --- Prices and coin -------------------------------------------------- */
-.merchant-shop-price { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-style: normal; font-variant-numeric: tabular-nums; }
 .merchant-shop-unpriced { margin-left: 7px; padding-left: 7px; border-left: 1px solid var(--blacksmith-tool-divider); color: #a4432f; font-style: normal; }
 /* A figure, not a control. It had a border and a fill and sat next to an actual
    button, so it read as a second one — and there is nothing to press. Plain text
@@ -207,11 +203,6 @@
 .merchant-shop-cart-total { font-size: .76rem; text-align: right; font-variant-numeric: tabular-nums; }
 .merchant-shop-cart-remove { padding: 1px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .62rem; cursor: pointer; }
 .merchant-shop-cart-remove:hover { border-color: #a4432f; color: #a4432f; }
-.merchant-shop-cart-foot { display: flex; flex-direction: column; align-items: stretch; gap: 7px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); font-size: .8rem; }
-.merchant-shop-cart-foot > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.merchant-shop-cart-foot strong { font-variant-numeric: tabular-nums; }
-.merchant-shop-checkout { flex: 1 1 auto; min-height: 28px; margin: 0; padding: 3px 12px; font-size: .74rem; white-space: nowrap; }
-.merchant-cart-confirm { margin: 0 0 8px; padding-left: 18px; }
 
 /* --- Stock ------------------------------------------------------------ */
 /* The quantity column widens a little to hold an editable number without the
@@ -313,12 +304,6 @@
 /* One action per row now, so it can afford a word beside the icon. */
 .merchant-shop-cart-add { min-height: 24px; margin: 0; padding: 2px 10px; font-size: .68rem; text-transform: none; white-space: nowrap; }
 
-/* --- Sell basket -------------------------------------------------------- */
-/* Under the cart and tinted the other way: the cart is what you are taking, the
-   basket is what you are handing over. */
-.merchant-shop-basket { margin-top: 10px; border-color: color-mix(in srgb, #8a6a2f 30%, var(--blacksmith-tool-divider)); }
-.merchant-shop-basket.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
-
 /* --- Settle -------------------------------------------------------------- */
 /* The one main action, right-justified in the footer. It settles both panels, so
    it belongs to neither; the running net rides on it so the number is where the
@@ -326,10 +311,6 @@
 .merchant-shop-settle { display: inline-flex; gap: 7px; align-items: center; }
 /* Beside the action it undoes, and quiet next to it. */
 .merchant-shop-clear { display: inline-flex; gap: 6px; align-items: center; margin-right: 7px; }
-
-/* Two lists in one confirm need to say which is which. */
-.merchant-confirm-head { margin: 8px 0 3px; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; opacity: .75; }
-.merchant-confirm-head:first-child { margin-top: 0; }
 
 /* --- One cart, total pinned ---------------------------------------------- */
 /*

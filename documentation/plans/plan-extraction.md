@@ -226,3 +226,18 @@ left is a label-parameterised dialog, which may well be a documented recipe rath
 is a fine place for this to land. An extraction that dissolves because the underlying defect was fixed is a
 better outcome than the helper.
 
+
+---
+
+## Where this stands, 2026-08-21
+
+**(c) window construction and (d) party resolution are adopted.** Both shipped in Blacksmith 13.19.0.
+`openFor` replaced both hand-rolled registries and fixed a live bug on the way in; `party.acting()` replaced
+`getPartyCharacters` and brought a distinction this module had no way of knowing it was missing.
+
+**(a) `_askQuantity` was dropped** — one consumer, not two, once Merchant deleted its copy.
+
+**(b) `_pickActor` is the last one, and it is Blacksmith's to build.** Nothing here is blocked on it.
+
+**This plan is deleted the day (b) lands.** An implemented plan is a second copy of the architecture waiting
+to go stale.

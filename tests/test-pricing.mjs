@@ -132,13 +132,13 @@ assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: 0 } } }, 'a'),
 assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: { value: 7, denomination: 'gp' } } } }, 'a'), 700);
 
 const BUYBACK = { type: 'purchased', markup: 1, buyRate: 0.5 };
-assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
-assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
+assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
+assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
 assert.strictEqual(
-    P.resolveBuybackPrice({ pricing: { buybackOverrides: { a: 900 } } }, BUYBACK, item('a', null)), 900,
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { a: 900 } } }, BUYBACK, item('a', null)), 900,
     'until the GM says what the merchant will pay');
 assert.strictEqual(
-    P.resolveBuybackPrice({ pricing: { overrides: { a: 9999 } } }, BUYBACK, item('a', 50)), 2500,
+    P.resolvePurchasePrice({ pricing: { overrides: { a: 9999 } } }, BUYBACK, item('a', 50)), 2500,
     'a buy-side agreement does not decide what the shop pays');
 console.log('ok  agreed prices, both directions');
 
@@ -174,9 +174,9 @@ assert.strictEqual(P.resolvePrice(DEAR, PREMIUM, item('a', 50), { reputation: 0.
     'and it multiplies against both markups');
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50), { reputation: 1 }), 5000, 'neutral moves nothing');
 
-assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50), { reputation: 0.85 }), 2941,
+assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50), { reputation: 0.85 }), 2941,
     'a liked party is paid more, not less');
-assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50), { reputation: 1.15 }), 2174,
+assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50), { reputation: 1.15 }), 2174,
     'and a disliked one is paid less');
 
 // An agreed price is the price. Nothing is applied on top of a number two people
@@ -184,7 +184,7 @@ assert.strictEqual(P.resolveBuybackPrice({}, BUYBACK, item('a', 50), { reputatio
 assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), { reputation: 0.5 }), 1200,
     'reputation does not re-cut an agreed price');
 assert.strictEqual(
-    P.resolveBuybackPrice({ pricing: { buybackOverrides: { a: 900 } } }, BUYBACK, item('a', 50), { reputation: 0.5 }),
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { a: 900 } } }, BUYBACK, item('a', 50), { reputation: 0.5 }),
     900, 'nor an agreed buyback');
 
 console.log('ok  reputation, both directions');
@@ -193,7 +193,7 @@ console.log('ok  reputation, both directions');
 // **Reputation is the area's disposition; markup is one merchant's choice.** Both
 // apply to buying and to selling, or a merchant becomes a one-way valve: marking
 // everything up while paying the going rate.
-assert.strictEqual(P.resolveBuybackPrice(DEAR, BUYBACK, item('a', 50)), 3000,
+assert.strictEqual(P.resolvePurchasePrice(DEAR, BUYBACK, item('a', 50)), 3000,
     'a merchant who charges 1.2x also pays 1.2x');
 assert.strictEqual(P.resolvePrice(DEAR, SALE, item('a', 50)), 6000, 'and still charges it');
 
@@ -209,7 +209,7 @@ for (const markup of [0.5, 1, 1.2, 2, 3]) {
             for (const buyRate of [0.1, 0.5, 0.9, 1.5]) {
                 const shop = { pricing: { markup } };
                 const inv = { type: 'purchased', markup: invMarkup, buyRate };
-                const paidToYou = P.resolveBuybackPrice(shop, inv, item('a', 50), { reputation: rep });
+                const paidToYou = P.resolvePurchasePrice(shop, inv, item('a', 50), { reputation: rep });
                 const chargedBack = P.resolvePrice(shop, inv, item('a', 50), { reputation: rep });
                 assert.ok(paidToYou < chargedBack,
                     `pays ${paidToYou} but charges ${chargedBack} `
@@ -231,13 +231,13 @@ const CHEAP_TOWN = { market: 0.25 };
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', 100), DEAR_TOWN), 40000, 'goods cost more where they are scarce');
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', 100), CHEAP_TOWN), 2500, 'and less at the source');
 assert.ok(
-    P.resolveBuybackPrice({}, BUYBACK, item('a', 100), DEAR_TOWN)
-    > P.resolveBuybackPrice({}, BUYBACK, item('a', 100), CHEAP_TOWN),
+    P.resolvePurchasePrice({}, BUYBACK, item('a', 100), DEAR_TOWN)
+    > P.resolvePurchasePrice({}, BUYBACK, item('a', 100), CHEAP_TOWN),
     'and a dear town also pays more — which reputation, being a favour, never does');
 
 // The route itself: buy at the source, carry it to where it is scarce.
 const atSource = P.resolvePrice({}, SALE, item('a', 100), CHEAP_TOWN);
-const atMarket = P.resolveBuybackPrice({}, BUYBACK, item('a', 100), DEAR_TOWN);
+const atMarket = P.resolvePurchasePrice({}, BUYBACK, item('a', 100), DEAR_TOWN);
 assert.ok(atMarket > atSource * 3, `carrying goods pays: ${atSource} -> ${atMarket}`);
 console.log('ok  a market makes a trade route, and pays both ways');
 
@@ -247,7 +247,7 @@ for (const market of [0.25, 1, 2, 4]) {
     for (const rep of [0.85, 1, 1.3]) {
         for (const buyRate of [0.5, 0.9, 1.5]) {
             const inv = { type: 'purchased', markup: 1, buyRate };
-            const paidToYou = P.resolveBuybackPrice({}, inv, item('a', 50), { reputation: rep, market });
+            const paidToYou = P.resolvePurchasePrice({}, inv, item('a', 50), { reputation: rep, market });
             const chargedBack = P.resolvePrice({}, inv, item('a', 50), { reputation: rep, market });
             assert.ok(paidToYou < chargedBack,
                 `market ${market}, rep ${rep}, rate ${buyRate}: pays ${paidToYou} charges ${chargedBack}`);
@@ -263,7 +263,7 @@ const iowa = { pricing: { markup: 1 } };
 const california = { pricing: { markup: 2 } };
 const generous = { type: 'purchased', markup: 2, buyRate: 0.6 };
 const boughtFor = P.resolvePrice(iowa, SALE, item('a', 100));
-const soldFor = P.resolveBuybackPrice(california, generous, item('a', 100));
+const soldFor = P.resolvePurchasePrice(california, generous, item('a', 100));
 assert.strictEqual(boughtFor, 10000, 'bought at the going rate');
 assert.strictEqual(soldFor, 12000, 'sold where goods are dear');
 assert.ok(soldFor > boughtFor, 'a trade route exists');
@@ -272,7 +272,7 @@ console.log('ok  buying cheap and selling dear turns a profit');
 // The purchased type's two rates are independent, which is the whole reason there
 // are two: what the shop hands over is not what it asks for the thing afterwards.
 const TRADE = { type: 'purchased', markup: 1.25, buyRate: 0.4 };
-assert.strictEqual(P.resolveBuybackPrice({}, TRADE, item('a', 50)), 2000, 'pays 40% of worth');
+assert.strictEqual(P.resolvePurchasePrice({}, TRADE, item('a', 50)), 2000, 'pays 40% of worth');
 assert.strictEqual(P.resolvePrice({}, TRADE, item('a', 50)), 6250, 'and resells at 125%');
 console.log('ok  purchase and sell rates are independent');
 
@@ -427,3 +427,20 @@ for (const gp of [0, 1, 3, 20, 500]) {
 console.log(`ok  ${settled} settlements pay exactly, and none invent money`);
 
 console.log('\nall pricing checks passed');
+
+// --- the renamed key -----------------------------------------------------
+// `buybackOverrides` became `purchaseOverrides` when *buyback* left the vocabulary.
+// A stored key is the expensive half of a rename, so the old one is still read: a
+// player who opens a shop before the GM has logged in to run the migration should
+// not watch an agreed price disappear and come back.
+assert.strictEqual(
+    P.negotiatedPurchase({ pricing: { purchaseOverrides: { a: 900 } } }, 'a'), 900,
+    'the current key');
+assert.strictEqual(
+    P.negotiatedPurchase({ pricing: { buybackOverrides: { a: 700 } } }, 'a'), 700,
+    'and the one a world may still be holding');
+assert.strictEqual(
+    P.negotiatedPurchase({ pricing: { purchaseOverrides: { a: 900 }, buybackOverrides: { a: 700 } } }, 'a'),
+    900, 'the migrated key wins when a world somehow has both');
+assert.strictEqual(P.negotiatedPurchase({ pricing: {} }, 'a'), null, 'and nothing means nothing');
+console.log('ok  the renamed sell-side key reads old and new');

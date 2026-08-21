@@ -34,12 +34,8 @@ Two things to read before changing anything load-bearing:
 
 | Severity | Item | Where |
 |---|---|---|
-| **High** | Adopt `blacksmith.gmRequest` — deletes `gm-request.js` and closes the caller-identity hole | `gm-request.js`, `manager-merchant.js` |
-| **High** | Adopt `blacksmith.party` — `acting()`, `actor()`, `hasPrimaryParty()` | `manager-merchant.js:1075` |
 | **Medium** | No localisation — roughly 200 hardcoded English strings | scripts and templates |
-| **Medium** | Trading hours and restocking hand-roll what `api.worldClock` does | `manager-merchant.js` |
-| **Medium** | Three raw `Hooks.on` registrations, none of them disposable | `manager-merchant.js` |
-| **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:1523` |
+| **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:1691` |
 | **Low** | Sell as the party is untried | — |
 | **Low** | No way to hand something over for free | — |
 
@@ -47,56 +43,7 @@ Two things to read before changing anything load-bearing:
 
 ---
 
-## 1. Adopt what Blacksmith shipped
-
-Both landed in **Blacksmith 13.19.0** (`a13e0984`, committed), and `module.json` already pins that
-minimum. Each of these deletes code here.
-
-### `blacksmith.gmRequest` — `gm-request.js` becomes a deletion
-
-The surface `architecture-merchant.md` §8 and §11 have been waiting for, and it arrived with the contract
-those sections predicted: `registerOp({ op, module, handler })`, `request(op, payload, { timeout })`, and a
-handler invoked as `(payload, user)` where **`user` is a verified `User` the caller could not have forged**.
-
-What changes here. `_process(op, payload, userId)` takes the User it is handed instead of resolving one from
-`game.users.get(userId)`; the `userId` field comes out of every request payload **in the same change**,
-because leaving it in is the hole rather than a redundancy; op routing stops being our `if (op !== 'settle')`
-and becomes their registration. The local-GM shortcut becomes theirs — a GM runs the handler locally, no
-round trip — so ours goes with the file.
-
-Four things to get right, all stated in `api-gm-request.md` and none of them guessable. Ops must be
-**module-prefixed** (`coffee-pub-merchant.settle`). Registration happens on **every** client, not only the
-GM's — one that registered nothing answers `UNKNOWN_OP`, and `MerchantManager.initialize()` already runs for
-everyone, so this is satisfied by not "optimising" it later. Re-registering an existing op is **refused
-rather than overwritten**, so any path that registers twice needs `unregisterOp`. And `IDENTITY_UNVERIFIED`
-is a refusal to **report, not to work around** — the envelope will not answer from a claimed identity, which
-is the whole point of it.
-
-`_explain` needs the three codes we cannot currently say: `UNKNOWN_OP`, `QUERY_UNAVAILABLE`,
-`IDENTITY_UNVERIFIED`. `NO_ACTIVE_GM`, `NO_QUERY_PERMISSION`, `TIMEOUT` and `HANDLER_ERROR` already match
-ours exactly — which is what writing `gm-request.js` against the eventual shape was for.
-
-**The standing rule survives the migration:** never read an identity out of a payload. If one is there, it
-is either redundant or a hole.
-
-### `blacksmith.party` — the roster, and the distinction we never had to make
-
-`party.acting()` is ours: `system.playerCharacters`, with the no-primary-party fallback to player-owned
-actors that `getPartyCharacters` reinvents at `manager-merchant.js:1080`. `party.resting()` is Rest's
-`system.creatures`, which includes familiars and companions. A familiar rests with the party and cannot buy
-a sword, so **reaching for the wrong one gives a roster that looks right in testing** — take `acting()`,
-never `resting()`.
-
-`party.actor()` replaces `getPartyActor`. Two things stay ours, and their doc says so: it returns facts
-rather than decisions, so the ownership filtering in `getEligibleRecipients` and `canActAs` is not theirs to
-take. And `hasPrimaryParty()` is worth surfacing in Merchant Settings — *"no primary party set"* explains an
-odd Buying-as list far better than the list does.
-
-`plans/plan-extraction.md` is the record of how these were argued; it goes when the last of them is adopted.
-
----
-
-## 2. Couplings and gaps
+## 1. Couplings and gaps
 
 ### Localisation — not done, and it should be
 
@@ -119,44 +66,23 @@ Scope, so nobody has to survey it twice:
 
 Do this **before** the next feature that adds user-facing text, not after.
 
-### Trading hours and restocking hand-roll what `api.worldClock` does
-
-`_registerScheduleWatcher`, `_onWorldTimeChange` and `_applyRestocks` diff world time themselves.
-`api-worldclock.md` exists for exactly this and states the reason: `updateWorldTime` only says the number
-moved, and the edge cases *are* the job — a rest advancing eight hours, a GM winding the clock back, one
-jump crossing the same daily boundary several times. It hands over a `crossings` count rather than resolving
-it, which is the same judgement our restock cadence already makes in its own way.
-
-**Evaluate rather than adopt on sight.** Two things must survive it. `isOpen` stays *derived* — that was the
-fix in `7fd1267`, and a scheduler is precisely what tempts somebody back into storing the state it fires
-about; a schedule here triggers a refresh and a restock, never a write of open/closed. And `dailyAt` is
-per-shop, so each merchant wants its own registration keyed by uuid and re-registered whenever its hours
-change — which may well be worse than one watcher over every merchant. Answer that by reading their
-implementation, not by guessing here.
-
-### Three raw `Hooks.on` registrations, none of them disposable
-
-`_registerStockWatcher` binds `updateItem`, `createItem` and `deleteItem`; `_registerScheduleWatcher` binds
-`updateWorldTime`. `BlacksmithHookManager.registerHook` gives context-based cleanup — the same shape as
-`tokens.disposeByContext`, which `teardown()` already uses for the interaction claim, so half of teardown
-disposes cleanly today and half cannot be undone at all.
-
-The item watchers also want throttling, which is the practical half: a GM dragging a stack between shelves
-fires `updateItem` per document, and every one of those broadcasts a refresh to every connected client.
-`api-hookmanager.md` names two combinations that fail silently — `throttleMs` with `debounceMs` discards the
-debounce, and `once` with `debounceMs` never runs the callback at all.
-
----
-
-## 3. Nits and known gaps
+## 2. Nits and known gaps
 
 - **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
   `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
-  wraps SocketLib with a native fallback and a `waitForReady()`. Nothing authoritative rides on it — it
-  tells open windows to redraw, and every mutation goes through the envelope — which is why it has been
-  fine. But once `gmRequest` is adopted this is the **only** place left where Merchant talks to core
-  directly on a surface Blacksmith owns, and "it is only a redraw" is how a second transport acquires a
-  second consumer.
+  wraps SocketLib with a native fallback. Now that `gmRequest` is adopted this is the **last** place
+  Merchant talks to core directly on a surface Blacksmith owns.
+
+  **The risky part is already checked.** Their `emit()` maps to SocketLib's `executeForOthers`
+  (`manager-sockets.js:221`), so it does *not* echo to the sender — the same semantics as
+  `game.socket.emit`, which is what the presence and slate handlers assume. A swap will not silently start
+  applying our own slates to ourselves.
+
+  What is left is bookkeeping, and it is why this has not been done: four actions share one channel and
+  would become four registered event names (`register()` overwrites silently and cannot be undone, so the
+  names must be module-prefixed); registration wants `await sockets.waitForReady()`, which makes an
+  `initialize()` that is currently synchronous asynchronous. Worth doing when the presence system is next
+  being tested anyway, because that is what would have to be re-tested.
 - **Sell as the party is untried.** The path exists — the party Group Actor is in the "Buying as" list and
   the same code serves it — but a Group Actor's inventory and purse have never been exercised by it.
 - **The GM has no way to hand something over for free.** Deliberate: the take-without-paying control was
@@ -287,3 +213,22 @@ with Blacksmith, not a sprite.
   predictable, and a GM who wants variety can put it in the table.
 - **Per-segment clears on the slate.** One control empties both segments. Dumping what you are selling while
   keeping what you are buying is per-line only.
+
+- **`api.worldClock` was evaluated and declined, 2026-08-21.** Their scheduler answers "tell me when the
+  world reaches a moment" — `dailyAt` for an hour of the day, `at` for an absolute time, with a `crossings`
+  count so a week-long rest fires once rather than seven times. It is well built and it is not what either of
+  Merchant's two clock needs actually is.
+
+  **Trading hours need no scheduler at all.** `isOpen` is derived — it reads the schedule every time it is
+  asked — so the watcher exists only to redraw a window whose answer may have changed. A missed event is a
+  stale window that the next refresh fixes, never a wrong shop. Registering two `dailyAt` moments per
+  merchant and re-registering them whenever a GM edits the hours would be more machinery, more state, and
+  more ways to be wrong than a before-and-after comparison.
+
+  **Restocking is not a moment.** It is *elapsed time since a stored timestamp* — `restockDays` since this
+  inventory's `lastRestock` — which `dailyAt` cannot express. `at` could, re-registered after every restock,
+  except schedules are not persisted, so every registration would have to be rebuilt at `ready` from the
+  same `lastRestock` the current check reads directly.
+
+  Revisit if a genuine wall-clock event appears — a shop that opens on market day, an auction at dusk. Those
+  are moments, and that is what it is for.

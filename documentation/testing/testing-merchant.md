@@ -935,3 +935,46 @@ New on 2026-08-19. The first two are the ones that touch data you already have.
     back. You must be out of pocket, and by a lot.
 47. Change a scene's market while a shop on it is open. It reprices without needing a refresh.
 48. A merchant with a token on two scenes with different markets prices differently in each — open both.
+
+## 21. The envelope, the party, and the schema — 2026-08-21
+
+Built unattended. **Start here in the morning**, because 21a is the one that decides whether anything else
+is testable: if the op did not register, nothing can be bought or sold at all.
+
+### 21a. Buying and selling still work
+
+1. As GM, buy something. It settles. This exercises the local-dispatch path — a GM runs the handler in its
+   own client with no round trip.
+2. As GM, sell something. It settles.
+3. **With a player client connected**, have the player buy something. This is the path that actually goes
+   over the wire to the GM, and it is the one that could not be tested without you.
+4. The player sells something.
+5. Watch the GM's console during 3 and 4. `UNKNOWN_OP` means the op did not register on that client;
+   `IDENTITY_UNVERIFIED` means Blacksmith could not tell who asked and is theirs to fix, not ours.
+6. With the GM **disconnected**, a player attempting to settle is told no GM is connected — not left hanging.
+
+### 21b. The migration to schema 3
+
+7. Load as GM in a world that has agreed sell prices on a merchant. Those prices survive: the stored key
+   moved from `buybackOverrides` to `purchaseOverrides`.
+8. On the merchant's flags, `pricing.purchaseOverrides` exists and `pricing.buybackOverrides` does **not**.
+   Not both.
+9. `flags.coffee-pub-merchant.merchant.schema` reads `3`.
+10. Reload. The console reports no migration the second time.
+11. **Before** the GM logs in, a player opening a shop still sees agreed sell prices — the old key is read
+    as well as the new one for exactly that window.
+
+### 21c. Party roster
+
+12. The **Buying as** list is unchanged from yesterday for a normal party.
+13. A world with a familiar or companion in the party: it is **not** offered as somebody to shop as.
+14. A world with no primary party set still offers a usable list — every player-owned character.
+
+### 21d. Quieter and tidier
+
+15. Drag a stack of items between two inventories on a merchant sheet with the shop open. It redraws, once,
+    promptly. Previously each item was its own broadcast.
+16. Restock an inventory that rolls several tables. One redraw, not one per row.
+17. Two merchants changed at once both redraw — coalescing merges per merchant and must not lose either.
+18. Nothing in the shop or settings windows looks unstyled: thirty-four dead CSS rules were removed, and a
+    mistake there would show as a control losing its box or its colour.

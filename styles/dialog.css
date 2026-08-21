@@ -9,12 +9,6 @@
 /* Dialog hint: says why a choice may be refused before it is made. */
 .merchant-dialog .merchant-shop-hint { margin: 6px 0 0; color: var(--blacksmith-tool-text-muted); font-size: .74rem; line-height: 1.4; }
 
-/* --- Sell picker -------------------------------------------------------- */
-/* A full inventory is a hundred rows, so the list scrolls inside the dialog
-   rather than growing the dialog past the screen. */
-.merchant-sell-dialog .merchant-sell-list { max-height: min(52vh, 460px); overflow-y: auto; }
-.merchant-sell-dialog .blacksmith-field { min-width: min(560px, 70vw); }
-
 /* --- The local market ---------------------------------------------------- */
 /* A scene-wide fact, so it gets room to say what it is before the slider. */
 .merchant-market-dialog .merchant-market-blurb { margin: 0 0 10px; color: var(--blacksmith-tool-text-muted); font-size: .74rem; line-height: 1.45; }

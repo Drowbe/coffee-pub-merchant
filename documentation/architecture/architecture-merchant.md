@@ -33,7 +33,6 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
 | `scripts/utility-market.js` | What goods are worth in a place. A number on the Scene. |
 | `scripts/settings.js` | The six sound settings, and nothing else. |
-| `scripts/gm-request.js` | The request envelope. **A bridge, not a design** — see §8. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
 stylesheet `module.json` names, so it is the door; `window-shop.css`, `window-merchant-config.css` and
@@ -61,7 +60,7 @@ is the one most likely to be got wrong out of habit.
     name: 'Potions and Stuff',   // the shop's name; the Actor's name is the shopkeeper's
     kind: 'general',             // SHOP_KINDS — drives the icon and category label
     description: '',             // GM-authored, enriched on display
-    schema: 2,                   // migration stamp — see §12
+    schema: 3,                   // migration stamp — see §12
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
@@ -69,7 +68,7 @@ is the one most likely to be got wrong out of habit.
         markup: 1.0,             // the shop's BASELINE; inventories multiply against it
         reputation: false,       // opt in to the party's standing moving prices
         overrides: { [itemId]: baseUnits },        // agreed buy prices
-        buybackOverrides: { [itemId]: baseUnits }  // agreed sell prices
+        purchaseOverrides: { [itemId]: baseUnits } // agreed sell prices
     }
 }
 ```
@@ -399,17 +398,38 @@ one check. The three-party ask to Blacksmith was withdrawn because of this.
 
 ## 8. The request envelope
 
-`gm-request.js` is built on Foundry v13's query API — `CONFIG.queries` plus `game.users.activeGM.query()`.
-Request ids, the pending map, the timeout and response routing are all core's, and `game.users.activeGM` is
-core's own single-GM designation, so every module agrees on which GM acts.
+**`blacksmith.gmRequest` is the envelope.** Merchant carried its own — `gm-request.js`, built on Foundry's
+query API — from the first commit until 2026-08-21, always described as a bridge rather than a design. It
+was deleted rather than rewritten, which is what it was written to be.
 
-**The envelope routes and elects; it does not authorize.**
+One op, registered on **every** client:
 
-It has one defect, and it is not ours to fix. Foundry *does* know who called — `#handleUserQuery` resolves
-the querying User from the authenticated socket — and then drops them without passing them to the handler.
-So Merchant asserts the caller id in its own payload, which is precisely the step that turns a verified
-identity into a client-supplied one. **Do not build a mitigation for this.** When Blacksmith's surface lands,
-`userId` comes out of the payload in the same change and this file becomes a deletion rather than a rewrite.
+```js
+MerchantManager.OP === 'coffee-pub-merchant.settle'
+```
+
+Every client, because any of them can become the answering GM and one that registered nothing answers
+`UNKNOWN_OP`. The op is module-prefixed because the registry is world-wide. A GM calling `request()` runs the
+handler **locally** — no socket, no election — which is what makes a shop work in a world with nobody else
+connected.
+
+**The envelope routes and elects; it does not authorize.** Every uuid in a payload is still re-resolved and
+every rule re-checked against the documents that come back, because the payload is a client's.
+
+### The caller is verified now, and this is the part that changed
+
+`_process(payload, user)` is handed a `User` the envelope resolved from the authenticated socket. Merchant
+used to assert the caller's id **in its own payload** — the step that turns a verified identity into a
+client-supplied claim — because Foundry knows who called and does not pass it to query handlers. That was
+the module's one unsound seam, it was known, and building a mitigation for it was explicitly refused on the
+grounds that only the envelope could close it. It has.
+
+**Never read an identity out of a payload.** If one appears there, it is either redundant or a hole. The
+ownership checks in `canActAs` and `_validateShopper` are worth exactly what the identity behind them is
+worth.
+
+`IDENTITY_UNVERIFIED` is a refusal, not a fallback: when the answering client cannot establish who asked, it
+declines rather than answering from a claim. Report it; do not work around it.
 
 ---
 
@@ -510,9 +530,10 @@ which is the shortest document here and the one most worth reading before writin
 
 ## 11. Known seams
 
-- **`gm-request.js`** — a bridge. Deletion, not a rewrite, when Blacksmith forwards caller identity. §8.
-  **The contract is settled**: the envelope hands handlers the resolved User, and consumers must never read
-  an identity out of a payload. Our `userId` field comes out in the same change that adds it.
+- ~~**`gm-request.js`** — a bridge, and the caller identity it could not verify~~ — **closed 2026-08-21.**
+  The file is deleted and `blacksmith.gmRequest` hands the handler a `User` resolved from the authenticated
+  socket. It was described as a deletion rather than a rewrite from the day it was written, and that is how
+  it went. §8. The rule it leaves behind: **never read an identity out of a payload.**
 - ~~**`setTillGold`** writes currency directly~~ — **closed.** It goes through `inventory.setCurrency`,
   which takes the lock. The historical reasoning is kept below because the boundary it establishes still
   governs: **the question is not whether an operation has a counterparty, it is whether the Actor takes
@@ -525,9 +546,10 @@ which is the shortest document here and the one most worth reading before writin
 
   Only `gp` is named, so the rest of the purse is left alone rather than zeroed — the field is "gold to
   spend", not "the whole purse".
-- **Three extractions to Blacksmith**, each with two consumers proving the shape — `plans/plan-extraction.md`.
-  A fourth was dropped when one of its two consumers turned out to have been deleted. Nothing is blocked on
-  any of them, and two of the three are Blacksmith's own to build.
+- **One extraction left** — `plans/plan-extraction.md`. `openFor` and `party` both shipped in Blacksmith
+  13.19.0 and are adopted here; a fourth candidate was dropped when one of its two consumers turned out to
+  have been deleted. What remains is `_pickActor`, agreed and Blacksmith's to build. The plan is deleted the
+  day it lands.
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.
 - **`architecture/` was empty until 2026-08-19.** If you change how any of the above works, change this file
   in the same commit. A map that lies is worse than no map.
@@ -537,7 +559,7 @@ which is the shortest document here and the one most worth reading before writin
 ## 12. Migration
 
 `SCHEMA_VERSION` in `manager-merchant.js` is the shape this build writes. **1** was untyped shelves under
-`flags['coffee-pub-merchant'].shelf`; **2** is typed inventories under `.inventory`.
+`flags["coffee-pub-merchant"].shelf`; **2** is typed inventories under `.inventory`; **3** renames `pricing.buybackOverrides` to `purchaseOverrides`, the last stored word from the old vocabulary.
 
 `MerchantManager.migrateWorld()` runs from the `ready` hook, **GM-only**, and is awaited before anything
 reads a merchant. For each shop it has not already stamped, it rewrites every container's flag to the new

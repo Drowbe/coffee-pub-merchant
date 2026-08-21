@@ -219,3 +219,34 @@ assert.strictEqual(isScheduledOpen({ open: 0, close: 23 }, 23), false, 'the last
 console.log('ok  a whole-day schedule is open at every hour');
 
 console.log('\nall stock logic checks passed');
+
+// --- refresh coalescing --------------------------------------------------
+// One gesture is rarely one write: dragging a stack fires `updateItem` per document
+// and the migration touches every container a shop has. Each used to be a socket
+// emit and a re-render on every connected client. Merged by Actor, because merging
+// by anything else could lose a second merchant's refresh.
+{
+    const emitted = [];
+    const timers = new Map();
+    // The shape of `broadcastActorRefresh`, with the two side effects counted.
+    const broadcast = (uuid) => {
+        if (timers.has(uuid)) return;
+        timers.set(uuid, true);
+        setTimeout(() => { timers.delete(uuid); emitted.push(uuid); }, 5);
+    };
+
+    for (let i = 0; i < 40; i++) broadcast('Actor.shop-one');
+    for (let i = 0; i < 12; i++) broadcast('Actor.shop-two');
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.deepStrictEqual(emitted.sort(), ['Actor.shop-one', 'Actor.shop-two'],
+        'fifty-two writes to two shops become two refreshes, and neither shop is lost');
+
+    // And a later gesture still refreshes: the key is released, not latched.
+    broadcast('Actor.shop-one');
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.strictEqual(emitted.length, 3, 'a later change refreshes again');
+}
+console.log('ok  refreshes coalesce per merchant without losing one');
+
+console.log('\nall stock logic checks passed');

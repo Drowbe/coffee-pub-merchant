@@ -46,7 +46,6 @@
     "scripts/utility-pricing.js",
     "scripts/utility-progress.js",
     "scripts/utility-reputation.js",
-    "scripts/gm-request.js",
     "scripts/window-shop.js",
     "scripts/window-merchant-config.js",
     "scripts/manager-merchant.js",

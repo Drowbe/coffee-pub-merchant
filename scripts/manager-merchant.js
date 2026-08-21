@@ -14,9 +14,8 @@ import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
 } from './utility-inventory.js';
 import {
-    resolvePrice, resolveBuybackPrice, planSettlement, purseValue, fromBase, stockDepth
+    resolvePrice, resolvePurchasePrice, planSettlement, purseValue, fromBase, stockDepth
 } from './utility-pricing.js';
-import * as GMRequest from './gm-request.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
 import { resolveReputation, watchReputation } from './utility-reputation.js';
@@ -27,18 +26,20 @@ const CONTEXT = 'merchant-interaction';
 /**
  * The inventory schema this build writes.
  *
- * Bumped when stored shape changes in a way that needs moving rather than reading
- * around. 1 was untyped shelves; 2 is typed inventories. Stamped per merchant by
- * `migrateWorld`.
+ * Bumped when a stored shape changes in a way that needs moving rather than reading
+ * around. **1** was untyped shelves; **2** is typed inventories under a renamed flag;
+ * **3** renames `pricing.buybackOverrides` to `purchaseOverrides`, the one stored key
+ * left behind when *buyback* left the vocabulary. Stamped per merchant by
+ * `migrateWorld`, which is safe to run against any earlier version.
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export class MerchantManager {
     static _interactionId = null;
 
     static initialize() {
         this._registerTokenInteraction();
-        GMRequest.registerHandler((op, payload, userId) => this._process(op, payload, userId));
+        this._registerRequestOp();
         this._registerRefreshListener();
         this._registerScheduleWatcher();
         this._registerStockWatcher();
@@ -55,6 +56,32 @@ export class MerchantManager {
             tokens.disposeByContext(CONTEXT);
         }
         this._interactionId = null;
+        // Now that the hooks are registered under a context, teardown can undo all of
+        // it rather than half. It used to dispose the token claim and leave three
+        // `Hooks.on` callbacks running for the rest of the session.
+        globalThis.BlacksmithHookManager?.disposeByContext?.(CONTEXT);
+    }
+
+    /**
+     * Register a hook under this module's context.
+     *
+     * Through Blacksmith's manager so `teardown` can dispose the lot by context, the
+     * same way the token claim already is. Falls back to a bare `Hooks.on` if the
+     * manager is not there: a hook that cannot be disposed is worse than one that can,
+     * and much better than a module that does not react to anything.
+     *
+     * **No throttling here, deliberately.** The obvious move is `throttleMs` on the
+     * item watchers, and it would be wrong: a throttle drops whole events rather than
+     * coalescing them, so a burst touching two different merchants could lose the
+     * second one's refresh entirely. The coalescing belongs on the broadcast, where it
+     * knows what it is merging — see `broadcastActorRefresh`.
+     */
+    static _hook(name, description, callback) {
+        const manager = globalThis.BlacksmithHookManager;
+        if (typeof manager?.registerHook === 'function') {
+            return manager.registerHook({ name, description, context: CONTEXT, callback });
+        }
+        return Hooks.on(name, callback);
     }
 
     // ==============================================================
@@ -205,7 +232,7 @@ export class MerchantManager {
      * so advancing eight hours at once still lands on the right state.
      */
     static _registerScheduleWatcher() {
-        Hooks.on('updateWorldTime', () => {
+        this._hook('updateWorldTime', 'Open, close and restock shops as the clock moves', () => {
             if (!game.user.isGM) return;
             void this._onWorldTimeChange();
         });
@@ -401,9 +428,7 @@ export class MerchantManager {
 
             try {
                 if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
-                // Stamped even when nothing moved, so a merchant with no inventories
-                // is not re-examined at every load for the rest of its life.
-                await this.setConfig(actor, { schema: SCHEMA_VERSION });
+                await this._migrateConfig(actor);
                 migrated += updates.length;
             } catch (error) {
                 console.error(`${MODULE.TITLE} | Could not migrate ${actor.name}:`, error);
@@ -414,6 +439,37 @@ export class MerchantManager {
             console.log(`${MODULE.TITLE} | Migrated ${migrated} inventor${migrated === 1 ? 'y' : 'ies'} to the typed schema.`);
         }
         return migrated;
+    }
+
+    /**
+     * Move the merchant's own flag on, and stamp the schema.
+     *
+     * One rename so far: `pricing.buybackOverrides` became `pricing.purchaseOverrides`
+     * when *buyback* left the vocabulary. A stored key is the expensive half of a
+     * rename — everything else was free — and it is done here rather than read around
+     * for ever, because a second name for one thing is how the two drift.
+     *
+     * **Written as one `update` with an explicit `-=` delete.** `setFlag` merges, so
+     * assigning a `pricing` object without the old key would leave the old key exactly
+     * where it was: set and delete have to travel together or the shop ends up holding
+     * both answers.
+     */
+    static async _migrateConfig(actor) {
+        const config = this.getConfig(actor) ?? {};
+        const pricing = { ...(config.pricing ?? {}) };
+        const path = `flags.${MODULE.ID}.${MERCHANT_FLAG}`;
+        const update = { [`${path}.schema`]: SCHEMA_VERSION };
+
+        if (pricing.buybackOverrides && !pricing.purchaseOverrides) {
+            update[`${path}.pricing.purchaseOverrides`] = { ...pricing.buybackOverrides };
+        }
+        if ('buybackOverrides' in pricing) {
+            update[`${path}.pricing.-=buybackOverrides`] = null;
+        }
+
+        // Stamped even when nothing moved, so a merchant with nothing to migrate is
+        // not re-examined at every load for the rest of its life.
+        await actor.update(update);
     }
 
     /** Inventories in display order. Hidden ones are omitted unless asked for. */
@@ -731,7 +787,7 @@ export class MerchantManager {
     static async setNegotiatedPrice(merchant, itemId, base, { side = 'buy' } = {}) {
         if (!game.user.isGM || !merchant || !itemId) return null;
 
-        const key = side === 'sell' ? 'buybackOverrides' : 'overrides';
+        const key = side === 'sell' ? 'purchaseOverrides' : 'overrides';
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
         const agreed = { ...(pricing[key] ?? {}) };
 
@@ -1227,12 +1283,39 @@ export class MerchantManager {
     // ===== RECIPIENT POLICY =======================================
     // ==============================================================
 
+    /**
+     * Who the party is — Blacksmith's answer, not ours.
+     *
+     * **`acting()`, never `resting()`.** Their split is the one thing this had no way
+     * of knowing it was missing: `resting()` is the party's *creatures* and includes
+     * familiars, companions and hired hands, because those rest with the group;
+     * `acting()` is its player characters, which is who can spend money. A familiar
+     * rests with the party and cannot buy a sword, and picking the wrong one gives a
+     * roster that looks right in testing and is wrong at a table with a druid in it.
+     *
+     * Kept as our own method names so the call sites did not have to move, and so the
+     * fallback below has somewhere to live: a world running a Blacksmith older than
+     * the pin still gets a usable shop rather than an empty Buying-as list.
+     */
+    static _party() {
+        return game.modules.get('coffee-pub-blacksmith')?.api?.party ?? null;
+    }
+
     static getPartyActor() {
-        const party = game.actors?.party ?? null;
-        return party?.type === 'group' ? party : null;
+        const party = this._party();
+        if (party) return party.actor();
+        return game.actors?.party?.type === 'group' ? game.actors.party : null;
+    }
+
+    /** Whether the roster is a curated party or the every-player-owned-actor fallback. */
+    static hasPrimaryParty() {
+        return this._party()?.hasPrimaryParty?.() ?? Boolean(this.getPartyActor());
     }
 
     static getPartyCharacters() {
+        const party = this._party();
+        if (party) return party.acting();
+
         const members = this.getPartyActor()?.system?.playerCharacters;
         if (Array.isArray(members) && members.length) return members.filter((a) => a?.type === 'character');
         return game.actors.filter((actor) => actor.type === 'character' && actor.hasPlayerOwner);
@@ -1286,8 +1369,44 @@ export class MerchantManager {
     // ===== GM HANDLER =============================================
     // ==============================================================
 
-    static async request(op, payload) {
-        return GMRequest.request(op, payload);
+    /**
+     * The op this module answers. One, because a visit is one settlement.
+     *
+     * Module-prefixed, as `api-gm-request.md` requires — the registry is world-wide and
+     * a bare `settle` would be a landgrab.
+     */
+    static OP = `${MODULE.ID}.settle`;
+
+    /**
+     * Register the handler on **every** client, not only the GM's.
+     *
+     * Any client can become the answering GM, and one that registered nothing answers
+     * `UNKNOWN_OP`. That is why this sits in `initialize()`, which runs for everyone,
+     * and why nobody should later "optimise" it behind an `isGM` check.
+     *
+     * Unregistered first because `registerOp` **refuses** to replace an existing op
+     * rather than overwriting it: a second `initialize()` in one session would
+     * otherwise log a collision with ourselves and leave the first handler in place.
+     */
+    static _registerRequestOp() {
+        const gmRequest = game.modules.get('coffee-pub-blacksmith')?.api?.gmRequest;
+        if (typeof gmRequest?.registerOp !== 'function') {
+            console.error(`${MODULE.TITLE} | Blacksmith's GM request API is unavailable; `
+                + 'nothing can be bought or sold. This needs coffee-pub-blacksmith 13.19.0 or newer.');
+            return;
+        }
+        gmRequest.unregisterOp?.(this.OP);
+        gmRequest.registerOp({
+            op: this.OP,
+            module: MODULE.ID,
+            handler: (payload, user) => this._process(payload, user)
+        });
+    }
+
+    static async request(payload) {
+        const gmRequest = game.modules.get('coffee-pub-blacksmith')?.api?.gmRequest;
+        if (typeof gmRequest?.request !== 'function') return { ok: false, code: 'QUERY_UNAVAILABLE' };
+        return gmRequest.request(this.OP, payload);
     }
 
     /**
@@ -1298,10 +1417,14 @@ export class MerchantManager {
      * There were four — buy, acquire, checkout, sell — and each was a separate path
      * through the same money, which is a separate place for them to disagree.
      */
-    static async _process(op, payload, userId) {
-        const user = game.users.get(userId);
-        if (!user) return { ok: false, code: 'UNKNOWN_USER' };
-        if (op !== 'settle') return { ok: false, code: 'UNKNOWN_OPERATION' };
+    static async _process(payload, user) {
+        // **The caller is handed to us, verified.** It used to be read out of the
+        // payload — a client-supplied claim dressed as an identity, and the one thing
+        // in this module that could not be made sound from inside it. The envelope
+        // resolves the User from the authenticated socket and passes it in, so the
+        // ownership checks below are worth what they say. Never read an identity out
+        // of a payload again; if one appears there, it is a hole.
+        if (!user) return { ok: false, code: 'IDENTITY_UNVERIFIED' };
 
         const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
         const merchant = tokenDocument?.actor;
@@ -1421,7 +1544,7 @@ export class MerchantManager {
             if (Number.isFinite(worth) && worth > 0) continue;
 
             const agreed = merchant
-                ? resolveBuybackPrice(config, this.getInventoryConfig(this.getInventoryFor(merchant, item)), item)
+                ? resolvePurchasePrice(config, this.getInventoryConfig(this.getInventoryFor(merchant, item)), item)
                 : resolvePrice(config, this.getInventoryConfig(this.getInventoryFor(owner, item)), item);
             if (agreed === null || agreed <= 0) continue;
 
@@ -1489,7 +1612,7 @@ export class MerchantManager {
                 return { ok: false, code: 'INSUFFICIENT_QUANTITY', available, itemName: item.name };
             }
 
-            const unit = resolveBuybackPrice(config, inventory.config, item, { reputation, market });
+            const unit = resolvePurchasePrice(config, inventory.config, item, { reputation, market });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             total += unit * quantity;
@@ -1644,7 +1767,7 @@ export class MerchantManager {
     static async _clearAgreedPrices(merchant, boughtLines, soldLines) {
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
         const overrides = { ...(pricing.overrides ?? {}) };
-        const buyback = { ...(pricing.buybackOverrides ?? {}) };
+        const buyback = { ...(pricing.purchaseOverrides ?? {}) };
 
         let touched = false;
         for (const line of boughtLines ?? []) {
@@ -1656,7 +1779,7 @@ export class MerchantManager {
         if (!touched) return;
 
         pricing.overrides = overrides;
-        pricing.buybackOverrides = buyback;
+        pricing.purchaseOverrides = buyback;
         try {
             await this.setConfig(merchant, { pricing });
         } catch (error) {
@@ -1692,11 +1815,36 @@ export class MerchantManager {
         ShopWindow.refreshForToken(tokenUuid);
     }
 
-    /** Inventory changes are Actor-level, so they reach every token of that merchant. */
+    /** Pending refreshes, keyed by Actor uuid. Per client and purely a scheduling aid. */
+    static _refreshTimers = new Map();
+
+    /**
+     * Inventory changes are Actor-level, so they reach every token of that merchant.
+     *
+     * **Coalesced per Actor over one frame's worth of time.** One gesture is rarely one
+     * write: dragging a stack between inventories fires `updateItem` per document, a
+     * table roll grants several rows, and the migration touches every container a shop
+     * has — each of which used to be its own socket emit and its own re-render on every
+     * connected client.
+     *
+     * Coalescing belongs here rather than on the hooks. A throttle on `updateItem`
+     * would drop whole events, so a burst touching two merchants could lose the second
+     * one's refresh entirely; this merges by Actor and cannot lose one, because the key
+     * is what is being merged.
+     *
+     * The delay is deliberately below the threshold at which a person reads a redraw as
+     * late, so nothing needs to know this is happening.
+     */
     static broadcastActorRefresh(actor) {
         if (!actor) return;
-        game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: actor.uuid });
-        void ShopWindow.refreshForActor(actor.uuid);
+        const uuid = actor.uuid;
+        if (this._refreshTimers.has(uuid)) return;
+
+        this._refreshTimers.set(uuid, setTimeout(() => {
+            this._refreshTimers.delete(uuid);
+            game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: uuid });
+            void ShopWindow.refreshForActor(uuid);
+        }, 60));
     }
 
     /**
@@ -1721,7 +1869,7 @@ export class MerchantManager {
             if (relevant) this.broadcastActorRefresh(actor);
         };
 
-        Hooks.on('updateItem', (item, changes) => {
+        this._hook('updateItem', 'Redraw shops when their stock is edited outside Merchant', (item, changes) => {
             // Quantity, name and our own flag are the three that change what a shop
             // window renders. Anything else is an edit to an item that happens to be
             // in a shop.
@@ -1731,10 +1879,10 @@ export class MerchantManager {
                 || changes?.flags?.[MODULE.ID] !== undefined;
             if (touches) react(item);
         });
-        Hooks.on('createItem', (item) => react(item));
+        this._hook('createItem', 'Redraw shops when stock is added outside Merchant', (item) => react(item));
         // On delete the item is already off the Actor, so `getInventoryFor` cannot see
         // where it was. The container id is still on the document being removed.
-        Hooks.on('deleteItem', (item) => {
+        this._hook('deleteItem', 'Redraw shops when stock is removed outside Merchant', (item) => {
             if (!game.user.isGM) return;
             const actor = item?.parent;
             if (!actor?.items || !this.isMerchant(actor)) return;
@@ -1744,7 +1892,7 @@ export class MerchantManager {
 
     static _registerRefreshListener() {
         // A user who disconnects should not leave a face standing in the shop.
-        Hooks.on('userConnected', (user, connected) => {
+        this._hook('userConnected', 'Drop a departing user from every shop room', (user, connected) => {
             if (!connected) ShopWindow.dropUser(user.id);
         });
 
