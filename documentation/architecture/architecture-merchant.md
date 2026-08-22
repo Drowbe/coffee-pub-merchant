@@ -531,16 +531,19 @@ not reproducible afterwards, because a reload clears a static map. The base clas
 render throws. Anything this window does in `_onClose` therefore runs inside a `try`: a throw before
 `super._onClose` would strand the entry again.
 
-**Both classes import the base by path, and `module.api` is not an option.** `api-window.md` says the
-classes are the contract, the paths are not, and to resolve a base class from `module.api` at module top
-level. That cannot work for a class you `extends`: Foundry evaluates module scripts before `game` exists, so
-the resolve throws — and ESM caches the failed evaluation, so it kills the module for the whole session
-rather than being retried on the next call. Tried and reverted on 2026-08-19.
+**Both classes import the base from the bridge, and that is now the supported contract.**
+`api/blacksmith-api.js` re-exports `BlacksmithWindowBaseV2` and `BlacksmithToolWindowBaseV2` — along with
+`BLACKSMITH_WINDOW_STYLES`, `BLACKSMITH_TOOL_TITLEBARS` and `BLACKSMITH_TOOL_THEMES`, which are the same
+objects as `api.windowStyles`, `api.toolTitlebars` and `api.toolThemes`. It is a real ES module, so it
+resolves at evaluation time.
 
-Curator imports the path in three files for the same reason. Squire takes the other route: resolve from
-`module.api`, then **dynamically import** the window module at the point of use, by which time the API is
-published. That one honours the contract and costs every static import of a window becoming a lazy one. The
-coupling is therefore deliberate rather than overlooked, and it is in `TODO.md` with what it would take.
+`module.api` remains correct for anything resolved after `init`, and `scripts/` paths are still not a
+contract. But `module.api` cannot serve a class you `extends`: Foundry evaluates module scripts before
+`game` exists, so the resolve throws — and ESM caches the failed evaluation, so it kills the module for the
+whole session rather than being retried. `api-window.md` recommended exactly that; **Merchant followed it
+and broke a live world on 2026-08-19.** Blacksmith corrected the doc and added the re-exports, and three
+consumers each dropped a private workaround. Kept here because the failure mode — a cached throw disabling a
+module for a session — is invisible from the stack trace and worth recognising on sight.
 
 **The slate** is two `Map`s of `itemId → quantity` — `cart` (buying) and `basket` (selling) — keyed by
 `tokenUuid|shopperUuid` and **mirrored to every client that can act as that character**, never persisted.
@@ -633,6 +636,17 @@ which is the shortest document here and the one most worth reading before writin
   13.19.0 and are adopted here; a fourth candidate was dropped when one of its two consumers turned out to
   have been deleted. What remains is `_pickActor`, agreed and Blacksmith's to build. The plan is deleted the
   day it lands.
+- ~~**`api.inventory` refused to merge stacks that should have merged**~~ — **closed upstream 2026-08-22.**
+  The predicate compared the payload submitted against the row that already existed, but the row a payload
+  *becomes* is not the payload: creation fills schema defaults, writes `system.identifier` from the name and
+  normalises `properties`. Merchant saw it as duplicate rows on every restock. **Nothing here was written to
+  work around it** — a roll adds new products only, which is a rule about what a restock means and stands on
+  its own — but the drop path does merge, and it is now reliable.
+- **Scheduled restocking does not reach unlinked tokens.** `_applyRestocks`, the trading-hours refresh and
+  `migrateWorld` all walk `game.actors`; a merchant placed as an unlinked token is a synthetic actor living
+  on a scene and is in none of them. The manual **Restock everything** button works on all three, because it
+  acts on whatever actor its window was opened for. Undecided: teach the three loops to walk scene tokens, or
+  say plainly in the config window that an unlinked merchant does not restock on the clock.
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.
 - **`architecture/` was empty until 2026-08-19.** If you change how any of the above works, change this file
   in the same commit. A map that lies is worse than no map.

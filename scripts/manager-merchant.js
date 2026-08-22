@@ -77,6 +77,17 @@ export class MerchantManager {
      * coalescing them, so a burst touching two different merchants could lose the
      * second one's refresh entirely. The coalescing belongs on the broadcast, where it
      * knows what it is merging — see `broadcastActorRefresh`.
+     *
+     * **No `canCancel` either, because nothing here is a `pre*` hook.** Blacksmith made
+     * cancellation opt-in on 2026-08-22, after the previous behaviour let any callback
+     * returning a falsy value veto the operation *world-wide* — one Foundry handler
+     * serves every callback on a hook name, so `(doc) => this.tracked.has(doc.id)` on
+     * `preCreateItem` silently blocked item creation for every module in the world.
+     * Merchant watches only `updateItem`, `createItem`, `deleteItem`, `updateWorldTime`,
+     * `userConnected`, `getHeaderControlsApplicationV2` and two Blacksmith events; none
+     * of them cancels anything. If a `pre*` watcher is ever added here it must pass
+     * `canCancel: true` at the **top level** — inside `options` it is ignored with a
+     * warning — and the callbacks below must keep returning nothing.
      */
     static hook(name, description, callback) {
         const manager = globalThis.BlacksmithHookManager;
@@ -1985,7 +1996,10 @@ export class MerchantManager {
                 || changes?.flags?.[MODULE.ID] !== undefined;
             if (touches) react(item);
         });
-        this.hook('createItem', 'Redraw shops when stock is added outside Merchant', (item) => react(item));
+        // Braces, not a concise body: this returns nothing on purpose. The world-wide
+        // veto Blacksmith closed was never a deliberate cancel, it was an ordinary
+        // callback whose return value happened to be falsy.
+        this.hook('createItem', 'Redraw shops when stock is added outside Merchant', (item) => { react(item); });
         // On delete the item is already off the Actor, so `getInventoryFor` cannot see
         // where it was. The container id is still on the document being removed.
         this.hook('deleteItem', 'Redraw shops when stock is removed outside Merchant', (item) => {
