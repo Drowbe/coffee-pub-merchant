@@ -218,6 +218,20 @@ depth = min(type, rarity, price, the shelf's own ceiling)
 - **Zero means a lever has no opinion**, which is what `common` wants. A rule that never fires
   should not pretend to be one that does.
 
+**The die wobbles under the ceiling; it does not start from one.** A uniform roll made 1 exactly
+as likely as the cap, so a shelf of twenty-five products landed about five of them single — a shop
+with one dagger and one dart, which is what every other rule here exists to prevent. The floor is
+half the ceiling, so the cap means *what this shop keeps* rather than *the luckiest thing that
+could happen*. A ceiling of one is still exactly one, which is what keeps a legendary blade alone
+on the shelf.
+
+| Ceiling | Delivered |
+|---|---|
+| 10 | 5–10 |
+| 5 | 3–5 |
+| 3 | 2–3 |
+| 1 | 1 |
+
 A quantity the **author** stated wins over all three: a table row reading "Arrows (20)" is a
 delivery of twenty. The bands exist to invent a number when nobody stated one, so applying them
 to a stated one would overrule the only person who knew. The shelf's own ceiling still holds,

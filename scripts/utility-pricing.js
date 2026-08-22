@@ -109,7 +109,16 @@ export function stockDepth(item, {
     //    low end -- scaling afterwards would round a 1 down to nothing.
     const scaled = Math.max(1, Math.floor(ceiling * (Number(scale) > 0 ? Number(scale) : 1)));
     const capped = Math.min(scaled, _ceiling(maxPerItem));
-    return capped <= 1 ? 1 : 1 + Math.floor(random() * capped);
+
+    // **The die wobbles under the ceiling; it does not start from one.** A uniform roll
+    // made 1 exactly as likely as the cap, so a shelf of twenty-five products landed
+    // about five of them single -- a shop with one dagger and one dart, which is the
+    // thing every other rule here exists to prevent. The ceiling now means "what this
+    // shop keeps" rather than "the luckiest thing that could happen", and half of it is
+    // the least a delivery can be. A cap of one is still exactly one, which is what
+    // keeps a legendary blade alone on the shelf.
+    const floor = Math.max(1, Math.ceil(capped / 2));
+    return floor + Math.floor(random() * (capped - floor + 1));
 }
 
 /** A configured ceiling, where 0 or nothing means "no opinion". */

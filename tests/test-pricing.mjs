@@ -329,8 +329,8 @@ assert.strictEqual(P.stockDepth(goods('consumable', 50, 1), { maxPerItem: 99, ra
     'the better potions cap at three');
 assert.strictEqual(P.stockDepth(goods('consumable', 500, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 1,
     'anything dear is a single item');
-assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll, ...noCaps }), 1,
-    'and the die can always come up one');
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll, ...noCaps }), 5,
+    'and the die wobbles under the ceiling rather than down to one');
 assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll, ...noCaps }), 4,
     'the inventory ceiling beats the band');
 console.log('ok  price still bands the depth');
@@ -400,6 +400,39 @@ assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
     { maxPerItem: 6, random: maxRoll, scale: 2, ...noCaps }), 6,
     'the shelf ceiling is never scaled past');
 console.log('ok  the depth dial scales the world, not the shelf');
+
+// 7. The die wobbles under the ceiling; it never starts from one.
+// A uniform roll made 1 as likely as the cap, so a shelf of twenty-five products landed
+// about five of them single -- one dagger, one dart -- which is the thing every other
+// rule here exists to prevent.
+const spread = (cap) => {
+    const item = goods('consumable', 0.1, 1);
+    return [
+        P.stockDepth(item, { maxPerItem: cap, random: minRoll, ...noCaps }),
+        P.stockDepth(item, { maxPerItem: cap, random: maxRoll, ...noCaps })
+    ];
+};
+assert.deepStrictEqual(spread(10), [5, 10], 'a ceiling of ten delivers five to ten');
+assert.deepStrictEqual(spread(5), [3, 5], 'a ceiling of five delivers three to five');
+assert.deepStrictEqual(spread(3), [2, 3], 'a ceiling of three delivers two to three');
+assert.deepStrictEqual(spread(2), [1, 2], 'a ceiling of two delivers one to two');
+// The case the floor must not break: a ceiling of one is exactly one, which is what
+// keeps a legendary blade alone on the shelf.
+assert.deepStrictEqual(spread(1), [1, 1], 'a ceiling of one is still exactly one');
+
+// Across the whole range, and with a real die rather than the two extremes. The
+// effective ceiling is the *lowest* of the levers, so a shelf limit above the price
+// band never binds -- a 0.1 gp consumable tops out at ten however high `maxPerItem` is.
+for (const cap of [1, 2, 3, 5, 10, 20]) {
+    const effective = Math.min(cap, 10);
+    const floor = Math.max(1, Math.ceil(effective / 2));
+    for (let i = 0; i < 200; i++) {
+        const d = P.stockDepth(goods('consumable', 0.1, 1), { maxPerItem: cap, ...noCaps });
+        assert.ok(d >= floor && d <= effective,
+            `a shelf limit of ${cap} delivered ${d}, outside ${floor}-${effective}`);
+    }
+}
+console.log('ok  a delivery is never a single item unless the ceiling says so');
 
 // An item with no price at all must not become a pile by default.
 assert.strictEqual(P.stockDepth(goods('consumable', null, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 10,

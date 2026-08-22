@@ -1059,3 +1059,8 @@ level onto every existing row; it logs how many.
     row's level rises to the new total rather than dropping to what the drop carried.
 50. Set a rarity cap to 0 in world settings and restock: that rarity is then governed by type and
     price alone. It must not read as a cap of nothing.
+51. **Nothing arrives as a single item unless it has to.** Clear a general inventory and restock.
+    No cheap common row lands at 1 — a dagger or a dart comes in at 3–5, torches at 5–10. Before
+    this the roll was uniform from 1 and about a fifth of the shelf landed single.
+52. Plate armour and anything legendary still arrive alone: their ceiling is 1, and the floor must
+    not raise it.
