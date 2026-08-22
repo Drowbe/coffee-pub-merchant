@@ -1023,3 +1023,39 @@ is testable: if the op did not register, nothing can be bought or sold at all.
     merchant's, and not nothing.
 37. The price column lines up identically for a GM and for a player. The editable cell must not shift the
     figure in from the row's edge.
+
+### 21g. Restocking to a level, and rolling for new products
+
+**Restart Foundry first** — `const.js` and `settings.js` both changed, and the new world settings
+only register on a fresh load. The schema-4 migration runs once at startup and stamps a restock
+level onto every existing row; it logs how many.
+
+38. Open Merchant's module settings. Twelve new numbers appear: six **Stock depth: <type>** and six
+    **Stock depth: <rarity>**. Defaults are Consumable/Loot 10, everything else 5; Common 0,
+    Uncommon 3, Rare 2, Very rare/Legendary/Artifact 1.
+39. On any inventory card there is now a **Stocking** section above Restock, holding **Depth**,
+    **Products** and **Max stack**, with a two-line summary of those world numbers and a note that
+    they are world settings. Restock keeps only Method and Frequency.
+40. **The one that was broken.** Take a general inventory with rolled stock. Note a row — say
+    Flute at 4. Buy or set it down to 1. Restock the shop. **It comes back to 4.** Before this it
+    stayed at 1 forever, and the restock reported success while doing nothing.
+41. Sell out a row completely so it reads 0. It stays on the shelf as a 0 row, and a restock brings
+    it back to its level. Delete a row with the `×` and a restock does **not** bring it back.
+42. Type a new quantity into a row — say 12. That is now the level: sell some, restock, and it
+    returns to 12 rather than to whatever it was before you typed.
+43. **Restock twice in a row.** No duplicate lines. Before this every restock added a fresh set —
+    two Torches, two Flutes, growing each time.
+44. A roll table that draws something already on the shelf changes nothing about that row: it
+    keeps its quantity and its level. Only genuinely new products land.
+45. Set **Products** to two above the current line count and restock. At most two new lines
+    arrive, and a further restock adds none — it is a target, not a ceiling.
+46. Set **Depth** to Deep on one inventory, clear it, and restock. Rows arrive roughly twice as
+    deep as the same tables give a Normal shelf. Sparse gives about half, and never zero.
+47. **Max stack still wins over the dial.** Set Max stack to 3 and Depth to Deep: nothing arrives
+    above 3. The number on the card is the number in force.
+48. Drag an item from a compendium onto an inventory. A cheap consumable arrives as a small
+    stack rather than as 1. Armour still arrives as 1 — that is rarity and price agreeing.
+49. Drag a **second** copy of something already on the shelf. It merges into that row, and the
+    row's level rises to the new total rather than dropping to what the drop carried.
+50. Set a rarity cap to 0 in world settings and restock: that rarity is then governed by type and
+    price alone. It must not read as a cap of nothing.

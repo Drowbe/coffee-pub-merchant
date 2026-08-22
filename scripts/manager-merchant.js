@@ -8,7 +8,8 @@ import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, LEGACY_INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
-    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay
+    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay,
+    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -32,7 +33,7 @@ const CONTEXT = 'merchant-interaction';
  * left behind when *buyback* left the vocabulary. Stamped per merchant by
  * `migrateWorld`, which is safe to run against any earlier version.
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export class MerchantManager {
     static _interactionId = null;
@@ -427,6 +428,25 @@ export class MerchantManager {
                 });
             }
 
+            // **Adopt every unmaintained row.** Before schema 4 only a hand-typed
+            // quantity wrote a restock target; everything that arrived by roll table or
+            // by drag had none, and `getStock` fell back to whatever was on the shelf at
+            // the time it was asked. That reads as maintained and is not: the target
+            // followed the stock downward, so a shop could only ever lose depth. Every
+            // such row is stamped here with what it currently holds, on the reasonable
+            // assumption that a shop sitting in a world nobody is shopping in is a shop
+            // at rest.
+            for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
+                if (isPurchased(config?.type)) continue;   // no level to return to
+                for (const item of this.getInventoryContents(actor, inventory)) {
+                    if (Number.isFinite(Number(item.getFlag(MODULE.ID, PAR_FLAG)))) continue;
+                    updates.push({
+                        _id: item.id,
+                        [`flags.${MODULE.ID}.${PAR_FLAG}`]: Math.max(0, Math.trunc(Number(item.system?.quantity ?? 0)))
+                    });
+                }
+            }
+
             try {
                 if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
                 await this._migrateConfig(actor);
@@ -584,19 +604,42 @@ export class MerchantManager {
         const inventory = actor?.items?.get(inventoryId);
         if (!this.isInventory(inventory)) return { ok: false, code: 'NOT_AN_INVENTORY' };
 
+        const config = this.getInventoryConfig(inventory);
+        const { maxPerItem } = this.getInventoryLimits(config);
+
         // The par has to be known before the write, so the arriving quantity is
-        // resolved here rather than read back off the result. `quantity` omitted
-        // means "the source's own", which is exactly what grantItem will use.
+        // resolved here rather than read back off the result.
+        const source = await fromUuid(itemUuid);
         let arriving = Math.trunc(Number(quantity));
         if (!Number.isFinite(arriving) || arriving < 1) {
-            const source = await fromUuid(itemUuid);
-            arriving = Math.max(1, Math.trunc(Number(source?.system?.quantity ?? 1)));
+            // **A drop goes through the same three ceilings a roll does.** A compendium
+            // entry reads 1 because that is what one crowbar *is*, not because a shop
+            // keeps one; taking that literally is what made every dragged row land as a
+            // single item. Armour still lands alone -- that is the rarity and the price
+            // agreeing, which is the answer we wanted.
+            arriving = stockDepth(source, {
+                maxPerItem,
+                scale: depthScale(config?.depth ?? DEFAULT_STOCK_DEPTH),
+                typeCaps: typeCaps(),
+                rarityCaps: rarityCaps()
+            });
         }
+
+        // **Par counts what the row will hold, not what this drop carried.** A merge
+        // writes only the flags passed here, so sending the arriving quantity alone
+        // would set the target *below* the stock standing on the shelf -- and the next
+        // restock would look at a full row and see it as over-full.
+        const existing = source
+            ? this.getInventoryContents(actor, inventory)
+                .find((item) => item.name === source.name && item.type === source.type)
+            : null;
+        const held = Math.max(0, Math.trunc(Number(existing?.system?.quantity ?? 0)));
+        const par = Math.min(held + arriving, maxPerItem);
 
         return grantItem({
             targetActorUuid: actor.uuid,
             itemUuid,
-            quantity,
+            quantity: arriving,
             // Container membership is part of merge identity, so a merge can only
             // land on a row already on this inventory — stock the GM put elsewhere is
             // never relocated by a restock.
@@ -605,7 +648,7 @@ export class MerchantManager {
             // passed here are written, so topping up an inventory by hand does redefine
             // its target — which is the rule the shop window's editable quantity
             // already follows.
-            flags: { [MODULE.ID]: { [PAR_FLAG]: arriving } }
+            flags: { [MODULE.ID]: { [PAR_FLAG]: par } }
         });
     }
 
@@ -1087,43 +1130,59 @@ export class MerchantManager {
     static _withinLimits(actor, inventory, drawn, resolved) {
         const config = this.getInventoryConfig(inventory);
         const { maxProducts, maxPerItem } = this.getInventoryLimits(config);
+        const scale = depthScale(config?.depth ?? DEFAULT_STOCK_DEPTH);
+        const caps = { typeCaps: typeCaps(), rarityCaps: rarityCaps() };
         const key = (name, type) => `${name}\u0000${type}`;
 
-        const held = new Map();
+        const held = new Set();
         for (const item of this.getInventoryContents(actor, inventory)) {
-            held.set(key(item.name, item.type), Math.max(0, Math.trunc(Number(item.system?.quantity ?? 1))));
+            held.add(key(item.name, item.type));
         }
         let rows = held.size;
 
         const allowed = [];
-        let clipped = 0;
+        let carried = 0;
+        let full = 0;
         for (const uuid of drawn) {
             const item = resolved.get(uuid);
             if (!item) continue;
-
-            // A roll is a delivery, not a unit. How deep it goes is the item's own
-            // business first, then what it costs -- see `stockDepth`. Stocking one
-            // arrow because a table rolled "Arrows (20)" was the old behaviour and it
-            // was wrong about the only thing anybody had stated.
             const k = key(item.name, item.type);
-            const room = maxPerItem - (held.get(k) ?? 0);
-            if (room < 1) { clipped++; continue; }
 
-            if (!held.has(k) && rows >= maxProducts) {
-                // A new row costs one of the inventory's slots, and there may be none.
-                clipped++;
-                continue;
-            }
+            // **A roll brings new products, never more of what is already here.**
+            // Topping up is what a restock does, and it refills to the level the GM
+            // set; a table adding to the same row would push it past that level and
+            // make the number they typed mean nothing. It is also where duplicate
+            // rows came from. So the shelf's own stock is left entirely alone and the
+            // table answers the other question: what else has this shop got hold of.
+            if (held.has(k)) { carried++; continue; }
 
-            const depth = Math.min(stockDepth(item, { maxPerItem }), room);
-            if (!held.has(k)) rows++;
-            held.set(k, (held.get(k) ?? 0) + depth);
+            // The product count is a **target**, not a ceiling to clip against: a
+            // shelf that carries twenty and has fifteen rolls for five more. Once it
+            // is back to twenty there is nothing left to ask for.
+            if (rows >= maxProducts) { full++; continue; }
 
-            allowed.push({ itemUuid: uuid, quantity: depth });
+            // A roll is a delivery, not a unit. How deep it goes is what it is first,
+            // then how rare, then what it costs -- see `stockDepth`.
+            const depth = stockDepth(item, { maxPerItem, scale, ...caps });
+            held.add(k);
+            rows++;
+
+            // **The delivery sets the level.** A new row arrives maintained, so the
+            // next restock brings it back to what turned up rather than to whatever
+            // is left of it. Without this the row has no target at all and `getStock`
+            // falls back to the current quantity, which can only ever ratchet down.
+            allowed.push({
+                itemUuid: uuid,
+                quantity: depth,
+                flags: { [MODULE.ID]: { [PAR_FLAG]: depth } }
+            });
         }
 
-        if (clipped) {
-            console.debug(`${MODULE.TITLE} | ${inventory.name} is at its limit; ${clipped} rolled result${clipped === 1 ? '' : 's'} not stocked.`);
+        if (carried || full) {
+            console.debug(
+                `${MODULE.TITLE} | ${inventory.name}: ${carried} rolled result${carried === 1 ? '' : 's'} `
+                + `already carried, ${full} refused for want of a product slot (${maxProducts}).`
+            );
         }
         return allowed;
     }

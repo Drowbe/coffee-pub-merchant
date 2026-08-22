@@ -300,55 +300,122 @@ const goods = (type, gp, qty, sub) => ({
 // A die that always rolls its maximum, so the cap is what gets asserted.
 const maxRoll = () => 0.999999;
 const minRoll = () => 0;
+// The world tables are arguments, so these checks say what they mean rather than
+// tracking whatever a GM has since set. `open` is a table with no opinion at all,
+// which is how a single lever gets tested on its own.
+const open = {};
+const noCaps = { typeCaps: open, rarityCaps: open };
 
 // 1. What the item says it is wins outright.
-assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 99, random: minRoll }), 20,
+assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 99, random: minRoll, ...noCaps }), 20,
     'a quiver authored as twenty arrives as twenty');
-assert.strictEqual(P.stockDepth(goods('equipment', 1500, 6), { maxPerItem: 99, random: minRoll }), 6,
+assert.strictEqual(P.stockDepth(goods('equipment', 1500, 6), { maxPerItem: 99, random: minRoll, ...noCaps }), 6,
     'and it wins even for something that would not otherwise stack');
-assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 5, random: minRoll }), 5,
+assert.strictEqual(P.stockDepth(goods('consumable', 1, 20), { maxPerItem: 5, random: minRoll, ...noCaps }), 5,
     'but the inventory ceiling still clamps it');
+// The world's tables do NOT clamp an authored quantity. They exist to invent a number
+// when nobody stated one; applying them to a stated one overrules the only person who
+// knew. Only the shelf's own ceiling, which this GM typed, still holds.
+assert.strictEqual(P.stockDepth(goods('consumable', 1, 20),
+    { maxPerItem: 99, random: minRoll, typeCaps: { consumable: 10 }, rarityCaps: { common: 2 } }), 20,
+    'and neither world table argues with a quantity the author stated');
 
 // 2. Then the price band, for things a shop keeps a pile of.
-assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: maxRoll }), 10,
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 10,
     'under a gold piece caps at ten');
-assert.strictEqual(P.stockDepth(goods('consumable', 10, 1), { maxPerItem: 99, random: maxRoll }), 5,
+assert.strictEqual(P.stockDepth(goods('consumable', 10, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 5,
     'ordinary consumables cap at five');
-assert.strictEqual(P.stockDepth(goods('consumable', 50, 1), { maxPerItem: 99, random: maxRoll }), 3,
+assert.strictEqual(P.stockDepth(goods('consumable', 50, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 3,
     'the better potions cap at three');
-assert.strictEqual(P.stockDepth(goods('consumable', 500, 1), { maxPerItem: 99, random: maxRoll }), 1,
+assert.strictEqual(P.stockDepth(goods('consumable', 500, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 1,
     'anything dear is a single item');
-assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll }), 1,
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 99, random: minRoll, ...noCaps }), 1,
     'and the die can always come up one');
-assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll }), 4,
+assert.strictEqual(P.stockDepth(goods('consumable', 0.5, 1), { maxPerItem: 4, random: maxRoll, ...noCaps }), 4,
     'the inventory ceiling beats the band');
+console.log('ok  price still bands the depth');
 
-// 3. Price decides it, not type. The whitelist that used to sit here excluded
-// daggers, vials, clothes, chests and tools -- which is to say a general store's
-// entire inventory -- so the feature changed nothing anybody could see.
-for (const type of ['equipment', 'weapon', 'tool', 'container', 'consumable', 'loot']) {
-    assert.strictEqual(P.stockDepth(goods(type, 0.1, 1), { maxPerItem: 99, random: maxRoll }), 10,
-        `a cheap ${type} comes in a pile like anything else cheap`);
-    assert.strictEqual(P.stockDepth(goods(type, 900, 1), { maxPerItem: 99, random: maxRoll }), 1,
-        `and a dear ${type} comes alone`);
-}
-console.log('ok  depth follows price, not type');
+// 3. Type is the first lever, and the one closest to how a shop is pictured.
+assert.strictEqual(P.stockDepth(goods('equipment', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { equipment: 5 }, rarityCaps: open }), 5,
+    'cheap armour is held back by being armour');
+assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { consumable: 10 }, rarityCaps: open }), 10,
+    'and a cheap consumable is not');
+// Zero is a lever declining to have an opinion, not a ceiling of nothing. A shelf
+// of items capped at zero would be the worst possible reading of a default.
+assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { consumable: 0 }, rarityCaps: open }), 10,
+    'a cap of zero means the type says nothing, not that it says none');
+assert.strictEqual(P.stockDepth(goods('loot', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { consumable: 3 }, rarityCaps: open }), 10,
+    'an unlisted type is unconstrained by the table');
+
+// 4. Rarity is the lever price cannot pull.
+const rare = (rarity, gp) => {
+    const item = goods('weapon', gp, 1);
+    item.system.rarity = rarity;
+    return item;
+};
+assert.strictEqual(P.stockDepth(rare('legendary', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { legendary: 1 } }), 1,
+    'a legendary thing arrives alone however cheap it is');
+assert.strictEqual(P.stockDepth(rare('uncommon', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { uncommon: 3 } }), 3,
+    'an uncommon one is held to a few');
+assert.strictEqual(P.stockDepth(rare('common', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { common: 0 } }), 10,
+    'and common declines to have an opinion');
+// Most `loot` carries no rarity at all, and must read as common rather than as
+// unknown-and-therefore-capped.
+assert.strictEqual(P.stockDepth(goods('loot', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { common: 0, legendary: 1 } }), 10,
+    'an item with no rarity reads as common');
+
+// 5. The smallest ceiling wins, whichever lever it came from.
+assert.strictEqual(P.stockDepth(rare('rare', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { weapon: 5 }, rarityCaps: { rare: 2 } }), 2,
+    'rarity beats type when rarity is tighter');
+assert.strictEqual(P.stockDepth(rare('common', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { weapon: 2 }, rarityCaps: { common: 0 } }), 2,
+    'and type beats rarity when type is');
+assert.strictEqual(P.stockDepth(rare('common', 900),
+    { maxPerItem: 99, random: maxRoll, typeCaps: { weapon: 5 }, rarityCaps: { common: 0 } }), 1,
+    'and price beats both when price is');
+console.log('ok  type, rarity and price each set a ceiling and the lowest wins');
+
+// 6. The shop's own dial scales the ceiling, never below one.
+assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, scale: 2, ...noCaps }), 20,
+    'a deep shop keeps twice as many');
+assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
+    { maxPerItem: 99, random: maxRoll, scale: 0.5, ...noCaps }), 5,
+    'a sparse one keeps half');
+assert.strictEqual(P.stockDepth(goods('consumable', 900, 1),
+    { maxPerItem: 99, random: maxRoll, scale: 0.5, ...noCaps }), 1,
+    'and a sparse shop still stocks one of a dear thing rather than none');
+// The shelf's own ceiling is not scalable: it is a number a GM typed, and a dial
+// arguing with it would mean the figure on the card was not the figure in force.
+assert.strictEqual(P.stockDepth(goods('consumable', 0.1, 1),
+    { maxPerItem: 6, random: maxRoll, scale: 2, ...noCaps }), 6,
+    'the shelf ceiling is never scaled past');
+console.log('ok  the depth dial scales the world, not the shelf');
 
 // An item with no price at all must not become a pile by default.
-assert.strictEqual(P.stockDepth(goods('consumable', null, 1), { maxPerItem: 99, random: maxRoll }), 10,
+assert.strictEqual(P.stockDepth(goods('consumable', null, 1), { maxPerItem: 99, random: maxRoll, ...noCaps }), 10,
     'an unpriced consumable falls in the cheapest band, which is the honest reading');
 
 // Never zero, never negative, whatever it is handed.
 for (const bad of [null, undefined, {}, goods('consumable', 1, 0), goods('consumable', 1, -3)]) {
-    const d = P.stockDepth(bad, { maxPerItem: 5, random: minRoll });
+    const d = P.stockDepth(bad, { maxPerItem: 5, random: minRoll, ...noCaps });
     assert.ok(Number.isInteger(d) && d >= 1, `depth stays a positive integer for ${JSON.stringify(bad)}`);
 }
 // Stackability is read off the document, never assumed -- the same rule the
 // inventory API states for itself. No `system.quantity` means no stack to deepen.
 assert.strictEqual(P.stockDepth({ type: 'loot', system: { price: { value: 0.1, denomination: 'gp' } } },
-    { maxPerItem: 99, random: maxRoll }), 1, 'an item with no quantity field does not stack');
+    { maxPerItem: 99, random: maxRoll, ...noCaps }), 1, 'an item with no quantity field does not stack');
 assert.strictEqual(P.stockDepth({ type: 'loot', system: { quantity: '3' } },
-    { maxPerItem: 99, random: maxRoll }), 1, 'and a quantity that is a string is not a quantity');
+    { maxPerItem: 99, random: maxRoll, ...noCaps }), 1, 'and a quantity that is a string is not a quantity');
 console.log('ok  how deep a rolled row stacks');
 
 // --- settling without change ---------------------------------------------

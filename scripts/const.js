@@ -398,12 +398,16 @@ export const ITEM_CATEGORIES = Object.freeze([
  * the whitelist excluded. The result was a depth feature that changed nothing
  * anybody could see.
  *
- * Cost was always what the intuition meant: a 1 gp vial lands deep, a 1500 gp suit
- * of plate lands alone. Nobody has eight suits of plate because plate is expensive,
- * not because it is armour. The types are gone entirely rather than kept as a
- * modifier -- a rule that fires on type *and* price is two rules to hold in your
- * head at the moment somebody is asking why their shop looks wrong, which is
- * exactly when one is already too many.
+ * Cost is one of **three** ceilings, and it is not the first. Type is: a shop keeps
+ * ten torches and one breastplate because of what they are, and only then because of
+ * what they cost. Rarity is the third, and it is the one price cannot express --
+ * a legendary blade and a masterwork one can carry the same number and mean entirely
+ * different things about how many a shop could possibly have.
+ *
+ * Three rules rather than one *was* the objection, and the answer is that they do not
+ * interact: each is a ceiling and the smallest wins. There is no order to remember and
+ * no arithmetic to do, so "why is my shop like this" is answered by reading three
+ * numbers and taking the lowest.
  *
  * These are **caps, not counts**. The depth is rolled within the band, so an inventory
  * stocked twice does not look stocked twice the same way. Thresholds are in base
@@ -416,6 +420,106 @@ export const STOCK_DEPTH_BANDS = Object.freeze([
     { under: 10000, cap: 3 },    // 25-100 gp -- the better potions
     { under: Infinity, cap: 1 }  // anything dearer is a single item
 ]);
+
+/**
+ * How deep a shop stacks a thing because of **what it is**.
+ *
+ * The first lever, and the one closest to how anybody actually pictures a shop. Armour
+ * is `equipment` in dnd5e, which is why that entry reads lower than a consumable: a
+ * general store keeps a rack of rope and one or two breastplates.
+ *
+ * Only the physical types appear. Anything else cannot sit on an inventory at all.
+ */
+export const STOCK_TYPE_CAPS = Object.freeze({
+    consumable: 10,
+    loot: 10,
+    tool: 5,
+    weapon: 5,
+    equipment: 5,
+    container: 5
+});
+
+/**
+ * How deep a shop stacks a thing because of **how rare it is**.
+ *
+ * The lever price cannot pull. Two blades at the same price are not the same question
+ * if one of them is the only one anybody has heard of, and a shop with three artifacts
+ * on the shelf is not a shop.
+ *
+ * **Zero means no ceiling**, which is what `common` wants: ordinary goods are governed
+ * by their type and their price, and a third number saying "no more than 99" would be
+ * a rule that never fires pretending to be one that does. Keys are dnd5e's own
+ * (`CONFIG.DND5E.itemRarity`); an item with no rarity at all -- most `loot` -- reads
+ * as common.
+ */
+export const STOCK_RARITY_CAPS = Object.freeze({
+    common: 0,
+    uncommon: 3,
+    rare: 2,
+    veryRare: 1,
+    legendary: 1,
+    artifact: 1
+});
+
+/**
+ * The one dial an individual shop gets over all of that.
+ *
+ * The tables above are a fact about the **world** -- how much stuff exists, how freely
+ * it moves -- so they are world settings, set once. What varies shop to shop is
+ * whether this particular place is well supplied, and that is one choice rather than
+ * twelve. A card carrying the full tables would be twelve numbers per inventory
+ * restating the same world in every shop in it.
+ */
+export const STOCK_DEPTH = Object.freeze({ SPARSE: 'sparse', NORMAL: 'normal', DEEP: 'deep' });
+
+export const STOCK_DEPTH_OPTIONS = Object.freeze([
+    { value: STOCK_DEPTH.SPARSE, label: 'Sparse', scale: 0.5, hint: 'A thin shop. Half of what the world would keep.' },
+    { value: STOCK_DEPTH.NORMAL, label: 'Normal', scale: 1, hint: 'Whatever the world settings say.' },
+    { value: STOCK_DEPTH.DEEP, label: 'Deep', scale: 2, hint: 'A well-supplied shop. Twice what the world would keep.' }
+]);
+
+export const DEFAULT_STOCK_DEPTH = STOCK_DEPTH.NORMAL;
+
+/** Setting key for a type's depth ceiling. */
+export function typeCapKey(type) {
+    return `stockCapType${type.charAt(0).toUpperCase()}${type.slice(1)}`;
+}
+
+/** Setting key for a rarity's depth ceiling. */
+export function rarityCapKey(rarity) {
+    return `stockCapRarity${rarity.charAt(0).toUpperCase()}${rarity.slice(1)}`;
+}
+
+/** The type table as a GM has set it, falling back to the shipped defaults. */
+export function typeCaps() {
+    return _read(STOCK_TYPE_CAPS, typeCapKey);
+}
+
+/** The rarity table as a GM has set it, falling back to the shipped defaults. */
+export function rarityCaps() {
+    return _read(STOCK_RARITY_CAPS, rarityCapKey);
+}
+
+// Read through a try, because these are asked for during a render and a world that has
+// not registered yet -- or a setting deleted out from under us -- must fall back rather
+// than take the window down with it.
+function _read(defaults, key) {
+    const out = {};
+    for (const [name, fallback] of Object.entries(defaults)) {
+        let value = fallback;
+        try {
+            const stored = game.settings.get(MODULE.ID, key(name));
+            if (Number.isFinite(Number(stored))) value = Math.max(0, Math.trunc(Number(stored)));
+        } catch (_error) { /* not registered yet: the shipped default is the answer */ }
+        out[name] = value;
+    }
+    return out;
+}
+
+/** The scale for a dial setting, falling back to Normal rather than to nothing. */
+export function depthScale(key) {
+    return STOCK_DEPTH_OPTIONS.find((entry) => entry.value === key)?.scale ?? 1;
+}
 
 // ==================================================================
 // ===== TRADING HOURS ==============================================

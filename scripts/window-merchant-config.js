@@ -1,7 +1,8 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
-    DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP
+    DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP,
+    STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations } from './utility-pricing.js';
@@ -260,6 +261,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        for (const select of this.element?.querySelectorAll('[data-inventory-depth]') ?? []) {
+            if (select.dataset.merchantBound === 'true') continue;
+            select.dataset.merchantBound = 'true';
+            select.addEventListener('change', (event) => {
+                void this._commitInventoryStock(select.getAttribute('data-inventory-depth'), {
+                    depth: event.target.value
+                });
+            });
+        }
+
         for (const select of this.element?.querySelectorAll('[data-inventory-frequency]') ?? []) {
             if (select.dataset.merchantBound === 'true') continue;
             select.dataset.merchantBound = 'true';
@@ -336,12 +347,21 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        // **Both ceilings are on screen, because they answer different questions.**
+        // Products is how many *lines* this shelf carries, and it is the target a roll
+        // fills back up to; Max stack is how deep any one line goes. The first was a
+        // constant while a roll clipped against it and the roll count was the only real
+        // dial -- now that a roll adds new lines only, the line count is the number a
+        // GM actually reaches for.
+        //
+        // Superseded note, kept because the reasoning was right at the time:
         // Only one ceiling is on screen now. `maxProducts` is still enforced when a
         // table rolls, as a backstop against an unattended reroll filling a shop, but
         // it is a constant rather than a control — the roll count is what a GM uses to
         // say how much arrives, and two numbers for one idea was the confusion.
         for (const [attribute, field, ceiling] of [
-            ['data-inventory-max-per-item', 'maxPerItem', 999]
+            ['data-inventory-max-per-item', 'maxPerItem', 999],
+            ['data-inventory-max-products', 'maxProducts', 999]
         ]) {
             for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
                 if (input.dataset.merchantBound === 'true') continue;
@@ -1130,6 +1150,32 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // method, including "never runs out". Keying the control off
                     // `countable` alone hid a limit that was still quietly capping
                     // every roll on an unlimited inventory.
+                    // **Stocking answers "how many", Restock answers "when".** They
+                    // were one group and read as one decision, which is why the
+                    // ceilings kept being mistaken for restock settings.
+                    depthOptions: STOCK_DEPTH_OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                        hint: option.hint,
+                        selected: option.value === (config.depth ?? DEFAULT_STOCK_DEPTH)
+                    })),
+                    depthHint: STOCK_DEPTH_OPTIONS
+                        .find((option) => option.value === (config.depth ?? DEFAULT_STOCK_DEPTH))?.hint ?? '',
+                    maxProducts: limits.maxProducts,
+                    // The summary, rather than the tables themselves. A GM needs to see
+                    // what is governing the shelf without twelve controls on it
+                    // restating the same world in every shop on the map.
+                    depthByType: Object.entries(typeCaps())
+                        .map(([type, cap]) => `${type.charAt(0).toUpperCase()}${type.slice(1)} ${cap || '—'}`)
+                        .join(' · '),
+                    depthByRarity: Object.entries(rarityCaps())
+                        .map(([rarity, cap]) => {
+                            const spaced = rarity.replace(/([a-z])([A-Z])/g, '$1 $2');
+                            const label = spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
+                            return `${label} ${cap || '—'}`;
+                        })
+                        .join(' · '),
+
                     showMaxStack: policy !== STOCK.INFINITE || tables.length > 0,
                     maxStackTooltip: policy === STOCK.INFINITE
                         ? 'The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.'

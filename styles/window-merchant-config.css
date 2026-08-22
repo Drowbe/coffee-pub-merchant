@@ -468,3 +468,15 @@
    because it is the way back. */
 .merchant-config-table.is-off .merchant-config-table-name { color: var(--blacksmith-tool-text-muted); }
 .merchant-config-table.is-off .merchant-config-table-controls { opacity: .5; }
+
+/* --- Stocking summary ------------------------------------------------------ */
+/*
+ * The world's depth tables, stated rather than controlled. Two dense rows of
+ * "Name N · Name N", so a GM can see what is governing the shelf at a glance and
+ * still find the one entry they came to check.
+ *
+ * `merchant-config-note` already carries the muted colour and the box; this adds
+ * only the stacking and the tabular rows, so the two cannot drift apart.
+ */
+.merchant-config-depth-summary { display: flex; flex-direction: column; gap: 3px; }
+.merchant-config-depth-row { font-variant-numeric: tabular-nums; opacity: .85; }

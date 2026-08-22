@@ -168,40 +168,90 @@ and every other module are looking at the same number.
 The whole policy is expressed as two flags on the exchange transfer. There is no stock check in
 `_goodsTransfers`, because the primitive enforces availability itself.
 
-### Ceilings and restocking
+### Restocking is topping up to a level
 
-**One ceiling is a control; the other is a backstop.** `maxPerItem` — *max N of each item* — is on screen
-wherever stock is counted, because it clamps two different things: how deep a table roll stacks a row, and
-what a GM may type into the quantity column in the shop window (which also sets the restock target).
+**Par is the level, and only a person sets it.** Restock walks every row and brings it back
+to its par; a row at zero is restocked, because zero is sold out, and a row that was deleted is
+not, because deleting is how a shop stops carrying something. Selling never touches par —
+`_goodsTransfers` passes `preserveEmptySource: true` so the row survives at zero rather than
+being removed.
 
-`maxProducts` is **not** a control any more. It only ever trimmed a table roll, and the table's own roll
-count is how a GM says how much arrives — two numbers for one idea, one of which did nothing on the many
-inventories that have no table. It survives as a constant, enforced in `_withinLimits`, so an unattended
-reroll cannot grow a shop past the point where its window is readable. If that limit is ever reached, the
-answer is the roll count or the reroll flag, not a bigger number.
+Par is written on **every change that is not a sale**: a quantity a GM types, a drop, a table
+delivery. It was previously written only by the typed quantity, and `getStock` fell back to *the
+current quantity* for everything else — which reads as maintained and is not. The target
+followed the stock downward, so selling three of four flutes silently set the target to one and
+selling the last set it to zero. "Restocks the same items" could never put anything back, and
+the failure was invisible: the shop looked stocked and the restock reported success.
 
-Both are enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }` so the window
-can say what happened rather than silently correcting a number a GM typed.
+Schema 4 stamps a par onto every row that lacks one, from what it currently holds — a shop
+sitting in a world nobody is shopping in is a shop at rest.
 
-**Both are ceilings, not targets.** They only ever refuse. Nothing fills an inventory *to* them, and reading
-either as "how many I want" is the single most natural wrong assumption about this screen — which is most of
-why one of them is no longer offered.
+### A roll brings new products, never more of what is already carried
 
-How deep a table-rolled row goes is `stockDepth()` in `utility-pricing.js`, in three steps:
+The second, optional half of a restock. Top everything off first, then draw from the tables for
+things the shop has newly got hold of.
 
-1. **The item's own `system.quantity`**, if it is more than one. A compendium entry authored as a quiver of
-   twenty arrows is a quiver of twenty arrows.
-2. **The price band** (`STOCK_DEPTH_BANDS`), for types a shop keeps a pile of — `consumable`, `loot`, and
-   ammunition. The band caps it and a die fills it, so stocking the same inventory twice gives two shops.
-3. **One**, for everything else.
+**A drawn result already on the shelf is skipped entirely.** Topping up is the refill's job and
+it refills to the level the GM set; a table adding to the same row would push it past that level
+and make the number they typed mean nothing. It was also where duplicate rows came from — two
+Torch lines, two Flutes, growing by one set per restock.
 
-`maxPerItem` clamps the result, so a ceiling a GM set by hand is never argued with by a die. The roll is a
-plain integer, not a `Roll` — nothing here belongs in chat.
+`maxProducts` is therefore a **target**, not a clip: a shelf that carries twenty and holds
+fifteen rolls for five more, and once it is back to twenty there is nothing left to ask for.
 
-Restocking is driven by `updateWorldTime` — the same watcher that opens and closes shops, so there is no
-second clock. An inventory restocks when `restockDays` in-world days have elapsed. **Advancing a week restocks
-once, not seven times**; the watcher compares elapsed time against the interval rather than counting
-boundaries. Table-stocked inventories may additionally re-roll on restock, which is opt-in per table (`auto`).
+### How deep a row arrives
+
+Three ceilings and the smallest wins. There is no order to remember and no arithmetic across
+them, which is what makes three rules cheaper to hold than one compound one.
+
+```
+depth = min(type, rarity, price, the shelf's own ceiling)
+```
+
+- **Type** is first because it is closest to how anybody pictures a shop: ten torches, one
+  breastplate. Armour is `equipment` in dnd5e, which is why that entry reads lower than a
+  consumable.
+- **Rarity** is the lever price cannot pull. Two blades at one price are not the same question if
+  only one of them is the only one anybody has heard of. Keys are dnd5e's own; an item with no
+  rarity — most `loot` — reads as common.
+- **Price** bands it, coarsely, as before.
+- **Zero means a lever has no opinion**, which is what `common` wants. A rule that never fires
+  should not pretend to be one that does.
+
+A quantity the **author** stated wins over all three: a table row reading "Arrows (20)" is a
+delivery of twenty. The bands exist to invent a number when nobody stated one, so applying them
+to a stated one would overrule the only person who knew. The shelf's own ceiling still holds,
+because that is a number this GM typed about this shelf.
+
+**The tables are world settings**, in Merchant's module settings, because how much rope exists
+and how freely plate moves are the same answers in every shop on the map. What a shop gets is one
+dial — Sparse, Normal, Deep — scaling them. Twelve controls per inventory would restate the same
+world in every shop in it; the card shows the summary and says where it is set.
+
+The dial scales the *world's* ceiling, never the shelf's: `maxPerItem` is a number a GM typed on
+this card, and a dial arguing with it would mean the figure on screen was not the figure in
+force.
+
+**A drop runs the same chain.** A compendium entry reads 1 because that is what one crowbar *is*,
+not because a shop keeps one; taking it literally is what made every dragged row land single.
+
+---
+
+### Ceilings, and the clock
+
+`maxPerItem` — *max stack* — and `maxProducts` — *products* — are both on the card now, under
+**Stocking**. They answer different questions: how deep one line goes, and how many lines the shelf
+carries. Both are enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }`
+so the window can say what happened rather than silently correcting a number a GM typed.
+
+Restocking is driven by `updateWorldTime` — the same watcher that opens and closes shops, so there is
+no second clock. An inventory restocks when `restockDays` in-world days have elapsed. **Advancing a
+week restocks once, not seven times**; the watcher compares elapsed time against the interval rather
+than counting boundaries.
+
+**The clock only reaches actors in `game.actors`.** A merchant placed as an unlinked token is a
+synthetic actor living on a scene, so scheduled restocking does not fire for it. Known seam, listed
+in §11.
 
 ---
 

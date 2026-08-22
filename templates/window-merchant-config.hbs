@@ -244,6 +244,57 @@
                             </div>
                         {{/if}}
 
+                        {{#if canRoll}}
+                            {{!-- **How many, as distinct from when.** These were inside
+                                  Restock and read as part of that one decision, which is
+                                  why the ceilings kept being taken for restock settings.
+                                  Products is the number of lines this shelf carries and
+                                  is the target a roll fills back up to; Max stack is how
+                                  deep any one line goes. --}}
+                            <div class="merchant-config-inv-group">
+                                <h4>Stocking</h4>
+                                <div class="merchant-config-restock">
+                                    <label class="merchant-config-row merchant-config-restock-method">
+                                        <span class="merchant-config-label">Depth</span>
+                                        <select data-inventory-depth="{{id}}" data-tooltip="{{depthHint}}">
+                                            {{#each depthOptions}}
+                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                            {{/each}}
+                                        </select>
+                                    </label>
+
+                                    <label class="merchant-config-row merchant-config-restock-stack"
+                                           data-tooltip="How many different things this inventory carries. A roll table fills it back up to this number.">
+                                        <span class="merchant-config-label">Products</span>
+                                        <input type="number" min="1" max="999" step="1" value="{{maxProducts}}"
+                                               data-inventory-max-products="{{id}}"
+                                               aria-label="How many different products this inventory carries">
+                                    </label>
+
+                                    {{#if showMaxStack}}
+                                        <label class="merchant-config-row merchant-config-restock-stack"
+                                               data-tooltip="{{maxStackTooltip}}">
+                                            <span class="merchant-config-label">Max stack</span>
+                                            <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
+                                                   data-inventory-max-per-item="{{id}}"
+                                                   aria-label="Maximum quantity of any one item">
+                                        </label>
+                                    {{/if}}
+                                </div>
+
+                                {{!-- The summary, not the tables. What governs depth is a
+                                      fact about the world, so it is stated once and set
+                                      once; repeating twelve controls on every card would
+                                      restate the same world in every shop in it. --}}
+                                <div class="merchant-config-note merchant-config-depth-summary">
+                                    <span>Type, rarity and price each set a ceiling, and the lowest wins.</span>
+                                    <span class="merchant-config-depth-row">{{depthByType}}</span>
+                                    <span class="merchant-config-depth-row">{{depthByRarity}}</span>
+                                    <span>These are world settings, in Merchant's module settings. Depth scales them for this inventory.</span>
+                                </div>
+                            </div>
+                        {{/if}}
+
                         <div class="merchant-config-inv-group">
                             <h4>Restock</h4>
                             {{#if canRoll}}
@@ -273,15 +324,6 @@
                                         </label>
                                     {{/if}}
 
-                                    {{#if showMaxStack}}
-                                        <label class="merchant-config-row merchant-config-restock-stack"
-                                               data-tooltip="{{maxStackTooltip}}">
-                                            <span class="merchant-config-label">Max stack</span>
-                                            <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
-                                                   data-inventory-max-per-item="{{id}}"
-                                                   aria-label="Maximum quantity of any one item">
-                                        </label>
-                                    {{/if}}
                                 </div>
                             {{else}}
                                 <div class="merchant-config-note">

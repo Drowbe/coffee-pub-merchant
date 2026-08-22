@@ -10,7 +10,10 @@
 // pay 2 gp as far as the primitive is concerned. Every transaction hits that, so it
 // is a designed feature here rather than an edge case discovered in play.
 
-import { MODULE, STOCK_DEPTH_BANDS, isUnpriced, DEFAULT_BUY_RATE, MAX_BUYBACK_RATIO } from './const.js';
+import {
+    MODULE, STOCK_DEPTH_BANDS, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS,
+    isUnpriced, DEFAULT_BUY_RATE, MAX_BUYBACK_RATIO
+} from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
 export function denominations() {
@@ -66,8 +69,13 @@ export function toBase(value, denomination) {
  * than a `Roll`, because nothing here belongs in chat and a dice animation for
  * restocking an inventory is not a thing anybody asked for.
  */
-export function stockDepth(item, { maxPerItem = Infinity, random = Math.random } = {}) {
-    const ceiling = Math.max(1, Math.trunc(Number(maxPerItem)) || 1);
+export function stockDepth(item, {
+    maxPerItem = Infinity,
+    typeCaps = STOCK_TYPE_CAPS,
+    rarityCaps = STOCK_RARITY_CAPS,
+    scale = 1,
+    random = Math.random
+} = {}) {
     if (!item) return 1;
 
     // Whether a thing stacks is **read off the document, never assumed** -- the same
@@ -76,18 +84,47 @@ export function stockDepth(item, { maxPerItem = Infinity, random = Math.random }
     // and asking for two of it is not a shop with two of them, it is a wrong number.
     if (typeof item?.system?.quantity !== 'number') return 1;
 
-    // 1. The author already answered.
-    const authored = Math.trunc(Number(item.system.quantity));
-    if (Number.isFinite(authored) && authored > 1) return Math.min(authored, ceiling);
+    // **Every ceiling in one place, and the smallest wins.** No order to remember and
+    // no arithmetic across them: a GM asking why a row landed at two reads four
+    // numbers and takes the lowest. Zero anywhere means "this lever says nothing",
+    // which is how `common` declines to have an opinion.
+    const ceilings = [
+        _ceiling(maxPerItem),
+        _ceiling(typeCaps?.[item.type]),
+        _ceiling(rarityCaps?.[item?.system?.rarity || 'common']),
+        _priceCap(item)
+    ];
+    const ceiling = Math.max(1, Math.min(...ceilings));
 
-    // 2. The band caps it; the die fills it.
+    // 1. **The author already answered, and the world's tables do not argue.** A table
+    //    row reading "Arrows (20)" is a delivery of twenty; the bands exist to invent a
+    //    number when nobody stated one, so applying them to a stated one would be
+    //    overruling the only person who actually knew. The shelf's own ceiling still
+    //    holds, because that is a number this GM typed about this shelf.
+    const authored = Math.trunc(Number(item.system.quantity));
+    if (Number.isFinite(authored) && authored > 1) return Math.min(authored, _ceiling(maxPerItem));
+
+    // 2. The shop's own dial moves the ceiling, then the die fills it. Scaling the
+    //    ceiling rather than the result keeps a sparse shop's rolls *possible* at the
+    //    low end -- scaling afterwards would round a 1 down to nothing.
+    const scaled = Math.max(1, Math.floor(ceiling * (Number(scale) > 0 ? Number(scale) : 1)));
+    const capped = Math.min(scaled, _ceiling(maxPerItem));
+    return capped <= 1 ? 1 : 1 + Math.floor(random() * capped);
+}
+
+/** A configured ceiling, where 0 or nothing means "no opinion". */
+function _ceiling(value) {
+    const number = Math.trunc(Number(value));
+    return Number.isFinite(number) && number > 0 ? number : Infinity;
+}
+
+/** What the price band allows. Coarse on purpose: character, not simulation. */
+function _priceCap(item) {
     const price = item?.system?.price;
     const base = Number.isFinite(Number(price?.value))
         ? toBase(Number(price.value), price.denomination ?? 'gp')
         : 0;
-    const band = STOCK_DEPTH_BANDS.find((entry) => base < entry.under) ?? { cap: 1 };
-    const cap = Math.min(band.cap, ceiling);
-    return cap <= 1 ? 1 : 1 + Math.floor(random() * cap);
+    return (STOCK_DEPTH_BANDS.find((entry) => base < entry.under) ?? { cap: 1 }).cap;
 }
 
 

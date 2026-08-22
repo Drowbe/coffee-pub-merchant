@@ -119,6 +119,67 @@ assert.strictEqual(parFor('buyback', 1, undefined), 1, 'and has none of its own 
 assert.strictEqual(parFor('sale', 1, 6), 6, 'while an ordinary inventory still keeps what it keeps');
 console.log('ok  par resolution');
 
+// --- what a roll is allowed to do ---------------------------------------
+// Lifted verbatim from `MerchantManager._withinLimits`, minus the document access.
+// This is the rule that decides whether restocking maintains a shop or inflates it,
+// and it was wrong in both directions at once: a roll topped up rows the GM had set a
+// level for, and it left every arrival with no level at all.
+function withinLimits(held, drawn, { maxProducts, depth = () => 1 }) {
+    const carried = new Set(held);
+    let rows = carried.size;
+    const allowed = [];
+    for (const item of drawn) {
+        if (carried.has(item.key)) continue;      // already on the shelf: leave it alone
+        if (rows >= maxProducts) continue;        // the shelf is full of products
+        carried.add(item.key);
+        rows++;
+        allowed.push({ key: item.key, quantity: depth(item), par: depth(item) });
+    }
+    return allowed;
+}
+
+// A roll never deepens a row that is already there. Topping up is the restock's job,
+// and it refills to the level the GM set -- a table adding to the same row would push
+// it past that level and make the number they typed mean nothing.
+assert.deepStrictEqual(
+    withinLimits(['flute'], [{ key: 'flute' }], { maxProducts: 25 }),
+    [],
+    'a rolled result already on the shelf is left entirely alone');
+
+// Which is also what stops the duplicate rows: the same draw twice in one restock is
+// one new product, not two.
+assert.deepStrictEqual(
+    withinLimits([], [{ key: 'torch' }, { key: 'torch' }], { maxProducts: 25, depth: () => 4 }),
+    [{ key: 'torch', quantity: 4, par: 4 }],
+    'the same product drawn twice in one roll is one row');
+
+// The product count is a target to fill up to, not a ceiling to clip against.
+assert.deepStrictEqual(
+    withinLimits(['a', 'b'], [{ key: 'c' }, { key: 'd' }], { maxProducts: 3 }).map((row) => row.key),
+    ['c'],
+    'a shelf carrying two of three takes one more product and no more');
+
+// **Every arrival carries its own level.** Without this the row has no target and
+// `getStock` falls back to the current quantity -- which is the ratchet: sell three of
+// four and the target silently becomes one, sell the last and it becomes zero, and
+// "restocks the same items" can never put anything back.
+const arrivals = withinLimits([], [{ key: 'rope' }], { maxProducts: 25, depth: () => 6 });
+assert.strictEqual(arrivals[0].par, arrivals[0].quantity,
+    'a new row arrives maintained, at the level it turned up with');
+console.log('ok  a roll brings new products, never more of what is already carried');
+
+// --- the ratchet this replaces ------------------------------------------
+// Kept as a check rather than a comment, because the failure was invisible: the shop
+// looked stocked, the restock reported success, and nothing moved.
+const ratchet = (quantity, flag) => parOf(quantity, flag);
+assert.strictEqual(ratchet(1, undefined), 1,
+    'with no par, a row sold down to one claims a target of one');
+assert.strictEqual(ratchet(1, 4), 4,
+    'and with one, it still knows it keeps four');
+assert.strictEqual(ratchet(0, 4), 4,
+    'a sold-out row is restocked; only a deleted one is gone for good');
+console.log('ok  a row with a stored par survives being sold down');
+
 // --- trading hours: open is derived, never stored ------------------------
 // The bug this replaces: `open` was a stored flag kept in step by a world-time
 // handler. Any path where the handler did not fire, or fired without a usable

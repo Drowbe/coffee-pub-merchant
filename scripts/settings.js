@@ -2,7 +2,7 @@
 // ===== SETTINGS ===================================================
 // ==================================================================
 //
-// Merchant's only settings are sounds: what a shop sounds like.
+// Two families: what a shop sounds like, and how deep it stacks things.
 //
 // **World-scoped, played locally.** The GM chooses the shop's voice for the table --
 // it is set dressing, and set dressing belongs to whoever built the scene -- but the
@@ -17,7 +17,7 @@
 // as Curator does it. The pattern is copied deliberately: two modules solving this
 // differently is how the next person learns it twice.
 
-import { MODULE } from './const.js';
+import { MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 /** The sound settings, in the order they appear in the menu. */
@@ -54,6 +54,55 @@ export const SOUND_SETTINGS = Object.freeze([
     }
 ]);
 
+// ==================================================================
+// ===== STOCKING ===================================================
+// ==================================================================
+//
+// **How deep a shop stacks a thing is a fact about the world, not about the shop.**
+// How much rope exists, how freely plate armour moves, how many people have ever seen
+// an artifact -- those are the same answers in every shop on the map, so they are set
+// once here rather than restated on twelve cards. What an individual shop gets is one
+// dial saying whether it is well supplied, which is on the inventory itself.
+//
+// Registered as plain numbers rather than behind a menu. Twelve numbers is a menu's
+// worth of work to build and a menu's worth of clicking to reach, and Foundry already
+// renders numbers in the module tab perfectly well.
+//
+// **Zero means no ceiling.** It is the honest default for "common", where type and
+// price are already the whole answer and a third rule would only pretend to fire.
+
+/** Sentence-case a camelCase key for a settings label: veryRare -> Very rare. */
+function _label(key) {
+    const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2');
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
+}
+
+function registerStockingSettings() {
+    for (const [type, cap] of Object.entries(STOCK_TYPE_CAPS)) {
+        game.settings.register(MODULE.ID, typeCapKey(type), {
+            name: `Stock depth: ${_label(type)}`,
+            hint: `The most of one ${type} a shop stocks at once, before price and rarity are considered. `
+                + '0 means no limit from the type.',
+            scope: 'world',
+            config: true,
+            type: Number,
+            default: cap
+        });
+    }
+
+    for (const [rarity, cap] of Object.entries(STOCK_RARITY_CAPS)) {
+        game.settings.register(MODULE.ID, rarityCapKey(rarity), {
+            name: `Stock depth: ${_label(rarity)}`,
+            hint: `The most of one ${_label(rarity).toLowerCase()} item a shop stocks at once. `
+                + '0 means no limit from the rarity.',
+            scope: 'world',
+            config: true,
+            type: Number,
+            default: cap
+        });
+    }
+}
+
 function soundChoices() {
     return window.BlacksmithConstants?.arrSoundChoices
         ?? game.modules.get('coffee-pub-blacksmith')?.api?.BLACKSMITH?.arrSoundChoices
@@ -61,6 +110,8 @@ function soundChoices() {
 }
 
 export function registerSettings() {
+    registerStockingSettings();
+
     const choices = soundChoices();
 
     for (const { key, name, hint } of SOUND_SETTINGS) {
