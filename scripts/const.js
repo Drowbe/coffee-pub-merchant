@@ -253,7 +253,11 @@ export const INVENTORY_TYPES = Object.freeze({
         // Never. Its stock is whatever the party sold, so there is no level to
         // return to and a refill would conjure duplicates of somebody's old sword.
         restocks: false,
-        defaults: { order: 50, visible: true, markup: 1, buyRate: 0.5, stock: STOCK.FINITE }
+        // A pawnbroker's spread, not a fence's: pays 95% of value and resells at 5%
+        // over. See `MAX_BUYBACK_RATIO` -- a spread this thin leaves almost no room
+        // under the clamp, so what the shop actually pays stops tracking this number
+        // as soon as reputation moves.
+        defaults: { order: 50, visible: true, markup: 1.05, buyRate: 0.95, stock: STOCK.FINITE }
     }
 });
 
