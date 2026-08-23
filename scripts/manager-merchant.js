@@ -1051,6 +1051,9 @@ export class MerchantManager {
         const step = typeof onStep === 'function' ? onStep : () => {};
 
         const drawn = [];
+        // uuid -> the table that drew it. Only needed when something fails to resolve,
+        // which is exactly when a bare uuid is no use to anybody.
+        const source = new Map();
         for (const entry of this.getInventoryTables(inventory)) {
             // A table switched off is configured and dormant: it keeps its rolls and
             // its place, and contributes nothing until it is switched back on.
@@ -1081,7 +1084,9 @@ export class MerchantManager {
                     break;
                 }
                 for (const result of results) {
-                    if (result?.documentUuid) drawn.push(result.documentUuid);
+                    if (!result?.documentUuid) continue;
+                    drawn.push(result.documentUuid);
+                    if (!source.has(result.documentUuid)) source.set(result.documentUuid, table.name);
                 }
                 step(game.i18n.format('coffee-pub-merchant.progress.rollingOf', { table: table.name, done: i + 1, total: entry.rolls }));
             }
@@ -1100,6 +1105,21 @@ export class MerchantManager {
                 item = null;
             }
             resolved.set(uuid, item?.documentName === 'Item' && isPhysical(item.type) ? item : null);
+        }
+
+        const broken = [...resolved].filter(([, item]) => !item).map(([uuid]) => uuid);
+        if (broken.length) {
+            console.warn(
+                `${MODULE.TITLE} | ${broken.length} rolled result${broken.length === 1 ? '' : 's'} `
+                + `did not resolve to a physical item and were skipped:`,
+                broken.map((uuid) => ({ uuid, table: source.get(uuid) ?? '(unknown table)' }))
+            );
+            // Named by table, because the fix is in the table rather than in the shop.
+            const tables = [...new Set(broken.map((uuid) => source.get(uuid)).filter(Boolean))];
+            notify.warn(game.i18n.format('coffee-pub-merchant.notify.brokenTableRows', {
+                count: broken.length,
+                tables: tables.join(', ') || game.i18n.localize('coffee-pub-merchant.common.unknownTable')
+            }));
         }
 
         const items = this._withinLimits(actor, inventory, drawn, resolved);

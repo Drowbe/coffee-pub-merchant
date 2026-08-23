@@ -166,7 +166,8 @@
             "noPrototypeToken": "This merchant has no prototype token.",
             "nothingToRestock": "{inventory} had nothing to restock.",
             "alreadyEmpty": "{inventory} is already empty.",
-            "clampedToMaxStack": "This inventory holds at most {max} of any one thing, so that is {value}. Raise the inventory’s \"each\" limit in Merchant Settings to keep more."
+            "clampedToMaxStack": "This inventory holds at most {max} of any one thing, so that is {value}. Raise the inventory’s \"each\" limit in Merchant Settings to keep more.",
+            "brokenTableRows": "{count} result(s) from {tables} no longer exist and were skipped. The table points at content that has been renamed, moved or uninstalled."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
@@ -371,7 +372,8 @@
             "evenTrade": "Traded evenly"
         },
         "common": {
-            "nothing": "nothing"
+            "nothing": "nothing",
+            "unknownTable": "a roll table"
         }
     }
 }
