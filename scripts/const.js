@@ -509,6 +509,15 @@ export const STOCK_TYPE_CAPS = Object.freeze({
  * as common.
  */
 export const STOCK_RARITY_CAPS = Object.freeze({
+    // **`mundane` is not `common`, and dnd5e does not say so.** `system.rarity` is
+    // *blank* on non-magical gear — rope, torches, a plain longsword — while `common`
+    // means a common *magic* item. Folding the two together was harmless while this row
+    // read 0, and was a trap the moment anybody set it: capping common magic items at
+    // two would silently have capped every torch in the world at two as well.
+    //
+    // Blacksmith names the blank case `mundane` (`normalizeRarity`), so the vocabulary
+    // is theirs and one token means one thing across both modules.
+    mundane: 0,
     common: 0,
     uncommon: 3,
     rare: 2,

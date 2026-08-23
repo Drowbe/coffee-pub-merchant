@@ -21,6 +21,7 @@ import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
+import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -2019,7 +2020,7 @@ export class MerchantManager {
     // Not only for the GM changing what is on offer: since stock became a count, a
     // settlement moves the number every other client is looking at.
     static _broadcastRefresh(tokenUuid) {
-        game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', tokenUuid });
+        emit(SOCKET_EVENT.REFRESH, { tokenUuid });
         ShopWindow.refreshForToken(tokenUuid);
     }
 
@@ -2050,7 +2051,7 @@ export class MerchantManager {
 
         this._refreshTimers.set(uuid, setTimeout(() => {
             this._refreshTimers.delete(uuid);
-            game.socket.emit(`module.${MODULE.ID}`, { action: 'shopRefresh', actorUuid: uuid });
+            emit(SOCKET_EVENT.REFRESH, { actorUuid: uuid });
             void ShopWindow.refreshForActor(uuid);
         }, 60));
     }
@@ -2107,26 +2108,27 @@ export class MerchantManager {
             if (!connected) ShopWindow.dropUser(user.id);
         });
 
-        game.socket.on(`module.${MODULE.ID}`, (data) => {
-            // Slates travel peer to peer and are display only -- settling re-derives
-            // every line and every price on the GM, so the worst a bad message can do
-            // is show somebody a wrong list.
-            if (data?.action === 'slate') {
-                ShopWindow.receiveSlate(data);
-                return;
-            }
-            if (data?.action === 'shopPresence') {
-                ShopWindow.receivePresence(data);
-                return;
-            }
-            if (data?.action === 'slateRequest') {
-                if (data.userId === game.user.id) return;
-                ShopWindow.publishSlatesFor(data.tokenUuid);
-                return;
-            }
-            if (data?.action !== 'shopRefresh') return;
-            if (data.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
-            else ShopWindow.refreshForToken(data.tokenUuid);
+        // **Four names rather than one channel demultiplexed on `action`.** The switch
+        // that used to live here is Blacksmith's now; see `utility-sockets.js` for why
+        // the names are module-prefixed.
+
+        // Slates travel peer to peer and are display only -- settling re-derives every
+        // line and every price on the GM, so the worst a bad message can do is show
+        // somebody a wrong list.
+        on(SOCKET_EVENT.SLATE, (data) => ShopWindow.receiveSlate(data));
+
+        on(SOCKET_EVENT.PRESENCE, (data) => ShopWindow.receivePresence(data));
+
+        on(SOCKET_EVENT.SLATE_REQUEST, (data) => {
+            // Still checked, though `emit` does not echo to the sender: a ping answered
+            // by its own sender would publish a slate to nobody and redraw for no reason.
+            if (data?.userId === game.user.id) return;
+            ShopWindow.publishSlatesFor(data?.tokenUuid);
+        });
+
+        on(SOCKET_EVENT.REFRESH, (data) => {
+            if (data?.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
+            else ShopWindow.refreshForToken(data?.tokenUuid);
         });
     }
 }

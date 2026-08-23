@@ -1,6 +1,7 @@
 # Plan — where a shop's stock comes from
 
-**Status:** decided 2026-08-23, partly built. Delete this file when the query source lands.
+**Status:** decided 2026-08-23. `compendiums.query` is built and on Blacksmith master; the Merchant
+side is not written and is pinned to whatever release ships it. Delete this file when it lands.
 
 ---
 
@@ -11,7 +12,7 @@ Three sources, and **roll tables stop being the one you reach for first**.
 | Source | For | State |
 |---|---|---|
 | **Manual** | Specific, curated, characterful stock — a fence's shady goods, a signature blade | **Works today.** Drag it in, it takes a par, restock tops it up |
-| **Query** | Broad coverage that maintains itself — a general store, a smith | **Not built.** Waiting on a filtered compendium query |
+| **Query** | Broad coverage that maintains itself — a general store, a smith | **Blacksmith side built.** Merchant side waits for a tagged release |
 | **Table** | Worlds that already have them, and genuinely weighted draws | **Works today.** Kept, not deprecated, not the default |
 
 ## Why tables stopped being the default
@@ -34,32 +35,64 @@ ceilings already approximate that well enough that it is not load-bearing.
 
 **So the change removes a mechanism rather than adding one.** That is the whole reason to prefer it.
 
-## What the query source needs
-
-Asked of Blacksmith on 2026-08-23; they are building it.
+## What the query source needs — **built, 2026-08-23**
 
 ```js
-blacksmith.compendiums.query({
-    type: 'item',
+const rows = await blacksmith.compendiums.query({
+    type: 'Item',
     subtypes: ['weapon', 'equipment', 'consumable', 'tool', 'loot', 'container'],
-    rarity: ['common', 'uncommon'],
-    price: { min: 0, max: 10000 },   // base units
-    sources: null,                    // default: the GM's configured search set
+    rarity: ['mundane', 'common', 'uncommon'],
+    priceGp: { min: 1, max: 500 },
+    includeUnpriced: false,
+    sources: null,          // default: the GM's configured search set
     limit: 200
-})
+});
 ```
 
-**Why theirs and not ours.** `CompendiumsAPI` already owns which packs are searched and in what
-order — `getChoices()`, the world-first/world-last ordering, the GM's source mapping. Filtering packs
-here would mean either reimplementing that mapping or ignoring it and searching packs the GM
-deliberately excluded.
+Rows are `search()`'s shape plus `rarity`, `price` and `priceGp`. `queryDetailed()` mirrors
+`searchDetailed()`; `normalizeRarity()` and `toGp()` are exposed so consumers don't each write the
+conversion.
 
-**The part that decides the cost.** `pack.getIndex()` returns `name`, `type`, `img`, `uuid`
-(`manager-compendiums.js:674`). **Neither `system.rarity` nor `system.price` is in a default index.**
-`getIndex({ fields: [...] })` extends it and stays cheap — one cached pass per pack. Loading
-documents instead is slow enough across an SRD-sized pack that a GM notices. The index-field set is a
-per-pack cache, which is another reason it belongs in the hub: two consumers asking for different
-field sets is cheap when one thing owns it.
+### Three corrections to our proposal, all of which we needed
+
+**1. `limit` caps the output; the scan is always complete.** Ours inherited `search()`'s *stop-scan*
+limit, which would have drawn every shop's stock from the first configured pack and never opened
+the sixth — producing a result set indistinguishable from a correct one. **The one we could not have
+caught in testing.** `queryDetailed().scannedSources` covers the whole order.
+
+**2. Rarity needs the `mundane` token.** `system.rarity` is *blank* on non-magical gear, not
+`'common'` — `common` means a common *magic* item. Our example `['common', 'uncommon']` would have
+returned magic items only, with every plain longsword, rope and torch silently absent behind a
+plausible result.
+
+> **This one was already live here.** `stockDepth` read `item.system.rarity || 'common'` and
+> `STOCK_RARITY_CAPS` had no `mundane` row. Harmless while `common` was 0, and a trap the moment
+> anybody set it: capping common magic items at two would have capped every torch at two as well.
+> Fixed 2026-08-23, with the two rows asserted apart so the check cannot pass by their agreeing.
+
+**3. Price is `priceGp`, not base units.** dnd5e stores a denomination and 50 sp is 5 gp, so a raw
+compare is wrong for anything not priced in gold. Also: **unpriced and free share a stored value**
+(`0`) and cannot be told apart at the index, so they are excluded from a range by default — which
+is why `{ min: 0 }` does not flood the result. Merchant tells the two apart on an *item* it owns
+(`FREE_FLAG`), but that flag does not exist in a compendium.
+
+### One constraint
+
+An entry whose type has no rarity or price field — a spell, a class — **fails** a filter on it rather
+than passing unfiltered. A price range plus a non-physical type returns nothing, deliberately.
+
+### On the index question
+
+Index fields, not document loads, and cheaper than we thought — but **worse than we thought to leave
+with consumers**: `getIndex({fields})` re-fetches a pack's *entire* index for every distinct field
+set, so uncoordinated consumers don't conflict, they each add a full re-fetch. Fixed constant in the
+hub: one extra index fetch per configured pack, once per session, on the first call needing economics.
+
+### Adoption is pinned, not immediate
+
+On master, **not in a tagged release**. `module.json` requires Blacksmith `13.19.0`; adoption waits
+for the version this ships in and raises that minimum. Feature-detect regardless, the way
+`hasExchange` and `hasSetCurrency` already do — a shop must not break because a hub is a version behind.
 
 ## Where it plugs in
 

@@ -91,7 +91,9 @@ export function stockDepth(item, {
     const ceilings = [
         _ceiling(maxPerItem),
         _ceiling(typeCaps?.[item.type]),
-        _ceiling(rarityCaps?.[item?.system?.rarity || 'common']),
+        // Blank is `mundane`, never `common` — see STOCK_RARITY_CAPS. Matches
+        // Blacksmith's `normalizeRarity`, so a rarity means the same thing either side.
+        _ceiling(rarityCaps?.[item?.system?.rarity || 'mundane']),
         _priceCap(item)
     ];
     const ceiling = Math.max(1, Math.min(...ceilings));

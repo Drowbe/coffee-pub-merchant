@@ -32,9 +32,8 @@ Two things to read before changing anything load-bearing:
 
 ## At a glance
 
-| Severity | Item | Where |
-|---|---|---|
-| **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:2004` |
+Nothing outstanding. Every item that was in this table has landed; the sections below are
+reference rather than work.
 
 *Standing rules*, *Ideas* and *Considered* below are not work and are not in this table.
 
@@ -44,21 +43,6 @@ Two things to read before changing anything load-bearing:
 
 ## 2. Nits and known gaps
 
-- **Refreshes ride a raw `game.socket` channel.** `_broadcastRefresh`, `broadcastActorRefresh` and
-  `_registerRefreshListener` emit and listen on `module.coffee-pub-merchant` directly, while `api.sockets`
-  wraps SocketLib with a native fallback. Now that `gmRequest` is adopted this is the **last** place
-  Merchant talks to core directly on a surface Blacksmith owns.
-
-  **The risky part is already checked.** Their `emit()` maps to SocketLib's `executeForOthers`
-  (`manager-sockets.js:221`), so it does *not* echo to the sender — the same semantics as
-  `game.socket.emit`, which is what the presence and slate handlers assume. A swap will not silently start
-  applying our own slates to ourselves.
-
-  What is left is bookkeeping, and it is why this has not been done: four actions share one channel and
-  would become four registered event names (`register()` overwrites silently and cannot be undone, so the
-  names must be module-prefixed); registration wants `await sockets.waitForReady()`, which makes an
-  `initialize()` that is currently synchronous asynchronous. Worth doing when the presence system is next
-  being tested anyway, because that is what would have to be re-tested.
 - **Check for a finished window before building one.** Merchant shipped its own compendium search and
   deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
   the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading

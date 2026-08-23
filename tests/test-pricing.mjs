@@ -18,7 +18,7 @@ globalThis.console.warn = () => {};
 
 const P = await import('../scripts/utility-pricing.js');
 // The shipped tables, so a check on the defaults follows them rather than restating them.
-const { INVENTORY_TYPES, REPUTATION_MARKUP } = await import('../scripts/const.js');
+const { INVENTORY_TYPES, REPUTATION_MARKUP, STOCK_RARITY_CAPS } = await import('../scripts/const.js');
 
 const purse = (c) => ({ system: { currency: c } });
 const CP_PER = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
@@ -441,11 +441,21 @@ assert.strictEqual(P.stockDepth(rare('uncommon', 0.1),
 assert.strictEqual(P.stockDepth(rare('common', 0.1),
     { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { common: 0 } }), 10,
     'and common declines to have an opinion');
-// Most `loot` carries no rarity at all, and must read as common rather than as
-// unknown-and-therefore-capped.
+// **A blank rarity is `mundane`, and mundane is not common.** dnd5e leaves
+// `system.rarity` empty on non-magical gear while `common` means a common *magic* item.
+// Reading blank as common was harmless only while both rows were 0; the moment a GM
+// capped common magic items, every rope and torch would have been capped with them —
+// which is a wrong shop with no error in it. Asserted with the two rows set apart, so
+// the check cannot pass by their happening to agree.
+const split = { mundane: 0, common: 2, legendary: 1 };
 assert.strictEqual(P.stockDepth(goods('loot', 0.1, 1),
-    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: { common: 0, legendary: 1 } }), 10,
-    'an item with no rarity reads as common');
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: split }), 10,
+    'unmarked gear is mundane and takes the mundane row');
+assert.strictEqual(P.stockDepth(rare('common', 0.1),
+    { maxPerItem: 99, random: maxRoll, typeCaps: open, rarityCaps: split }), 2,
+    'while a common *magic* item takes the common row');
+assert.strictEqual(STOCK_RARITY_CAPS.mundane, 0,
+    'and the shipped table has a mundane row, or unmarked gear falls through to nothing');
 
 // 5. The smallest ceiling wins, whichever lever it came from.
 assert.strictEqual(P.stockDepth(rare('rare', 0.1),

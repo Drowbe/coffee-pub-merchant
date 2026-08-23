@@ -1129,3 +1129,21 @@ level onto every existing row; it logs how many.
 76. Refuse something on purpose — try to buy with an empty purse, or settle a slate with a TBD line. The
     message is a sentence, with the amounts filled in.
 77. Restock and watch the progress bar: each step names the table or the inventory it is working on.
+
+### 21l. Sockets — needs two clients
+
+78. **Restart Foundry** (not a reload): `module.json` gained `scripts/utility-sockets.js`, and the
+    manifest is read at server start.
+79. GM and player both open the same shop. Each sees the other's face in the room.
+80. The player adds something to their slate. The GM, switched to that character, sees the line appear.
+81. The GM adds stock to an inventory. The player's open window redraws without being touched.
+82. The player closes the shop: their face leaves the GM's room. Have them disconnect entirely — same.
+83. A window opened **late** shows who is already there and what is on their slates, rather than an empty
+    room until somebody moves.
+84. **Nobody sees their own slate arrive as somebody else's.** This is the one a wrong transport would
+    break: `emit` must not echo to the sender.
+85. Console shows no `Could not register` or `Could not emit` warnings on load.
+
+86. **Mundane is not common.** In module settings set *Stock depth: Common* to 2 and leave *Mundane*
+    at 0, then restock a general inventory. Rope, torches and plain weapons still arrive in normal
+    depth; only common **magic** items are held to two. Before this they were capped together.

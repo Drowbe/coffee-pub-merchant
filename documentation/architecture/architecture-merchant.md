@@ -701,6 +701,20 @@ which is the shortest document here and the one most worth reading before writin
   its own — but the drop path does merge, and it is now reliable.
 - ~~**Scheduled restocking does not reach unlinked tokens**~~ — **closed 2026-08-22.** See
   `worldMerchants()` in §4.
+- ~~**Refreshes ride a raw `game.socket` channel**~~ — **closed 2026-08-23.** `utility-sockets.js` puts
+  slates, presence and refreshes through `blacksmith.sockets`, which wraps SocketLib with a native
+  fallback. This was the last place Merchant talked to core directly on a surface Blacksmith owns.
+
+  **The semantics did not change, which is the part that mattered.** Their `emit()` with no options maps to
+  `executeForOthers`, so it does not echo to the sender — the rule `game.socket.emit` follows and the one
+  every handler assumes. A swap that quietly delivered our own slate back would have shown a player their
+  own list arriving as somebody else's.
+
+  **Four event names rather than one channel demultiplexed on `action`**, and every one module-prefixed:
+  Blacksmith keys external handlers in a flat Map shared by all consumers, so an unprefixed `slate` would
+  silently overwrite another module's, with no error and no way to tell. The fallback for a Blacksmith too
+  old to publish `sockets` keeps the exact wire shape the raw channel used. Both paths are pinned in
+  `tests/test-sockets.mjs`, because neither is visible without two clients.
 - ~~**No i18n**~~ — **closed 2026-08-23.** 309 keys in `lang/en.json`, and `tests/test-i18n.mjs` holds the
   line: every key asked for exists, every key defined is asked for, one namespace, no empty values, and
   anything containing `{placeholder}` is reached through `format` rather than `localize`.

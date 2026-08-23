@@ -8,6 +8,7 @@ import {
     negotiatedPrice, listPriceBase
 } from './utility-pricing.js';
 import { isPhysical } from './utility-inventory.js';
+import { emit, SOCKET_EVENT } from './utility-sockets.js';
 import { resolveReputation, reputationLabel } from './utility-reputation.js';
 import { marketRate, marketShortLabel } from './utility-market.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
@@ -737,8 +738,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _publishSlate() {
         const [tokenUuid, shopperUuid] = this.slateKey.split('|');
-        game.socket.emit(`module.${MODULE.ID}`, {
-            action: 'slate',
+        emit(SOCKET_EVENT.SLATE, {
             tokenUuid,
             shopperUuid,
             cart: [...this.cart],
@@ -764,8 +764,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     publishPresence() {
         const self = this._selfPresence();
         ShopWindow._setPresence(this.tokenUuid, game.user.id, self);
-        game.socket.emit(`module.${MODULE.ID}`, {
-            action: 'shopPresence', state: 'open', tokenUuid: this.tokenUuid, userId: game.user.id, ...self
+        emit(SOCKET_EVENT.PRESENCE, {
+            state: 'open', tokenUuid: this.tokenUuid, userId: game.user.id, ...self
         });
     }
 
@@ -779,15 +779,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     announcePresence() {
         this.publishPresence();
-        game.socket.emit(`module.${MODULE.ID}`, {
-            action: 'shopPresence', state: 'ping', tokenUuid: this.tokenUuid, userId: game.user.id
+        emit(SOCKET_EVENT.PRESENCE, {
+            state: 'ping', tokenUuid: this.tokenUuid, userId: game.user.id
         });
     }
 
     clearPresence() {
         ShopWindow._presence.get(this.tokenUuid)?.delete(game.user.id);
-        game.socket.emit(`module.${MODULE.ID}`, {
-            action: 'shopPresence', state: 'close', tokenUuid: this.tokenUuid, userId: game.user.id
+        emit(SOCKET_EVENT.PRESENCE, {
+            state: 'close', tokenUuid: this.tokenUuid, userId: game.user.id
         });
     }
 
@@ -807,8 +807,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             for (const window of ShopWindow.openWindows()) {
                 if (window.tokenUuid === tokenUuid) {
                     const self = window._selfPresence();
-                    game.socket.emit(`module.${MODULE.ID}`, {
-                        action: 'shopPresence', state: 'open', tokenUuid, userId: game.user.id, ...self
+                    emit(SOCKET_EVENT.PRESENCE, {
+                        state: 'open', tokenUuid, userId: game.user.id, ...self
                     });
                 }
             }
@@ -842,8 +842,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * absent GM look like nobody is shopping.
      */
     _requestSlates() {
-        game.socket.emit(`module.${MODULE.ID}`, {
-            action: 'slateRequest',
+        emit(SOCKET_EVENT.SLATE_REQUEST, {
             tokenUuid: this.tokenUuid,
             userId: game.user.id
         });
