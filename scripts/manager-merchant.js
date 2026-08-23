@@ -272,8 +272,10 @@ export class MerchantManager {
         }
 
         // Only when the schedule's answer has actually changed, so a clock ticking
-        // every few seconds is not a refresh every few seconds.
-        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+        // every few seconds is not a refresh every few seconds. Keyed by `actor.uuid`,
+        // which is distinct per unlinked token, so three Flippers open and close
+        // independently rather than the first one answering for all three.
+        for (const actor of this.worldMerchants()) {
             if (!this.getHours(actor)) continue;
             const scheduled = isScheduledOpen(this.getHours(actor), hourAt());
             if (scheduled === this._lastScheduled.get(actor.uuid)) continue;
@@ -417,8 +419,19 @@ export class MerchantManager {
     static async migrateWorld() {
         if (!game.user.isGM) return 0;
 
+        // **Every merchant Actor, plus every placed unlinked one** — a wider set than
+        // `worldMerchants` on purpose. A template is not a shop, but it holds the flags
+        // every token cast from it inherits, so leaving it unmigrated means every future
+        // placement arrives stale. Deduped by uuid because a linked token's actor and
+        // its sidebar entry are the same document reached two ways.
+        const seen = new Set();
+        const candidates = [
+            ...(game.actors ?? []).filter((a) => this.isMerchant(a)),
+            ...this.worldMerchants()
+        ].filter((actor) => actor?.uuid && !seen.has(actor.uuid) && seen.add(actor.uuid));
+
         let migrated = 0;
-        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+        for (const actor of candidates) {
             if (this.getConfig(actor)?.schema >= SCHEMA_VERSION) continue;
 
             const updates = [];
@@ -1301,8 +1314,52 @@ export class MerchantManager {
      * week restocks once. A shop does not accumulate seven days of stock while nobody
      * was looking; it is simply full again.
      */
+    /**
+     * Every merchant **in the world**, which is not the same set as every merchant Actor.
+     *
+     * A linked token *is* its sidebar Actor: Bob keeps a shop in Phlan, and what the
+     * party does to his till is still true next season and in whatever city he turns up
+     * in. He is a shop whether or not a token of him happens to be on the current map,
+     * so he is yielded from `game.actors`.
+     *
+     * An **unlinked** token is a shop in its own right, with its own ActorDelta, and
+     * there can be several of them at once — Flipper the travelling salesman, placed
+     * three times, is three shops that know nothing about each other. Each one's
+     * `token.actor` is a synthetic Actor living on a scene and is in `game.actors`
+     * nowhere, which is why the clock never reached them.
+     *
+     * And an unlinked merchant Actor sitting in the sidebar is **not** a shop. It is the
+     * mould Flipper is cast from. It was the only thing being restocked: the clock ticked
+     * on the template, and because an unlinked token inherits anything its delta has not
+     * overridden, the template's new stock was then *delivered* into every placed copy.
+     * That is not a shop restocking, it is a leak with a schedule.
+     *
+     * Walks every scene, not the viewed one. A shop does not stop keeping stock because
+     * nobody is looking at the map it stands on.
+     */
+    static *worldMerchants() {
+        for (const actor of game.actors ?? []) {
+            // `prototypeToken.actorLink` is the whole test: linked means persistent and
+            // one of a kind, unlinked means this Actor is a template.
+            if (!actor.prototypeToken?.actorLink) continue;
+            if (this.isMerchant(actor)) yield actor;
+        }
+
+        for (const scene of game.scenes ?? []) {
+            for (const token of scene.tokens ?? []) {
+                if (token.actorLink) continue;          // already yielded, as its Actor
+                // Two cheap reads before the expensive one. This runs on every world-time
+                // tick, and `token.actor` on an unlinked token resolves a synthetic Actor;
+                // a big world is thousands of tokens and almost none of them are shops.
+                if (!token.actorId) continue;
+                const actor = token.actor;
+                if (this.isMerchant(actor)) yield actor;
+            }
+        }
+    }
+
     static async _applyRestocks(worldTime) {
-        for (const actor of game.actors.filter((a) => this.isMerchant(a))) {
+        for (const actor of this.worldMerchants()) {
             for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
                 // A table-stocked inventory restocks on the clock whatever its policy: it
                 // is not refilling to a level, it is receiving a delivery.

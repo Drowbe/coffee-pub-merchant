@@ -1064,3 +1064,23 @@ level onto every existing row; it logs how many.
     this the roll was uniform from 1 and about a fifth of the shelf landed single.
 52. Plate armour and anything legendary still arrive alone: their ceiling is 1, and the floor must
     not raise it.
+
+### 21h. Which merchants the clock reaches
+
+53. Make an **unlinked** merchant in the sidebar, drag two copies onto a map, and set both to
+    *Restocks the same items / Daily*. Buy something from each, then advance the world clock a day.
+    **Both restock, independently.** Before this neither ever did.
+54. The **sidebar template** does not restock. Check its inventory before and after advancing the
+    clock — unchanged. It is a mould, not a shop.
+55. Nothing leaks from the template into a placed copy any more, because nothing happens to the
+    template on the clock. Restocking it **by hand** still does reach placed copies for rows they
+    have not touched — that is Foundry's ActorDelta, not ours, and it is why you edit the tokens
+    rather than the mould.
+56. Make a **linked** merchant and place it. It restocks on the clock. Delete the token from the
+    canvas and advance the clock again: it still restocks, because a linked merchant is a shop
+    whether or not it is standing anywhere.
+57. Put an unlinked merchant on a scene you are **not** viewing and advance the clock. It restocks.
+58. Two unlinked copies with different trading hours open and close independently — the schedule
+    redraw is keyed per token, not per Actor.
+59. Advance the clock in a world with a few hundred tokens and no lag: the scene walk skips
+    linked tokens and tokens with no actor before resolving anything.

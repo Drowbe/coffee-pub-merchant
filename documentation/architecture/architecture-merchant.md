@@ -263,9 +263,28 @@ no second clock. An inventory restocks when `restockDays` in-world days have ela
 week restocks once, not seven times**; the watcher compares elapsed time against the interval rather
 than counting boundaries.
 
-**The clock only reaches actors in `game.actors`.** A merchant placed as an unlinked token is a
-synthetic actor living on a scene, so scheduled restocking does not fire for it. Known seam, listed
-in §11.
+### A shop is what stands in the world, not what sits in the sidebar
+
+`worldMerchants()` is the set the clock walks, and it is not `game.actors`.
+
+| | Is it a shop? |
+|---|---|
+| **Linked** merchant Actor | **Yes.** A linked token *is* its Actor — Bob keeps a shop in Phlan, and what the party does to his till is still true next season and in whatever city he turns up in. He is a shop whether or not a token of him is placed. |
+| **Unlinked** merchant token on a scene | **Yes, each one.** Flipper the travelling salesman placed three times is three shops that know nothing about each other. Each has its own ActorDelta. |
+| **Unlinked** merchant Actor in the sidebar | **No.** It is the mould Flipper is cast from. |
+
+The third row is the one that was wrong, and it was wrong in the worst direction: the template was the
+**only** thing the clock reached. And because an unlinked token inherits anything its delta has not
+overridden, the template's new stock was then *delivered* into every copy cast from it. That is not a shop
+restocking, it is a leak with a schedule.
+
+`prototypeToken.actorLink` is the whole test. Every scene is walked, not the viewed one — a shop does not
+stop keeping stock because nobody is looking at the map it stands on — with two cheap reads before
+`token.actor`, which resolves a synthetic Actor and runs on every world-time tick.
+
+`migrateWorld` deliberately walks a **wider** set: every merchant Actor *plus* every placed unlinked one. A
+template is not a shop, but it holds the flags every token cast from it inherits, so leaving it unmigrated
+means every future placement arrives stale.
 
 ---
 
@@ -642,11 +661,8 @@ which is the shortest document here and the one most worth reading before writin
   normalises `properties`. Merchant saw it as duplicate rows on every restock. **Nothing here was written to
   work around it** — a roll adds new products only, which is a rule about what a restock means and stands on
   its own — but the drop path does merge, and it is now reliable.
-- **Scheduled restocking does not reach unlinked tokens.** `_applyRestocks`, the trading-hours refresh and
-  `migrateWorld` all walk `game.actors`; a merchant placed as an unlinked token is a synthetic actor living
-  on a scene and is in none of them. The manual **Restock everything** button works on all three, because it
-  acts on whatever actor its window was opened for. Undecided: teach the three loops to walk scene tokens, or
-  say plainly in the config window that an unlinked merchant does not restock on the clock.
+- ~~**Scheduled restocking does not reach unlinked tokens**~~ — **closed 2026-08-22.** See
+  `worldMerchants()` in §4.
 - **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.
 - **`architecture/` was empty until 2026-08-19.** If you change how any of the above works, change this file
   in the same commit. A map that lies is worse than no map.

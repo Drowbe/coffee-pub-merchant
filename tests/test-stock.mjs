@@ -168,6 +168,70 @@ assert.strictEqual(arrivals[0].par, arrivals[0].quantity,
     'a new row arrives maintained, at the level it turned up with');
 console.log('ok  a roll brings new products, never more of what is already carried');
 
+// --- which merchants are "in the world" ---------------------------------
+// Lifted verbatim from `MerchantManager.worldMerchants`. The rule it encodes: a linked
+// token IS its sidebar Actor and is a shop whether or not it is placed; an unlinked
+// token is a shop of its own; and an unlinked Actor in the sidebar is a mould, not a
+// shop. That last one was the only thing the clock used to reach, so the template
+// restocked and its new stock leaked into every copy cast from it.
+function* worldMerchants(actors, scenes, isMerchant) {
+    for (const actor of actors) {
+        if (!actor.prototypeToken?.actorLink) continue;
+        if (isMerchant(actor)) yield actor;
+    }
+    for (const scene of scenes) {
+        for (const token of scene.tokens) {
+            if (token.actorLink) continue;
+            if (!token.actorId) continue;
+            const actor = token.actor;
+            if (isMerchant(actor)) yield actor;
+        }
+    }
+}
+
+const merchantActor = (uuid, linked) => ({ uuid, prototypeToken: { actorLink: linked }, merchant: true });
+const plainActor = (uuid, linked) => ({ uuid, prototypeToken: { actorLink: linked }, merchant: false });
+const tok = (actorId, actorLink, actor) => ({ actorId, actorLink, actor });
+const merchantOf = (a) => Boolean(a?.merchant);
+const names = (...args) => [...worldMerchants(...args, merchantOf)].map((a) => a.uuid);
+
+// Bob keeps a shop in Phlan. Linked, so he is a shop whether or not he is standing on
+// the map anybody is looking at.
+assert.deepStrictEqual(names([merchantActor('bob', true)], []), ['bob'],
+    'a linked merchant is a shop with no token placed at all');
+
+// Flipper the travelling salesman. The sidebar entry is the mould.
+assert.deepStrictEqual(names([merchantActor('flipper', false)], []), [],
+    'an unlinked merchant Actor in the sidebar is a template, not a shop');
+
+// ...and each placement is its own shop, knowing nothing about the others.
+const flipperScene = { tokens: [
+    tok('flipper', false, merchantActor('ulla', false)),
+    tok('flipper', false, merchantActor('lorin', false))
+] };
+assert.deepStrictEqual(names([merchantActor('flipper', false)], [flipperScene]), ['ulla', 'lorin'],
+    'three Flippers placed twice are two shops and no template');
+
+// A linked token is not counted twice: it IS the Actor already yielded.
+const bobScene = { tokens: [tok('bob', true, merchantActor('bob', true))] };
+assert.deepStrictEqual(names([merchantActor('bob', true)], [bobScene]), ['bob'],
+    'a linked token does not yield its own Actor a second time');
+
+// Every scene, not the viewed one. A shop does not stop keeping stock because nobody
+// is looking at the map it stands on.
+const far = { tokens: [tok('flipper', false, merchantActor('distant', false))] };
+assert.deepStrictEqual(names([], [flipperScene, far]).length, 3,
+    'shops on unviewed scenes are still shops');
+
+// Ordinary NPCs are skipped on both paths.
+assert.deepStrictEqual(names([plainActor('guard', true)], [{ tokens: [tok('g', false, plainActor('mob', false))] }]), [],
+    'a token that is not a merchant is not a shop');
+
+// A token whose actor cannot be resolved must not throw the whole sweep.
+assert.deepStrictEqual(names([], [{ tokens: [tok('gone', false, null), tok(null, false, null)] }]), [],
+    'an unresolvable token is skipped rather than fatal');
+console.log('ok  a shop is what stands in the world, not what sits in the sidebar');
+
 // --- the ratchet this replaces ------------------------------------------
 // Kept as a check rather than a comment, because the failure was invisible: the shop
 // looked stocked, the restock reported success, and nothing moved.
