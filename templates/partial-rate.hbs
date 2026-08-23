@@ -12,7 +12,8 @@
     Used for the shop's Global Markup and for every inventory rate, so the three read
     the same and are bound by the same code.
 --}}
-<div class="merchant-config-row merchant-config-rate" data-rate-row>
+<div class="merchant-config-row merchant-config-rate" data-rate-row
+     {{#if safe}}data-rate-safe="{{safe}}" data-rate-worst="{{worstCase}}"{{/if}}>
     <span class="merchant-config-label">{{label}}</span>
     <div class="merchant-config-rate-track">
         <span class="merchant-config-rate-bound">{{minLabel}}</span>
@@ -24,5 +25,13 @@
         <span class="merchant-config-rate-bound">{{maxLabel}}</span>
         <output class="merchant-config-rate-value" data-rate-readout>{{readout}}</output>
     </div>
+    {{!-- Under the hint, not instead of it. The hint says what the control is for and
+          is always true; this says what the current setting does and is only sometimes
+          there, so replacing one with the other would lose the constant to the
+          occasional. --}}
     {{#if hint}}<small class="merchant-config-hint">{{hint}}</small>{{/if}}
+    {{#if warning}}
+        <small class="merchant-config-hint merchant-config-rate-warning" data-rate-warning
+               {{#unless warned}}hidden{{/unless}}>{{warning}}</small>
+    {{/if}}
 </div>

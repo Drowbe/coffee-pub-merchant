@@ -480,3 +480,16 @@
  */
 .merchant-config-depth-summary { display: flex; flex-direction: column; gap: 3px; }
 .merchant-config-depth-row { font-variant-numeric: tabular-nums; opacity: .85; }
+
+/* --- A rate past the point where it still means what it says ------------- */
+/*
+ * Warm rather than red. The setting is legal and the shop still works; it is the
+ * figure on the badge that has stopped being the figure in force. An error colour
+ * would say "fix this", and there is nothing broken to fix.
+ */
+.merchant-config-rate-warning {
+    color: #a4432f;
+    border-left: 2px solid currentColor;
+    padding-left: 6px;
+    opacity: .95;
+}

@@ -1527,6 +1527,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // in the settings window. Absent when the shop has not opted in, or when
             // the standing is neutral and there is nothing to report.
             reputationLine: this._reputationLine,
+            // Built here rather than assembled in the template, so a translator gets
+            // one sentence with two placeholders instead of three clauses they cannot
+            // reorder. Values are escaped before the emphasis goes on, because the band
+            // name comes from Blacksmith and the effect is our own formatting -- neither
+            // is ours to trust into a triple-stache unexamined.
+            reputationSentence: this._reputationBand
+                ? game.i18n.format('coffee-pub-merchant.shop.reputationSentence', {
+                    band: `<strong>${foundry.utils.escapeHTML(String(this._reputationBand))}</strong>`,
+                    effect: `<strong>${foundry.utils.escapeHTML(String(this._reputationEffect ?? ''))}</strong>`
+                })
+                : null,
             reputationBand: this._reputationBand,
             reputationEffect: this._reputationEffect,
             reputationTooltip: this._reputationTooltip,

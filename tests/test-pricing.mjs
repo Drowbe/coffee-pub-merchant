@@ -17,6 +17,8 @@ globalThis.CONFIG = {
 globalThis.console.warn = () => {};
 
 const P = await import('../scripts/utility-pricing.js');
+// The shipped tables, so a check on the defaults follows them rather than restating them.
+const { INVENTORY_TYPES, REPUTATION_MARKUP } = await import('../scripts/const.js');
 
 const purse = (c) => ({ system: { currency: c } });
 const CP_PER = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
@@ -318,6 +320,45 @@ assert.strictEqual(P.resolvePrice({ pricing: { markup: 0.0001 } }, null, priced(
 assert.strictEqual(P.resolvePurchasePrice(shop, { type: 'purchased', buyRate: 0.7, markup: 1.05 }, freeItem()), 0,
     'a giveaway is bought back for nothing');
 console.log('ok  free and unpriced are different states and stay different');
+
+// --- where the buyback clamp takes over from the slider ------------------
+// Above this rate `MAX_BUYBACK_RATIO` governs instead of the Purchase slider, and
+// because the cap falls as standing improves while the offer rises, a party the town
+// loves is paid LESS than a neutral one. The window prints the line; this pins it.
+const BEST = 0.85;   // legendary, the tightest point on the curve
+for (const markup of [1, 1.05, 1.25, 1.5]) {
+    const safe = P.safeBuyRate(markup, BEST);
+    const shelf = { type: 'purchased', buyRate: safe, markup };
+    const at = (rate) => P.resolvePurchasePrice({ pricing: { markup: 1 } },
+        { ...shelf, buyRate: rate }, priced(100), { reputation: BEST });
+
+    // Exactly at the line the clamp is touching but not yet governing: nudging the
+    // rate up must move what the shop pays, and it stops moving once the cap bites.
+    const atLine = at(safe);
+    const above = at(Math.min(1.5, safe + 0.2));
+    assert.strictEqual(above, atLine,
+        `at ${markup} markup, raising the rate past ${(safe * 100).toFixed(0)}% changes nothing — the cap governs`);
+    const below = at(safe - 0.1);
+    assert.ok(below < atLine,
+        `while below the line the slider still moves the number (${markup} markup)`);
+}
+console.log('ok  above the safe rate the clamp governs and the slider stops meaning anything');
+
+// The shipped default has to sit under its own line, or the window ships warning about
+// its own defaults on every purchased inventory anybody creates.
+const dflt = INVENTORY_TYPES.purchased.defaults;
+assert.ok(dflt.buyRate <= P.safeBuyRate(dflt.markup, BEST),
+    `the shipped purchased defaults (${dflt.buyRate} / ${dflt.markup}) must not trip their own warning`);
+
+// And standing must help at every band, which is the symptom that started this.
+let previous = 0;
+for (const band of ['hated', 'distrusted', 'neutral', 'known', 'admired', 'legendary']) {
+    const paid = P.resolvePurchasePrice({ pricing: { markup: 1 } },
+        { type: 'purchased', ...dflt }, priced(100), { reputation: REPUTATION_MARKUP[band] });
+    assert.ok(paid >= previous, `standing must never reduce what a shop pays — ${band} paid ${paid} after ${previous}`);
+    previous = paid;
+}
+console.log('ok  with the shipped rates, better standing is always paid better');
 
 // --- stock depth ---------------------------------------------------------
 // Why every table-rolled row used to read QTY 1: a roll delivered one of whatever

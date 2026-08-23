@@ -2,10 +2,11 @@ import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/b
 import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
     DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP,
-    STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps
+    STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps,
+    MAX_BUYBACK_RATIO
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
-import { purseValue, formatBase, denominations } from './utility-pricing.js';
+import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
 
@@ -73,11 +74,24 @@ function markupLabel(value) {
     return `${percent}% ${rate > 1 ? 'markup' : 'discount'}`;
 }
 
-/** What the shop pays, which is a share of an item's value rather than a markup. */
-function buyRateLabel(value) {
+/**
+ * What the shop pays, which is a share of an item's value rather than a markup.
+ *
+ * **Above the safe line the badge says what actually happens, not what was typed.** A
+ * shop can be farmed when it pays more for a thing than it charges for one, so
+ * `MAX_BUYBACK_RATIO` caps the offer against this inventory's own resale price. Past
+ * that point the cap governs and the slider does not — and because the cap *falls* as
+ * the party's standing improves while the offer *rises*, the shop ends up paying a
+ * well-liked party **less** than a neutral one. That is a genuinely surprising outcome
+ * to arrive at by dragging a slider rightwards, and the badge used to keep cheerfully
+ * reporting the typed figure while it happened.
+ */
+function buyRateLabel(value, { safe = null, worstCase = null } = {}) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
-    return `Pays ${Math.round(rate * 100)}% of value`;
+    const typed = `Pays ${Math.round(rate * 100)}% of value`;
+    if (safe === null || rate <= safe) return typed;
+    return `${typed} — capped near ${Math.round(worstCase * 100)}%`;
 }
 
 /**
@@ -97,12 +111,26 @@ function buyRateBound(value) {
     return `${Math.round(Number(value) * 100)}%`;
 }
 
-function rateReadout(kind, value) {
-    return kind === 'buy' ? buyRateLabel(value) : markupLabel(value);
+/**
+ * Where the buyback clamp starts governing, and what it governs at.
+ *
+ * Measured at the **best** standing a party can reach, because that is where the line
+ * is tightest and where the inversion is worst — a rate safe there is safe everywhere.
+ * `worstCase` is what the shop would actually pay at that standing, which is the
+ * number a GM is surprised by and therefore the number worth printing.
+ */
+function buybackLimits(sellMarkup) {
+    const best = Math.min(...Object.values(REPUTATION_MARKUP));
+    const safe = safeBuyRate(sellMarkup, best);
+    return { safe, worstCase: sellMarkup * best * MAX_BUYBACK_RATIO };
+}
+
+function rateReadout(kind, value, limits) {
+    return kind === 'buy' ? buyRateLabel(value, limits) : markupLabel(value);
 }
 
 /** The shape `partial-rate.hbs` renders. One builder, so the three rates agree. */
-function rateRow({ label, kind, value, inventoryId = null, field = null, hint = null }) {
+function rateRow({ label, kind, value, inventoryId = null, field = null, hint = null, limits = null }) {
     const buy = kind === 'buy';
     const min = buy ? 0.05 : 0.1;
     const max = buy ? 1.5 : 3;
@@ -121,7 +149,22 @@ function rateRow({ label, kind, value, inventoryId = null, field = null, hint = 
         // channel can be red below it and green above without the template doing
         // arithmetic. Both sliders cross 1.0, but at different points.
         neutralPercent: `${(((1 - min) / (max - min)) * 100).toFixed(2)}%`,
-        readout: rateReadout(kind, value),
+        readout: rateReadout(kind, value, limits),
+        // **The line goes into the markup, so dragging can respond to it.** The readout
+        // repaints on every `input` event and the commit only lands on release, so a
+        // warning computed here alone would appear after the decision instead of during
+        // it — which is the one moment it is worth anything.
+        safe: limits?.safe ?? null,
+        worstCase: limits?.worstCase ?? null,
+        // Rendered whenever there is a line to cross, and hidden until it is crossed.
+        // Present-but-hidden rather than absent, so the slider handler has something to
+        // reveal without building DOM mid-drag.
+        warning: limits
+            ? `Above ${Math.round(limits.safe * 100)}% this inventory pays more than it charges, so the `
+                + `shop can be sold to and bought from at a profit. Offers are capped instead, and a party `
+                + `the town likes is paid less than a neutral one. Raise Sell, or lower this.`
+            : null,
+        warned: Boolean(limits) && Number(value) > limits.safe,
         hint
     };
 }
@@ -603,9 +646,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (input.dataset.merchantBound === 'true') continue;
             input.dataset.merchantBound = 'true';
 
-            const readout = input.closest('[data-rate-row]')?.querySelector('[data-rate-readout]');
+            const row = input.closest('[data-rate-row]');
+            const readout = row?.querySelector('[data-rate-readout]');
+            const warning = row?.querySelector('[data-rate-warning]');
+            // Read off the row rather than recomputed: the safe line depends on the Sell
+            // markup in the row below, and a drag has no business resolving an Actor.
+            const safe = Number(row?.getAttribute('data-rate-safe'));
+            const worstCase = Number(row?.getAttribute('data-rate-worst'));
+            const limits = Number.isFinite(safe) && safe > 0 ? { safe, worstCase } : null;
+
             const paint = () => {
-                if (readout) readout.textContent = rateReadout(input.getAttribute('data-rate-kind'), input.value);
+                const value = Number(input.value);
+                if (readout) {
+                    readout.textContent = rateReadout(input.getAttribute('data-rate-kind'), input.value, limits);
+                }
+                // Toggled live, so the sentence explaining the cap arrives while the
+                // handle is still under the cursor rather than after it is let go.
+                if (warning) warning.hidden = !limits || !(value > limits.safe);
             };
 
             input.addEventListener('input', paint);
@@ -1088,7 +1145,14 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                                 field: 'buy-rate',
                                 inventoryId: item.id,
                                 value: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
-                                hint: 'What the shop pays the party for their goods.'
+                                hint: 'What the shop pays the party for their goods.',
+                                // Where the clamp takes over from the slider, and what
+                                // it takes over at. Both depend on the Sell markup in
+                                // the row below, which is why this is computed here
+                                // rather than being a constant.
+                                limits: buybackLimits(
+                                    Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1
+                                )
                             }),
                             rateRow({
                                 label: 'Sell',

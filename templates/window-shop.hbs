@@ -10,7 +10,7 @@
         </div>
     {{/if}}
     {{#if missing}}
-        <div class="merchant-shop-empty">This shop is no longer available.</div>
+        <div class="merchant-shop-empty">{{localize "coffee-pub-merchant.shop.unavailable"}}</div>
     {{else}}
         <div class="merchant-shop-columns">
             {{!-- Everything the shop is and everything it sells, in one
@@ -72,7 +72,7 @@
                         {{!-- GM only. A shop disagreeing with its own schedule is
                               deliberate, but it should never be a mystery. --}}
                         <div class="merchant-shop-override">
-                            <i class="fa-solid fa-hand"></i> Overriding the schedule until the next opening or closing hour
+                            <i class="fa-solid fa-hand"></i> {{localize "coffee-pub-merchant.shop.overriding"}}
                         </div>
                     {{/if}}
 
@@ -111,16 +111,16 @@
                     {{/if}}
                     <div class="merchant-shop-actor-image"><img src="{{recipientImg}}" alt=""></div>
                     <div class="merchant-shop-actor-copy">
-                        <small>Buying as</small>
+                        <small>{{localize "coffee-pub-merchant.shop.buyingAs"}}</small>
                         {{#if hasRecipient}}
                             <strong>{{recipientName}}</strong>
                         {{else}}
-                            <strong class="merchant-shop-warning">No character available</strong>
+                            <strong class="merchant-shop-warning">{{localize "coffee-pub-merchant.shop.noCharacter"}}</strong>
                         {{/if}}
                     </div>
                     {{#if hasRecipientChoice}}
                         <button type="button" class="blacksmith-window-btn-secondary merchant-shop-icon-btn"
-                                data-action="changeRecipient" data-tooltip="Buy as a different character">
+                                data-action="changeRecipient" data-tooltip="{{localize "coffee-pub-merchant.shop.switchTooltip"}}">
                             <i class="fa-solid fa-user-group-simple"></i>
                         </button>
                     {{/if}}
@@ -132,10 +132,10 @@
                     {{#if reputationLine}}
                         <div class="merchant-shop-reputation" data-tooltip="{{reputationTooltip}}">
                             <i class="fa-solid fa-hand-holding-heart"></i>
-                            <span>
-                                Your reputation in this area is <strong>{{reputationBand}}</strong>,
-                                so you get a <strong>{{reputationEffect}}</strong> on pricing.
-                            </span>
+                            {{!-- Triple-stache: the sentence arrives with its two
+                                  values already wrapped in <strong> and already
+                                  escaped. See `_reputationSentence`. --}}
+                            <span>{{{reputationSentence}}}</span>
                         </div>
                     {{/if}}
                 </section>
@@ -145,7 +145,7 @@
                       rather than left wondering why nothing works. --}}
                 <div class="merchant-shop-browsing">
                     <i class="fa-solid fa-door-closed"></i>
-                    <span>Closed &mdash; you can look through the window, but nothing is changing hands.</span>
+                    <span>{{localize "coffee-pub-merchant.shop.closed"}}</span>
                 </div>
             {{/if}}
 
@@ -160,13 +160,13 @@
                 {{#if canSell}}
                     <section class="merchant-shop-section merchant-shop-sides">
                         <button type="button" class="merchant-shop-side{{#unless sell.open}} is-on{{/unless}}"
-                                data-action="showBuy" data-tooltip="Browse what this shop sells">
-                            <i class="fa-solid fa-basket-shopping"></i> Buy
+                                data-action="showBuy" data-tooltip="{{localize "coffee-pub-merchant.shop.browseTooltip"}}">
+                            <i class="fa-solid fa-basket-shopping"></i> {{localize "coffee-pub-merchant.shop.buyTab"}}
                         </button>
                         <button type="button" class="merchant-shop-side{{#if sell.open}} is-on{{/if}}"
                                 data-action="showSell" {{#unless sellEnabled}}disabled{{/unless}}
                                 data-tooltip="{{sellTooltip}}">
-                            <i class="fa-solid fa-hand-holding-dollar"></i> Sell
+                            <i class="fa-solid fa-hand-holding-dollar"></i> {{localize "coffee-pub-merchant.shop.sellTab"}}
                         </button>
                     </section>
                 {{/if}}
@@ -179,7 +179,7 @@
                 {{#if sell.open}}
                     <section class="merchant-shop-section merchant-shop-search">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="search" placeholder="Search your pack" aria-label="Search your pack"
+                        <input type="search" placeholder="{{localize "coffee-pub-merchant.shop.searchPack"}}" aria-label="{{localize "coffee-pub-merchant.shop.searchPackLabel"}}"
                                data-sell-search value="{{sell.search}}" autocomplete="off" spellcheck="false">
                     </section>
                 {{/if}}
@@ -189,10 +189,10 @@
                       under it. --}}
                 <section class="merchant-shop-section merchant-shop-search{{#if sell.open}} is-hidden{{/if}}">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="search" placeholder="Search this shop" aria-label="Search stock"
+                    <input type="search" placeholder="{{localize "coffee-pub-merchant.shop.searchStock"}}" aria-label="{{localize "coffee-pub-merchant.shop.searchStockLabel"}}"
                            data-shop-search autocomplete="off" spellcheck="false">
                     <button type="button" class="merchant-shop-search-clear" data-shop-search-clear
-                            data-tooltip="Clear the search" hidden>
+                            data-tooltip="{{localize "coffee-pub-merchant.shop.clearSearch"}}" hidden>
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </section>
@@ -251,18 +251,18 @@
                                 </button>
                             {{/if}}
                             {{#if isUnpricedInventory}}
-                                <span class="merchant-shop-hidden-tag" data-tooltip="No price until one is agreed at the table">
-                                    <i class="fa-solid fa-comments"></i> Negotiate
+                                <span class="merchant-shop-hidden-tag" data-tooltip="{{localize "coffee-pub-merchant.shop.negotiateTooltip"}}">
+                                    <i class="fa-solid fa-comments"></i> {{localize "coffee-pub-merchant.shop.negotiate"}}
                                 </span>
                             {{/if}}
                             {{#if canStock}}
                                 <button type="button" class="merchant-shop-inventory-add" data-action="restockInventory"
                                         data-inventory-id="{{id}}"
-                                        data-tooltip="Restock: bring it back to its quantities and roll its tables">
+                                        data-tooltip="{{localize "coffee-pub-merchant.shop.restockTooltip"}}">
                                     <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
                                 <button type="button" class="merchant-shop-inventory-add" data-action="addToInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Search the compendiums — drag a result onto this inventory">
+                                        data-tooltip="{{localize "coffee-pub-merchant.shop.compendiumTooltip"}}">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
                                 {{!-- Last, and the only one that asks first. Setting a
@@ -270,7 +270,7 @@
                                       all off and let me start again". --}}
                                 <button type="button" class="merchant-shop-inventory-add merchant-shop-inventory-clear"
                                         data-action="clearInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Clear this inventory — take everything off it">
+                                        data-tooltip="{{localize "coffee-pub-merchant.shop.clearInventoryTooltip"}}">
                                     <i class="fa-solid fa-broom"></i>
                                 </button>
                             {{/if}}
@@ -304,12 +304,12 @@
             {{!-- Shown by the filter, never by the context: whether a search matches
                   is a question about the rendered list, not about the merchant. --}}
             <section class="merchant-shop-section merchant-shop-no-matches" data-shop-no-matches hidden>
-                <div class="merchant-shop-empty">Nothing here matches that.</div>
+                <div class="merchant-shop-empty">{{localize "coffee-pub-merchant.shop.noMatches"}}</div>
             </section>
                 </div>
         {{else}}
             <section class="merchant-shop-section">
-                <div class="merchant-shop-empty">This merchant has no inventories set up.</div>
+                <div class="merchant-shop-empty">{{localize "coffee-pub-merchant.shop.noInventories"}}</div>
             </section>
         {{/if}}
             </div>{{!-- /stock --}}
@@ -342,7 +342,7 @@
                                              data-tooltip="{{recipientName}}'s slate">
                                         <span>{{recipientName}}</span>
                                     {{else}}
-                                        <i class="fa-solid fa-scroll"></i> <span>Slate</span>
+                                        <i class="fa-solid fa-scroll"></i> <span>{{localize "coffee-pub-merchant.shop.slate"}}</span>
                                     {{/if}}
                                 </span>
                             </div>
@@ -355,21 +355,21 @@
                                 {{!-- What is in the purse before any of this, so the
                                       total below can be read against something. --}}
                                 <div class="merchant-shop-cart-sum">
-                                    <dt>Funds</dt>
+                                    <dt>{{localize "coffee-pub-merchant.shop.funds"}}</dt>
                                     <dd>{{fundsLabel}}</dd>
                                 </div>
                                 {{!-- Signed the way they act on that purse: buying
                                       takes, selling gives. --}}
                                 <div class="merchant-shop-cart-sum">
-                                    <dt>Buying</dt>
+                                    <dt>{{localize "coffee-pub-merchant.shop.buyingTotal"}}</dt>
                                     <dd>&minus;{{cartTotalLabel}}</dd>
                                 </div>
                                 <div class="merchant-shop-cart-sum">
-                                    <dt>Selling</dt>
+                                    <dt>{{localize "coffee-pub-merchant.shop.sellingTotal"}}</dt>
                                     <dd>+{{basketTotalLabel}}</dd>
                                 </div>
                                 <div class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
-                                    <dt>Total</dt>
+                                    <dt>{{localize "coffee-pub-merchant.shop.total"}}</dt>
                                     <dd>{{netTotalLabel}}</dd>
                                 </div>
                             </dl>
@@ -380,7 +380,7 @@
                         {{#if hasAnything}}
                             {{#if hasCart}}
                                 <div class="merchant-shop-cart-segment">
-                                    <h4><span><i class="fa-solid fa-basket-shopping"></i> Buying</span></h4>
+                                    <h4><span><i class="fa-solid fa-basket-shopping"></i> {{localize "coffee-pub-merchant.shop.buyingSegment"}}</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each cart}}
                                             {{> "modules/coffee-pub-merchant/templates/partial-slate-line.hbs" this}}
@@ -391,7 +391,7 @@
 
                             {{#if hasBasket}}
                                 <div class="merchant-shop-cart-segment merchant-shop-cart-selling">
-                                    <h4><span><i class="fa-solid fa-hand-holding-dollar"></i> Selling</span></h4>
+                                    <h4><span><i class="fa-solid fa-hand-holding-dollar"></i> {{localize "coffee-pub-merchant.shop.sellingSegment"}}</span></h4>
                                     <div class="merchant-shop-cart-list">
                                         {{#each basket}}
                                             {{> "modules/coffee-pub-merchant/templates/partial-slate-line.hbs" this}}
@@ -402,12 +402,12 @@
                         {{else}}
                             <div class="merchant-shop-empty merchant-shop-cart-empty">
                                 <i class="fa-solid fa-scroll"></i>
-                                <span>Nothing here yet.</span>
+                                <span>{{localize "coffee-pub-merchant.shop.slateEmpty"}}</span>
                                 {{#if canSell}}
                                     {{!-- No button here: Sell is in the header above,
                                           where it is reachable whether the slate is
                                           empty or not. --}}
-                                    <span class="merchant-shop-cart-hint">Drag something in to sell it.</span>
+                                    <span class="merchant-shop-cart-hint">{{localize "coffee-pub-merchant.shop.dragToSell"}}</span>
                                 {{/if}}
                             </div>
                         {{/if}}

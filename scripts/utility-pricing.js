@@ -426,6 +426,41 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
 }
 
 /**
+ * The highest Purchase rate at which a shop still cannot be farmed.
+ *
+ * **The loop is buy-then-sell-straight-back at one counter.** The party pays
+ * `worth x inventoryMarkup x reputation` on the shelf and is offered
+ * `worth x buyRate / reputation` at the same counter, so it opens the moment
+ *
+ *     buyRate > inventoryMarkup x reputation^2 x MAX_BUYBACK_RATIO
+ *
+ * `MAX_BUYBACK_RATIO` belongs in the line rather than beside it. The question this
+ * answers is not "when is the shop farmable" but "when does the clamp start governing
+ * instead of the slider", and those are the clamp's own terms.
+ *
+ * Everything else in the price -- Global Markup, the market rate -- applies to both
+ * sides and cancels, which is why neither appears here.
+ *
+ * `MAX_BUYBACK_RATIO` catches it, but catching is not the same as saying so: above the
+ * line the clamp governs instead of the slider, and because the cap *falls* as standing
+ * improves while the offer *rises*, a party the town loved was paid less than a neutral
+ * one. The number on screen stopped being the number in force, with nothing on screen
+ * to say so. This is what lets the window say it.
+ *
+ * Measured at the **best** standing a party can reach, which is where the line is
+ * tightest — a rate safe there is safe everywhere.
+ *
+ * @param {number} inventoryMarkup What the inventory resells at.
+ * @param {number} bestReputation The most favourable reputation multiplier in play.
+ * @returns {number} A buy rate, as a multiplier.
+ */
+export function safeBuyRate(inventoryMarkup, bestReputation) {
+    const markup = rate(inventoryMarkup);
+    const best = rate(bestReputation);
+    return markup * best * best * MAX_BUYBACK_RATIO;
+}
+
+/**
  * A price the GM has agreed for one item, in base units, or null.
  *
  * Stored on the merchant rather than carried in the request, because the price is

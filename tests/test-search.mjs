@@ -21,6 +21,9 @@ let JSDOM, Handlebars;
 try {
     ({ JSDOM } = require('jsdom'));
     Handlebars = require('handlebars');
+    // Foundry supplies `localize`; this harness is not Foundry. Returning the key
+    // keeps the markup structurally identical, which is all a search test reads.
+    Handlebars.registerHelper('localize', (key) => String(key));
 } catch (_error) {
     console.log('skipped — needs jsdom and handlebars:  npm install --no-save jsdom handlebars');
     process.exit(0);

@@ -17,65 +17,65 @@
     <section class="merchant-config-section merchant-config-subject">
         <div class="merchant-config-image"><img src="{{portraitImg}}" alt="{{actorName}}"></div>
         <div class="merchant-config-copy">
-            <div class="merchant-config-kicker">Merchant Settings</div>
+            <div class="merchant-config-kicker">{{localize "coffee-pub-merchant.config.title"}}</div>
             <div class="merchant-config-title">{{actorName}}</div>
         </div>
         <label class="merchant-config-enable{{#if enabled}} is-on{{/if}}"
-               data-tooltip="Players can double-click this token to open its shop.">
+               data-tooltip="{{localize "coffee-pub-merchant.config.isMerchantTooltip"}}">
             <input type="checkbox" data-merchant-enabled {{#if enabled}}checked{{/if}}>
-            <span>Is a merchant</span>
+            <span>{{localize "coffee-pub-merchant.config.isMerchant"}}</span>
         </label>
     </section>
 
     {{#if enabled}}
         <section class="merchant-config-section">
             <h3>
-                <span><i class="fa-solid fa-store"></i> The Shop</span>
+                <span><i class="fa-solid fa-store"></i> {{localize "coffee-pub-merchant.config.theShop"}}</span>
             </h3>
 
             <div class="merchant-config-grid">
                 <label class="merchant-config-row">
-                    <span class="merchant-config-label">Shop name</span>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.shopName"}}</span>
                     <input type="text" value="{{shopName}}" placeholder="{{actorName}}" data-merchant-name>
-                    <small class="merchant-config-hint">Blank names the shop after whoever runs it.</small>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.shopNameHint"}}</small>
                 </label>
 
                 <label class="merchant-config-row">
-                    <span class="merchant-config-label">Kind</span>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.kind"}}</span>
                     <select data-merchant-kind>
                         {{#each kindOptions}}
                             <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
                         {{/each}}
                     </select>
-                    <small class="merchant-config-hint">Flavour only. Shown above the name in the shop.</small>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.kindHint"}}</small>
                 </label>
 
                 <label class="merchant-config-row merchant-config-row-tall">
-                    <span class="merchant-config-label">Description</span>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.description"}}</span>
                     <textarea data-merchant-description rows="3"
-                              placeholder="A cramped shop that smells of oil and iron filings.">{{description}}</textarea>
-                    <small class="merchant-config-hint">Shown to players. Links and inline rolls work.</small>
+                              placeholder="{{localize "coffee-pub-merchant.config.descriptionPlaceholder"}}">{{description}}</textarea>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.descriptionHint"}}</small>
                 </label>
             </div>
         </section>
 
         <section class="merchant-config-section">
             <h3>
-                <span><i class="fa-solid fa-clock"></i> Trading Hours</span>
+                <span><i class="fa-solid fa-clock"></i> {{localize "coffee-pub-merchant.config.tradingHours"}}</span>
                 <span class="merchant-config-hours-always{{#if alwaysClosed}} is-closed{{/if}}"
                       data-hours-badge {{#unless hoursBadge}}hidden{{/unless}}>{{hoursBadge}}</span>
             </h3>
 
             <div class="merchant-config-grid">
                 <div class="merchant-config-row">
-                    <span class="merchant-config-label">Open</span>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.open"}}</span>
                     <div class="merchant-config-hours">
                         <div class="merchant-config-hours-row">
                             <span class="merchant-config-hours-bound">{{dayStartLabel}}</span>
                             <div class="merchant-config-hours-slider" data-hours-slider>
                                 <div class="merchant-config-hours-fill" data-hours-fill></div>
-                                <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="Opening hour">
-                                <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="Closing hour">
+                                <input type="range" min="0" max="{{maxHour}}" step="1" value="{{openHour}}" data-hours-open aria-label="{{localize "coffee-pub-merchant.config.openingHour"}}">
+                                <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="{{localize "coffee-pub-merchant.config.closingHour"}}">
                             </div>
                             <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
                         </div>
@@ -89,20 +89,20 @@
 
             {{#if overridden}}
                 <div class="merchant-config-note">
-                    Currently overriding the schedule. The next opening or closing hour will set it straight.
+                    {{localize "coffee-pub-merchant.config.overriding"}}
                 </div>
             {{/if}}
         </section>
 
         <section class="merchant-config-section">
             <h3>
-                <span><i class="fa-solid fa-sack-dollar"></i> The Till</span>
+                <span><i class="fa-solid fa-sack-dollar"></i> {{localize "coffee-pub-merchant.config.theTill"}}</span>
                 {{!-- What the coins below come to in total. It reads as a different
                       number from the boxes because it *is* one: everything converted
                       to the coins a price is quoted in, so 400 platinum shows up as
                       gold. Unlabelled it looked like a contradiction. --}}
                 <span class="merchant-config-count merchant-config-till-total"
-                      data-tooltip="Everything in the till, converted to the coins prices are quoted in">
+                      data-tooltip="{{localize "coffee-pub-merchant.config.tillTooltip"}}">
                     Worth {{tillLabel}}
                 </span>
             </h3>
@@ -120,27 +120,27 @@
                     </label>
                 {{/each}}
             </div>
-            <small class="merchant-config-hint">What this shop can pay out when the party sells to it.</small>
+            <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.tillHint"}}</small>
             {{#if tillEmpty}}
                 <div class="merchant-config-note is-warning">
-                    An empty till cannot buy anything &mdash; the party will be refused when they try to sell.
+                    {{localize "coffee-pub-merchant.config.tillEmpty"}}
                 </div>
             {{/if}}
         </section>
 
         <section class="merchant-config-section">
-            <h3><span><i class="fa-solid fa-tags"></i> Pricing</span></h3>
+            <h3><span><i class="fa-solid fa-tags"></i> {{localize "coffee-pub-merchant.config.pricing"}}</span></h3>
 
             <div class="merchant-config-grid">
                 {{> "modules/coffee-pub-merchant/templates/partial-rate.hbs" globalMarkup}}
             </div>
             <small class="merchant-config-hint">
-                The baseline for everything in this shop. Each inventory multiplies against it.
+                {{localize "coffee-pub-merchant.config.globalMarkupHint"}}
             </small>
 
             <label class="merchant-config-enable merchant-config-enable-inline{{#if reputationOn}} is-on{{/if}}">
                 <input type="checkbox" data-merchant-reputation {{#if reputationOn}}checked{{/if}}>
-                <span>Reputation impacts prices</span>
+                <span>{{localize "coffee-pub-merchant.config.reputationToggle"}}</span>
             </label>
             {{!-- One sentence, and only the range. **Where this party actually stands
                   belongs in the shop**, under who you are shopping as — it is a fact
@@ -154,10 +154,10 @@
 
         <section class="merchant-config-section">
             <h3>
-                <span><i class="fa-solid fa-layer-group"></i> Inventories</span>
+                <span><i class="fa-solid fa-layer-group"></i> {{localize "coffee-pub-merchant.config.inventories"}}</span>
                 <span class="merchant-config-head-actions">
                     <button type="button" class="merchant-config-inventory-add" data-action="addInventory"
-                            data-tooltip="Add an inventory">
+                            data-tooltip="{{localize "coffee-pub-merchant.config.addInventory"}}">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                     <span class="merchant-config-count">{{inventoryCount}}</span>
@@ -180,8 +180,8 @@
                                 {{typeLabel}}
                                 {{#if hidden}}
                                     <span class="merchant-config-inv-hidden"
-                                          data-tooltip="Players are never sent this inventory">
-                                        <i class="fa-solid fa-eye-slash"></i> Hidden
+                                          data-tooltip="{{localize "coffee-pub-merchant.config.hiddenTooltip"}}">
+                                        <i class="fa-solid fa-eye-slash"></i> {{localize "coffee-pub-merchant.config.hiddenBadge"}}
                                     </span>
                                 {{/if}}
                             </span>
@@ -189,23 +189,23 @@
                                 {{#if canRoll}}
                                     <button type="button" class="merchant-config-inv-btn"
                                             data-action="restockInventory" data-inventory-id="{{id}}"
-                                            data-tooltip="Refill this inventory now">
+                                            data-tooltip="{{localize "coffee-pub-merchant.config.refillTooltip"}}">
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </button>
                                 {{/if}}
                                 <button type="button" class="merchant-config-inv-btn"
                                         data-action="openInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Open this inventory to stock it">
+                                        data-tooltip="{{localize "coffee-pub-merchant.config.openInventoryTooltip"}}">
                                     <i class="fa-solid fa-box-open"></i>
                                 </button>
                                 <button type="button" class="merchant-config-inv-btn"
                                         data-action="clearInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Take everything off this inventory">
+                                        data-tooltip="{{localize "coffee-pub-merchant.config.clearInventoryTooltip"}}">
                                     <i class="fa-solid fa-broom"></i>
                                 </button>
                                 <button type="button" class="merchant-config-inv-btn merchant-config-remove"
                                         data-action="removeInventory" data-inventory-id="{{id}}"
-                                        data-tooltip="Remove this inventory">
+                                        data-tooltip="{{localize "coffee-pub-merchant.config.removeInventoryTooltip"}}">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                                 <span class="merchant-config-count"
@@ -216,18 +216,18 @@
                         <div class="merchant-config-inv-identity">
                             <button type="button" class="merchant-config-inventory-art"
                                     data-inventory-image="{{id}}"
-                                    data-tooltip="Click to choose different artwork">
+                                    data-tooltip="{{localize "coffee-pub-merchant.config.artworkTooltip"}}">
                                 <img src="{{img}}" alt="">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             <input type="text" class="merchant-config-inventory-name" value="{{label}}"
-                                   data-inventory-name="{{id}}" aria-label="Inventory name"
+                                   data-inventory-name="{{id}}" aria-label="{{localize "coffee-pub-merchant.config.inventoryName"}}"
                                    placeholder="{{typeLabel}}">
                         </div>
 
                         {{#if hasRates}}
                             <div class="merchant-config-inv-group">
-                                <h4>Pricing</h4>
+                                <h4>{{localize "coffee-pub-merchant.config.pricing"}}</h4>
                                 <div class="merchant-config-grid">
                                     {{#each rates}}
                                         {{> "modules/coffee-pub-merchant/templates/partial-rate.hbs" this}}
@@ -237,9 +237,9 @@
                         {{/if}}
                         {{#if pricingNone}}
                             <div class="merchant-config-inv-group">
-                                <h4>Pricing</h4>
+                                <h4>{{localize "coffee-pub-merchant.config.pricing"}}</h4>
                                 <div class="merchant-config-note">
-                                    No price until one is agreed with the party on the slate.
+                                    {{localize "coffee-pub-merchant.config.pricingNone"}}
                                 </div>
                             </div>
                         {{/if}}
@@ -252,10 +252,10 @@
                                   is the target a roll fills back up to; Max stack is how
                                   deep any one line goes. --}}
                             <div class="merchant-config-inv-group">
-                                <h4>Stocking</h4>
+                                <h4>{{localize "coffee-pub-merchant.config.stocking"}}</h4>
                                 <div class="merchant-config-restock">
                                     <label class="merchant-config-row merchant-config-restock-method">
-                                        <span class="merchant-config-label">Depth</span>
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.depth"}}</span>
                                         <select data-inventory-depth="{{id}}" data-tooltip="{{depthHint}}">
                                             {{#each depthOptions}}
                                                 <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
@@ -264,20 +264,20 @@
                                     </label>
 
                                     <label class="merchant-config-row merchant-config-restock-stack"
-                                           data-tooltip="How many different things this inventory carries. A roll table fills it back up to this number.">
-                                        <span class="merchant-config-label">Products</span>
+                                           data-tooltip="{{localize "coffee-pub-merchant.config.productsTooltip"}}">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.products"}}</span>
                                         <input type="number" min="1" max="999" step="1" value="{{maxProducts}}"
                                                data-inventory-max-products="{{id}}"
-                                               aria-label="How many different products this inventory carries">
+                                               aria-label="{{localize "coffee-pub-merchant.config.productsLabel"}}">
                                     </label>
 
                                     {{#if showMaxStack}}
                                         <label class="merchant-config-row merchant-config-restock-stack"
                                                data-tooltip="{{maxStackTooltip}}">
-                                            <span class="merchant-config-label">Max stack</span>
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.maxStack"}}</span>
                                             <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
                                                    data-inventory-max-per-item="{{id}}"
-                                                   aria-label="Maximum quantity of any one item">
+                                                   aria-label="{{localize "coffee-pub-merchant.config.maxStackLabel"}}">
                                         </label>
                                     {{/if}}
                                 </div>
@@ -287,16 +287,16 @@
                                       once; repeating twelve controls on every card would
                                       restate the same world in every shop in it. --}}
                                 <div class="merchant-config-note merchant-config-depth-summary">
-                                    <span>Type, rarity and price each set a ceiling, and the lowest wins.</span>
+                                    <span>{{localize "coffee-pub-merchant.config.depthSummary"}}</span>
                                     <span class="merchant-config-depth-row">{{depthByType}}</span>
                                     <span class="merchant-config-depth-row">{{depthByRarity}}</span>
-                                    <span>These are world settings, in Merchant's module settings. Depth scales them for this inventory.</span>
+                                    <span>{{localize "coffee-pub-merchant.config.depthWorldNote"}}</span>
                                 </div>
                             </div>
                         {{/if}}
 
                         <div class="merchant-config-inv-group">
-                            <h4>Restock</h4>
+                            <h4>{{localize "coffee-pub-merchant.config.restock"}}</h4>
                             {{#if canRoll}}
                                 {{!-- One row: what happens, how often, and how deep it
                                       stacks are one decision made in one glance. They
@@ -305,7 +305,7 @@
                                       method that has no cadence. --}}
                                 <div class="merchant-config-restock">
                                     <label class="merchant-config-row merchant-config-restock-method">
-                                        <span class="merchant-config-label">Method</span>
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.method"}}</span>
                                         <select data-inventory-stock="{{id}}">
                                             {{#each stockOptions}}
                                                 <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
@@ -315,7 +315,7 @@
 
                                     {{#if restocking}}
                                         <label class="merchant-config-row">
-                                            <span class="merchant-config-label">Frequency</span>
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.frequency"}}</span>
                                             <select data-inventory-frequency="{{id}}">
                                                 {{#each frequencyOptions}}
                                                     <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
@@ -327,15 +327,14 @@
                                 </div>
                             {{else}}
                                 <div class="merchant-config-note">
-                                    Items bought from this inventory are removed and never restocked. Its stock is
-                                    whatever the party has sold to the shop.
+                                    {{localize "coffee-pub-merchant.config.purchasedNote"}}
                                 </div>
                             {{/if}}
                         </div>
 
                         {{#if canRoll}}
                             <div class="merchant-config-inv-group">
-                                <h4>Roll Tables</h4>
+                                <h4>{{localize "coffee-pub-merchant.config.rollTables"}}</h4>
                                 {{#if hasTables}}
                                     <div class="merchant-config-grid">
                                         {{#each tables}}
@@ -355,21 +354,21 @@
                                                     <input type="checkbox" class="merchant-config-table-enabled"
                                                            data-inventory-table-enabled="{{../id}}"
                                                            data-table-uuid="{{uuid}}" {{#if enabled}}checked{{/if}}
-                                                           aria-label="Use this table">
+                                                           aria-label="{{localize "coffee-pub-merchant.config.useTable"}}">
                                                     <i class="fa-solid fa-dice-d20"></i> {{name}}
                                                 </span>
                                                 <div class="merchant-config-table-controls">
                                                     <label class="merchant-config-inline"
                                                            data-tooltip="{{drawTooltip}}">
-                                                        <span>Draw</span>
+                                                        <span>{{localize "coffee-pub-merchant.config.draw"}}</span>
                                                         <input type="number" min="1" max="20" step="1" value="{{rolls}}"
                                                                data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
-                                                               aria-label="How many items to draw from this table">
+                                                               aria-label="{{localize "coffee-pub-merchant.config.drawLabel"}}">
                                                     </label>
                                                     <button type="button" class="merchant-config-icon-btn merchant-config-remove"
                                                             data-action="removeInventoryTable" data-inventory-id="{{../id}}"
                                                             data-table-uuid="{{uuid}}"
-                                                            data-tooltip="Take this table off the inventory">
+                                                            data-tooltip="{{localize "coffee-pub-merchant.config.removeTableTooltip"}}">
                                                         <i class="fa-solid fa-xmark"></i>
                                                     </button>
                                                 </div>
@@ -386,7 +385,7 @@
                     </div>
                 {{/each}}
             {{else}}
-                <div class="merchant-config-empty">No inventories yet. Add one to start stocking this merchant.</div>
+                <div class="merchant-config-empty">{{localize "coffee-pub-merchant.config.noInventories"}}</div>
             {{/if}}
         </section>
     {{/if}}

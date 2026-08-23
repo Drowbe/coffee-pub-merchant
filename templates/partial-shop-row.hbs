@@ -32,11 +32,11 @@
     {{#if canEditStock}}
         <div class="merchant-shop-item-qty merchant-shop-qty-editable" data-edit-stock="{{id}}"
              data-tooltip="{{qtyTooltip}} — double-click to change">
-            <small>QTY</small><strong>{{qtyLabel}}</strong>
+            <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
         </div>
     {{else}}
         <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
-            <small>QTY</small><strong>{{qtyLabel}}</strong>
+            <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
         </div>
     {{/if}}
 
@@ -55,12 +55,12 @@
               inspecting the markup finds nothing to read either. --}}
         {{#if isUnpricedInventory}}
             <em class="merchant-shop-negotiate"
-                {{#if negotiateTooltip}}data-tooltip="{{negotiateTooltip}}"{{/if}}>negotiate</em>
+                {{#if negotiateTooltip}}data-tooltip="{{negotiateTooltip}}"{{/if}}>{{localize "coffee-pub-merchant.row.negotiate"}}</em>
         {{else if priceLabel}}
             <strong>{{priceLabel}}</strong>
         {{else}}
             <em class="merchant-shop-unpriced"
-                {{#unless canPrice}}data-tooltip="This has no price set"{{/unless}}>no price</em>
+                {{#unless canPrice}}data-tooltip="{{localize "coffee-pub-merchant.row.noPriceTooltip"}}"{{/unless}}>{{localize "coffee-pub-merchant.row.noPrice"}}</em>
         {{/if}}
     </div>
 
@@ -91,7 +91,7 @@
                       this is the inventory no longer carrying the thing at all. --}}
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-remove"
                         data-action="removeStock" data-item-id="{{id}}"
-                        data-tooltip="Take this off the inventory entirely">
+                        data-tooltip="{{localize "coffee-pub-merchant.row.removeTooltip"}}">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             {{/if}}

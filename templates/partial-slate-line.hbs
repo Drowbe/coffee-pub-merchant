@@ -12,7 +12,7 @@
     <span class="merchant-shop-cart-name">{{name}}</span>
     <span class="merchant-shop-cart-qty merchant-shop-qty-editable"
           data-edit-line="{{id}}" data-line-side="{{side}}"
-          data-tooltip="Double-click to change; 0 removes it">&times;<strong>{{quantity}}</strong></span>
+          data-tooltip="{{localize "coffee-pub-merchant.slate.quantityTooltip"}}">&times;<strong>{{quantity}}</strong></span>
     {{!-- The GM can name a price on any line, which is the whole of haggling: a
           discount on a listed thing and a first price on an unlisted one are the
           same gesture. Players see the number, not the handle. --}}
@@ -22,12 +22,12 @@
               data-tooltip="{{priceTooltip}}"><strong>{{totalLabel}}</strong></span>
     {{else}}
         <span class="merchant-shop-cart-total{{#unless agreed}} is-tbd{{/unless}}"
-              {{#unless agreed}}data-tooltip="No price yet — agree one with the merchant"{{/unless}}>{{totalLabel}}</span>
+              {{#unless agreed}}data-tooltip="{{localize "coffee-pub-merchant.slate.tbdTooltip"}}"{{/unless}}>{{totalLabel}}</span>
     {{/if}}
     {{!-- Last, at the far edge: removing is the one destructive thing on the line,
           so it sits apart from the numbers rather than beside one of them. --}}
     <button type="button" class="merchant-shop-cart-remove" data-action="{{removeAction}}"
-            data-item-id="{{id}}" data-tooltip="Take it off the slate">
+            data-item-id="{{id}}" data-tooltip="{{localize "coffee-pub-merchant.slate.removeTooltip"}}">
         <i class="fa-solid fa-xmark"></i>
     </button>
 </div>
