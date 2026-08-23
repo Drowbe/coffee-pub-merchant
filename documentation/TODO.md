@@ -111,6 +111,72 @@ Two things to read before changing anything load-bearing:
 
 ---
 
+## Standing rules — inherited lessons
+
+These cost Curator real time. They apply here identically and there is no reason to relearn them.
+
+- **Nothing may read `game` at module scope.** Foundry evaluates module scripts before `game` exists, and
+  **ESM caches a failed evaluation** — so the throw does not retry on the next call, it disables the module
+  for the rest of the session. The symptom is one `Cannot read properties of undefined` and then a module
+  that simply is not there, which reads like a load-order problem and is not.
+
+  Three incidents so far: resolving a base class from `module.api`, a `const METHOD_LABELS = { ... }` of
+  translated strings, and a `static SELL_SORTS = [ ... ]` class field. **None of them looked like top-level
+  code** — which is why the check that enforces this walks a real scope stack rather than indentation.
+  The rule: **a table holds keys, a function resolves them.** Check 6 in `tests/test-i18n.mjs`.
+
+- **Check for a finished window before building one.** Merchant shipped its own compendium search and
+  deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
+  the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading
+  `api-compendiums.md`, finding `search()`, and treating a documented *primitive* as evidence that no
+  *feature* existed on top of it. It does not follow. Before building any window, check
+  `blacksmith.openWindow` for a registered id, `documentation/api/api-window.md` for the registry, and the
+  Blacksmith toolbar and menubar for something that already opens what you are about to write. This is a
+  different failure from forking a file — nothing was copied, a duplicate was simply invented — and the tell
+  is the same: two things doing one job, one of which nobody else maintains.
+- **Grepping a doc is not reading it, and this is the second time.** Merchant asked "is there a drop helper
+  in `api-inventory`?", searched the file for *drop* and *drag*, found nothing, and moved on. The answer was
+  correct and three unrelated rules in that same file were being broken: `registerTransientFlag` must be
+  called by whoever writes a flag to items, arrival flags belong in the `grantItem` call rather than a
+  follow-up `setFlag`, and `items` is an array so one leg per line batches nothing. None contain the word
+  "drop".
+
+  This is the compendium-search mistake in a different coat. There, `search()` was found and a *feature*
+  built on top of it was missed. Here, the absence of one keyword was read as the absence of guidance. Both
+  times the failure was treating a document as an index to query rather than a thing to read. **Read the
+  whole page for any API you call more than once**, and re-read it when the API ships something new — the
+  rules around `exchange` arrived in the same change as `exchange`.
+- **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
+  can never pick up anything landing later. Curator carried two forks — `ui-context-menu.js` and
+  `manager-hooks.js` — both with bugs already fixed upstream. To check: compare filenames against
+  `coffee-pub-blacksmith/scripts/`; a shared name is the tell.
+- **An integration is a relationship, not a file.** Somebody has to own the ask, take the answer, and delete
+  our side of it when each lands. Four asks went out on 2026-08-19 and all four came back inside a day; if
+  nobody owns that loop, workarounds quietly become the design.
+- **Put an expiry on any claim about what has been verified.** An earlier version of this file said nothing
+  since `beb8f41` had been run in Foundry. That was true when it was written, during two unattended
+  sessions, and was never retired when it stopped being true — after which it was repeated as fact in a
+  handoff review, against a page of evidence to the contrary. Check such a claim against the git log before
+  believing it, and date your own.
+- **Re-check documents after every await.** Anything writing to a Token, or to an Actor belonging to one,
+  must confirm it still exists *after* each await — a guard at the top of an async function proves nothing
+  ten awaits later. For a scheduled callback the check goes **inside** the timer, because the delay is
+  exactly the window in which the document is deleted. An unlinked token's Actor is synthetic and dies with
+  its token, so checking the Actor never catches it. Foundry reports this as
+  `undefined id [...] does not exist in the EmbeddedCollection`.
+- **A setting that hides a control must also refuse the request.** Hiding a button removes it from the
+  honest path only; the GM-side check is what makes a policy real. Applies to *disabled* as much as hidden:
+  out of stock is a refusal on the GM, not merely a greyed button.
+- **A control that cannot act should say why, not disappear.** An absent button reads as "this shop does not
+  do that"; a disabled one naming its reason reads as "not right now, and here is what would change it". It
+  also keeps the layout still on the day the missing thing arrives.
+- **`--blacksmith-tool-background` is a gradient.** Using it as a `color` silently drops the declaration and
+  renders as an invisible label on a dark bar.
+- **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
+  quantity split still renders and still reports a value, so the failure looks like success.
+
+---
+
 ## Ideas, not scheduled
 
 ### Catalogue mode
