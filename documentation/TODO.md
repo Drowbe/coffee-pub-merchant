@@ -177,7 +177,7 @@ Things to settle before building it, none of them obvious:
   design decision rather than a constant.
 - **Whether this is Merchant's to own.** Blacksmith already draws on tokens, and Curator marks lootable
   corpses — which is the same problem with a different icon. **Two consumers is the bar**, and that is
-  exactly the situation `plans/plan-extraction.md` says to hand over rather than write twice. Check what
+  exactly the situation the extraction exercise said to hand over rather than write twice. Check what
   Blacksmith has before drawing anything.
 
 That last point is the reason this is recorded rather than started: the honest first step is a conversation

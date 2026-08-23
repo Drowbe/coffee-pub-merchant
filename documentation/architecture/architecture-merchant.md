@@ -680,10 +680,19 @@ which is the shortest document here and the one most worth reading before writin
 
   Only `gp` is named, so the rest of the purse is left alone rather than zeroed — the field is "gold to
   spend", not "the whole purse".
-- **One extraction left** — `plans/plan-extraction.md`. `openFor` and `party` both shipped in Blacksmith
-  13.19.0 and are adopted here; a fourth candidate was dropped when one of its two consumers turned out to
-  have been deleted. What remains is `_pickActor`, agreed and Blacksmith's to build. The plan is deleted the
-  day it lands.
+- ~~**One extraction left**~~ — **closed 2026-08-22.** `dialog.pickActor` shipped and `changeRecipient`
+  calls it; the private copy and `plans/plan-extraction.md` are both deleted. Every candidate the exercise
+  raised has now either landed or been withdrawn.
+
+  Two behaviours went missing in the move and are asked for upstream: the picker opens on the **first**
+  actor rather than the current one, and it no longer badges anyone with lines already on a slate — which is
+  how a GM learned somebody was mid-purchase before it occurred to them to switch and look.
+  `entityList` still supports badges; `pickActor` does not forward them. Neither is fatal and both are one
+  option away.
+- **Synthetic actor uuids are a documented target** for `api.inventory`, confirmed 2026-08-22. The lock keys
+  on the **resolved actor**, not the string passed, so two unlinked tokens sharing a base Actor take separate
+  locks — two copies of one travelling salesman are two shops and two players can trade with them at once.
+  Merchant depends on this: `worldMerchants()` hands synthetic actors to every restock.
 - ~~**`api.inventory` refused to merge stacks that should have merged**~~ — **closed upstream 2026-08-22.**
   The predicate compared the payload submitted against the row that already existed, but the row a payload
   *becomes* is not the payload: creation fills schema defaults, writes `system.identifier` from the name and

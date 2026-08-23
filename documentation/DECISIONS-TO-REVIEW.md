@@ -182,7 +182,7 @@ likely place for a bug I cannot see without a table**, and the test doc has a sp
 
 ## What else got built, which needed no decisions
 
-- **Phase 1b, the comparison against Curator's loot** — `plans/plan-extraction.md`. Four things to extract to
+- **Phase 1b, the comparison against Curator's loot** — plan deleted 2026-08-22, all candidates resolved. Four things were proposed for extraction to
   Blacksmith, each with two consumers agreeing line-for-line: a quantity dialog (82% identical over 49
   lines), an actor picker (87% over 30), the window-base construction boilerplate (80% over 36), and party
   resolution. A fifth, `_attachWhenRendered`, is the same *workaround* written twice and wants an upstream

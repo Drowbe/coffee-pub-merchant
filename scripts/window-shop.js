@@ -360,87 +360,40 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Pick an Actor through Blacksmith's entity list: portraits and names read far
-     * better than a select when choosing a character.
+     * Switch which character is shopping.
+     *
+     * **`blacksmith.dialog.pickActor`, not our own.** Merchant and Curator had written
+     * the same thirty-five lines -- an entity list in a dialog, read back on confirm --
+     * and it is the hub's now. The search field, the avatars and the keyboard behaviour
+     * are the ones every other Blacksmith list has, and improvements there arrive here
+     * without a change.
+     *
+     * `null` covers every non-answer: cancelled, dismissed, or nothing to choose from.
+     * Branching on it rather than on a thrown error is their stated contract.
+     *
+     * **Two things went missing in the move**, both asked for upstream and neither
+     * fatal. The picker used to open with the *current* character selected rather than
+     * the first in the list, and it used to badge anyone with lines already on a slate
+     * -- which is how a GM learns somebody is mid-purchase before it occurs to them to
+     * switch and look. `entityList` still supports badges; `pickActor` does not forward
+     * them yet. If they land, this passes `selected` and `badges` and nothing else changes.
      */
-    async _pickActor({ title, actors, selectedUuid, confirmLabel = 'Select', confirmIcon = 'fa-solid fa-check' }) {
-        const blacksmith = _blacksmith();
-        if (typeof blacksmith?.entityList?.create !== 'function' || typeof blacksmith?.dialog?.wait !== 'function') {
-            notify.warn('The Blacksmith entity list is unavailable.');
-            return null;
-        }
-        if (!actors.length) return null;
-
-        const list = blacksmith.entityList.create({
-            entities: actors.map((actor) => {
-                // A GM has to know somebody is mid-purchase before it occurs to them to
-                // switch and look. Without this the shared slate is technically visible
-                // and practically invisible.
-                const lines = this._slateSizeFor(actor.uuid);
-                return {
-                    id: actor.uuid,
-                    uuid: actor.uuid,
-                    name: actor.name,
-                    img: actor.img,
-                    badges: lines
-                        ? [{ label: `${lines} on the slate` }]
-                        : []
-                };
-            }),
-            mode: 'single',
-            inputName: 'merchant-actor',
-            selected: selectedUuid ?? actors[0].uuid
-        });
-
-        let chosen = null;
-        const outcome = await blacksmith.dialog.wait({
-            title,
-            content: `<div class="blacksmith-field">${list.html}</div>`,
-            classes: ['merchant-dialog'],
-            // Bound after render by the dialog itself. Controls are not destroyed on
-            // close, so the callback can still read the selection out of one.
-            controls: list,
-            // Secondary action left, primary right.
-            buttons: [
-                { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
-                {
-                    action: 'select',
-                    label: confirmLabel,
-                    icon: confirmIcon,
-                    default: true,
-                    // `readIdsFrom`, never `getSelectedIds`. The getter reports the
-                    // selection the list was *created with* when its input was never
-                    // bound, and this one is created with the current character — so a
-                    // player switching to somebody else would be handed back the one
-                    // they started on, indistinguishably from having chosen it.
-                    // **`wait()` hands the callback the dialog's FORM, and runs it
-                    // after the dialog has closed.** Not `(event, button, dialog)` --
-                    // that is DialogV2's own shape, which `wait` wraps rather than
-                    // passes through. Reaching for `dialog.element` here got
-                    // `undefined`, so the read came back empty and the whole gesture
-                    // did nothing, silently. The form is captured before close for
-                    // exactly this reason.
-                    callback: (form) => {
-                        chosen = list.readIdsFrom(form)[0] ?? null;
-                    }
-                }
-            ],
-            closeValue: null,
-            cancelValue: null
-        });
-        list.destroy();
-
-        return outcome?.value === 'select' ? chosen : null;
-    }
-
     async changeRecipient() {
         const options = this.recipients;
         if (options.length < 2) return;
-        const picked = await this._pickActor({
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.pickActor !== 'function') {
+            notify.warn('The Blacksmith actor picker is unavailable.');
+            return;
+        }
+
+        const picked = await blacksmith.dialog.pickActor({
             title: 'Buying As',
             actors: options,
-            selectedUuid: this.recipient?.uuid,
-            confirmIcon: 'fa-solid fa-user-check'
+            confirmLabel: 'Select',
+            confirmIcon: 'fa-solid fa-user-check',
+            emptyMessage: 'No character here can shop.'
         });
         if (picked) this.setRecipient(picked);
     }

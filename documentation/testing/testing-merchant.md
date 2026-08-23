@@ -1106,3 +1106,12 @@ level onto every existing row; it logs how many.
     giveaway was the shop's decision, not a property of the thing, and must not travel with it.
 68. A **negotiated** 0 on a slate line still works and still clears when the trade settles — that is
     one trade, where the shelf price is a standing offer.
+
+### 21j. The shared actor picker
+
+69. With two or more characters able to shop, click the **Buying as** button. Blacksmith's picker opens
+    with a search field and avatars. Choose someone: the shop reprices and the slate switches to theirs.
+70. Cancel it and nothing changes — the character you started on is still the one shopping.
+71. **Known regressions, both upstream.** The picker highlights the *first* character rather than the one
+    currently shopping, and nobody is badged with how many lines they already have on a slate. Neither is a
+    Merchant fault; both are one `pickActor` option away.

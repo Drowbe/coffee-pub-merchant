@@ -399,7 +399,7 @@ rather than nearly true, so building the harder thing first would assume the sma
 - GM-authoritative handler with re-validation.
 - No money, no prices displayed, no polish.
 
-### Phase 1b — Compare and extract — **done, see `plan-extraction.md`**
+### Phase 1b — Compare and extract — **done.** `openFor`, `party` and `dialog.pickActor` all shipped in Blacksmith and are adopted; one candidate was withdrawn when a consumer turned out to have been deleted. The plan that tracked it is gone, per the rule that an implemented plan is deleted.
 
 Diff what was written against Curator's loot equivalent. **Whatever came out verbatim is the extraction
 list.** Move those pieces to Blacksmith with two real consumers proving the shape.
