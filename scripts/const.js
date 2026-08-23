@@ -288,6 +288,35 @@ export const INVENTORY_TYPES = Object.freeze({
     }
 });
 
+/**
+ * A type's display name and hint, translated.
+ *
+ * **Separate from `INVENTORY_TYPES` because this file is evaluated before `game.i18n`
+ * exists.** The literals in the table above are the fallback and the source text; these
+ * read the translation at the moment of display. A world with no translation for a type
+ * gets the English rather than the key, which is the failure mode worth having.
+ */
+export function inventoryTypeName(key) {
+    const definition = inventoryType(key);
+    return game.i18n?.localize(`coffee-pub-merchant.inventoryType.${definition.key}.name`) || definition.name;
+}
+
+export function inventoryTypeHint(key) {
+    const definition = inventoryType(key);
+    return game.i18n?.localize(`coffee-pub-merchant.inventoryType.${definition.key}.hint`) || definition.hint;
+}
+
+/** The same, for the per-inventory depth dial. */
+export function depthLabel(key) {
+    const option = STOCK_DEPTH_OPTIONS.find((entry) => entry.value === key) ?? STOCK_DEPTH_OPTIONS[1];
+    return game.i18n?.localize(`coffee-pub-merchant.depth.${option.value}.label`) || option.label;
+}
+
+export function depthHint(key) {
+    const option = STOCK_DEPTH_OPTIONS.find((entry) => entry.value === key) ?? STOCK_DEPTH_OPTIONS[1];
+    return game.i18n?.localize(`coffee-pub-merchant.depth.${option.value}.hint`) || option.hint;
+}
+
 /** The type's definition, falling back to general rather than to nothing. */
 export function inventoryType(key) {
     return INVENTORY_TYPES[key] ?? INVENTORY_TYPES[INVENTORY_TYPE.GENERAL];

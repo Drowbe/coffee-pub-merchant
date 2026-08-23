@@ -1115,3 +1115,17 @@ level onto every existing row; it logs how many.
 71. **Known regressions, both upstream.** The picker highlights the *first* character rather than the one
     currently shopping, and nobody is badged with how many lines they already have on a slate. Neither is a
     Merchant fault; both are one `pickActor` option away.
+
+### 21k. Localisation
+
+72. Open both windows and read them. No string renders as a dotted key —
+    `coffee-pub-merchant.shop.buy` where the word "Buy" belongs is what a missing key looks like, and it
+    looks like text.
+73. Every tooltip still says something. Hover the quantity, the price, the restock and compendium buttons,
+    and each roll table's Draw box.
+74. The reputation line reads as one sentence with **the band and the effect in bold** — not as three
+    fragments, and not with a literal `{band}` in it.
+75. Module settings: the six sound choices and the twelve stock-depth numbers all have names and hints.
+76. Refuse something on purpose — try to buy with an empty purse, or settle a slate with a TBD line. The
+    message is a sentence, with the amounts filled in.
+77. Restock and watch the progress bar: each step names the table or the inventory it is working on.

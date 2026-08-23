@@ -3,7 +3,19 @@
         "slate": {
             "quantityTooltip": "Double-click to change; 0 removes it",
             "tbdTooltip": "No price yet — agree one with the merchant",
-            "removeTooltip": "Take it off the slate"
+            "removeTooltip": "Take it off the slate",
+            "takeOver": "Click to take the slate over.",
+            "empty": "There is nothing on the slate yet.",
+            "nothingYet": "Nothing on the slate yet",
+            "clearTooltip": "Take everything off the slate",
+            "evenTrade": "An even trade",
+            "tbdPrompt": "Double-click to set the agreed price, each, in gp. 0 gives it away.",
+            "freePrompt": "On the house — double-click to charge for it",
+            "agreePrompt": "Double-click to set the agreed price, each, in gp",
+            "eachChange": "{price} each — double-click to change it",
+            "youPay": "You pay {amount}",
+            "youReceive": "You receive {amount}",
+            "linesBadge": "{count} on the slate"
         },
         "row": {
             "quantityAbbr": "QTY",
@@ -43,7 +55,8 @@
             "dragToSell": "Drag something in to sell it.",
             "buyingSegment": "Buying",
             "sellingSegment": "Selling",
-            "reputationSentence": "Your reputation in this area is {band}, so you get a {effect} on pricing."
+            "reputationSentence": "Your reputation in this area is {band}, so you get a {effect} on pricing.",
+            "noShopper": "No character here can shop."
         },
         "config": {
             "title": "Merchant Settings",
@@ -98,7 +111,267 @@
             "globalMarkupHint": "The baseline for everything in this shop. Each inventory multiplies against it.",
             "inventories": "Inventories",
             "pricingNone": "No price until one is agreed with the party on the slate.",
-            "hiddenBadge": "Hidden"
+            "hiddenBadge": "Hidden",
+            "maxStackTooltipInfinite": "The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.",
+            "maxStackTooltipFinite": "The most of any one item this inventory will hold — a table roll, and a quantity you type in the shop window.",
+            "missingTable": "Missing table",
+            "tableAuto": "Drawn again every time this inventory restocks.",
+            "tableManual": "Drawn only when you press Restock.",
+            "restockEverythingTooltip": "Bring every inventory back to its quantities and roll all of its tables",
+            "drawTooltip": "How many items to take from this table. {when}"
+        },
+        "market": {
+            "goingRate": "×1.00 · the going rate",
+            "dearer": "×{rate} · goods cost {percent}% more here",
+            "cheaper": "×{rate} · goods cost {percent}% less here",
+            "runsHigh": "Prices here run high",
+            "runsLow": "Prices here run low",
+            "menuLabel": "Local Market",
+            "dialogTitle": "Local Market",
+            "sliderLabel": "Local market rate",
+            "blurb": "What goods are worth on {scene}, whoever is asking. Every merchant here prices against it, and it applies to what they pay as well as what they charge — which is what makes running goods between two places worth doing.",
+            "reset": "The going rate"
+        },
+        "notify": {
+            "dialogUnavailable": "The Blacksmith dialog API is unavailable.",
+            "marketFailed": "Could not set the market.",
+            "blacksmithOutOfDate": "Stock could not be delivered because Coffee Pub Blacksmith is out of date. Update it and restock.",
+            "cannotOpenShop": "Could not open that shop.",
+            "merchantFailed": "Could not update this merchant.",
+            "tillFailed": "Could not set the till.",
+            "notARollTable": "Drop a roll table here, not a {what}.",
+            "tableAlreadyOn": "That table is already on this inventory.",
+            "tableAddFailed": "Could not add that table.",
+            "changeFailed": "Could not change that.",
+            "filePickerUnavailable": "The file picker is unavailable.",
+            "filePickerFailed": "Could not open the file picker.",
+            "renameFailed": "Could not rename that inventory.",
+            "markupNotANumber": "Markup must be a number.",
+            "hoursFailed": "Could not set trading hours.",
+            "inventoryAddFailed": "Could not add that inventory.",
+            "inventoryRemoveFailed": "Could not remove that inventory.",
+            "everythingFull": "Every inventory was already full.",
+            "restockFailed": "Could not restock that inventory.",
+            "clearFailed": "Could not clear that inventory.",
+            "tableSwitchFailed": "Could not switch that table.",
+            "inventoryUpdateFailed": "Could not update that inventory.",
+            "pickerUnavailable": "The Blacksmith actor picker is unavailable.",
+            "inventoryChangeFailed": "Could not change that inventory.",
+            "priceSetFailed": "Could not set that price.",
+            "priceAgreeFailed": "Could not agree that price.",
+            "quantityFailed": "Could not set that quantity.",
+            "addToInventoryFailed": "Could not add that to the inventory.",
+            "compendiumUnavailable": "Blacksmith compendium search is unavailable.",
+            "shopStateFailed": "Could not change the shop state.",
+            "noPrototypeToken": "This merchant has no prototype token.",
+            "nothingToRestock": "{inventory} had nothing to restock.",
+            "alreadyEmpty": "{inventory} is already empty.",
+            "clampedToMaxStack": "This inventory holds at most {max} of any one thing, so that is {value}. Raise the inventory’s \"each\" limit in Merchant Settings to keep more."
+        },
+        "feedback": {
+            "transaction": "Purchases and sales completing at a merchant.",
+            "gmActivity": "Restocking, stocking and other GM shop activity."
+        },
+        "inventoryType": {
+            "general": {
+                "name": "General",
+                "hint": "Ordinary stock, on display to everyone."
+            },
+            "hidden": {
+                "name": "Hidden",
+                "hint": "Out of sight until you bring it out front."
+            },
+            "premium": {
+                "name": "Premium",
+                "hint": "On display, priced above the going rate."
+            },
+            "discounted": {
+                "name": "Discounted",
+                "hint": "On display, priced below the going rate."
+            },
+            "unpriced": {
+                "name": "Unpriced",
+                "hint": "No price until you agree one. The GM sets it on the slate."
+            },
+            "purchased": {
+                "name": "Purchased",
+                "hint": "Where things bought from the party end up."
+            }
+        },
+        "depth": {
+            "sparse": {
+                "label": "Sparse",
+                "hint": "A thin shop. Half of what the world would keep."
+            },
+            "normal": {
+                "label": "Normal",
+                "hint": "Whatever the world settings say."
+            },
+            "deep": {
+                "label": "Deep",
+                "hint": "A well-supplied shop. Twice what the world would keep."
+            }
+        },
+        "settings": {
+            "soundSlateAdd": "Adding to the slate",
+            "soundSlateAddHint": "Played when something is put on the slate, to buy or to sell.",
+            "soundSlateUpdate": "Changing a slate line",
+            "soundSlateUpdateHint": "Played when a quantity or a price on the slate is changed.",
+            "soundSlateClear": "Clearing the slate",
+            "soundSlateClearHint": "Played when a line is taken off the slate, or the whole slate is wiped.",
+            "soundTransaction": "Completing a transaction",
+            "soundTransactionHint": "Played when goods and coin change hands.",
+            "soundRestock": "Restocking",
+            "soundRestockHint": "Played to the GM when an inventory or a whole shop finishes restocking.",
+            "soundError": "Something went wrong",
+            "soundErrorHint": "Played when an action is refused or fails.",
+            "stockCapType": "Stock depth: {what}",
+            "stockCapTypeHint": "The most of one {type} a shop stocks at once, before price and rarity are considered. 0 means no limit from the type.",
+            "stockCapRarity": "Stock depth: {what}",
+            "stockCapRarityHint": "The most of one {rarity} item a shop stocks at once. 0 means no limit from the rarity."
+        },
+        "progress": {
+            "rolling": "Rolling {table}",
+            "rollingOf": "Rolling {table} — {done} of {total}",
+            "nothingRolled": "Nothing rolled for {inventory}",
+            "inventoryFull": "{inventory} is full",
+            "stocking": "Stocking {inventory}",
+            "refilling": "Refilling {inventory}",
+            "restockingShop": "Restocking {shop}",
+            "settlingUp": "Settling up"
+        },
+        "method": {
+            "infinite": "Never runs out",
+            "finite": "Runs out permanently",
+            "same": "Restocks the same items",
+            "new": "Restocks with new items"
+        },
+        "rate": {
+            "listPrice": "List price",
+            "markup": "{percent}% markup",
+            "listShort": "list",
+            "pays": "Pays {percent}% of value",
+            "paysCapped": "{typed} — capped near {capped}%",
+            "farmWarning": "Above {safe}% this inventory pays more than it charges, so the shop can be sold to and bought from at a profit. Offers are capped instead, and a party the town likes is paid less than a neutral one. Raise Sell, or lower this.",
+            "purchaseHint": "What the shop pays the party for their goods.",
+            "sellHint": "What it then charges for them, on top of the Global Markup.",
+            "markupHint": "Multiplied against the shop's Global Markup.",
+            "discount": "{percent}% discount"
+        },
+        "hours": {
+            "alwaysClosed": "Always closed",
+            "alwaysOpen": "Always open"
+        },
+        "reputation": {
+            "good": "You are thought well of here, so this shop treats you better — on what you buy and on what it pays you.",
+            "bad": "You are poorly thought of here, so this shop charges you more and pays you less."
+        },
+        "sort": {
+            "value": "Most valuable first",
+            "name": "By name",
+            "category": "By kind, then name",
+            "tooltip": "Sorted: {how}. Click to change."
+        },
+        "sell": {
+            "yourPack": "Your pack",
+            "noSeller": "No character able to sell.",
+            "merchantBuysNothing": "This merchant does not buy anything.",
+            "addTooltip": "Put it on the slate to sell",
+            "allOnSlate": "Every one of these is already on the slate",
+            "noMatches": "Nothing in the pack matches that.",
+            "noSellCharacter": "You have no character able to sell",
+            "chooseSomething": "Choose something to sell",
+            "onlyCarried": "Only something a character is carrying can be sold.",
+            "packOf": "{name}'s pack",
+            "carriedPromised": "{held} carried, {promised} already on the slate",
+            "nothingWanted": "{name} has nothing this merchant would buy."
+        },
+        "refuse": {
+            "noTrader": "You have no character able to trade.",
+            "unnegotiated": "You have unnegotiated items on your slate. Remove them, or negotiate a price with the merchant.",
+            "notCompleted": "That could not be completed.",
+            "outOfStockNow": "That is no longer in stock.",
+            "inventoryUnavailable": "The Blacksmith inventory API is not available.",
+            "noGm": "No GM is connected, so nothing can change hands.",
+            "gmSilent": "The GM did not respond. If this keeps happening, the world may need a restart.",
+            "notAShop": "This is no longer a shop.",
+            "shopGone": "That shop is no longer on the scene.",
+            "notCarryable": "That is not something you can carry off.",
+            "notForSale": "That is not for sale.",
+            "closed": "The shop is closed. You can look, but nothing is changing hands.",
+            "needsBlacksmith": "Buying and selling are waiting on a Blacksmith update.",
+            "noPriceSet": "That has no price set.",
+            "nothingToSettle": "There is nothing to settle.",
+            "outOfStock": "That is out of stock.",
+            "coinsUncountable": "The right coins could not be counted out. Nothing moved.",
+            "shortOfCoins": "Somebody is short of the coins that were meant to change hands, and nothing moved.",
+            "paymentMismatch": "That payment did not add up. Nothing moved.",
+            "sideMissing": "One side of that trade could not be found.",
+            "moved": "That is no longer where it was.",
+            "selfTrade": "That would be trading with yourself.",
+            "duplicateLine": "That item is on the slate twice. Wipe it and try again.",
+            "nothingWasThere": "There was nothing to settle.",
+            "stockNotReduced": "The stock could not be reduced, so the goods were put back.",
+            "partial": "Something went wrong part-way and could not be undone. Tell your GM before doing anything else.",
+            "inventoryGone": "That inventory no longer exists.",
+            "nestedTooDeep": "That container is nested too deeply.",
+            "noPriceAgreedOne": "No price has been agreed for one of those.",
+            "ownPossessions": "You can only sell your own possessions.",
+            "noPermission": "You do not have permission to send requests to the GM.",
+            "gmNotAnswering": "The GM’s client is not answering shop requests. It may need a reload.",
+            "requestsUnavailable": "Shop requests are unavailable — Blacksmith may need updating.",
+            "identityUnverified": "The GM could not confirm who was asking, so nothing was done. Tell your GM.",
+            "packedContainer": "That container cannot be sold while it holds anything.",
+            "notThatCharacter": "You cannot shop as that character.",
+            "characterGone": "That character could not be found.",
+            "badAmount": "That is not a valid amount.",
+            "characterBusy": "That character is busy. Try again.",
+            "recipientFailed": "That could not be added to the recipient.",
+            "notYours": "You are selling as {name}. That belongs to somebody else.",
+            "wouldNotTake": "This merchant would not take {item}.",
+            "unpackFirst": "Unpack {item} first — a full container cannot change hands.",
+            "everyOneOnSlate": "Every {item} you have is already on the slate.",
+            "itemNotForSale": "{item} is not for sale.",
+            "itemNoPrice": "{item} has no price set.",
+            "itemOutOfStock": "{item} is out of stock.",
+            "noPriceAgreedFor": "No price has been agreed for {item}.",
+            "containerHolds": "That container holds {count} item(s) and cannot be sold as one.",
+            "shopperCannotCover": "{name} cannot cover that — {needed} needed, {held} held.",
+            "cannotAfford": "You cannot afford that — {needed} needed, {held} held.",
+            "merchantCannotCover": "The merchant cannot cover that — {needed} needed, {held} in the till.",
+            "notThatMany": "There are not that many left.",
+            "notThatManyOf": "There are not that many {item} left."
+        },
+        "stock": {
+            "unlimited": "Unlimited stock",
+            "outOfStock": "Out of stock",
+            "inStockOnSlate": "{available} in stock, {held} on your slate",
+            "inStockRestocks": "{available} in stock, restocks to {par}"
+        },
+        "price": {
+            "noPriceSetHint": "No price set — double-click to name one, or 0 to give it away",
+            "freeHint": "On the house — double-click to charge for it, or clear it to unprice it",
+            "setHint": "Double-click to set what this is worth, before markup. 0 gives it away.",
+            "noneAgreedGm": "No price agreed, and none on the books. Name one on the slate — GM only",
+            "agreedGm": "Agreed at {price} — GM only",
+            "worthGm": "No price agreed. Worth {price} on the books — GM only"
+        },
+        "cart": {
+            "allOnSlate": "Every one of these is already on your slate",
+            "shopClosed": "The shop is closed",
+            "noBuyer": "You have no character able to buy",
+            "agreeAPrice": "Add to the slate and agree a price",
+            "noPriceGm": "This has no price set — double-click the price to name one",
+            "noPrice": "This has no price set",
+            "add": "Add to the slate",
+            "allInStock": "Your slate already holds every {item} in stock.",
+            "itemOutOfStock": "{item} is out of stock."
+        },
+        "receipt": {
+            "evenTrade": "Traded evenly"
+        },
+        "common": {
+            "nothing": "nothing"
         }
     }
 }

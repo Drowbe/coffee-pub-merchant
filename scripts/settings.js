@@ -24,33 +24,33 @@ import { MerchantManager } from './manager-merchant.js';
 export const SOUND_SETTINGS = Object.freeze([
     {
         key: 'soundSlateAdd',
-        name: 'Adding to the slate',
-        hint: 'Played when something is put on the slate, to buy or to sell.'
+        nameKey: 'coffee-pub-merchant.settings.soundSlateAdd',
+        hintKey: 'coffee-pub-merchant.settings.soundSlateAddHint'
     },
     {
         key: 'soundSlateUpdate',
-        name: 'Changing a slate line',
-        hint: 'Played when a quantity or a price on the slate is changed.'
+        nameKey: 'coffee-pub-merchant.settings.soundSlateUpdate',
+        hintKey: 'coffee-pub-merchant.settings.soundSlateUpdateHint'
     },
     {
         key: 'soundSlateClear',
-        name: 'Clearing the slate',
-        hint: 'Played when a line is taken off the slate, or the whole slate is wiped.'
+        nameKey: 'coffee-pub-merchant.settings.soundSlateClear',
+        hintKey: 'coffee-pub-merchant.settings.soundSlateClearHint'
     },
     {
         key: 'soundTransaction',
-        name: 'Completing a transaction',
-        hint: 'Played when goods and coin change hands.'
+        nameKey: 'coffee-pub-merchant.settings.soundTransaction',
+        hintKey: 'coffee-pub-merchant.settings.soundTransactionHint'
     },
     {
         key: 'soundRestock',
-        name: 'Restocking',
-        hint: 'Played to the GM when an inventory or a whole shop finishes restocking.'
+        nameKey: 'coffee-pub-merchant.settings.soundRestock',
+        hintKey: 'coffee-pub-merchant.settings.soundRestockHint'
     },
     {
         key: 'soundError',
-        name: 'Something went wrong',
-        hint: 'Played when an action is refused or fails.'
+        nameKey: 'coffee-pub-merchant.settings.soundError',
+        hintKey: 'coffee-pub-merchant.settings.soundErrorHint'
     }
 ]);
 
@@ -80,9 +80,8 @@ function _label(key) {
 function registerStockingSettings() {
     for (const [type, cap] of Object.entries(STOCK_TYPE_CAPS)) {
         game.settings.register(MODULE.ID, typeCapKey(type), {
-            name: `Stock depth: ${_label(type)}`,
-            hint: `The most of one ${type} a shop stocks at once, before price and rarity are considered. `
-                + '0 means no limit from the type.',
+            name: game.i18n.format('coffee-pub-merchant.settings.stockCapType', { what: _label(type) }),
+            hint: game.i18n.format('coffee-pub-merchant.settings.stockCapTypeHint', { type }),
             scope: 'world',
             config: true,
             type: Number,
@@ -92,9 +91,8 @@ function registerStockingSettings() {
 
     for (const [rarity, cap] of Object.entries(STOCK_RARITY_CAPS)) {
         game.settings.register(MODULE.ID, rarityCapKey(rarity), {
-            name: `Stock depth: ${_label(rarity)}`,
-            hint: `The most of one ${_label(rarity).toLowerCase()} item a shop stocks at once. `
-                + '0 means no limit from the rarity.',
+            name: game.i18n.format('coffee-pub-merchant.settings.stockCapRarity', { what: _label(rarity) }),
+            hint: game.i18n.format('coffee-pub-merchant.settings.stockCapRarityHint', { rarity: _label(rarity).toLowerCase() }),
             scope: 'world',
             config: true,
             type: Number,
@@ -114,10 +112,13 @@ export function registerSettings() {
 
     const choices = soundChoices();
 
-    for (const { key, name, hint } of SOUND_SETTINGS) {
+    // **Keys in the table, text at registration.** The table is a module-scope `const`,
+    // so anything resolved in it runs before `game` exists; `registerSettings` runs on
+    // `init`, by which time it does.
+    for (const { key, nameKey, hintKey } of SOUND_SETTINGS) {
         game.settings.register(MODULE.ID, key, {
-            name,
-            hint,
+            name: game.i18n.localize(nameKey),
+            hint: game.i18n.localize(hintKey),
             scope: 'world',
             config: true,
             type: String,

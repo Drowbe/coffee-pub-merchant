@@ -34,7 +34,6 @@ Two things to read before changing anything load-bearing:
 
 | Severity | Item | Where |
 |---|---|---|
-| **Medium** | No localisation — roughly 200 hardcoded English strings | scripts and templates |
 | **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:2004` |
 
 *Standing rules*, *Ideas* and *Considered* below are not work and are not in this table.
@@ -42,27 +41,6 @@ Two things to read before changing anything load-bearing:
 ---
 
 ## 1. Couplings and gaps
-
-### Localisation — not done, and it should be
-
-**Every string in this module is hardcoded English.** `lang/en.json` is a stub and there is not a single
-`game.i18n` call in `scripts/`. This was not a decision; it is an omission that ran the whole length of the
-build without being noticed, and it is recorded here rather than quietly fixed later because the cost of
-retrofitting it grows with every string added.
-
-Scope, so nobody has to survey it twice:
-
-- Roughly 200 strings across `scripts/window-shop.js`, `scripts/window-merchant-config.js`,
-  `scripts/manager-merchant.js` (the refusal messages), and the two window templates.
-- The refusal messages are the awkward part. They are written as prose with a voice — *"That would be
-  trading with yourself"*, *"Somebody is short of the coins that were meant to change hands, and nothing
-  moved"* — and a key table tends to flatten that into labels. Whoever does this should treat keeping the
-  voice as part of the job, not as a nice-to-have.
-- Tooltips carry meaning that the control does not, so they are not optional strings.
-- `SHELF_PRESETS` names and hints, `SHOP_KINDS` labels, and `ITEM_CATEGORIES` labels are data in `const.js`
-  and want keys rather than literals.
-
-Do this **before** the next feature that adds user-facing text, not after.
 
 ## 2. Nits and known gaps
 

@@ -83,12 +83,12 @@ export function registerToastChannels() {
     toast.registerChannel(CHANNEL.TRANSACTION, {
         moduleId: MODULE.ID,
         label: 'Shop Transactions',
-        description: 'Purchases and sales completing at a merchant.'
+        description: game.i18n.localize('coffee-pub-merchant.feedback.transaction')
     });
     toast.registerChannel(CHANNEL.SHOP, {
         moduleId: MODULE.ID,
         label: 'Shop Management',
-        description: 'Restocking, stocking and other GM shop activity.'
+        description: game.i18n.localize('coffee-pub-merchant.feedback.gmActivity')
     });
 }
 

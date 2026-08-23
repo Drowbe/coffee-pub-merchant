@@ -34,7 +34,7 @@ function registerSheetControls() {
 
         controls.push({
             icon: 'fa-solid fa-shop',
-            label: 'Merchant Settings',
+            label: game.i18n.localize('coffee-pub-merchant.config.title'),
             action: 'merchantSettings',
             onClick: () => void MerchantConfigWindow.open(actor)
         });
@@ -60,7 +60,7 @@ function registerSceneControls() {
 
         controls.push({
             icon: 'fa-solid fa-scale-balanced',
-            label: 'Local Market',
+            label: game.i18n.localize('coffee-pub-merchant.market.menuLabel'),
             action: 'merchantMarket',
             onClick: () => void openMarketDialog(scene)
         });
@@ -80,27 +80,25 @@ async function openMarketDialog(scene) {
     const current = marketRate(scene);
 
     if (typeof blacksmith?.dialog?.wait !== 'function') {
-        notify.warn('The Blacksmith dialog API is unavailable.');
+        notify.warn(game.i18n.localize('coffee-pub-merchant.notify.dialogUnavailable'));
         return;
     }
 
     let chosen = current;
     const content = `
         <p class="merchant-market-blurb">
-            What goods are worth on <strong>${foundry.utils.escapeHTML(scene.name)}</strong>, whoever is
-            asking. Every merchant here prices against it, and it applies to what they pay as well as what
-            they charge &mdash; which is what makes running goods between two places worth doing.
+            ${game.i18n.format('coffee-pub-merchant.market.blurb', { scene: `<strong>${foundry.utils.escapeHTML(scene.name)}</strong>` })}
         </p>
         <div class="merchant-market-control">
             <span class="merchant-config-rate-bound">&times;${MARKET_LIMITS.min.toFixed(2)}</span>
             <input type="range" min="${MARKET_LIMITS.min}" max="${MARKET_LIMITS.max}" step="0.05"
-                   value="${current}" data-market-rate aria-label="Local market rate">
+                   value="${current}" data-market-rate aria-label="${game.i18n.localize('coffee-pub-merchant.market.sliderLabel')}">
             <span class="merchant-config-rate-bound">&times;${MARKET_LIMITS.max.toFixed(2)}</span>
         </div>
         <div class="merchant-market-readout" data-market-readout>${marketLabel(current)}</div>`;
 
     const outcome = await blacksmith.dialog.wait({
-        title: 'Local Market',
+        title: game.i18n.localize('coffee-pub-merchant.market.dialogTitle'),
         content,
         classes: ['merchant-dialog', 'merchant-market-dialog'],
         onRender: (element) => {
@@ -116,7 +114,7 @@ async function openMarketDialog(scene) {
             { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' },
             {
                 action: 'reset',
-                label: 'The going rate',
+                label: game.i18n.localize('coffee-pub-merchant.market.reset'),
                 icon: 'fa-solid fa-rotate-left',
                 callback: () => { chosen = DEFAULT_MARKET_RATE; }
             },
@@ -135,7 +133,7 @@ async function openMarketDialog(scene) {
         for (const win of ShopWindow.openWindows()) void win.render(false);
     } catch (error) {
         console.error(`${MODULE.TITLE} | Could not set the market:`, error);
-        notify.error('Could not set the market.');
+        notify.error(game.i18n.localize('coffee-pub-merchant.notify.marketFailed'));
     }
 }
 

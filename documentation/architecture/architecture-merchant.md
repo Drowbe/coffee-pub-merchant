@@ -701,7 +701,25 @@ which is the shortest document here and the one most worth reading before writin
   its own — but the drop path does merge, and it is now reliable.
 - ~~**Scheduled restocking does not reach unlinked tokens**~~ — **closed 2026-08-22.** See
   `worldMerchants()` in §4.
-- **No i18n.** Every string is hardcoded English and `lang/en.json` is a stub. See `TODO.md`.
+- ~~**No i18n**~~ — **closed 2026-08-23.** 309 keys in `lang/en.json`, and `tests/test-i18n.mjs` holds the
+  line: every key asked for exists, every key defined is asked for, one namespace, no empty values, and
+  anything containing `{placeholder}` is reached through `format` rather than `localize`.
+
+  **What is deliberately still English.** Hook descriptions passed to `BlacksmithHookManager`, and every
+  `console.warn`/`console.error`. Those are read by whoever is debugging, not by whoever is playing, and
+  translating them makes a stack trace harder to search rather than easier to read.
+
+  **`const.js` is localised at the point of display, not at definition.** It is evaluated before `game.i18n`
+  exists, so a `localize` call in `INVENTORY_TYPES` would resolve to the key or throw. The literals in the
+  table are the source text *and* the fallback; `inventoryTypeName`, `inventoryTypeHint`, `depthLabel` and
+  `depthHint` read the translation when the string is shown. A world with no translation for a type reads
+  English rather than a key, which is the failure mode worth having.
+
+  **Sentences are one key, never a concatenation.** The reputation line was three text fragments around two
+  `<strong>` interpolations; a translator got three clauses with no way to reorder them, and a language that
+  puts the effect first could not express it at all. It is now one key with `{band}` and `{effect}`, built in
+  `window-shop.js` with both values escaped before the emphasis goes on. The same rule retired four other
+  concatenations, and is why "markup" and "discount" are two keys rather than one with a switch inside it.
 - **`architecture/` was empty until 2026-08-19.** If you change how any of the above works, change this file
   in the same commit. A map that lies is worse than no map.
 

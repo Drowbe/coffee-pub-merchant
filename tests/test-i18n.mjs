@@ -27,7 +27,18 @@ const list = (dir, ext) => readdirSync(new URL(dir, root)).filter((f) => f.endsW
 
 // Keys assembled at runtime, declared here with the prefix they are built from. A key
 // in `en.json` under one of these prefixes counts as used.
-const DYNAMIC = [];
+const DYNAMIC = [
+    // `inventoryTypeName` / `inventoryTypeHint` in const.js. Assembled rather than
+    // written out because the table of types is the thing that decides which exist, and
+    // a second hand-maintained list of six keys would be a second place to forget one.
+    'coffee-pub-merchant.inventoryType.',
+    // `depthLabel` / `depthHint`, same reasoning against STOCK_DEPTH_OPTIONS.
+    'coffee-pub-merchant.depth.',
+    // `methodLabel` in window-merchant-config.js. The four restock methods are a closed
+    // set defined by `METHOD`, so the mapping lives next to it rather than being a
+    // second list to keep in step.
+    'coffee-pub-merchant.method.'
+];
 
 const files = [...list('scripts/', '.js'), ...list('templates/', '.hbs')];
 
@@ -37,7 +48,12 @@ const patterns = [
     // game.i18n.localize('key') / .format('key', {...})
     /\bi18n\s*\.\s*(?:localize|format)\s*\(\s*(['"])([^'"]+)\1/g,
     // {{localize "key"}} and {{#if (localize "key")}} alike
-    /\{\{[^}]*?\blocalize\s+(['"])([^'"]+)\1/g
+    /\{\{[^}]*?\blocalize\s+(['"])([^'"]+)\1/g,
+    // A bare literal that *is* a fully-qualified key — `nameKey: '…'`, `labelKey: '…'`.
+    // Tables that would once have held translated text now hold the key instead, because
+    // resolving it where the table is declared runs before `game` exists (see check 6).
+    // The key is genuinely in use; it is simply read one step later.
+    new RegExp(`(['"])(${MODULE}\\.[A-Za-z0-9_.]+)\\1`, 'g')
 ];
 
 for (const file of files) {
@@ -105,5 +121,77 @@ for (const key of parameterised) {
 assert.deepStrictEqual(wrongCall, [],
     `these take parameters and must be formatted, not localized:\n  ${wrongCall.join('\n  ')}`);
 console.log('ok  parameterised keys are formatted, not localized');
+
+// ---------------------------------------------------------------- 6. never at load
+// **`game` does not exist while Foundry is evaluating a module script.** A `game.i18n`
+// call that runs at evaluation throws `Cannot read properties of undefined`, and ESM
+// caches a failed evaluation — so the throw does not retry, it kills the module for the
+// whole session. This module has now been taken down that way twice: once resolving a
+// base class from `module.api`, and once by a `const METHOD_LABELS = { ... }` holding
+// already-translated strings.
+//
+// The rule is simple and this check enforces it: **anything that reads `game` lives
+// inside a function.** A table holds keys; the text is resolved when it is shown.
+//
+// Walks a real scope stack rather than matching indentation, because the two cases that
+// bit were a top-level object literal and a `static` class field — both of which look
+// like ordinary indented code.
+function stripLiterals(source) {
+    // Replace string, template and comment bodies with spaces so their braces and
+    // parentheses cannot move the scope stack. Length is preserved so line numbers hold.
+    let out = '';
+    let i = 0;
+    const blank = (n) => ' '.repeat(n);
+    while (i < source.length) {
+        const two = source.slice(i, i + 2);
+        if (two === '//') {
+            const end = source.indexOf('\n', i);
+            const stop = end === -1 ? source.length : end;
+            out += blank(stop - i);
+            i = stop;
+        } else if (two === '/*') {
+            const end = source.indexOf('*/', i + 2);
+            const stop = end === -1 ? source.length : end + 2;
+            out += source.slice(i, stop).replace(/[^\n]/g, ' ');
+            i = stop;
+        } else if (source[i] === "'" || source[i] === '"' || source[i] === '`') {
+            const quote = source[i];
+            let j = i + 1;
+            while (j < source.length && source[j] !== quote) j += source[j] === '\\' ? 2 : 1;
+            out += quote + source.slice(i + 1, j).replace(/[^\n]/g, ' ') + (source[j] ?? '');
+            i = j + 1;
+        } else {
+            out += source[i];
+            i += 1;
+        }
+    }
+    return out;
+}
+
+const atLoad = [];
+for (const file of files.filter((f) => f.endsWith('.js'))) {
+    const source = read(file);
+    const code = stripLiterals(source);
+    const stack = [];   // true for a function body, false for anything else
+    for (let i = 0; i < code.length; i++) {
+        const ch = code[i];
+        if (ch === '{') {
+            // A function body is a `{` whose nearest non-space predecessor closes a
+            // parameter list or an arrow. Everything else — object literals, class
+            // bodies, static fields — is evaluated when the module is.
+            const before = code.slice(0, i).replace(/\s+$/, '');
+            stack.push(before.endsWith(')') || before.endsWith('=>'));
+        } else if (ch === '}') {
+            stack.pop();
+        } else if (code.startsWith('game.', i) && !stack.some(Boolean)) {
+            const line = source.slice(0, i).split('\n').length;
+            atLoad.push(`${file}:${line}  ${source.split('\n')[line - 1].trim().slice(0, 70)}`);
+            i += 4;
+        }
+    }
+}
+assert.deepStrictEqual(atLoad, [],
+    'these read `game` while the module is being evaluated, before it exists:\n  ' + atLoad.join('\n  '));
+console.log('ok  nothing reads `game` at module evaluation');
 
 console.log('\nall i18n checks passed');

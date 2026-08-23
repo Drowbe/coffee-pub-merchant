@@ -319,8 +319,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             this._reputationEffect = effect;
             this._reputationLine = band ? `${band} · ${effect}` : effect;
             this._reputationTooltip = this._reputation < 1
-                ? 'You are thought well of here, so this shop treats you better — on what you buy and on what it pays you.'
-                : 'You are poorly thought of here, so this shop charges you more and pays you less.';
+                ? game.i18n.localize('coffee-pub-merchant.reputation.good')
+                : game.i18n.localize('coffee-pub-merchant.reputation.bad');
         }
         return this._reputation;
     }
@@ -384,7 +384,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.pickActor !== 'function') {
-            notify.warn('The Blacksmith actor picker is unavailable.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.pickerUnavailable'));
             return;
         }
 
@@ -393,7 +393,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             actors: options,
             confirmLabel: 'Select',
             confirmIcon: 'fa-solid fa-user-check',
-            emptyMessage: 'No character here can shop.'
+            emptyMessage: game.i18n.localize('coffee-pub-merchant.shop.noShopper')
         });
         if (picked) this.setRecipient(picked);
     }
@@ -411,7 +411,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             await operation();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Shop action failed:`, error);
-            notify.error('That could not be completed.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.refuse.notCompleted'));
         } finally {
             this.busy = false;
             this.element?.classList.remove('merchant-shop-busy');
@@ -440,7 +440,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const token = await this._resolveToken();
         const item = token?.actor?.items?.get(itemId);
         if (!item) {
-            notify.warn('That is no longer in stock.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.outOfStockNow'));
             return null;
         }
         return { item, token };
@@ -480,15 +480,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static SELL_SORTS = [
         {
             key: 'price', icon: 'fa-solid fa-arrow-down-9-1',
-            label: 'Most valuable first', grouped: false
+            labelKey: 'coffee-pub-merchant.sort.value', grouped: false
         },
         {
             key: 'name', icon: 'fa-solid fa-arrow-down-a-z',
-            label: 'By name', grouped: false
+            labelKey: 'coffee-pub-merchant.sort.name', grouped: false
         },
         {
             key: 'category', icon: 'fa-solid fa-layer-group',
-            label: 'By kind, then name', grouped: true
+            labelKey: 'coffee-pub-merchant.sort.category', grouped: true
         }
     ];
 
@@ -532,13 +532,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!seller || !buyback) {
             return {
                 open: true,
-                title: seller ? `${seller.name}'s pack` : 'Your pack',
+                title: seller ? game.i18n.format('coffee-pub-merchant.sell.packOf', { name: seller.name }) : game.i18n.localize('coffee-pub-merchant.sell.yourPack'),
                 count: 0,
                 hasItems: false,
                 search: this._sellSearch ?? '',
                 sortIcon: sort.icon,
-                sortTooltip: `Sorted: ${sort.label}. Click to change.`,
-                emptyMessage: buyback ? 'No character able to sell.' : 'This merchant does not buy anything.'
+                sortTooltip: game.i18n.format('coffee-pub-merchant.sort.tooltip', { how: game.i18n.localize(sort.labelKey) }),
+                emptyMessage: buyback ? game.i18n.localize('coffee-pub-merchant.sell.noSeller') : game.i18n.localize('coffee-pub-merchant.sell.merchantBuysNothing')
             };
         }
 
@@ -575,7 +575,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     canPrice: false,
                     qtyLabel: String(left),
                     qtyTooltip: promised
-                        ? `${held} carried, ${promised} already on the slate`
+                        ? game.i18n.format('coffee-pub-merchant.sell.carriedPromised', { held, promised })
                         : `${held} carried`,
                     outOfStock: left < 1,
                     reserved: left < 1 && promised > 0,
@@ -584,8 +584,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     canRemove: false,
                     addAction: 'addToBasketRow',
                     cartTooltip: left > 0
-                        ? 'Put it on the slate to sell'
-                        : 'Every one of these is already on the slate'
+                        ? game.i18n.localize('coffee-pub-merchant.sell.addTooltip')
+                        : game.i18n.localize('coffee-pub-merchant.sell.allOnSlate')
                 };
             })
             .filter((row) => !query || row.searchKey.includes(query));
@@ -618,16 +618,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         return {
             open: true,
-            title: `${seller.name}'s pack`,
+            title: game.i18n.format('coffee-pub-merchant.sell.packOf', { name: seller.name }),
             count: rows.length,
             hasItems: rows.length > 0,
             groups,
             search: this._sellSearch ?? '',
             sortIcon: sort.icon,
-            sortTooltip: `Sorted: ${sort.label}. Click to change.`,
+            sortTooltip: game.i18n.format('coffee-pub-merchant.sort.tooltip', { how: game.i18n.localize(sort.labelKey) }),
             emptyMessage: query
-                ? 'Nothing in the pack matches that.'
-                : `${seller.name} has nothing this merchant would buy.`
+                ? game.i18n.localize('coffee-pub-merchant.sell.noMatches')
+                : game.i18n.format('coffee-pub-merchant.sell.nothingWanted', { name: seller.name })
         };
     }
 
@@ -677,8 +677,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     entry.userName && entry.userName !== entry.name
                         ? `${entry.userName}, as ${entry.name}`
                         : entry.name,
-                    lines ? `${lines} on the slate` : 'browsing',
-                    actor ? 'Click to take the slate over.' : null
+                    lines ? game.i18n.format('coffee-pub-merchant.slate.linesBadge', { count: lines }) : 'browsing',
+                    actor ? game.i18n.localize('coffee-pub-merchant.slate.takeOver') : null
                 ].filter(Boolean).join(' — ')
             });
         }
@@ -887,8 +887,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const inCart = this.cart.get(itemId) ?? 0;
         if (this._maxFor(context.token?.actor, context.item) < 1) {
             notify.warn(inCart
-                ? `Your slate already holds every ${context.item.name} in stock.`
-                : `${context.item.name} is out of stock.`);
+                ? game.i18n.format('coffee-pub-merchant.cart.allInStock', { item: context.item.name })
+                : game.i18n.format('coffee-pub-merchant.cart.itemOutOfStock', { item: context.item.name }));
             return;
         }
 
@@ -936,20 +936,20 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         await this._refreshReputation();
         const [cart, basket] = await Promise.all([this._cartLines(), this._basketLines()]);
         if (!cart.length && !basket.length) {
-            notify.info('There is nothing on the slate yet.');
+            notify.info(game.i18n.localize('coffee-pub-merchant.slate.empty'));
             return;
         }
 
         const shopper = this.recipient;
         if (!shopper) {
-            notify.warn('You have no character able to trade.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.noTrader'));
             return;
         }
 
         const unagreed = [...cart, ...basket].filter((line) => line.total === null);
         if (unagreed.length) {
             notify.warn(
-                'You have unnegotiated items on your slate. Remove them, or negotiate a price with the merchant.'
+                game.i18n.localize('coffee-pub-merchant.refuse.unnegotiated')
             );
             return;
         }
@@ -962,8 +962,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // than from a refusal. The GM re-checks regardless.
         if (net > 0 && !planSettlement(shopper.system?.currency ?? {}, net)) {
             notify.warn(
-                `${shopper.name} cannot cover that \u2014 ${formatBase(net)} needed, `
-                + `${purseValue(shopper) ? formatBase(purseValue(shopper)) : 'nothing'} held.`
+                game.i18n.format('coffee-pub-merchant.refuse.shopperCannotCover', {
+                    name: shopper.name,
+                    needed: formatBase(net),
+                    held: purseValue(shopper)
+                        ? formatBase(purseValue(shopper))
+                        : game.i18n.localize('coffee-pub-merchant.common.nothing')
+                })
             );
             return;
         }
@@ -974,7 +979,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 sell: basket.map((line) => ({ itemId: line.id, quantity: line.quantity })),
                 shopperUuid: shopper.uuid
             },
-            { label: 'Settling up' }
+            { label: game.i18n.localize('coffee-pub-merchant.progress.settlingUp') }
         );
 
         if (result?.ok) {
@@ -996,7 +1001,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             notify.receipt(
                 net > 0 ? `Paid ${formatBase(net)}`
                     : net < 0 ? `Received ${formatBase(-net)}`
-                        : 'Traded evenly',
+                        : game.i18n.localize('coffee-pub-merchant.receipt.evenTrade'),
                 `${shopper.name} at ${shopName}`
                 + (moved ? ` — ${moved}` : '')
             );
@@ -1069,14 +1074,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _negotiateHint(merchantConfig, item, agreedPrice) {
         const agreed = negotiatedPrice(merchantConfig, item?.id);
-        if (agreed !== null) return `Agreed at ${formatBase(agreed)} — GM only`;
+        if (agreed !== null) return game.i18n.format('coffee-pub-merchant.price.agreedGm', { price: formatBase(agreed) });
 
         const price = item?.system?.price;
         const listed = Number.isFinite(Number(price?.value))
             ? toBase(Number(price.value), price.denomination ?? 'gp')
             : null;
-        if (listed) return `No price agreed. Worth ${formatBase(listed)} on the books — GM only`;
-        return 'No price agreed, and none on the books. Name one on the slate — GM only';
+        if (listed) return game.i18n.format('coffee-pub-merchant.price.worthGm', { price: formatBase(listed) });
+        return game.i18n.localize('coffee-pub-merchant.price.noneAgreedGm');
     }
 
     /** What the merchant would pay for this, or null if no price has been agreed. */
@@ -1111,11 +1116,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!item || !seller || !buyback) return;
 
         if (item.parent?.uuid !== seller.uuid) {
-            notify.warn(`You are selling as ${seller.name}. That belongs to somebody else.`);
+            notify.warn(game.i18n.format('coffee-pub-merchant.refuse.notYours', { name: seller.name }));
             return;
         }
         if (!this._wouldTake(item)) {
-            notify.warn(`This merchant would not take ${item.name}.`);
+            notify.warn(game.i18n.format('coffee-pub-merchant.refuse.wouldNotTake', { item: item.name }));
             return;
         }
         // Refused in front of the quantity dialog rather than after it: dnd5e keeps
@@ -1124,14 +1129,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const packed = item.type === 'container'
             && (item.parent?.items?.filter((child) => child.system?.container === item.id).length ?? 0) > 0;
         if (packed) {
-            notify.warn(`Unpack ${item.name} first \u2014 a full container cannot change hands.`);
+            notify.warn(game.i18n.format('coffee-pub-merchant.refuse.unpackFirst', { item: item.name }));
             return;
         }
 
         const held = this.basket.get(item.id) ?? 0;
         const available = Number(item.system?.quantity ?? 1);
         if ((Number.isFinite(available) ? available : 1) - held < 1) {
-            notify.warn(`Every ${item.name} you have is already on the slate.`);
+            notify.warn(game.i18n.format('coffee-pub-merchant.refuse.everyOneOnSlate', { item: item.name }));
             return;
         }
 
@@ -1203,75 +1208,83 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     _explain(code, result) {
         switch (code) {
-            case 'INVENTORY_UNAVAILABLE': return 'The Blacksmith inventory API is not available.';
-            case 'NO_ACTIVE_GM': return 'No GM is connected, so nothing can change hands.';
-            case 'TIMEOUT': return 'The GM did not respond. If this keeps happening, the world may need a restart.';
-            case 'NOT_A_MERCHANT': return 'This is no longer a shop.';
-            case 'MERCHANT_NOT_FOUND': return 'That shop is no longer on the scene.';
-            case 'ITEM_NOT_FOUND': return 'That is no longer in stock.';
-            case 'ITEM_NOT_TRANSFERABLE': return 'That is not something you can carry off.';
+            case 'INVENTORY_UNAVAILABLE': return game.i18n.localize('coffee-pub-merchant.refuse.inventoryUnavailable');
+            case 'NO_ACTIVE_GM': return game.i18n.localize('coffee-pub-merchant.refuse.noGm');
+            case 'TIMEOUT': return game.i18n.localize('coffee-pub-merchant.refuse.gmSilent');
+            case 'NOT_A_MERCHANT': return game.i18n.localize('coffee-pub-merchant.refuse.notAShop');
+            case 'MERCHANT_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.shopGone');
+            case 'ITEM_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.outOfStockNow');
+            case 'ITEM_NOT_TRANSFERABLE': return game.i18n.localize('coffee-pub-merchant.refuse.notCarryable');
             case 'NOT_FOR_SALE': return result?.itemName
-                ? `${result.itemName} is not for sale.`
-                : 'That is not for sale.';
-            case 'SHOP_CLOSED': return 'The shop is closed. You can look, but nothing is changing hands.';
-            case 'EXCHANGE_UNAVAILABLE': return 'Buying and selling are waiting on a Blacksmith update.';
-            case 'CANNOT_AFFORD': return `You cannot afford that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} held.`;
+                ? game.i18n.format('coffee-pub-merchant.refuse.itemNotForSale', { item: result.itemName })
+                : game.i18n.localize('coffee-pub-merchant.refuse.notForSale');
+            case 'SHOP_CLOSED': return game.i18n.localize('coffee-pub-merchant.refuse.closed');
+            case 'EXCHANGE_UNAVAILABLE': return game.i18n.localize('coffee-pub-merchant.refuse.needsBlacksmith');
+            case 'CANNOT_AFFORD': return game.i18n.format('coffee-pub-merchant.refuse.cannotAfford', {
+                needed: formatBase(result?.price),
+                held: result?.held ? formatBase(result.held) : game.i18n.localize('coffee-pub-merchant.common.nothing')
+            });
             // `formatBase` renders nothing as an em dash, which is right in a price
             // column and reads as a missing word in a sentence.
-            case 'MERCHANT_CANNOT_AFFORD': return `The merchant cannot cover that \u2014 ${formatBase(result?.price)} needed, ${result?.held ? formatBase(result.held) : 'nothing'} in the till.`;
+            case 'MERCHANT_CANNOT_AFFORD': return game.i18n.format('coffee-pub-merchant.refuse.merchantCannotCover', {
+                needed: formatBase(result?.price),
+                held: result?.held ? formatBase(result.held) : game.i18n.localize('coffee-pub-merchant.common.nothing')
+            });
             case 'NOT_PRICED': return result?.itemName
-                ? `${result.itemName} has no price set.`
-                : 'That has no price set.';
-            case 'NOTHING_TO_SETTLE': return 'There is nothing to settle.';
+                ? game.i18n.format('coffee-pub-merchant.refuse.itemNoPrice', { item: result.itemName })
+                : game.i18n.localize('coffee-pub-merchant.refuse.noPriceSet');
+            case 'NOTHING_TO_SETTLE': return game.i18n.localize('coffee-pub-merchant.refuse.nothingToSettle');
             case 'OUT_OF_STOCK': return result?.itemName
-                ? `${result.itemName} is out of stock.`
-                : 'That is out of stock.';
+                ? game.i18n.format('coffee-pub-merchant.refuse.itemOutOfStock', { item: result.itemName })
+                : game.i18n.localize('coffee-pub-merchant.refuse.outOfStock');
             case 'INSUFFICIENT_STOCK': return `Only ${result?.available ?? 0} left${result?.itemName ? ` of ${result.itemName}` : ''}.`;
-            case 'INSUFFICIENT_QUANTITY': return `There are not that many left${result?.itemName ? ` of ${result.itemName}` : ''}.`;
+            case 'INSUFFICIENT_QUANTITY': return result?.itemName
+                ? game.i18n.format('coffee-pub-merchant.refuse.notThatManyOf', { item: result.itemName })
+                : game.i18n.localize('coffee-pub-merchant.refuse.notThatMany');
             // Not the player's fault and not something they can work around: the
             // coins they hand over are chosen for them, smallest first. Say whose
             // problem it is.
             // `NO_CHANGE` is gone: money now moves as one exact leg, with the payer
             // re-cutting their own coins if they must, so there is no change for
             // anybody to be unable to make.
-            case 'CANNOT_MAKE_CHANGE': return 'The right coins could not be counted out. Nothing moved.';
-            case 'INSUFFICIENT_CURRENCY': return 'Somebody is short of the coins that were meant to change hands, and nothing moved.';
-            case 'INVALID_CURRENCY': return 'That payment did not add up. Nothing moved.';
+            case 'CANNOT_MAKE_CHANGE': return game.i18n.localize('coffee-pub-merchant.refuse.coinsUncountable');
+            case 'INSUFFICIENT_CURRENCY': return game.i18n.localize('coffee-pub-merchant.refuse.shortOfCoins');
+            case 'INVALID_CURRENCY': return game.i18n.localize('coffee-pub-merchant.refuse.paymentMismatch');
             case 'SOURCE_ACTOR_NOT_FOUND':
-            case 'TARGET_ACTOR_NOT_FOUND': return 'One side of that trade could not be found.';
-            case 'SOURCE_ITEM_NOT_FOUND': return 'That is no longer where it was.';
-            case 'SAME_ACTOR': return 'That would be trading with yourself.';
-            case 'DUPLICATE_ITEM': return 'That item is on the slate twice. Wipe it and try again.';
-            case 'EXCHANGE_EMPTY': return 'There was nothing to settle.';
+            case 'TARGET_ACTOR_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.sideMissing');
+            case 'SOURCE_ITEM_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.moved');
+            case 'SAME_ACTOR': return game.i18n.localize('coffee-pub-merchant.refuse.selfTrade');
+            case 'DUPLICATE_ITEM': return game.i18n.localize('coffee-pub-merchant.refuse.duplicateLine');
+            case 'EXCHANGE_EMPTY': return game.i18n.localize('coffee-pub-merchant.refuse.nothingWasThere');
             // The doc asks for these to be surfaced rather than swallowed: whether
             // the row was created or grown, and by how much, is what a GM needs to
             // repair the state by hand.
-            case 'SOURCE_UPDATE_FAILED': return 'The stock could not be reduced, so the goods were put back.';
-            case 'ROLLBACK_FAILED': return 'Something went wrong part-way and could not be undone. Tell your GM before doing anything else.';
-            case 'CONTAINER_NOT_FOUND': return 'That inventory no longer exists.';
-            case 'CONTAINER_MAX_DEPTH': return 'That container is nested too deeply.';
+            case 'SOURCE_UPDATE_FAILED': return game.i18n.localize('coffee-pub-merchant.refuse.stockNotReduced');
+            case 'ROLLBACK_FAILED': return game.i18n.localize('coffee-pub-merchant.refuse.partial');
+            case 'CONTAINER_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.inventoryGone');
+            case 'CONTAINER_MAX_DEPTH': return game.i18n.localize('coffee-pub-merchant.refuse.nestedTooDeep');
             case 'NOT_NEGOTIATED': return result?.itemName
-                ? `No price has been agreed for ${result.itemName}.`
-                : 'No price has been agreed for one of those.';
-            case 'NO_PURCHASED_INVENTORY': return 'This merchant does not buy anything.';
-            case 'NOT_YOUR_ITEM': return 'You can only sell your own possessions.';
-            case 'NO_QUERY_PERMISSION': return 'You do not have permission to send requests to the GM.';
+                ? game.i18n.format('coffee-pub-merchant.refuse.noPriceAgreedFor', { item: result.itemName })
+                : game.i18n.localize('coffee-pub-merchant.refuse.noPriceAgreedOne');
+            case 'NO_PURCHASED_INVENTORY': return game.i18n.localize('coffee-pub-merchant.sell.merchantBuysNothing');
+            case 'NOT_YOUR_ITEM': return game.i18n.localize('coffee-pub-merchant.refuse.ownPossessions');
+            case 'NO_QUERY_PERMISSION': return game.i18n.localize('coffee-pub-merchant.refuse.noPermission');
             // The envelope's own codes. `IDENTITY_UNVERIFIED` is a refusal to report
             // rather than work around: it means the GM's client could not establish who
             // asked, and answering from a claimed identity would be worse than not
             // answering. It is a Blacksmith problem, and saying so is the whole job.
-            case 'UNKNOWN_OP': return 'The GM’s client is not answering shop requests. It may need a reload.';
-            case 'QUERY_UNAVAILABLE': return 'Shop requests are unavailable — Blacksmith may need updating.';
-            case 'IDENTITY_UNVERIFIED': return 'The GM could not confirm who was asking, so nothing was done. Tell your GM.';
+            case 'UNKNOWN_OP': return game.i18n.localize('coffee-pub-merchant.refuse.gmNotAnswering');
+            case 'QUERY_UNAVAILABLE': return game.i18n.localize('coffee-pub-merchant.refuse.requestsUnavailable');
+            case 'IDENTITY_UNVERIFIED': return game.i18n.localize('coffee-pub-merchant.refuse.identityUnverified');
             case 'CONTAINER_HAS_CONTENTS': return Number.isFinite(result?.contentCount)
-                ? `That container holds ${result.contentCount} item${result.contentCount === 1 ? '' : 's'} and cannot be sold as one.`
-                : 'That container cannot be sold while it holds anything.';
-            case 'RECIPIENT_NOT_ALLOWED': return 'You cannot shop as that character.';
-            case 'RECIPIENT_NOT_FOUND': return 'That character could not be found.';
-            case 'INVALID_QUANTITY': return 'That is not a valid amount.';
-            case 'LOCK_TIMEOUT': return 'That character is busy. Try again.';
-            case 'TARGET_CREATE_FAILED': return 'That could not be added to the recipient.';
-            default: return 'That could not be completed.';
+                ? game.i18n.format('coffee-pub-merchant.refuse.containerHolds', { count: result.contentCount })
+                : game.i18n.localize('coffee-pub-merchant.refuse.packedContainer');
+            case 'RECIPIENT_NOT_ALLOWED': return game.i18n.localize('coffee-pub-merchant.refuse.notThatCharacter');
+            case 'RECIPIENT_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.characterGone');
+            case 'INVALID_QUANTITY': return game.i18n.localize('coffee-pub-merchant.refuse.badAmount');
+            case 'LOCK_TIMEOUT': return game.i18n.localize('coffee-pub-merchant.refuse.characterBusy');
+            case 'TARGET_CREATE_FAILED': return game.i18n.localize('coffee-pub-merchant.refuse.recipientFailed');
+            default: return game.i18n.localize('coffee-pub-merchant.refuse.notCompleted');
         }
     }
 
@@ -1365,10 +1378,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // policies.
                         qtyLabel: stock.unlimited ? '\u221e' : String(left),
                         qtyTooltip: stock.unlimited
-                            ? 'Unlimited stock'
+                            ? game.i18n.localize('coffee-pub-merchant.stock.unlimited')
                             : (held
-                                ? `${stock.available} in stock, ${held} on your slate`
-                                : (out ? 'Out of stock' : `${stock.available} in stock, restocks to ${stock.par}`)),
+                                ? game.i18n.format('coffee-pub-merchant.stock.inStockOnSlate', { available: stock.available, held })
+                                : (out ? game.i18n.localize('coffee-pub-merchant.stock.outOfStock') : game.i18n.format('coffee-pub-merchant.stock.inStockRestocks', { available: stock.available, par: stock.par }))),
                         outOfStock: out && !allInCart,
                         reserved: allInCart,
                         // A GM sets the count by hand here, and that also sets what a
@@ -1383,23 +1396,23 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // pressing Enter quietly baked this shop's markup into the item.
                         priceEach: listPrice === null ? '' : fromBase(listPrice, 'gp'),
                         listPriceTooltip: price === null
-                            ? 'No price set — double-click to name one, or 0 to give it away'
+                            ? game.i18n.localize('coffee-pub-merchant.price.noPriceSetHint')
                             : price === 0
-                                ? 'On the house — double-click to charge for it, or clear it to unprice it'
-                                : 'Double-click to set what this is worth, before markup. 0 gives it away.',
+                                ? game.i18n.localize('coffee-pub-merchant.price.freeHint')
+                                : game.i18n.localize('coffee-pub-merchant.price.setHint'),
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
-                        cartTooltip: allInCart ? 'Every one of these is already on your slate'
-                            : out ? 'Out of stock'
-                            : !trading ? 'The shop is closed'
-                            : !recipient ? 'You have no character able to buy'
-                            : (price === null && isUnpricedInventory) ? 'Add to the slate and agree a price'
+                        cartTooltip: allInCart ? game.i18n.localize('coffee-pub-merchant.cart.allOnSlate')
+                            : out ? game.i18n.localize('coffee-pub-merchant.stock.outOfStock')
+                            : !trading ? game.i18n.localize('coffee-pub-merchant.cart.shopClosed')
+                            : !recipient ? game.i18n.localize('coffee-pub-merchant.cart.noBuyer')
+                            : (price === null && isUnpricedInventory) ? game.i18n.localize('coffee-pub-merchant.cart.agreeAPrice')
                             : price === null ? (isGM
-                                ? 'This has no price set — double-click the price to name one'
-                                : 'This has no price set')
-                            : 'Add to the slate',
+                                ? game.i18n.localize('coffee-pub-merchant.cart.noPriceGm')
+                                : game.i18n.localize('coffee-pub-merchant.cart.noPrice'))
+                            : game.i18n.localize('coffee-pub-merchant.cart.add'),
                         // A negotiate row has no price *yet*, which is not the same
                         // as having none. It goes on the slate at TBD and settling
                         // is what waits for the number.
@@ -1507,10 +1520,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 canPrice: game.user.isGM,
                 priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
                 priceTooltip: line.unit === null
-                    ? 'Double-click to set the agreed price, each, in gp. 0 gives it away.'
+                    ? game.i18n.localize('coffee-pub-merchant.slate.tbdPrompt')
                     : (line.unit === 0
-                        ? 'On the house — double-click to charge for it'
-                        : `${formatBase(line.unit)} each — double-click to change it`),
+                        ? game.i18n.localize('coffee-pub-merchant.slate.freePrompt')
+                        : game.i18n.format('coffee-pub-merchant.slate.eachChange', { price: formatBase(line.unit) })),
                 side: 'cart',
                 removeAction: 'removeFromCart'
             })),
@@ -1540,8 +1553,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 canPrice: game.user.isGM,
                 priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
                 priceTooltip: line.unit === null
-                    ? 'Double-click to set the agreed price, each, in gp'
-                    : `${formatBase(line.unit)} each — double-click to change it`,
+                    ? game.i18n.localize('coffee-pub-merchant.slate.agreePrompt')
+                    : game.i18n.format('coffee-pub-merchant.slate.eachChange', { price: formatBase(line.unit) }),
                 side: 'basket',
                 removeAction: 'removeFromBasket'
             })),
@@ -1551,8 +1564,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // The buyback inventory existing is what "this shop buys things" means.
             canSell: !missing && Boolean(this._purchasedInventory(merchant)),
             sellTooltip: !recipient
-                ? 'You have no character able to sell'
-                : 'Choose something to sell',
+                ? game.i18n.localize('coffee-pub-merchant.sell.noSellCharacter')
+                : game.i18n.localize('coffee-pub-merchant.sell.chooseSomething'),
             sellEnabled: !missing && Boolean(recipient)
                 && (MerchantManager.isOpen(merchant) || game.user.isGM)
                 && MerchantManager.getInventories(merchant, { includeHidden: true }).some(({ config }) => isPurchased(config.type)),
@@ -1574,10 +1587,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // rather than discovering it in the confirm.
         const hasAnything = cartLines.length > 0 || basketLines.length > 0;
         const net = cartTotal - basketTotal;
-        const settleTooltip = !hasAnything ? 'Nothing on the slate yet'
-            : net > 0 ? `You pay ${formatBase(net)}`
-                : net < 0 ? `You receive ${formatBase(-net)}`
-                    : 'An even trade';
+        const settleTooltip = !hasAnything ? game.i18n.localize('coffee-pub-merchant.slate.nothingYet')
+            : net > 0 ? game.i18n.format('coffee-pub-merchant.slate.youPay', { amount: formatBase(net) })
+                : net < 0 ? game.i18n.format('coffee-pub-merchant.slate.youReceive', { amount: formatBase(-net) })
+                    : game.i18n.localize('coffee-pub-merchant.slate.evenTrade');
 
         return {
             appId: this.id,
@@ -1595,7 +1608,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             toolFooterRight: `
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-clear"
                         data-action="clearAll" ${hasAnything ? '' : 'disabled'}
-                        data-tooltip="Take everything off the slate">
+                        data-tooltip="${game.i18n.localize('coffee-pub-merchant.slate.clearTooltip')}">
                     <i class="fa-solid fa-trash"></i> Clear Slate
                 </button>
                 <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
@@ -1663,7 +1676,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager._broadcastRefresh(this.tokenUuid);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change that inventory:`, error);
-            notify.error('Could not change that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryChangeFailed'));
         }
     }
 
@@ -2006,7 +2019,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 MerchantManager.broadcastActorRefresh(merchant);
             } catch (error) {
                 console.error(`${MODULE.TITLE} | Could not set that price:`, error);
-                notify.error('Could not set that price.');
+                notify.error(game.i18n.localize('coffee-pub-merchant.notify.priceSetFailed'));
             }
             return;
         }
@@ -2022,7 +2035,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             playFeedback(SOUND.SLATE_UPDATE);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not agree that price:`, error);
-            notify.error('Could not agree that price.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.priceAgreeFailed'));
         }
     }
 
@@ -2053,15 +2066,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // re-typing it, so say what happened and where the limit lives.
             if (result?.clamped) {
                 notify.info(
-                    `This inventory holds at most ${result.maxPerItem} of any one thing, so that is ${result.value}. `
-                    + 'Raise the inventory’s "each" limit in Merchant Settings to keep more.'
+                    game.i18n.format('coffee-pub-merchant.notify.clampedToMaxStack', {
+                        max: result.maxPerItem,
+                        value: result.value
+                    })
                 );
             }
             playFeedback(SOUND.SLATE_UPDATE);
             MerchantManager.broadcastActorRefresh(merchant);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set that quantity:`, error);
-            notify.error('Could not set that quantity.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.quantityFailed'));
         }
     }
 
@@ -2172,7 +2187,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // A compendium or sidebar item has no owner to take it from. Only something
         // actually on a character can be sold.
         if (!item?.parent?.uuid) {
-            notify.warn('Only something a character is carrying can be sold.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.sell.onlyCarried'));
             return;
         }
         await this.addToBasket(item);
@@ -2260,11 +2275,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             if (filled) playFeedback(SOUND.RESTOCK);
             bar.finish(filled
                 ? `Restocked ${filled} item${filled === 1 ? '' : 's'} on ${inventoryName}.`
-                : `${inventoryName} had nothing to restock.`);
+                : game.i18n.format('coffee-pub-merchant.notify.nothingToRestock', { inventory: inventoryName }));
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
-            bar.finish('Could not restock that inventory.');
-            notify.error('Could not restock that inventory.');
+            bar.finish(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
         }
     }
 
@@ -2284,7 +2299,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const count = MerchantManager.getInventoryContents(merchant, inventory).length;
         if (!count) {
-            notify.info(`${inventory.name} is already empty.`);
+            notify.info(game.i18n.format('coffee-pub-merchant.notify.alreadyEmpty', { inventory: inventory.name }));
             return;
         }
 
@@ -2307,7 +2322,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${inventory.name}.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clear that inventory:`, error);
-            notify.error('Could not clear that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.clearFailed'));
         }
     }
 
@@ -2331,7 +2346,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             else notify.error(this._explain(result?.code, result));
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that to the inventory:`, error);
-            notify.error('Could not add that to the inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.addToInventoryFailed'));
         }
         await this.render(false);
     }
@@ -2355,7 +2370,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!game.user.isGM) return;
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.openWindow !== 'function') {
-            notify.warn('Blacksmith compendium search is unavailable.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.compendiumUnavailable'));
             return;
         }
         await blacksmith.openWindow('blacksmith-compendium-search');
@@ -2372,7 +2387,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             MerchantManager._broadcastRefresh(this.tokenUuid);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change the shop state:`, error);
-            notify.error('Could not change the shop state.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.shopStateFailed'));
         }
     }
 
@@ -2390,7 +2405,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // PrototypeToken is a DataModel with no `sheet` getter, so `prototype.sheet`
         // optional-chains into silence. This is how core opens it.
         if (!prototype || !sheetClass) {
-            notify.warn('This merchant has no prototype token.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.noPrototypeToken'));
             return;
         }
         new sheetClass({ prototype }).render(true);

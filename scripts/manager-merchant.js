@@ -1077,16 +1077,16 @@ export class MerchantManager {
                     console.error(`${MODULE.TITLE} | Could not roll ${table.name}:`, error);
                     // The rolls this table will not now make are still owed to the
                     // bar, or it stops short of its own end.
-                    for (let owed = i; owed < entry.rolls; owed++) step(`Rolling ${table.name}`);
+                    for (let owed = i; owed < entry.rolls; owed++) step(game.i18n.format('coffee-pub-merchant.progress.rolling', { table: table.name }));
                     break;
                 }
                 for (const result of results) {
                     if (result?.documentUuid) drawn.push(result.documentUuid);
                 }
-                step(`Rolling ${table.name} — ${i + 1} of ${entry.rolls}`);
+                step(game.i18n.format('coffee-pub-merchant.progress.rollingOf', { table: table.name, done: i + 1, total: entry.rolls }));
             }
         }
-        if (!drawn.length) { step(`Nothing rolled for ${inventory.name}`); return 0; }
+        if (!drawn.length) { step(game.i18n.format('coffee-pub-merchant.progress.nothingRolled', { inventory: inventory.name })); return 0; }
 
         // Resolved once per distinct uuid: several tables rolling the same row should
         // cost one lookup, and only physical items can sit on an inventory.
@@ -1103,8 +1103,8 @@ export class MerchantManager {
         }
 
         const items = this._withinLimits(actor, inventory, drawn, resolved);
-        if (!items.length) { step(`${inventory.name} is full`); return 0; }
-        step(`Stocking ${inventory.name}`);
+        if (!items.length) { step(game.i18n.format('coffee-pub-merchant.progress.inventoryFull', { inventory: inventory.name })); return 0; }
+        step(game.i18n.format('coffee-pub-merchant.progress.stocking', { inventory: inventory.name }));
 
         // One call for every table on the inventory, so the same potion rolled by two of
         // them lands as one row of two — see grantItems.
@@ -1143,9 +1143,7 @@ export class MerchantManager {
                     + 'from its source, so a compendium entry\'s own quantity is not a ceiling — update '
                     + 'Coffee Pub Blacksmith and restock again.'
                 );
-                notify.error(
-                    'Stock could not be delivered because Coffee Pub Blacksmith is out of date. Update it and restock.'
-                );
+                notify.error(game.i18n.localize('coffee-pub-merchant.notify.blacksmithOutOfDate'));
             }
         } else if (!result?.ok) {
             console.error(`${MODULE.TITLE} | Could not stock ${inventory.name} from its tables:`, result);
@@ -1311,7 +1309,7 @@ export class MerchantManager {
             if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
             return updates.length;
         });
-        step(`Refilling ${inventory.name}`);
+        step(game.i18n.format('coffee-pub-merchant.progress.refilling', { inventory: inventory.name }));
 
         // Two mechanisms, deliberately both: par brings back what the inventory is known
         // to keep, and the tables bring in whatever it happens to have got hold of
@@ -1458,7 +1456,7 @@ export class MerchantManager {
 
     static _reportOpenFailure(error) {
         console.error(`${MODULE.TITLE} | Failed to open the shop:`, error);
-        notify.error('Could not open that shop.');
+        notify.error(game.i18n.localize('coffee-pub-merchant.notify.cannotOpenShop'));
     }
 
     static open(tokenDocument) {

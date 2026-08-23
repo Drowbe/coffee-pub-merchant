@@ -3,6 +3,7 @@ import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
     DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP,
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps,
+    inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
@@ -39,12 +40,24 @@ const METHOD = Object.freeze({
     NEW: 'new'
 });
 
-const METHOD_LABELS = {
-    [METHOD.INFINITE]: 'Never runs out',
-    [METHOD.FINITE]: 'Runs out permanently',
-    [METHOD.SAME]: 'Restocks the same items',
-    [METHOD.NEW]: 'Restocks with new items'
-};
+/**
+ * A method's label, resolved when it is shown.
+ *
+ * **Not a table of already-translated strings.** A `const` at module scope is evaluated
+ * when Foundry loads the script, and `game` does not exist yet -- the same failure that
+ * took the module down over the base class, and it fails the same way: ESM caches the
+ * throw, so the module is dead for the session rather than retried. Anything that reads
+ * `game` has to be a function.
+ */
+function methodLabel(method) {
+    const key = {
+        [METHOD.INFINITE]: 'infinite',
+        [METHOD.FINITE]: 'finite',
+        [METHOD.SAME]: 'same',
+        [METHOD.NEW]: 'new'
+    }[method];
+    return key ? game.i18n.localize(`coffee-pub-merchant.method.${key}`) : String(method);
+}
 
 /** The stored policy and table flags a chosen method implies. */
 function methodToStorage(method) {
@@ -69,9 +82,11 @@ function methodFromStorage(policy, tables) {
 function markupLabel(value) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
-    if (rate === 1) return 'List price';
+    if (rate === 1) return game.i18n.localize('coffee-pub-merchant.rate.listPrice');
     const percent = Math.round(Math.abs(1 - rate) * 100);
-    return `${percent}% ${rate > 1 ? 'markup' : 'discount'}`;
+    return rate > 1
+        ? game.i18n.format('coffee-pub-merchant.rate.markup', { percent })
+        : game.i18n.format('coffee-pub-merchant.rate.discount', { percent });
 }
 
 /**
@@ -89,9 +104,9 @@ function markupLabel(value) {
 function buyRateLabel(value, { safe = null, worstCase = null } = {}) {
     const rate = Number(value);
     if (!Number.isFinite(rate) || rate <= 0) return '—';
-    const typed = `Pays ${Math.round(rate * 100)}% of value`;
+    const typed = game.i18n.format('coffee-pub-merchant.rate.pays', { percent: Math.round(rate * 100) });
     if (safe === null || rate <= safe) return typed;
-    return `${typed} — capped near ${Math.round(worstCase * 100)}%`;
+    return game.i18n.format('coffee-pub-merchant.rate.paysCapped', { typed, capped: Math.round(worstCase * 100) });
 }
 
 /**
@@ -103,7 +118,7 @@ function buyRateLabel(value, { safe = null, worstCase = null } = {}) {
  */
 function markupBound(value) {
     const percent = Math.round((Number(value) - 1) * 100);
-    if (percent === 0) return 'list';
+    if (percent === 0) return game.i18n.localize('coffee-pub-merchant.rate.listShort');
     return `${percent > 0 ? '+' : '−'}${Math.abs(percent)}%`;
 }
 
@@ -160,9 +175,7 @@ function rateRow({ label, kind, value, inventoryId = null, field = null, hint = 
         // Present-but-hidden rather than absent, so the slider handler has something to
         // reveal without building DOM mid-drag.
         warning: limits
-            ? `Above ${Math.round(limits.safe * 100)}% this inventory pays more than it charges, so the `
-                + `shop can be sold to and bought from at a profit. Offers are capped instead, and a party `
-                + `the town likes is paid less than a neutral one. Raise Sell, or lower this.`
+            ? game.i18n.format('coffee-pub-merchant.rate.farmWarning', { safe: Math.round(limits.safe * 100) })
             : null,
         warned: Boolean(limits) && Number(value) > limits.safe,
         hint
@@ -451,7 +464,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update this merchant:`, error);
-            notify.error('Could not update this merchant.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.merchantFailed'));
         }
         if (redraw) await this.render(false);
     }
@@ -466,7 +479,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the till:`, error);
-            notify.error('Could not set the till.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.tillFailed'));
         }
         await this.render(false);
     }
@@ -506,7 +519,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
         if (data?.type !== 'RollTable' || !data.uuid) {
-            if (data?.type) notify.warn('Drop a roll table here, not a ' + String(data.type).toLowerCase() + '.');
+            if (data?.type) notify.warn(game.i18n.format('coffee-pub-merchant.notify.notARollTable', { what: String(data.type).toLowerCase() }));
             return;
         }
 
@@ -514,11 +527,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (!actor) return;
         try {
             const added = await MerchantManager.addInventoryTable(actor, inventoryId, data.uuid);
-            if (!added) notify.info('That table is already on this inventory.');
+            if (!added) notify.info(game.i18n.localize('coffee-pub-merchant.notify.tableAlreadyOn'));
             else MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that table:`, error);
-            notify.error('Could not add that table.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.tableAddFailed'));
         }
         await this.render(false);
     }
@@ -541,7 +554,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the reputation modifier:`, error);
-            notify.error('Could not change that.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.changeFailed'));
         }
         await this.render(false);
     }
@@ -562,7 +575,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // v13 namespaced it; the bare global is deprecated.
         const Picker = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
         if (!Picker) {
-            notify.warn('The file picker is unavailable.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.filePickerUnavailable'));
             return;
         }
 
@@ -580,7 +593,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             }).browse();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not open the file picker:`, error);
-            notify.error('Could not open the file picker.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.filePickerFailed'));
         }
     }
 
@@ -606,7 +619,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not rename that inventory:`, error);
-            notify.error('Could not rename that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.renameFailed'));
         }
         await this.render(false);
     }
@@ -616,7 +629,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (!actor) return;
         const markup = Number(value);
         if (!Number.isFinite(markup) || markup < 0) {
-            notify.warn('Markup must be a number.');
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.markupNotANumber'));
             return this.render(false);
         }
         try {
@@ -730,7 +743,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (badge) {
                 const shut = open === close;
                 const always = open === 0 && close === span;
-                badge.textContent = shut ? 'Always closed' : (always ? 'Always open' : '');
+                badge.textContent = shut ? game.i18n.localize('coffee-pub-merchant.hours.alwaysClosed') : (always ? game.i18n.localize('coffee-pub-merchant.hours.alwaysOpen') : '');
                 badge.classList.toggle('is-closed', shut);
                 badge.hidden = !shut && !always;
             }
@@ -750,7 +763,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             await MerchantManager.setHours(actor, { open, close });
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set trading hours:`, error);
-            notify.error('Could not set trading hours.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.hoursFailed'));
         }
         await this.render(false);
     }
@@ -764,7 +777,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             actor.sheet?.render(false);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update merchant state:`, error);
-            notify.error('Could not update this merchant.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.merchantFailed'));
         }
         await this.render(false);
     }
@@ -782,7 +795,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         const items = presets.map((preset) => ({
             name: preset.name,
-            description: preset.hint,
+            description: inventoryTypeHint(preset.key),
             // Raw HTML is an injection path, so it is only ever safe for strings we
             // own. These are module constants; nothing here comes from a document.
             icon: `<img src="${preset.img}" alt="">`,
@@ -813,7 +826,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.choose !== 'function') return;
         const picked = await blacksmith.dialog.choose({
-            title: 'Add an inventory',
+            title: game.i18n.localize('coffee-pub-merchant.config.addInventory'),
             classes: ['merchant-dialog'],
             content: '<p>What kind of inventory?</p>',
             choices: presets.map((preset) => ({ id: preset.key, label: preset.name }))
@@ -830,7 +843,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that inventory:`, error);
-            notify.error('Could not add that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryAddFailed'));
         }
         await this.render(false);
     }
@@ -843,7 +856,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (removed) MerchantManager.broadcastActorRefresh(actor);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not remove that inventory:`, error);
-            notify.error('Could not remove that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryRemoveFailed'));
         }
         await this.render(false);
     }
@@ -893,7 +906,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             (sum, { item }) => sum + MerchantManager.restockWorkUnits(actor, item.id, { force: true }),
             0
         );
-        const bar = startProgress(total, `Restocking ${actor.name}`);
+        const bar = startProgress(total, game.i18n.format('coffee-pub-merchant.progress.restockingShop', { shop: actor.name }));
 
         let stocked = 0;
         try {
@@ -911,7 +924,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (stocked) playFeedback(SOUND.RESTOCK);
             bar.finish(stocked
                 ? `Restocked ${stocked} item${stocked === 1 ? '' : 's'} across ${inventories.length} inventory${inventories.length === 1 ? '' : 'ves'}.`
-                : 'Every inventory was already full.');
+                : game.i18n.localize('coffee-pub-merchant.notify.everythingFull'));
         }
         await this.render(false);
     }
@@ -943,8 +956,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 : `${inventoryName} was already full.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
-            bar.finish('Could not restock that inventory.');
-            notify.error('Could not restock that inventory.');
+            bar.finish(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
         }
         await this.render(false);
     }
@@ -980,7 +993,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             notify.info(`Cleared ${cleared} item${cleared === 1 ? '' : 's'} off ${inventory.name}.`);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clear that inventory:`, error);
-            notify.error('Could not clear that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.clearFailed'));
         }
         await this.render(false);
     }
@@ -1010,7 +1023,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not switch that table:`, error);
-            notify.error('Could not switch that table.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.tableSwitchFailed'));
         }
         await this.render(false);
     }
@@ -1071,7 +1084,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not set the restock method:`, error);
-            notify.error('Could not update that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryUpdateFailed'));
         }
         await this.render(false);
     }
@@ -1086,7 +1099,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             this.flashSaved();
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not update that inventory:`, error);
-            notify.error('Could not update that inventory.');
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryUpdateFailed'));
         }
         await this.render(false);
     }
@@ -1121,8 +1134,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // inventories of one type is ordinary, and they need telling apart.
                     label: item.name,
                     typeKey: definition.key,
-                    typeLabel: definition.name,
-                    typeHint: definition.hint,
+                    typeLabel: inventoryTypeName(definition.key),
+                    typeHint: inventoryTypeHint(definition.key),
                     hidden: config.visible === false,
                     count,
                     one: count === 1,
@@ -1145,7 +1158,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                                 field: 'buy-rate',
                                 inventoryId: item.id,
                                 value: Number.isFinite(Number(config.buyRate)) ? Number(config.buyRate) : DEFAULT_BUY_RATE,
-                                hint: 'What the shop pays the party for their goods.',
+                                hint: game.i18n.localize('coffee-pub-merchant.rate.purchaseHint'),
                                 // Where the clamp takes over from the slider, and what
                                 // it takes over at. Both depend on the Sell markup in
                                 // the row below, which is why this is computed here
@@ -1160,7 +1173,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                                 field: 'markup',
                                 inventoryId: item.id,
                                 value: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
-                                hint: 'What it then charges for them, on top of the Global Markup.'
+                                hint: game.i18n.localize('coffee-pub-merchant.rate.sellHint')
                             })
                         ]
                         : definition.pricing === 'markup'
@@ -1170,7 +1183,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                                 field: 'markup',
                                 inventoryId: item.id,
                                 value: Number.isFinite(Number(config.markup)) ? Number(config.markup) : 1,
-                                hint: 'Multiplied against the shop\'s Global Markup.'
+                                hint: game.i18n.localize('coffee-pub-merchant.rate.markupHint')
                             })]
                             : [],
 
@@ -1189,10 +1202,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         .filter((value) => value !== METHOD.NEW || tables.length > 0)
                         .map((value) => ({
                             value,
-                            label: METHOD_LABELS[value],
+                            label: methodLabel(value),
                             selected: value === methodFromStorage(policy, tables)
                         })),
-                    stockLabel: METHOD_LABELS[methodFromStorage(policy, tables)] ?? policy,
+                    stockLabel: methodLabel(methodFromStorage(policy, tables)) ?? policy,
                     restocking: policy === STOCK.RESTOCKING,
                     // Frequency only exists for the one method that has a cadence, so
                     // the two controls cannot contradict each other: a shelf that never
@@ -1219,12 +1232,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // ceilings kept being mistaken for restock settings.
                     depthOptions: STOCK_DEPTH_OPTIONS.map((option) => ({
                         value: option.value,
-                        label: option.label,
-                        hint: option.hint,
+                        label: depthLabel(option.value),
+                        hint: depthHint(option.value),
                         selected: option.value === (config.depth ?? DEFAULT_STOCK_DEPTH)
                     })),
                     depthHint: STOCK_DEPTH_OPTIONS
-                        .find((option) => option.value === (config.depth ?? DEFAULT_STOCK_DEPTH))?.hint ?? '',
+                        .find((option) => option.value === (config.depth ?? DEFAULT_STOCK_DEPTH))?.value
+                        ? depthHint(config.depth ?? DEFAULT_STOCK_DEPTH) : '',
                     maxProducts: limits.maxProducts,
                     // The summary, rather than the tables themselves. A GM needs to see
                     // what is governing the shelf without twelve controls on it
@@ -1242,15 +1256,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
                     showMaxStack: policy !== STOCK.INFINITE || tables.length > 0,
                     maxStackTooltip: policy === STOCK.INFINITE
-                        ? 'The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.'
-                        : 'The most of any one item this inventory will hold — a table roll, and a quantity you type in the shop window.',
+                        ? game.i18n.localize('coffee-pub-merchant.config.maxStackTooltipInfinite')
+                        : game.i18n.localize('coffee-pub-merchant.config.maxStackTooltipFinite'),
                     maxPerItem: limits.maxPerItem,
 
                     tables: tables.map((entry) => ({
                         uuid: entry.uuid,
                         // A uuid that no longer resolves is named as missing rather
                         // than left blank, so a GM can see which one to remove.
-                        name: this._tableName(entry.uuid) ?? 'Missing table',
+                        name: this._tableName(entry.uuid) ?? game.i18n.localize('coffee-pub-merchant.config.missingTable'),
                         rolls: entry.rolls,
                         auto: entry.auto,
                         // **This mapping is the whole context the template sees**, so a
@@ -1262,10 +1276,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         enabled: entry.enabled,
                         // On the control rather than under it. Five tables meant five
                         // near-identical sentences filling the card.
-                        drawTooltip: `How many items to take from this table. `
-                            + (entry.auto
-                                ? 'Drawn again every time this inventory restocks.'
-                                : 'Drawn only when you press Restock.')
+                        drawTooltip: game.i18n.format('coffee-pub-merchant.config.drawTooltip', {
+                            when: entry.auto
+                                ? game.i18n.localize('coffee-pub-merchant.config.tableAuto')
+                                : game.i18n.localize('coffee-pub-merchant.config.tableManual')
+                        })
                     })),
                     hasTables: tables.length > 0
                 };
@@ -1304,7 +1319,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // state on screen rather than a schedule and a not-a-schedule.
             alwaysOpen: isAlwaysOpen(hours),
             alwaysClosed: isAlwaysClosed(hours),
-            hoursBadge: isAlwaysOpen(hours) ? 'Always open' : (isAlwaysClosed(hours) ? 'Always closed' : null),
+            hoursBadge: isAlwaysOpen(hours) ? game.i18n.localize('coffee-pub-merchant.hours.alwaysOpen') : (isAlwaysClosed(hours) ? game.i18n.localize('coffee-pub-merchant.hours.alwaysClosed') : null),
             globalMarkup: rateRow({
                 label: 'Global Markup',
                 kind: 'markup',
@@ -1367,7 +1382,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 ? `
                 <button type="button" class="blacksmith-window-btn-secondary merchant-config-restock-all"
                         data-action="restockAll"
-                        data-tooltip="Bring every inventory back to its quantities and roll all of its tables">
+                        data-tooltip="${game.i18n.localize('coffee-pub-merchant.config.restockEverythingTooltip')}">
                     <i class="fa-solid fa-arrows-rotate"></i> Restock Everything
                 </button>`
                 : '',

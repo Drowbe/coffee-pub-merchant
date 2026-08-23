@@ -58,16 +58,16 @@ export async function setMarketRate(scene, rate) {
  */
 export function marketLabel(rate) {
     const value = clampMarket(rate);
-    if (value === DEFAULT_MARKET_RATE) return '×1.00 · the going rate';
+    if (value === DEFAULT_MARKET_RATE) return game.i18n.localize('coffee-pub-merchant.market.goingRate');
     const percent = Math.round(Math.abs(1 - value) * 100);
     return value > 1
-        ? `×${value.toFixed(2)} · goods cost ${percent}% more here`
-        : `×${value.toFixed(2)} · goods cost ${percent}% less here`;
+        ? game.i18n.format('coffee-pub-merchant.market.dearer', { rate: value.toFixed(2), percent })
+        : game.i18n.format('coffee-pub-merchant.market.cheaper', { rate: value.toFixed(2), percent });
 }
 
 /** A short form for the shop window, where there is no room to explain. */
 export function marketShortLabel(rate) {
     const value = clampMarket(rate);
     if (value === DEFAULT_MARKET_RATE) return null;
-    return value > 1 ? 'Prices here run high' : 'Prices here run low';
+    return value > 1 ? game.i18n.localize('coffee-pub-merchant.market.runsHigh') : game.i18n.localize('coffee-pub-merchant.market.runsLow');
 }
