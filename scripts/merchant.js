@@ -2,7 +2,7 @@
 // ===== COFFEE PUB MERCHANT — ENTRY POINT ==========================
 // ==================================================================
 
-import { MODULE, PAR_FLAG, INVENTORY_FLAG, MARKET_LIMITS, DEFAULT_MARKET_RATE } from './const.js';
+import { MODULE, PAR_FLAG, INVENTORY_FLAG, MARKET_LIMITS, DEFAULT_MARKET_RATE, FREE_FLAG } from './const.js';
 import { marketRate, setMarketRate, marketLabel } from './utility-market.js';
 import { ShopWindow } from './window-shop.js';
 import { BlacksmithAPI } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
@@ -177,6 +177,7 @@ Hooks.once('ready', async function () {
     // the Blacksmith a given world has installed.
     blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${PAR_FLAG}`);
     blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${INVENTORY_FLAG}`);
+    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${FREE_FLAG}`);
 
     // Sounds are a world setting read on every client, and the toast channels give a
     // GM a checkbox per class of message. Both before anything can want them.

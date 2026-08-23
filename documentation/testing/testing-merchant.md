@@ -1084,3 +1084,25 @@ level onto every existing row; it logs how many.
     redraw is keyed per token, not per Actor.
 59. Advance the clock in a world with a few hundred tokens and no lag: the scene walk skips
     linked tokens and tokens with no actor before resolving anything.
+60. **Standing helps when selling, at every band.** Sell the same item to the same purchased
+    inventory with the party's reputation set low and then high. The offer rises with standing and
+    never falls. Before this it peaked around Known and dropped away above it.
+61. **The shop cannot be farmed.** Buy something off the general shelf and immediately sell it back.
+    You get less than you paid, at every reputation band. If that ever reverses, the purchased
+    inventory's Purchase rate has been set above its Sell markup times the square of the reputation
+    multiplier — roughly 72% at a 5% markup.
+
+### 21i. Giving things away
+
+62. Double-click a shelf price and type **0**. The row reads **Free**, and its `+` is enabled.
+63. Put it on the slate. The line reads **Free**, the total does not move, and Complete transaction
+    hands the goods over with no coin changing hands.
+64. **Free is not the same as no price.** Clear the same row's price box instead: it goes back to
+    **no price** and its `+` is disabled. Typing 0 and clearing must not land in the same state.
+65. A free row stays free through every multiplier. Set a Global Markup, an inventory markup, a
+    market rate and a reputation, and it still reads Free.
+66. **Buy a free item, then sell it back.** The shop offers **Nothing** for it, not 1 cp.
+67. Check the item on the buyer's sheet: it is an ordinary item with an ordinary price. The
+    giveaway was the shop's decision, not a property of the thing, and must not travel with it.
+68. A **negotiated** 0 on a slate line still works and still clears when the trade settles — that is
+    one trade, where the shelf price is a standing offer.

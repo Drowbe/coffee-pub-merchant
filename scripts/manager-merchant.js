@@ -5,7 +5,7 @@
 // State, interaction claiming, recipient policy, and the GM-authoritative handler.
 
 import {
-    MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
+    MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, LEGACY_INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay,
@@ -857,15 +857,31 @@ export class MerchantManager {
         const item = actor?.items?.get(itemId);
         if (!item) return null;
 
+        // **Three states, and 0 is not the absence of one.** Clearing puts the row back
+        // to having no price, which is a row nobody has valued; 0 puts it on the house,
+        // which is a decision. Both store `price.value` at 0 -- dnd5e has nowhere else
+        // to put "nothing" -- so the flag is what tells them apart. See `FREE_FLAG`.
         if (base === null) {
-            await item.update({ 'system.price.value': 0 });
+            await item.update({
+                'system.price.value': 0,
+                [`flags.${MODULE.ID}.-=${FREE_FLAG}`]: null
+            });
             return { item, base: null };
         }
 
         const value = Math.max(0, Number(base) || 0);
+        if (value === 0) {
+            await item.update({
+                'system.price.value': 0,
+                [`flags.${MODULE.ID}.${FREE_FLAG}`]: true
+            });
+            return { item, base: 0 };
+        }
+
         await item.update({
             'system.price.value': fromBase(value, 'gp'),
-            'system.price.denomination': 'gp'
+            'system.price.denomination': 'gp',
+            [`flags.${MODULE.ID}.-=${FREE_FLAG}`]: null
         });
         return { item, base: value };
     }
@@ -1915,14 +1931,14 @@ export class MerchantManager {
             // one. `registerTransientFlag` hides it from merge comparison but leaves it
             // in the payload, so without this it lands in a buyer's inventory and rides
             // back in if they sell it — see the buyback guard in `getStock`.
-            omitFlags: [`${MODULE.ID}.${PAR_FLAG}`],
+            omitFlags: [`${MODULE.ID}.${PAR_FLAG}`, `${MODULE.ID}.${FREE_FLAG}`],
             // **And the same path in `ignoreFlags`, for the migration.** Anything bought
             // before this landed carries `par` on the buyer's row, so an arrival without
             // it would compare as different and create a second stack rather than
             // merging. That is a silent, self-inflicted duplicate-row bug with a long
             // tail; the transient registry covers our own writes but not the rows that
             // already exist in somebody's world.
-            ignoreFlags: [`${MODULE.ID}.${PAR_FLAG}`]
+            ignoreFlags: [`${MODULE.ID}.${PAR_FLAG}`, `${MODULE.ID}.${FREE_FLAG}`]
         });
 
         // An agreement covers the trade it was made for. Left standing, a haggled

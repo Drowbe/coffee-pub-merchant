@@ -607,7 +607,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     offer: offer ?? -1,
                     // A negotiate-inventory price is not published, and neither is an offer
                     // for something nobody has priced yet. TBD says the same thing here.
-                    priceLabel: offer === null ? null : formatBase(offer),
+                    // A shop that pays nothing says so in words. "0 gp" reads as a
+                    // rounding failure; "Nothing" reads as an answer.
+                    priceLabel: offer === null ? null : (offer === 0 ? 'Nothing' : formatBase(offer)),
                     isUnpricedInventory: offer === null,
                     negotiateTooltip: null,
                     // Whose item this is. Two Actors put rows through the same partial
@@ -1395,7 +1397,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // publishes it to the next player who opens the shop, and turns
                         // an inventory that exists in order not to have prices into one that
                         // quietly accumulates them.
-                        priceLabel: isUnpricedInventory || price === null ? null : formatBase(price),
+                        priceLabel: isUnpricedInventory || price === null
+                            ? null
+                            : (price === 0 ? 'Free' : formatBase(price)),
                         // The GM needs an anchor to haggle against, and it is the one
                         // thing they cannot see once the column is blank. Players get
                         // nothing here at all -- a tooltip saying what it is worth is
@@ -1426,8 +1430,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         // pressing Enter quietly baked this shop's markup into the item.
                         priceEach: listPrice === null ? '' : fromBase(listPrice, 'gp'),
                         listPriceTooltip: price === null
-                            ? 'No price set — double-click to name one'
-                            : 'Double-click to set what this is worth, before markup',
+                            ? 'No price set — double-click to name one, or 0 to give it away'
+                            : price === 0
+                                ? 'On the house — double-click to charge for it, or clear it to unprice it'
+                                : 'Double-click to set what this is worth, before markup. 0 gives it away.',
                         // A disabled button with no reason on it is the thing
                         // players ask about, so the tooltip carries the reason.
                         // A disabled button with no reason on it is the thing
@@ -1532,13 +1538,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             sell: this._sellContext(merchant),
             cart: cartLines.map((line) => ({
                 ...line,
-                totalLabel: line.total === null ? 'TBD' : formatBase(line.total),
+                totalLabel: line.total === null ? 'TBD' : (line.total === 0 ? 'Free' : formatBase(line.total)),
                 agreed: line.total !== null,
                 canPrice: game.user.isGM,
                 priceEach: line.unit === null ? '' : fromBase(line.unit, 'gp'),
                 priceTooltip: line.unit === null
-                    ? 'Double-click to set the agreed price, each, in gp'
-                    : `${formatBase(line.unit)} each — double-click to change it`,
+                    ? 'Double-click to set the agreed price, each, in gp. 0 gives it away.'
+                    : (line.unit === 0
+                        ? 'On the house — double-click to charge for it'
+                        : `${formatBase(line.unit)} each — double-click to change it`),
                 side: 'cart',
                 removeAction: 'removeFromCart'
             })),

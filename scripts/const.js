@@ -56,6 +56,24 @@ export const STOCK = Object.freeze({
 export const PAR_FLAG = 'par';
 
 /**
+ * On a stock Item: this is given away.
+ *
+ * **Free is a decision; no price is an absence.** They cannot share a storage slot,
+ * because dnd5e leaves `system.price.value` at 0 on everything nobody has valued —
+ * so a bare 0 means "unvalued" far more often than it means "free", and reading it as
+ * free would put a shop's entire unpriced stock on the house.
+ *
+ * A flag says the difference out loud: value 0 **with** the flag is free, value 0
+ * **without** it is a row nobody has priced yet. The two look different on the shelf
+ * and behave differently — an unpriced row cannot be bought at all, a free one can.
+ *
+ * Transient, and omitted on exchange, for the same reason as `par`: it describes what
+ * this shop does with the row, not what the thing is. A cloak given away is still a
+ * cloak, and must not arrive in the buyer's pack claiming to be free.
+ */
+export const FREE_FLAG = 'free';
+
+/**
  * What a shop starts with in the till when it is first marked as a merchant.
  *
  * A merchant with no coin cannot buy anything, and "the merchant cannot cover that"
@@ -253,11 +271,20 @@ export const INVENTORY_TYPES = Object.freeze({
         // Never. Its stock is whatever the party sold, so there is no level to
         // return to and a refill would conjure duplicates of somebody's old sword.
         restocks: false,
-        // A pawnbroker's spread, not a fence's: pays 95% of value and resells at 5%
-        // over. See `MAX_BUYBACK_RATIO` -- a spread this thin leaves almost no room
-        // under the clamp, so what the shop actually pays stops tracking this number
-        // as soon as reputation moves.
-        defaults: { order: 50, visible: true, markup: 1.05, buyRate: 0.95, stock: STOCK.FINITE }
+        // A pawnbroker's spread rather than a fence's, but **under the line where a
+        // shop can be farmed**. The loop opens whenever `buyRate > markup x reputation^2`
+        // -- buy from the general shelf at `worth x reputation`, sell straight back at
+        // `worth x buyRate / reputation` -- which at a 5% markup puts the ceiling at 72%.
+        //
+        // This was 95%, and above the line: `MAX_BUYBACK_RATIO` then governed instead of
+        // the slider, and because the cap falls as reputation improves while the offer
+        // rises, **a party the town loved was paid less than a neutral one**. 70% leaves
+        // room, so the number on the slider is the number in force and standing helps
+        // monotonically: 54% hated, 70% neutral, 82% legendary.
+        //
+        // Trade routes are unaffected. That is the market rate, which does not invert --
+        // see `MARKET_FLAG`.
+        defaults: { order: 50, visible: true, markup: 1.05, buyRate: 0.7, stock: STOCK.FINITE }
     }
 });
 

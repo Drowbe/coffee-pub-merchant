@@ -285,6 +285,40 @@ for (const [gp, base] of [[1, 100], [7.5, 750], [0, 0], [200, 20000]]) {
 }
 console.log('ok  gold and base units round-trip');
 
+// --- free is a decision; no price is an absence --------------------------
+// dnd5e leaves `system.price.value` at 0 on everything nobody has valued, so a bare 0
+// means "unvalued" far more often than it means "free". Reading it as free would put a
+// shop's whole unpriced stock on the house, which is why the flag exists.
+const MID = 'coffee-pub-merchant';
+const priced = (gp) => ({ type: 'loot', system: { quantity: 1, price: { value: gp, denomination: 'gp' } } });
+const freeItem = () => ({ ...priced(0), flags: { [MID]: { free: true } } });
+
+assert.strictEqual(P.listPriceBase(priced(0)), null, 'a bare zero is a row nobody has priced');
+assert.strictEqual(P.listPriceBase(freeItem()), 0, 'and zero with the flag is a giveaway');
+assert.strictEqual(P.listPriceBase(priced(5)), 500, 'while a real price is still a real price');
+// The flag wins over whatever figure happens to be sitting in the field, so a GM who
+// gives away something that used to cost money does not have to clear the price too.
+const wasPriced = { ...priced(12), flags: { [MID]: { free: true } } };
+assert.strictEqual(P.listPriceBase(wasPriced), 0, 'the flag beats a stale figure underneath it');
+
+// Zero survives every multiplier. The floor of one exists so rounding cannot make a
+// cheap thing free by accident; a thing free on purpose is not an accident.
+const shop = { pricing: { markup: 3 } };
+const shelf = { type: 'general', markup: 2 };
+assert.strictEqual(P.resolvePrice(shop, shelf, freeItem(), { reputation: 1.3, market: 4 }), 0,
+    'no markup, market or standing can put a price on a giveaway');
+assert.strictEqual(P.resolvePrice(shop, shelf, priced(0)), null,
+    'while an unpriced row stays unpriced rather than becoming free');
+// One base unit is still the floor for anything that genuinely costs something.
+assert.strictEqual(P.resolvePrice({ pricing: { markup: 0.0001 } }, null, priced(0.01)), 1,
+    'a price rounded to nothing is a penny, not a gift');
+
+// A shop pays nothing for what it gives away -- and the floor of one must not turn that
+// into a penny apiece for however many the party carries back in.
+assert.strictEqual(P.resolvePurchasePrice(shop, { type: 'purchased', buyRate: 0.7, markup: 1.05 }, freeItem()), 0,
+    'a giveaway is bought back for nothing');
+console.log('ok  free and unpriced are different states and stay different');
+
 // --- stock depth ---------------------------------------------------------
 // Why every table-rolled row used to read QTY 1: a roll delivered one of whatever
 // it drew, so twenty rolls made twenty rows of one. The "each" limit was a ceiling

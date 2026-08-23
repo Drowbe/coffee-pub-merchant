@@ -432,6 +432,35 @@ there is something to double-click when there is no figure to double-click.
 Not offered on an **unpriced inventory**: having no list price is what that inventory is for, `resolvePrice`
 returns `null` there whatever `system.price` says, and the figure would be written and then ignored.
 
+### Free, and the difference between free and unpriced
+
+**Free is a decision; no price is an absence.** They cannot share a storage slot, because dnd5e
+leaves `system.price.value` at 0 on everything nobody has valued — so a bare 0 means "unvalued" far
+more often than it means "free", and reading it as free would put a shop's entire unpriced stock on
+the house.
+
+`FREE_FLAG` says the difference out loud. Value 0 **with** the flag is free; value 0 **without** it
+is a row nobody has priced. Three states, and the shelf editor writes all three: type a number to
+price it, type **0** to give it away, clear the box to unprice it.
+
+| State | Shelf reads | Can be bought? |
+|---|---|---|
+| Priced | the figure | yes |
+| Free | **Free** | yes, for nothing |
+| Unpriced | **no price** | no — nothing to charge |
+
+Zero then has to survive the arithmetic. `resolvePrice` and `resolvePurchasePrice` both floor at one
+base unit, so that rounding cannot make a cheap thing free by accident — a thing free *on purpose*
+is not an accident, so 0 returns before the floor. No markup, market rate or standing can put a
+price back on a giveaway, and a shop pays nothing to buy one back rather than a penny apiece.
+
+The flag is **transient and omitted on exchange**, exactly like `par`: it describes what this shop
+does with the row, not what the thing is. A cloak given away is still a cloak, and must not arrive
+in the buyer's pack claiming to be free.
+
+A **negotiated** price of 0 already worked and still does — that is one trade rather than a
+standing offer, and it clears when the trade settles.
+
 ### Negotiation
 
 A GM double-clicks the price on any slate line and names it. The figure is written to the **merchant

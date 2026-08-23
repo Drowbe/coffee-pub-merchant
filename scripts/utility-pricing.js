@@ -12,7 +12,7 @@
 
 import {
     MODULE, STOCK_DEPTH_BANDS, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS,
-    isUnpriced, DEFAULT_BUY_RATE, MAX_BUYBACK_RATIO
+    isUnpriced, DEFAULT_BUY_RATE, MAX_BUYBACK_RATIO, FREE_FLAG
 } from './const.js';
 
 /** Denominations, largest first. Conversions come from the system, never hardcoded. */
@@ -384,6 +384,10 @@ function rate(value, fallback = 1) {
  * recorded somewhere that can tell the two apart.
  */
 export function listPriceBase(item) {
+    // Checked before the figure. A free row stores 0 like an unpriced one and is told
+    // apart only by the flag, so reading the number first would call every giveaway
+    // unpriced. See `FREE_FLAG`.
+    if (item?.flags?.[MODULE.ID]?.[FREE_FLAG]) return 0;
     const price = item?.system?.price;
     const value = Number(price?.value);
     if (!Number.isFinite(value) || value <= 0) return null;
@@ -414,6 +418,10 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
         * rate(inventoryConfig?.markup)
         * rate(reputation);
 
+    // **Zero survives every multiplier.** The floor of one exists so rounding cannot
+    // make a cheap thing free by accident; a thing that is free on purpose is not an
+    // accident, and multiplying it by a markup is still nothing.
+    if (worth === 0) return 0;
     return Math.max(1, Math.round(worth * total));
 }
 
@@ -505,6 +513,9 @@ export function resolvePurchasePrice(merchantConfig, inventoryConfig, item, { re
     // turns a profit, and repeats. Clamping against this inventory's own resale price
     // closes it wherever the rates, the market and the town's mood happen to land.
     const resale = worth * local * shop * rate(inventoryConfig?.markup) * rate(reputation);
+    // A shop pays nothing for what it gives away, and the floor of one must not turn
+    // that into a penny apiece for however many the party carries back.
+    if (worth === 0) return 0;
     return Math.max(1, Math.round(Math.min(offer, resale * MAX_BUYBACK_RATIO)));
 }
 
