@@ -35,9 +35,7 @@ Two things to read before changing anything load-bearing:
 | Severity | Item | Where |
 |---|---|---|
 | **Medium** | No localisation — roughly 200 hardcoded English strings | scripts and templates |
-| **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:1691` |
-| **Low** | Sell as the party is untried | — |
-| **Low** | No way to hand something over for free | — |
+| **Low** | Refreshes ride a raw `game.socket` channel rather than `api.sockets` | `manager-merchant.js:2004` |
 
 *Standing rules*, *Ideas* and *Considered* below are not work and are not in this table.
 
@@ -83,18 +81,6 @@ Do this **before** the next feature that adds user-facing text, not after.
   names must be module-prefixed); registration wants `await sockets.waitForReady()`, which makes an
   `initialize()` that is currently synchronous asynchronous. Worth doing when the presence system is next
   being tested anyway, because that is what would have to be re-tested.
-- **Sell as the party is untried.** The path exists — the party Group Actor is in the "Buying as" list and
-  the same code serves it — but a Group Actor's inventory and purse have never been exercised by it.
-- **The GM has no way to hand something over for free.** Deliberate: the take-without-paying control was
-  removed on the understanding that free goods return as part of a wider change. Until then, a GM drags from
-  the merchant's sheet.
-
----
-
-## Standing rules — inherited lessons
-
-These cost Curator real time. They apply here identically and there is no reason to relearn them.
-
 - **Check for a finished window before building one.** Merchant shipped its own compendium search and
   deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
   the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading
