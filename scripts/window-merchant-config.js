@@ -2,12 +2,14 @@ import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/b
 import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
     DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP,
-    STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps,
+    STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
+import { hasQuery, normalizeQuery, RARITIES } from './utility-compendium.js';
+import { physicalTypes } from './utility-inventory.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
 
@@ -315,6 +317,61 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             input.addEventListener('change', (event) => {
                 void this._setTillCoin(input.getAttribute('data-merchant-coin'), event.target.value);
             });
+        }
+
+        for (const select of this.element?.querySelectorAll('[data-inventory-source]') ?? []) {
+            if (select.dataset.merchantBound === 'true') continue;
+            select.dataset.merchantBound = 'true';
+            select.addEventListener('change', (event) => {
+                void this._commitInventoryStock(select.getAttribute('data-inventory-source'), {
+                    source: event.target.value
+                });
+            });
+        }
+
+        // **The whole set is written on every tick, never a delta.** A stored list of
+        // kinds is what the shelf carries; reading one checkbox would leave the other
+        // six unstated and the next render would disagree with the box just clicked.
+        for (const [attribute, field] of [
+            ['data-inventory-query-kinds', 'subtypes'],
+            ['data-inventory-query-rarity', 'rarity']
+        ]) {
+            for (const group of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
+                if (group.dataset.merchantBound === 'true') continue;
+                group.dataset.merchantBound = 'true';
+                group.addEventListener('change', () => {
+                    const chosen = [...group.querySelectorAll('input[type="checkbox"]')]
+                        .filter((box) => box.checked)
+                        .map((box) => box.value);
+                    const inventoryId = group.getAttribute(attribute);
+                    const current = this._queryOf(inventoryId);
+                    // Every kind ticked is stored as "no filter" rather than as a list of
+                    // all of them: a shelf that meant "anything" would otherwise silently
+                    // narrow the day dnd5e adds a physical type.
+                    const value = field === 'subtypes' && chosen.length === physicalTypes().length
+                        ? null
+                        : chosen;
+                    void this._commitInventoryStock(inventoryId, { query: { ...current, [field]: value } });
+                });
+            }
+        }
+
+        for (const [attribute, bound] of [
+            ['data-inventory-query-min', 'min'],
+            ['data-inventory-query-max', 'max']
+        ]) {
+            for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
+                if (input.dataset.merchantBound === 'true') continue;
+                input.dataset.merchantBound = 'true';
+                input.addEventListener('change', (event) => {
+                    const inventoryId = input.getAttribute(attribute);
+                    const current = this._queryOf(inventoryId);
+                    const value = Math.max(0, Math.trunc(Number(event.target.value) || 0));
+                    void this._commitInventoryStock(inventoryId, {
+                        query: { ...current, priceGp: { ...current.priceGp, [bound]: value } }
+                    });
+                });
+            }
         }
 
         for (const select of this.element?.querySelectorAll('[data-inventory-depth]') ?? []) {
@@ -1090,6 +1147,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /** Stock policy and restock cadence, both per inventory. */
+    /**
+     * The stored query for one inventory, filled in.
+     *
+     * Read fresh rather than closed over: a checkbox handler bound at render would
+     * otherwise write a query from the state the card had when it was drawn, undoing
+     * whatever the *previous* click just committed.
+     */
+    _queryOf(inventoryId) {
+        const actor = fromUuidSync(this.actorUuid);
+        const inventory = actor?.items?.get(inventoryId);
+        return normalizeQuery(MerchantManager.getInventoryConfig(inventory)?.query);
+    }
+
     async _commitInventoryStock(inventoryId, changes) {
         const actor = await this._resolveActor();
         if (!actor) return;
@@ -1191,6 +1261,34 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // stocked by the party selling to it and by nothing else, so it
                     // has no tables, no drop target and no restock.
                     canRoll: definition.restocks,
+
+                    // Where new products come from. One or the other: a shelf drawing
+                    // from a table *and* a query would fill twice over from two rules
+                    // nobody is holding in their head at once.
+                    isQuery: (config.source ?? DEFAULT_SOURCE) === SOURCE.QUERY,
+                    queryAvailable: hasQuery(),
+                    sourceOptions: [
+                        { value: SOURCE.TABLE, label: game.i18n.localize('coffee-pub-merchant.source.table') },
+                        { value: SOURCE.QUERY, label: game.i18n.localize('coffee-pub-merchant.source.query') }
+                    ].map((option) => ({ ...option, selected: option.value === (config.source ?? DEFAULT_SOURCE) })),
+                    queryMin: normalizeQuery(config.query).priceGp.min,
+                    queryMax: normalizeQuery(config.query).priceGp.max,
+                    // An empty stored list means "every physical kind", so every chip
+                    // reads as on rather than the shelf looking like it carries nothing.
+                    queryKinds: physicalTypes().map((type) => ({
+                        value: type,
+                        label: `${type.charAt(0).toUpperCase()}${type.slice(1)}`,
+                        on: !normalizeQuery(config.query).subtypes
+                            || normalizeQuery(config.query).subtypes.includes(type)
+                    })),
+                    queryRarities: RARITIES.map((token) => {
+                        const spaced = token.replace(/([a-z])([A-Z])/g, '$1 $2');
+                        return {
+                            value: token,
+                            label: spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase(),
+                            on: normalizeQuery(config.query).rarity.includes(token)
+                        };
+                    }),
 
                     // Restock is stated per inventory now, never inherited, and every
                     // type has it except the one that cannot mean it.

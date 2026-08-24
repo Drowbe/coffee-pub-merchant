@@ -333,6 +333,70 @@
                         </div>
 
                         {{#if canRoll}}
+                            {{!-- **Where new products come from.** A table is a list
+                                  somebody wrote; a query is a description of what this
+                                  shop deals in, answered against what is installed right
+                                  now. One or the other, because they answer the same
+                                  question and a shelf drawing from both twice over is a
+                                  shelf nobody can predict. --}}
+                            <div class="merchant-config-inv-group">
+                                <h4>{{localize "coffee-pub-merchant.config.newStock"}}</h4>
+                                <label class="merchant-config-row">
+                                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.source"}}</span>
+                                    <select data-inventory-source="{{id}}">
+                                        {{#each sourceOptions}}
+                                            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                        {{/each}}
+                                    </select>
+                                </label>
+                                {{#unless queryAvailable}}
+                                    <small class="merchant-config-hint merchant-config-rate-warning">
+                                        {{localize "coffee-pub-merchant.config.queryUnavailable"}}
+                                    </small>
+                                {{/unless}}
+                            </div>
+
+                            {{#if isQuery}}
+                                <div class="merchant-config-inv-group">
+                                    <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
+                                    <div class="merchant-config-restock">
+                                        <label class="merchant-config-row merchant-config-restock-stack">
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.priceFrom"}}</span>
+                                            <input type="number" min="0" max="999999" step="1" value="{{queryMin}}"
+                                                   data-inventory-query-min="{{id}}"
+                                                   aria-label="{{localize "coffee-pub-merchant.config.priceFrom"}}">
+                                        </label>
+                                        <label class="merchant-config-row merchant-config-restock-stack">
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.priceTo"}}</span>
+                                            <input type="number" min="1" max="999999" step="1" value="{{queryMax}}"
+                                                   data-inventory-query-max="{{id}}"
+                                                   aria-label="{{localize "coffee-pub-merchant.config.priceTo"}}">
+                                        </label>
+                                    </div>
+
+                                    {{!-- Checkboxes rather than a multi-select: a GM reads
+                                          "what does this shop carry" far faster off a row
+                                          of ticks than off a list with three highlighted. --}}
+                                    <div class="merchant-config-chips" data-inventory-query-kinds="{{id}}">
+                                        {{#each queryKinds}}
+                                            <label class="merchant-config-chip{{#unless on}} is-off{{/unless}}">
+                                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                                                <span>{{label}}</span>
+                                            </label>
+                                        {{/each}}
+                                    </div>
+                                    <div class="merchant-config-chips" data-inventory-query-rarity="{{id}}">
+                                        {{#each queryRarities}}
+                                            <label class="merchant-config-chip{{#unless on}} is-off{{/unless}}">
+                                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                                                <span>{{label}}</span>
+                                            </label>
+                                        {{/each}}
+                                    </div>
+
+                                    <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
+                                </div>
+                            {{else}}
                             <div class="merchant-config-inv-group">
                                 <h4>{{localize "coffee-pub-merchant.config.rollTables"}}</h4>
                                 {{#if hasTables}}
@@ -381,6 +445,7 @@
                                     {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock this inventory by rolling{{/if}}
                                 </div>
                             </div>
+                            {{/if}}
                         {{/if}}
                     </div>
                 {{/each}}

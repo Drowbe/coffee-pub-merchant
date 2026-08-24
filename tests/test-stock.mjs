@@ -232,6 +232,61 @@ assert.deepStrictEqual(names([], [{ tokens: [tok('gone', false, null), tok(null,
     'an unresolvable token is skipped rather than fatal');
 console.log('ok  a shop is what stands in the world, not what sits in the sidebar');
 
+// --- the compendium query filter ----------------------------------------
+// Every wrong answer here is a plausible-looking shop rather than an error, which is
+// why the filter is pinned rather than trusted.
+const Q = await import('../scripts/utility-compendium.js');
+
+// `mundane` is unmarked gear and it is NOT `common`. A default that omitted it would
+// stock general stores with magic items only — every rope and torch silently absent.
+assert.ok(Q.DEFAULT_QUERY.rarity.includes('mundane'),
+    'the default rarity set must include mundane, or a general store carries only magic');
+assert.ok(Q.RARITIES.includes('mundane') && Q.RARITIES.includes('common'),
+    'mundane and common are separate tokens, because dnd5e stores them separately');
+
+// Nothing stored means the defaults, not an empty filter. An empty rarity list sent to
+// the query would mean "any rarity" and quietly put artifacts on a village shelf.
+{
+    const filter = Q.normalizeQuery(undefined);
+    assert.deepStrictEqual(filter.rarity, [...Q.DEFAULT_QUERY.rarity], 'an unset query takes the defaults');
+    assert.strictEqual(filter.subtypes, null, 'and null subtypes, which the caller widens to every physical kind');
+    assert.ok(filter.priceGp.max > 0, 'with a real price ceiling rather than zero');
+}
+
+// Junk in a stored query is dropped rather than passed through: an unknown rarity token
+// silently matches nothing, so the shelf would go barren with no error anywhere.
+{
+    const filter = Q.normalizeQuery({ rarity: ['common', 'nonsense'], subtypes: ['weapon', 'spell'] });
+    assert.deepStrictEqual(filter.rarity, ['common'], 'unknown rarity tokens are dropped');
+    assert.deepStrictEqual(filter.subtypes, ['weapon'],
+        'and a non-physical subtype too — a shelf cannot hold a spell, and asking would return nothing');
+}
+
+// Filtering every token away must fall back rather than produce an empty list, for the
+// same reason: empty means "any" downstream.
+assert.deepStrictEqual(Q.normalizeQuery({ rarity: ['nonsense'] }).rarity, [...Q.DEFAULT_QUERY.rarity],
+    'a rarity list that filters down to nothing falls back rather than meaning "anything"');
+
+// A price window survives, and nonsense in it does not.
+{
+    const filter = Q.normalizeQuery({ priceGp: { min: 5, max: 250 } });
+    assert.deepStrictEqual(filter.priceGp, { min: 5, max: 250 }, 'a real window is kept as gold pieces');
+    const bad = Q.normalizeQuery({ priceGp: { min: -3, max: 0 } });
+    assert.strictEqual(bad.priceGp.min, Q.DEFAULT_QUERY.priceGp.min, 'a negative floor falls back');
+    assert.strictEqual(bad.priceGp.max, Q.DEFAULT_QUERY.priceGp.max, 'and a ceiling of zero would match nothing');
+}
+
+// Without the API the query answers empty rather than throwing: a shop must keep working
+// when the hub is a version behind, and a GM can still stock the shelf by hand.
+{
+    const saved = game.modules;
+    game.modules = { get: () => ({ api: {} }) };
+    assert.ok(!Q.hasQuery(), 'a Blacksmith with no query is detected as such');
+    assert.deepStrictEqual(await Q.queryStock({}), [], 'and querying answers empty rather than throwing');
+    game.modules = saved;
+}
+console.log('ok  the stock query filter defaults, clamps and degrades');
+
 // --- the ratchet this replaces ------------------------------------------
 // Kept as a check rather than a comment, because the failure was invisible: the shop
 // looked stocked, the restock reported success, and nothing moved.

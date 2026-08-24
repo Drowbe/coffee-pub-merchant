@@ -118,7 +118,14 @@
             "tableAuto": "Drawn again every time this inventory restocks.",
             "tableManual": "Drawn only when you press Restock.",
             "restockEverythingTooltip": "Bring every inventory back to its quantities and roll all of its tables",
-            "drawTooltip": "How many items to take from this table. {when}"
+            "drawTooltip": "How many items to take from this table. {when}",
+            "newStock": "New Stock",
+            "source": "Source",
+            "queryFilter": "What this shop deals in",
+            "priceFrom": "From (gp)",
+            "priceTo": "To (gp)",
+            "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
+            "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -167,7 +174,9 @@
             "nothingToRestock": "{inventory} had nothing to restock.",
             "alreadyEmpty": "{inventory} is already empty.",
             "clampedToMaxStack": "This inventory holds at most {max} of any one thing, so that is {value}. Raise the inventory’s \"each\" limit in Merchant Settings to keep more.",
-            "brokenTableRows": "{count} result(s) from {tables} no longer exist and were skipped. The table points at content that has been renamed, moved or uninstalled."
+            "brokenTableRows": "{count} result(s) from {tables} no longer exist and were skipped. The table points at content that has been renamed, moved or uninstalled.",
+            "queryUnavailable": "This inventory stocks from the compendiums, which needs a newer Coffee Pub Blacksmith.",
+            "queryEmpty": "Nothing installed matches what {inventory} asks for. Widen its kinds, rarities or price range."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
@@ -239,7 +248,9 @@
             "stocking": "Stocking {inventory}",
             "refilling": "Refilling {inventory}",
             "restockingShop": "Restocking {shop}",
-            "settlingUp": "Settling up"
+            "settlingUp": "Settling up",
+            "querying": "Asking the compendiums for {inventory}",
+            "queryEmpty": "Nothing matched for {inventory}"
         },
         "method": {
             "infinite": "Never runs out",
@@ -374,6 +385,14 @@
         "common": {
             "nothing": "nothing",
             "unknownTable": "a roll table"
+        },
+        "query": {
+            "anyKind": "anything a shop can carry",
+            "summary": "{kinds} · {rarity} · {min}–{max} gp"
+        },
+        "source": {
+            "table": "Roll tables",
+            "query": "The compendiums"
         }
     }
 }

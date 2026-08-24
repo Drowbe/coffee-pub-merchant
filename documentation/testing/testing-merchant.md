@@ -1147,3 +1147,25 @@ level onto every existing row; it logs how many.
 86. **Mundane is not common.** In module settings set *Stock depth: Common* to 2 and leave *Mundane*
     at 0, then restock a general inventory. Rope, torches and plain weapons still arrive in normal
     depth; only common **magic** items are held to two. Before this they were capped together.
+
+### 21m. Stocking from the compendiums
+
+87. On a general inventory, set **Source** to *The compendiums*. The roll-table list is replaced by a
+    filter: kinds, rarities and a gold range. Set it to *Weapon* only, *mundane*, 1–50 gp.
+88. Clear the inventory and restock. It fills with mundane weapons in that price band, and **nothing
+    magical and nothing dear**.
+89. **Restock again.** No duplicate rows — the same rule as tables: a draw brings new products only,
+    and existing rows are topped up to their quantity first.
+90. **Two shops with the same filter are different shops.** Set up a second inventory identically,
+    stock both, and compare — the candidates are shuffled, so they should not open with the same list
+    in the same order.
+91. Set the range to something nothing matches — 900,000 gp and up. The restock says nothing matched
+    and names the inventory, rather than failing silently.
+92. Untick every rarity. It falls back to the default set rather than meaning "anything", so an
+    artifact never lands on a village shelf by accident.
+93. **Mundane and Common are separate chips.** Tick *Common* only and restock: you get common **magic**
+    items and no rope. That is dnd5e's own distinction, not ours.
+94. Switch Source back to *Roll tables*. The filter is replaced by the table list, and the tables that
+    were configured are still there.
+95. On a Blacksmith without `compendiums.query`, a query shelf shows a warning on its card and draws
+    from its tables instead of going empty.

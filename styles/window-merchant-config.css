@@ -493,3 +493,15 @@
     padding-left: 6px;
     opacity: .95;
 }
+
+/* --- Query filter chips ---------------------------------------------------- */
+/*
+ * A row of ticks rather than a multi-select. "What does this shop carry" is read far
+ * faster off chips than off a list with three entries highlighted, and an unticked chip
+ * still occupies its place — so the shape of the row says how much was turned off.
+ */
+.merchant-config-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.merchant-config-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 10px; font-size: .74rem; cursor: pointer; }
+.merchant-config-chip input { margin: 0; }
+/* Quiet, not struck through: the chip is available, simply not chosen. */
+.merchant-config-chip.is-off { color: var(--blacksmith-tool-text-muted); opacity: .75; }

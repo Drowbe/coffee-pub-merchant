@@ -1,7 +1,12 @@
 # Plan — where a shop's stock comes from
 
-**Status:** decided 2026-08-23. `compendiums.query` is built and on Blacksmith master; the Merchant
-side is not written and is pinned to whatever release ships it. Delete this file when it lands.
+**Status:** built 2026-08-23, both sides. Delete this file once it has been used at a table and the
+notes below have nothing left to teach.
+
+**One caveat that outlives this plan:** `compendiums.query` is on Blacksmith master and not yet in a
+tagged release. Merchant feature-detects rather than version-pins (`hasQuery`), so a shelf set to
+query on an older hub says so on its card and falls back to its roll tables rather than going empty.
+Raise the `module.json` minimum when the release ships.
 
 ---
 
@@ -12,7 +17,7 @@ Three sources, and **roll tables stop being the one you reach for first**.
 | Source | For | State |
 |---|---|---|
 | **Manual** | Specific, curated, characterful stock — a fence's shady goods, a signature blade | **Works today.** Drag it in, it takes a par, restock tops it up |
-| **Query** | Broad coverage that maintains itself — a general store, a smith | **Blacksmith side built.** Merchant side waits for a tagged release |
+| **Query** | Broad coverage that maintains itself — a general store, a smith | **Works.** `utility-compendium.js`, drawn by `queryInventory` |
 | **Table** | Worlds that already have them, and genuinely weighted draws | **Works today.** Kept, not deprecated, not the default |
 
 ## Why tables stopped being the default
@@ -93,6 +98,21 @@ hub: one extra index fetch per configured pack, once per session, on the first c
 On master, **not in a tagged release**. `module.json` requires Blacksmith `13.19.0`; adoption waits
 for the version this ships in and raises that minimum. Feature-detect regardless, the way
 `hasExchange` and `hasSetCurrency` already do — a shop must not break because a hub is a version behind.
+
+## Where it plugged in
+
+`restockInventory` refills to par first, then draws. **Which draw is a property of the shelf**, not of
+the caller: `config.source` picks `queryInventory` or `rollInventoryTable`, and everything downstream
+is shared — new products only, up to the product target, depth by type, rarity and price. A shelf does
+not behave differently for having been stocked one way rather than the other.
+
+**Candidates are over-fetched and shuffled.** The query returns matches in scan order, so taking the
+first N would give every shop in the world the same opening inventory, in the same order, from the same
+pack. `queryInventory` asks for four times the product target and shuffles with Fisher-Yates — not
+`sort(() => Math.random() - 0.5)`, which is not a shuffle and biases hard toward the original order.
+
+**A query miss is not rot.** A table's dead row is reported, because it means the table has decayed. A
+uuid that fails to resolve here came from a live index moments ago, so it is skipped quietly.
 
 ## Where it plugs in
 

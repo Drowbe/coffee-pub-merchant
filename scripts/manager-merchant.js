@@ -8,7 +8,7 @@ import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, LEGACY_INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
-    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay,
+    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
 } from './const.js';
 import {
@@ -22,6 +22,7 @@ import { notify } from './utility-feedback.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
+import { hasQuery, queryStock } from './utility-compendium.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -1186,6 +1187,83 @@ export class MerchantManager {
      * identity `grantItems` uses, and a cap that is approximately right is worth far
      * more than one that reimplements the predicate and drifts from it.
      */
+    /**
+     * Stock an inventory from the compendiums.
+     *
+     * The query twin of `rollInventoryTable`, and deliberately the same shape: resolve
+     * candidates, hand them to `_withinLimits`, grant what survives. Everything that
+     * decides *what lands* -- new products only, the product target, depth by type,
+     * rarity and price -- is shared, so a shelf does not behave differently for having
+     * been stocked one way rather than the other.
+     *
+     * **Candidates are shuffled and over-fetched.** The query returns matches in scan
+     * order, so taking the first N would give every shop in the world the same opening
+     * inventory, in the same order, from the same pack. Asking for several times the
+     * product target and shuffling is what makes two general stores different shops.
+     */
+    static async queryInventory(actor, inventoryId, { onStep = null } = {}) {
+        if (!game.user.isGM) return 0;
+        const inventory = actor?.items?.get(inventoryId);
+        const config = this.getInventoryConfig(inventory);
+        if (!config) return 0;
+        const step = typeof onStep === 'function' ? onStep : () => {};
+
+        if (!hasQuery()) {
+            console.warn(`${MODULE.TITLE} | ${inventory.name} stocks by query, but this Blacksmith has none.`);
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.queryUnavailable'));
+            return 0;
+        }
+
+        step(game.i18n.format('coffee-pub-merchant.progress.querying', { inventory: inventory.name }));
+        const { maxProducts } = this.getInventoryLimits(config);
+        const rows = await queryStock(config.query, Math.max(50, maxProducts * 4));
+        if (!rows.length) {
+            step(game.i18n.format('coffee-pub-merchant.progress.queryEmpty', { inventory: inventory.name }));
+            notify.info(game.i18n.format('coffee-pub-merchant.notify.queryEmpty', { inventory: inventory.name }));
+            return 0;
+        }
+
+        // Fisher-Yates over a copy. `sort(() => Math.random() - 0.5)` is the tempting
+        // one-liner and is not a shuffle -- it biases heavily toward the original order,
+        // which is the exact thing being shuffled away here.
+        const pool = [...rows];
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        const drawn = [];
+        const resolved = new Map();
+        for (const row of pool) {
+            if (!row?.uuid || resolved.has(row.uuid)) continue;
+            let item = null;
+            try {
+                item = await fromUuid(row.uuid);
+            } catch (_error) {
+                item = null;
+            }
+            // Unlike a table, a miss here is not rot -- the query answered from a live
+            // index a moment ago -- so it is skipped quietly rather than reported.
+            if (item?.documentName !== 'Item' || !isPhysical(item.type)) continue;
+            resolved.set(row.uuid, item);
+            drawn.push(row.uuid);
+        }
+
+        const items = this._withinLimits(actor, inventory, drawn, resolved);
+        if (!items.length) {
+            step(game.i18n.format('coffee-pub-merchant.progress.inventoryFull', { inventory: inventory.name }));
+            return 0;
+        }
+
+        step(game.i18n.format('coffee-pub-merchant.progress.stocking', { inventory: inventory.name }));
+        const result = await grantItems({ targetActorUuid: actor.uuid, items, container: inventoryId });
+        if (!result?.ok) {
+            console.error(`${MODULE.TITLE} | Some stock did not reach ${inventory.name}:`, result);
+        }
+        this.broadcastActorRefresh(actor);
+        return items.length;
+    }
+
     static _withinLimits(actor, inventory, drawn, resolved) {
         const config = this.getInventoryConfig(inventory);
         const { maxProducts, maxPerItem } = this.getInventoryLimits(config);
@@ -1317,8 +1395,12 @@ export class MerchantManager {
         // true, including for `restockAll` and the clock.
         if (isPurchased(config.type)) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
-        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING
-            && !this.getInventoryTables(inventory).some((entry) => entry.auto)) return 0;
+        // A query shelf draws on the clock like a table-stocked one: it has no `auto`
+        // flag to consult, because the shelf itself is the thing that says "keep me
+        // stocked from the compendiums".
+        const draws = config.source === SOURCE.QUERY
+            || this.getInventoryTables(inventory).some((entry) => entry.auto);
+        if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !draws) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
             const updates = [];
@@ -1333,9 +1415,17 @@ export class MerchantManager {
         step(game.i18n.format('coffee-pub-merchant.progress.refilling', { inventory: inventory.name }));
 
         // Two mechanisms, deliberately both: par brings back what the inventory is known
-        // to keep, and the tables bring in whatever it happens to have got hold of
-        // this time. An inventory may use either or both.
-        const rolled = await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
+        // to keep, and the draw brings in whatever it happens to have got hold of this
+        // time. An inventory may use either or both.
+        //
+        // **Which draw is a property of the shelf, not of the caller.** A table is a
+        // curated, weighted list somebody wrote; a query is a description of what this
+        // shop deals in, answered against what is installed right now. They are the same
+        // step with different sources, so everything downstream -- new products only, up
+        // to the product target, depth by type/rarity/price -- is shared.
+        const rolled = config.source === SOURCE.QUERY
+            ? await this.queryInventory(actor, inventoryId, { onStep: step })
+            : await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
 
         await this.setInventoryConfig(actor, inventoryId, { lastRestock: game.time.worldTime });
         if (filled || rolled) this.broadcastActorRefresh(actor);

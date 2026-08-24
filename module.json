@@ -40,6 +40,7 @@
   "esmodules": [
     "scripts/const.js",
     "scripts/settings.js",
+    "scripts/utility-compendium.js",
     "scripts/utility-feedback.js",
     "scripts/utility-inventory.js",
     "scripts/utility-market.js",

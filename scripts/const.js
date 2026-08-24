@@ -535,6 +535,21 @@ export const STOCK_RARITY_CAPS = Object.freeze({
  * twelve. A card carrying the full tables would be twelve numbers per inventory
  * restating the same world in every shop in it.
  */
+/**
+ * Where a shelf's new products come from.
+ *
+ * **A table is a list somebody wrote; a query is a description of what this shop deals
+ * in.** The first is curated and weighted and rots — it stores references, so renaming a
+ * pack or uninstalling a module leaves rows pointing at nothing. The second is answered
+ * against what is installed at the moment it runs and cannot dangle.
+ *
+ * Tables stay the default because existing worlds have them, and because weighting is a
+ * thing a query genuinely cannot express.
+ */
+export const SOURCE = Object.freeze({ TABLE: 'table', QUERY: 'query' });
+
+export const DEFAULT_SOURCE = SOURCE.TABLE;
+
 export const STOCK_DEPTH = Object.freeze({ SPARSE: 'sparse', NORMAL: 'normal', DEEP: 'deep' });
 
 export const STOCK_DEPTH_OPTIONS = Object.freeze([
