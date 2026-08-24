@@ -593,3 +593,30 @@
    a line that says nothing. */
 .merchant-shop-reputation { display: flex; gap: 7px; align-items: center; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-text-muted); font-size: .7rem; }
 .merchant-shop-reputation > strong { margin-left: auto; color: var(--blacksmith-tool-text); }
+
+/* --- The shop's own illustration ------------------------------------------- */
+/*
+ * **Background layers, not a pseudo-element.** The first attempt put the picture on
+ * `::before` and gave the section `position: relative`, `isolation: isolate` and
+ * `overflow: hidden` to contain it — and broke the card. That section is a grid whose
+ * children sit in specific tracks, so a new stacking context and a clip changed where
+ * things landed and what survived. A backdrop is not worth restructuring a working card.
+ *
+ * CSS paints multiple background layers on one element, first on top. So the card's own
+ * gradient stays exactly where it was, made translucent, and the illustration goes
+ * underneath it — no extra elements, no stacking context, no clipping, and nothing about
+ * the layout changes at all. A shop without one is untouched by every rule here.
+ *
+ * The gradient doubles as the scrim: it is what keeps the name, the hours badge and the
+ * reputation line readable over a picture nobody vetted for contrast.
+ */
+.merchant-shop-subject[data-has-illustration] {
+    background-image:
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--blacksmith-tool-surface-raised) 84%, transparent),
+            color-mix(in srgb, var(--blacksmith-tool-surface-sunken) 76%, transparent)),
+        var(--merchant-shop-illustration);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}

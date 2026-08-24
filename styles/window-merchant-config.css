@@ -597,3 +597,32 @@
     font-size: .64rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
     white-space: nowrap;
 }
+
+/* --- Portrait as a button --------------------------------------------------- */
+/*
+ * It looked like a picture and it still does; what changes is that it now says it can
+ * be clicked. Reset rather than restyled, because a <button> brings padding, a border
+ * and a background that would box the portrait it is meant to be.
+ */
+button.merchant-config-image {
+    padding: 0; background: none; cursor: pointer;
+    transition: border-color .1s ease, box-shadow .1s ease;
+}
+button.merchant-config-image:hover { border-color: var(--blacksmith-tool-accent); }
+button.merchant-config-image:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 2px; }
+
+/* --- A path with a browse button ------------------------------------------- */
+/*
+ * The field is typeable as well as browsable: a path pasted from somewhere else is a
+ * real way to set one, and clearing the box is the only way to say "none" — which a
+ * browse-only control cannot express.
+ */
+.merchant-config-file { display: flex; gap: 4px; align-items: stretch; min-width: 0; }
+.merchant-config-file > input { flex: 1; min-width: 0; }
+.merchant-config-file-browse {
+    flex: 0 0 auto; width: 28px; padding: 0;
+    border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px;
+    background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text-muted);
+    cursor: pointer;
+}
+.merchant-config-file-browse:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-text); }

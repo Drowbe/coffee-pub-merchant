@@ -131,7 +131,12 @@
             "priceTo": "Highest price",
             "manualNote": "Nothing is drawn in. Whatever you put on this shelf is all it carries, and a restock tops those rows back up to their quantity without adding anything you did not choose.",
             "addInventoryHint": "Add a container to this merchant — a shelf, a back room, a case of curios.",
-            "depthTooltip": "How deep this shelf stacks a thing it carries — one lantern or eight. Scales the world limits below; Products is how many different things it carries, and Max stack is the ceiling on any one of them."
+            "depthTooltip": "How deep this shelf stacks a thing it carries — one lantern or eight. Scales the world limits below; Products is how many different things it carries, and Max stack is the ceiling on any one of them.",
+            "portraitTooltip": "Click to change the portrait. The token art changes with it.",
+            "illustration": "Shop illustration",
+            "illustrationPlaceholder": "No illustration",
+            "illustrationBrowse": "Browse for an illustration",
+            "illustrationHint": "A picture of the place itself, shown behind the shop card. Clear it to remove."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

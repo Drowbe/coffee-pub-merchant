@@ -18,7 +18,7 @@
                   beneath the header, and the only thing spanning both is
                   the action bar in the footer. --}}
             <div class="merchant-shop-main">
-                <section class="merchant-shop-section merchant-shop-subject">
+                <section class="merchant-shop-section merchant-shop-subject"{{#if illustration}} data-has-illustration style="--merchant-shop-illustration: url('{{illustration}}')"{{/if}}>
                     {{!-- Who and what, across the top; anything the GM wrote spans the
                           full width beneath it, where a paragraph has room to be one
                           rather than a column squeezed beside a portrait. --}}

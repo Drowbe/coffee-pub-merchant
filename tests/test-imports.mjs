@@ -77,7 +77,16 @@ function declaredNames(source) {
         let m;
         while ((m = re.exec(source))) {
             for (const part of String(m[1] ?? '').split(',')) {
-                const name = part.trim().split(/[:=]/)[0].replace(/^\.\.\./, '').trim();
+                // Braces come off first. A destructured *parameter* —
+                // `_pickImage({ current, onPick })` — splits into `{ current` and
+                // `onPick }`, so the last name in every such list read as undeclared and
+                // was reported as an undefined call. A false positive there is worse than
+                // a miss: it trains somebody to rename around the checker.
+                const name = part.trim()
+                    .replace(/[{}]/g, '')
+                    .split(/[:=]/)[0]
+                    .replace(/^\.\.\./, '')
+                    .trim();
                 if (/^[\w$]+$/.test(name)) names.add(name);
             }
         }
@@ -179,5 +188,39 @@ if (orphaned.length) {
 }
 assert.strictEqual(orphaned.length, 0, 'every doc comment describes the thing beneath it');
 console.log(`ok  ${files.length} files, no doc comment left describing the wrong thing`);
+
+// ---------------------------------------------------------------- this.x() exists
+// **A method called on `this` has to be defined somewhere.** The check above resolves
+// bare identifiers and never looks at member calls, so deleting a method while leaving
+// eight callers behind passed every suite and failed at the first `createItem` hook —
+// `this.isInventory is not a function`, from a splice that took one method too many.
+//
+// Only classes with **no `extends`** are checked. A subclass inherits methods this file
+// cannot see, so demanding a local definition there would be noise; a base class of its
+// own is exactly where a missing method is a certainty rather than a guess.
+const missingMethods = [];
+for (const file of files) {
+    const source = fs.readFileSync(path.join(SCRIPTS, file), 'utf8');
+    const classes = [...source.matchAll(/\bclass\s+(\w+)(\s+extends\s+[\w.]+)?\s*\{/g)];
+    for (const match of classes) {
+        if (match[2]) continue;                       // extends: inherits what we cannot see
+        const body = source.slice(match.index);
+        // Defined here: `static name(`, `async name(`, `name(`, and class fields.
+        const defined = new Set();
+        for (const m of body.matchAll(/^\s{4}(?:static\s+)?(?:async\s+)?(?:\*\s*)?([A-Za-z_]\w*)\s*[(=]/gm)) {
+            defined.add(m[1]);
+        }
+        for (const m of body.matchAll(/\bthis\.([A-Za-z_]\w*)\s*\(/g)) {
+            if (!defined.has(m[1])) missingMethods.push(`${file}: this.${m[1]}()`);
+        }
+    }
+}
+const uniqueMissing = [...new Set(missingMethods)];
+if (uniqueMissing.length) {
+    console.error('called on `this` but never defined:');
+    for (const entry of uniqueMissing) console.error('  ' + entry);
+}
+assert.strictEqual(uniqueMissing.length, 0, 'every method called on `this` is defined');
+console.log('ok  no method is called on `this` without being defined');
 
 console.log('\nall import checks passed');

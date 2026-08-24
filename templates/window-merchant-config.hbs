@@ -15,7 +15,14 @@
     {{!-- The subject card carries the toggle, because whether this Actor is a shop at
           all is the biggest fact on the screen and belongs with its name. --}}
     <section class="merchant-config-section merchant-config-subject">
-        <div class="merchant-config-image"><img src="{{portraitImg}}" alt="{{actorName}}"></div>
+        {{!-- The portrait is the control. It is already the thing on screen that means
+              "this shopkeeper", so it is the honest place to put the way to change one —
+              and it changes the prototype token with it, because a sheet and a token that
+              disagree are two characters as far as the table is concerned. --}}
+        <button type="button" class="merchant-config-image" data-merchant-portrait
+                data-tooltip="{{localize "coffee-pub-merchant.config.portraitTooltip"}}">
+            <img src="{{portraitImg}}" alt="{{actorName}}">
+        </button>
         <div class="merchant-config-copy">
             <div class="merchant-config-kicker">{{localize "coffee-pub-merchant.config.title"}}</div>
             <div class="merchant-config-title">{{actorName}}</div>
@@ -38,6 +45,23 @@
                     <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.shopName"}}</span>
                     <input type="text" value="{{shopName}}" placeholder="{{actorName}}" data-merchant-name>
                     <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.shopNameHint"}}</small>
+                </label>
+
+                {{!-- A path, browsable or typed. Typed matters: a path pasted from
+                      somewhere else is a real way to set one, and blank is how it is
+                      cleared — a browse-only field has no way to say "none". --}}
+                <label class="merchant-config-row">
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.illustration"}}</span>
+                    <div class="merchant-config-file">
+                        <input type="text" value="{{illustration}}" data-merchant-illustration
+                               placeholder="{{localize "coffee-pub-merchant.config.illustrationPlaceholder"}}">
+                        <button type="button" class="merchant-config-file-browse"
+                                data-merchant-illustration-browse
+                                data-tooltip="{{localize "coffee-pub-merchant.config.illustrationBrowse"}}">
+                            <i class="fa-solid fa-file-image"></i>
+                        </button>
+                    </div>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.illustrationHint"}}</small>
                 </label>
 
                 <label class="merchant-config-row">
@@ -365,6 +389,57 @@
                                     <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.manualNote"}}</div>
                                 </div>
                             {{/if}}
+                            {{#if isTable}}
+                            <div class="merchant-config-inv-group">
+                                <h4>{{localize "coffee-pub-merchant.config.rollTables"}}</h4>
+                                {{#if hasTables}}
+                                    <div class="merchant-config-grid">
+                                        {{#each tables}}
+                                            {{!-- What the table will do is on the input
+                                                  as a tooltip rather than as a line of
+                                                  prose under every row: five tables
+                                                  meant five sentences saying almost the
+                                                  same thing. --}}
+                                            <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#unless enabled}} is-off{{/unless}}">
+                                                <span class="merchant-config-label merchant-config-table-name"
+                                                      data-tooltip="{{name}}">
+                                                    {{!-- Off keeps the table and its
+                                                          settings and simply stops it
+                                                          contributing — a seasonal
+                                                          table should not have to be
+                                                          removed and re-dropped. --}}
+                                                    <input type="checkbox" class="merchant-config-table-enabled"
+                                                           data-inventory-table-enabled="{{../id}}"
+                                                           data-table-uuid="{{uuid}}" {{#if enabled}}checked{{/if}}
+                                                           aria-label="{{localize "coffee-pub-merchant.config.useTable"}}">
+                                                    <i class="fa-solid fa-dice-d20"></i> {{name}}
+                                                </span>
+                                                <div class="merchant-config-table-controls">
+                                                    <label class="merchant-config-inline"
+                                                           data-tooltip="{{drawTooltip}}">
+                                                        <span>{{localize "coffee-pub-merchant.config.draw"}}</span>
+                                                        <input type="number" min="1" max="20" step="1" value="{{rolls}}"
+                                                               data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
+                                                               aria-label="{{localize "coffee-pub-merchant.config.drawLabel"}}">
+                                                    </label>
+                                                    <button type="button" class="merchant-config-icon-btn merchant-config-remove"
+                                                            data-action="removeInventoryTable" data-inventory-id="{{../id}}"
+                                                            data-table-uuid="{{uuid}}"
+                                                            data-tooltip="{{localize "coffee-pub-merchant.config.removeTableTooltip"}}">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {{/each}}
+                                    </div>
+                                {{/if}}
+                                <div class="merchant-config-drop">
+                                    <i class="fa-solid fa-dice-d20"></i>
+                                    {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock this inventory by rolling{{/if}}
+                                </div>
+                            </div>
+                            {{/if}}
+                        {{/if}}
                             {{#if isQuery}}
                                 <div class="merchant-config-inv-group">
                                     <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
@@ -422,57 +497,6 @@
                                     <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
                                 </div>
                             {{/if}}
-                            {{#if isTable}}
-                            <div class="merchant-config-inv-group">
-                                <h4>{{localize "coffee-pub-merchant.config.rollTables"}}</h4>
-                                {{#if hasTables}}
-                                    <div class="merchant-config-grid">
-                                        {{#each tables}}
-                                            {{!-- What the table will do is on the input
-                                                  as a tooltip rather than as a line of
-                                                  prose under every row: five tables
-                                                  meant five sentences saying almost the
-                                                  same thing. --}}
-                                            <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#unless enabled}} is-off{{/unless}}">
-                                                <span class="merchant-config-label merchant-config-table-name"
-                                                      data-tooltip="{{name}}">
-                                                    {{!-- Off keeps the table and its
-                                                          settings and simply stops it
-                                                          contributing — a seasonal
-                                                          table should not have to be
-                                                          removed and re-dropped. --}}
-                                                    <input type="checkbox" class="merchant-config-table-enabled"
-                                                           data-inventory-table-enabled="{{../id}}"
-                                                           data-table-uuid="{{uuid}}" {{#if enabled}}checked{{/if}}
-                                                           aria-label="{{localize "coffee-pub-merchant.config.useTable"}}">
-                                                    <i class="fa-solid fa-dice-d20"></i> {{name}}
-                                                </span>
-                                                <div class="merchant-config-table-controls">
-                                                    <label class="merchant-config-inline"
-                                                           data-tooltip="{{drawTooltip}}">
-                                                        <span>{{localize "coffee-pub-merchant.config.draw"}}</span>
-                                                        <input type="number" min="1" max="20" step="1" value="{{rolls}}"
-                                                               data-inventory-table-rolls="{{../id}}" data-table-uuid="{{uuid}}"
-                                                               aria-label="{{localize "coffee-pub-merchant.config.drawLabel"}}">
-                                                    </label>
-                                                    <button type="button" class="merchant-config-icon-btn merchant-config-remove"
-                                                            data-action="removeInventoryTable" data-inventory-id="{{../id}}"
-                                                            data-table-uuid="{{uuid}}"
-                                                            data-tooltip="{{localize "coffee-pub-merchant.config.removeTableTooltip"}}">
-                                                        <i class="fa-solid fa-xmark"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        {{/each}}
-                                    </div>
-                                {{/if}}
-                                <div class="merchant-config-drop">
-                                    <i class="fa-solid fa-dice-d20"></i>
-                                    {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock this inventory by rolling{{/if}}
-                                </div>
-                            </div>
-                            {{/if}}
-                        {{/if}}
                     </div>
                 {{/each}}
             {{else}}

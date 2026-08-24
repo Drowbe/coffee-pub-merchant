@@ -172,10 +172,23 @@ Hooks.once('ready', async function () {
     // whether the shop keeps six of them or three.
     //
     // Optional-chained because it lands with api.inventory, which may be newer than
-    // the Blacksmith a given world has installed.
-    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${PAR_FLAG}`);
-    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${INVENTORY_FLAG}`);
-    blacksmith.inventory?.registerTransientFlag?.(`${MODULE.ID}.${FREE_FLAG}`);
+    // the Blacksmith a given world has installed — but **announced when it does not
+    // take**, because the failure is otherwise invisible. An unregistered flag makes two
+    // identical stacks refuse to merge, and the only thing anybody sees is a shelf
+    // growing three Light Hammers where it should have one. That is a bug people spend
+    // an evening on, and it is one console line to rule out.
+    const register = blacksmith.inventory?.registerTransientFlag;
+    if (typeof register === 'function') {
+        for (const flag of [PAR_FLAG, INVENTORY_FLAG, FREE_FLAG]) {
+            register.call(blacksmith.inventory, `${MODULE.ID}.${flag}`);
+        }
+    } else {
+        console.warn(
+            `${MODULE.TITLE} | Blacksmith has no registerTransientFlag, so Merchant's own item flags `
+            + 'count towards merge identity. Stock will arrive as separate rows rather than stacking. '
+            + 'Update Coffee Pub Blacksmith.'
+        );
+    }
 
     // Sounds are a world setting read on every client, and the toast channels give a
     // GM a checkbox per class of message. Both before anything can want them.

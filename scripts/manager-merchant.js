@@ -7,7 +7,7 @@
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
-    DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
+    DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
 } from './const.js';
@@ -431,6 +431,16 @@ export class MerchantManager {
         return { ...stored, type: INVENTORY_TYPE.GENERAL };
     }
 
+
+    /**
+     * Whether an item is one of this merchant's inventories.
+     *
+     * A container **and** carrying our config: a shopkeeper's own backpack is a container
+     * too, and treating it as a shelf would put their bedroll on sale.
+     */
+    static isInventory(item) {
+        return item?.type === 'container' && Boolean(this.getInventoryConfig(item));
+    }
 
     /** The inventory the shop buys into, or null when this merchant buys nothing. */
     static getPurchasedInventory(actor) {
@@ -940,7 +950,7 @@ export class MerchantManager {
         // the roll count is how you ask for that.
         if (tables.some((entry) => entry.uuid === uuid)) return null;
         return this.setInventoryConfig(actor, inventoryId, {
-            tables: [...tables, { uuid, rolls: 1, auto: false }],
+            tables: [...tables, { uuid, rolls: DEFAULT_TABLE_ROLLS, auto: false }],
             // The single-table fields are what this list replaced.
             table: null,
             tableRolls: null

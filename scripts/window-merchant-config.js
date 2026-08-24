@@ -400,6 +400,29 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             paint();
         }
 
+        const portrait = this.element?.querySelector('[data-merchant-portrait]');
+        if (portrait && portrait.dataset.merchantBound !== 'true') {
+            portrait.dataset.merchantBound = 'true';
+            portrait.addEventListener('click', () => void this._pickPortrait());
+        }
+
+        const illustration = this.element?.querySelector('[data-merchant-illustration-browse]');
+        if (illustration && illustration.dataset.merchantBound !== 'true') {
+            illustration.dataset.merchantBound = 'true';
+            illustration.addEventListener('click', () => void this._pickIllustration());
+        }
+
+        const illustrationField = this.element?.querySelector('[data-merchant-illustration]');
+        if (illustrationField && illustrationField.dataset.merchantBound !== 'true') {
+            illustrationField.dataset.merchantBound = 'true';
+            // Typed as well as browsed: a path pasted from elsewhere is a real way to
+            // set one, and blank is how it is cleared.
+            illustrationField.addEventListener('change', (event) => {
+                const value = String(event.target.value ?? '').trim();
+                void this._setField({ illustration: value || null });
+            });
+        }
+
         for (const select of this.element?.querySelectorAll('[data-inventory-source]') ?? []) {
             if (select.dataset.merchantBound === 'true') continue;
             select.dataset.merchantBound = 'true';
@@ -702,6 +725,35 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
+     * Browse for an image, and do something with the one that comes back.
+     *
+     * Three callers now — an inventory's icon, the shopkeeper's portrait, the shop's
+     * illustration — so the picker itself is here once and each caller says only what to
+     * do with the answer.
+     */
+    async _pickImage({ current, onPick }) {
+        // v13 namespaced it; the bare global is deprecated.
+        const Picker = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+        if (!Picker) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.filePickerUnavailable'));
+            return;
+        }
+        try {
+            await new Picker({
+                type: 'image',
+                current: current || '',
+                callback: async (path) => {
+                    if (!path || path === current) return;
+                    await onPick(path);
+                }
+            }).browse();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not open the file picker:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.filePickerFailed'));
+        }
+    }
+
+    /**
      * Choose different artwork for an inventory.
      *
      * The container's own `img`, so it changes everywhere at once — this window, the
@@ -713,30 +765,48 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const actor = await this._resolveActor();
         const item = actor?.items?.get(inventoryId);
         if (!item) return;
+        await this._pickImage({
+            current: item.img,
+            onPick: async (path) => {
+                await item.update({ img: path });
+                MerchantManager.broadcastActorRefresh(actor);
+                this.flashSaved();
+                await this.render(false);
+            }
+        });
+    }
 
-        // v13 namespaced it; the bare global is deprecated.
-        const Picker = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
-        if (!Picker) {
-            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.filePickerUnavailable'));
-            return;
-        }
+    /**
+     * Change who is behind the counter.
+     *
+     * **The prototype token follows the portrait.** A shopkeeper whose sheet and whose
+     * token disagree is two characters as far as anybody at the table is concerned, and
+     * the token is the one players actually see. Placed tokens are left alone: they are
+     * already on a map, and changing art under a player mid-scene is a different act
+     * from setting up a merchant.
+     */
+    async _pickPortrait() {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        await this._pickImage({
+            current: actor.img,
+            onPick: async (path) => {
+                await actor.update({ img: path, 'prototypeToken.texture.src': path });
+                MerchantManager.broadcastActorRefresh(actor);
+                this.flashSaved();
+                await this.render(false);
+            }
+        });
+    }
 
-        try {
-            await new Picker({
-                type: 'image',
-                current: item.img,
-                callback: async (path) => {
-                    if (!path || path === item.img) return;
-                    await item.update({ img: path });
-                    MerchantManager.broadcastActorRefresh(actor);
-                    this.flashSaved();
-                    await this.render(false);
-                }
-            }).browse();
-        } catch (error) {
-            console.error(`${MODULE.TITLE} | Could not open the file picker:`, error);
-            notify.error(game.i18n.localize('coffee-pub-merchant.notify.filePickerFailed'));
-        }
+    /** The picture of the shop itself. Stored on the merchant flag, like its description. */
+    async _pickIllustration() {
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        await this._pickImage({
+            current: MerchantManager.getConfig(actor)?.illustration ?? '',
+            onPick: async (path) => this._setField({ illustration: path })
+        });
     }
 
     /**
@@ -1300,6 +1370,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     async getData() {
         const actor = await this._resolveActor();
         const enabled = MerchantManager.isMerchant(actor);
+        const merchantConfig = MerchantManager.getConfig(actor) ?? {};
 
         // Hidden inventories included: this window is GM-only, and an inventory you cannot see
         // in your own configuration is worse than useless.
@@ -1539,6 +1610,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             actorName: actor?.name ?? 'Unknown',
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
+            illustration: merchantConfig.illustration ?? '',
             enabled,
             // A shop that has never had hours set is open all day, which is the same
             // thing the slider says when it covers the whole span — so there is one

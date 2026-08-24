@@ -1460,6 +1460,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
+            // **The picture of the place, if there is one.** Absent is the ordinary case
+            // and the card reads exactly as it always did; present, it sits behind the
+            // card as a backdrop rather than replacing anything on it.
+            illustration: config?.illustration || null,
             // The shopkeeper is only worth naming when the shop is not named after
             // them. "Bob" over a shop called Bob is a line of nothing.
             keeperName: token?.actor?.name ?? token?.name ?? '',

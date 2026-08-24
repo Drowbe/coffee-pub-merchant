@@ -1220,3 +1220,19 @@ level onto every existing row; it logs how many.
     table's items land rather than the query's filler.
 117. Point a table at something the filter would also return. It appears **once**, not twice.
 118. Nothing anywhere refers to migration any more; a fresh world sets up with no migration step at load.
+
+### 21n. Portraits and illustrations
+
+119. **Click the portrait** in Merchant Settings. The file picker opens at the current image; choose
+    another. The card updates, and the merchant's **prototype token** art changes with it.
+120. Place a token first, then change the portrait. The **placed** token keeps its old art — only the
+    prototype changes.
+121. Set **Shop illustration** with the browse button. Open the shop: the picture sits behind the shop
+    card, dimmed, with the name, hours badge and reputation line all still legible over it.
+122. **Type** a path into the field instead of browsing. It takes. Clear the field: the backdrop goes.
+123. A shop with no illustration looks exactly as it did before — no faint panel, no shifted text.
+
+124. Drop a roll table on a shelf. Its **Draw** reads **10**, and one restock brings in a visible
+    delivery rather than a single row.
+125. On a shelf set to *Roll Tables, then Configured Compendiums*, the **Roll Tables** group is above the
+    compendium filter — the same order the draw runs in.

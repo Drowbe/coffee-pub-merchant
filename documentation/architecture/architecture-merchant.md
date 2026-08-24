@@ -465,6 +465,27 @@ in the buyer's pack claiming to be free.
 A **negotiated** price of 0 already worked and still does — that is one trade rather than a
 standing offer, and it clears when the trade settles.
 
+### Two pictures, answering two questions
+
+**The portrait is who is behind the counter; the illustration is what the place looks like.** They are
+different questions and neither substitutes for the other, so they are stored separately: the portrait is
+the Actor's own `img`, the illustration is `illustration` on the merchant flag beside the name and the
+description — the same kind of thing, something a GM wrote about this shop for players to see.
+
+**Changing the portrait changes the prototype token with it.** A shopkeeper whose sheet and whose token
+disagree is two characters as far as anybody at the table is concerned, and the token is the one players
+actually see. **Placed tokens are left alone**: they are already on a map, and changing art under a player
+mid-scene is a different act from setting up a merchant.
+
+The illustration is a **backdrop, not a replacement**. It renders on `::before` beneath the shop's subject
+card, at low opacity with a gradient over the text edge — the card keeps its own gradient, its border, and
+every word in the position it already had. A shop without one renders exactly the markup it always did, which
+is what makes this safe to add to a window full of working controls.
+
+The field takes a **typed path as well as a browsed one**. Typing matters twice over: a path pasted from
+somewhere else is a real way to set one, and clearing the box is the only way to say *none* — which a
+browse-only control cannot express at all.
+
 ### Negotiation
 
 A GM double-clicks the price on any slate line and names it. The figure is written to the **merchant

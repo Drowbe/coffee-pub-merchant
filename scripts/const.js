@@ -111,6 +111,17 @@ export const DEFAULT_RESTOCK_DAYS = 1;
  * Neither costs anything on a shelf stocked by hand: nothing draws, so nothing fills.
  */
 export const DEFAULT_MAX_PRODUCTS = 50;
+
+/**
+ * How many times a table is drawn when it is first dropped on a shelf.
+ *
+ * **One was a table that did nothing worth seeing until it was configured.** A shelf
+ * carries fifty products and a draw brings in new ones only, so a single roll is a
+ * single row — usually one a GM does not notice arriving. Ten is a visible delivery on
+ * the first restock without being the whole shelf, and a GM who dropped a table on a
+ * shelf has already said what they want from it.
+ */
+export const DEFAULT_TABLE_ROLLS = 10;
 export const DEFAULT_MAX_PER_ITEM = 20;
 
 /**
@@ -357,6 +368,19 @@ export const DEFAULT_BUY_RATE = 0.5;
 // the scope a shop already reads. A city spread over three maps means setting it
 // three times; named regions spanning scenes would fix that and are a bigger feature
 // than this one, so they wait until the repetition is actually annoying somebody.
+
+/**
+ * A picture of the shop itself, as opposed to a picture of the shopkeeper.
+ *
+ * **Two different images answering two different questions.** The portrait is who is
+ * behind the counter; the illustration is what the place looks like when you walk in.
+ * A shop with no illustration is the ordinary case and reads exactly as it did before —
+ * this only ever adds a backdrop, never replaces the card.
+ *
+ * Stored on the merchant flag beside the name and the description, because it is the
+ * same kind of thing: something the GM wrote about this shop for players to see.
+ */
+export const DEFAULT_ILLUSTRATION = null;
 
 export const MARKET_FLAG = 'market';
 
