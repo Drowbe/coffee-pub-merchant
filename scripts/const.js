@@ -89,19 +89,28 @@ export const DEFAULT_TILL = Object.freeze({ gp: 250 });
 export const DEFAULT_RESTOCK_DAYS = 1;
 
 /**
- * How much an inventory will hold, unless it says otherwise.
+ * How much an inventory holds, unless it says otherwise.
  *
- * Two different ceilings, because they answer two different runaway conditions.
- * `PRODUCTS` counts distinct rows: an inventory rolling a table every week would
- * otherwise grow a longer and longer list of one-offs until the shop window is
- * unreadable. `PER_ITEM` caps any single row: without it an inventory that keeps
- * restocking rations builds toward thousands of them.
+ * **The two are no longer the same kind of number, and that matters.**
  *
- * A hundred rows totalling three hundred items is a fine shop. A hundred rows
- * totalling twenty thousand is a warehouse, and one row of twenty thousand is a
- * bug that took a fortnight of game time to show itself.
+ * `PRODUCTS` counts distinct rows and is a **target**: a drawing shelf fills up to it
+ * and stops, so it says how big a shop this is rather than how big it is allowed to
+ * get. It used to be a ceiling against a runaway — a shelf rolling a table every week
+ * growing an endless list of one-offs — and that danger went away when a draw started
+ * bringing in new products only. Fifty because twenty-five reads as a stall: a party
+ * after rope, a lantern, chalk and a crowbar can exhaust twenty-five in one visit, and
+ * a shop should still have something the third time somebody walks in.
+ *
+ * `PER_ITEM` is still a **ceiling**, and still guards a runaway: without it a shelf that
+ * keeps restocking rations builds toward thousands of them.
+ *
+ * Fifty rows totalling three hundred items is a fine shop. Fifty rows totalling twenty
+ * thousand is a warehouse, and one row of twenty thousand is a bug that took a
+ * fortnight of game time to show itself.
+ *
+ * Neither costs anything on a shelf stocked by hand: nothing draws, so nothing fills.
  */
-export const DEFAULT_MAX_PRODUCTS = 25;
+export const DEFAULT_MAX_PRODUCTS = 50;
 export const DEFAULT_MAX_PER_ITEM = 20;
 
 /**
@@ -174,14 +183,6 @@ export function shopKind(key) {
 
 export const INVENTORY_FLAG = 'inventory';
 
-/**
- * The flag key these used to live under.
- *
- * Kept for the one-time migration in `MerchantManager.migrateWorld`, and for nothing
- * else. Nothing reads it after that runs.
- */
-export const LEGACY_INVENTORY_FLAG = 'shelf';
-
 export const INVENTORY_TYPE = Object.freeze({
     GENERAL: 'general',
     HIDDEN: 'hidden',
@@ -247,7 +248,7 @@ export const INVENTORY_TYPES = Object.freeze({
     discounted: {
         key: INVENTORY_TYPE.DISCOUNTED,
         name: 'Discounted',
-        img: 'icons/containers/boxes/crates-wooden-stacked.webp',
+        img: 'icons/containers/barrels/barrel-reinforced-cherry-brown.webp',
         hint: 'On display, priced below the going rate.',
         pricing: 'markup',
         restocks: true,
@@ -535,55 +536,6 @@ export const STOCK_RARITY_CAPS = Object.freeze({
  * twelve. A card carrying the full tables would be twelve numbers per inventory
  * restating the same world in every shop in it.
  */
-/**
- * Where a shelf's new products come from.
- *
- * **A table is a list somebody wrote; a query is a description of what this shop deals
- * in.** The first is curated and weighted and rots — it stores references, so renaming a
- * pack or uninstalling a module leaves rows pointing at nothing. The second is answered
- * against what is installed at the moment it runs and cannot dangle.
- *
- * Tables stay the default because existing worlds have them, and because weighting is a
- * thing a query genuinely cannot express.
- */
-/**
- * The gold-piece stops a price slider moves between.
- *
- * **Not a linear range.** Shop prices span four orders of magnitude — a torch is 0.01 gp
- * and plate is 1,500 — so a linear 0-to-anything slider spends nine tenths of its travel
- * in a band no shop cares about and cannot separate a torch from a lantern at all. These
- * stops are roughly logarithmic, so every drag distance is about as meaningful as the last.
- *
- * `Infinity` is the last stop and reads as **Any**: the honest end of a shop that deals
- * in whatever it can get, and the only way to say "no ceiling" without asking a GM to
- * guess a number bigger than the most expensive thing they have installed.
- */
-export const PRICE_STOPS = Object.freeze([
-    0, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Infinity
-]);
-
-/** The nearest stop at or below a value, as an index. */
-export function priceStopIndex(gp) {
-    // **Checked before conversion.** `Number(null)` is 0, not NaN, so a null ceiling —
-    // which is how "no ceiling" is stored — would otherwise read as "0 gp" and put the
-    // top handle at the bottom of the range.
-    if (gp === null || gp === undefined) return PRICE_STOPS.length - 1;
-    const value = Number(gp);
-    if (!Number.isFinite(value)) return PRICE_STOPS.length - 1;
-    const found = PRICE_STOPS.findIndex((stop) => stop >= value);
-    return found < 0 ? PRICE_STOPS.length - 1 : found;
-}
-
-/** What a stop reads as. The top one is a word, because a number there would be a lie. */
-export function priceStopLabel(index) {
-    const stop = PRICE_STOPS[Math.max(0, Math.min(PRICE_STOPS.length - 1, Math.trunc(index)))];
-    return Number.isFinite(stop) ? String(stop) : game.i18n.localize('coffee-pub-merchant.query.anyPrice');
-}
-
-export const SOURCE = Object.freeze({ TABLE: 'table', QUERY: 'query' });
-
-export const DEFAULT_SOURCE = SOURCE.TABLE;
-
 export const STOCK_DEPTH = Object.freeze({ SPARSE: 'sparse', NORMAL: 'normal', DEEP: 'deep' });
 
 export const STOCK_DEPTH_OPTIONS = Object.freeze([
@@ -633,6 +585,84 @@ function _read(defaults, key) {
 /** The scale for a dial setting, falling back to Normal rather than to nothing. */
 export function depthScale(key) {
     return STOCK_DEPTH_OPTIONS.find((entry) => entry.value === key)?.scale ?? 1;
+}
+
+/**
+ * Where a shelf's new products come from.
+ *
+ * **A table is a list somebody wrote; a query is a description of what this shop deals
+ * in.** The first is curated and weighted and rots — it stores references, so renaming a
+ * pack or uninstalling a module leaves rows pointing at nothing. The second is answered
+ * against what is installed at the moment it runs and cannot dangle.
+ *
+ * **Manual is the third, and it is not the absence of the other two.** A shelf a GM
+ * stocked by hand — a fence's shady goods, a smith's one good blade — is curated, and
+ * saying so is different from leaving a table shelf with no tables on it. Restock still
+ * tops its rows up to their quantity; it simply never brings in anything new, so nothing
+ * a GM did not choose ever appears on it.
+ *
+ * **And both, because a real shop is both.** A few things that make it *this* shop — the
+ * fence's shady weapons, the smith's one good blade — and a lot of ordinary stock nobody
+ * chose individually. Tables take the free slots first: they are the deliberate half, and
+ * the query is filler. Nothing is drawn twice, because the draw already matches rows by
+ * name and type.
+ *
+ * **Manual placement works on every one of these.** A GM can always drag something onto
+ * any shelf; what these four choose is what arrives *without* being asked for. That is why
+ * the first one is named "Manual only" rather than "Manual".
+ */
+export const SOURCE = Object.freeze({
+    MANUAL: 'manual',
+    QUERY: 'query',
+    TABLE: 'table',
+    BOTH: 'both'
+});
+
+/**
+ * **Manual, because a new shelf has nothing on it and no opinion about what should be.**
+ *
+ * A shelf created as a table shelf is a shelf waiting for a table that may never be
+ * dropped on it, and one created as a query shelf starts pulling in whatever the world
+ * happens to hold. Manual is the only default that does nothing until asked — which is
+ * what a GM who has just pressed Add Inventory has actually said so far.
+ *
+ * Existing shelves are not touched by this: schema 5 stamps an explicit source on every
+ * one of them, so nothing silently changes what it draws because a default moved.
+ */
+export const DEFAULT_SOURCE = SOURCE.MANUAL;
+
+/**
+ * The gold-piece stops a price slider moves between.
+ *
+ * **Not a linear range.** Shop prices span four orders of magnitude — a torch is 0.01 gp
+ * and plate is 1,500 — so a linear 0-to-anything slider spends nine tenths of its travel
+ * in a band no shop cares about and cannot separate a torch from a lantern at all. These
+ * stops are roughly logarithmic, so every drag distance is about as meaningful as the last.
+ *
+ * `Infinity` is the last stop and reads as **Any**: the honest end of a shop that deals
+ * in whatever it can get, and the only way to say "no ceiling" without asking a GM to
+ * guess a number bigger than the most expensive thing they have installed.
+ */
+export const PRICE_STOPS = Object.freeze([
+    0, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Infinity
+]);
+
+/** The nearest stop at or below a value, as an index. */
+export function priceStopIndex(gp) {
+    // **Checked before conversion.** `Number(null)` is 0, not NaN, so a null ceiling —
+    // which is how "no ceiling" is stored — would otherwise read as "0 gp" and put the
+    // top handle at the bottom of the range.
+    if (gp === null || gp === undefined) return PRICE_STOPS.length - 1;
+    const value = Number(gp);
+    if (!Number.isFinite(value)) return PRICE_STOPS.length - 1;
+    const found = PRICE_STOPS.findIndex((stop) => stop >= value);
+    return found < 0 ? PRICE_STOPS.length - 1 : found;
+}
+
+/** What a stop reads as. The top one is a word, because a number there would be a lie. */
+export function priceStopLabel(index) {
+    const stop = PRICE_STOPS[Math.max(0, Math.min(PRICE_STOPS.length - 1, Math.trunc(index)))];
+    return Number.isFinite(stop) ? String(stop) : game.i18n.localize('coffee-pub-merchant.query.anyPrice');
 }
 
 // ==================================================================

@@ -168,6 +168,55 @@ assert.strictEqual(arrivals[0].par, arrivals[0].quantity,
     'a new row arrives maintained, at the level it turned up with');
 console.log('ok  a roll brings new products, never more of what is already carried');
 
+// --- four sources, and what each draws -----------------------------------
+// Manual placement works on every shelf; what a source chooses is what arrives
+// *without* being asked for. Hence "Manual only" rather than "Manual".
+const SRC = { MANUAL: 'manual', QUERY: 'query', TABLE: 'table', BOTH: 'both' };
+const drawsFrom = (source) => ({
+    tables: source === SRC.TABLE || source === SRC.BOTH,
+    query: source === SRC.QUERY || source === SRC.BOTH
+});
+assert.deepStrictEqual(drawsFrom(SRC.MANUAL), { tables: false, query: false }, 'manual draws nothing');
+assert.deepStrictEqual(drawsFrom(SRC.TABLE), { tables: true, query: false }, 'tables draw tables');
+assert.deepStrictEqual(drawsFrom(SRC.QUERY), { tables: false, query: true }, 'query draws the compendiums');
+assert.deepStrictEqual(drawsFrom(SRC.BOTH), { tables: true, query: true }, 'and both draws both');
+
+// **Tables take the free slots first.** Both feed one product target, so on a nearly full
+// shelf the order decides who gets the last few — and the curated half should land, with
+// the query as filler. Modelled the way `restockInventory` runs them: tables, then query.
+{
+    const target = 5;
+    const carried = new Set(['rope']);
+    const take = (candidates) => {
+        const got = [];
+        for (const name of candidates) {
+            if (carried.has(name) || carried.size >= target) continue;
+            carried.add(name);
+            got.push(name);
+        }
+        return got;
+    };
+    carried.add('a'); carried.add('b'); carried.add('c');   // four carried, one slot left
+    const fromTables = take(['signature blade']);
+    const fromQuery = take(['ordinary dagger']);
+    assert.deepStrictEqual(fromTables, ['signature blade'], 'the curated row takes the last slot');
+    assert.deepStrictEqual(fromQuery, [], 'and the filler gets none, rather than the other way round');
+}
+
+// Nothing arrives twice. `_withinLimits` matches rows by name and type, so the same
+// longsword offered by a table and by the query is one row, not two.
+{
+    const carried = new Set();
+    const seen = [];
+    for (const name of ['longsword', 'longsword']) {
+        if (carried.has(name)) continue;
+        carried.add(name);
+        seen.push(name);
+    }
+    assert.deepStrictEqual(seen, ['longsword'], 'one row, however many sources offered it');
+}
+console.log('ok  four sources, tables first, nothing drawn twice');
+
 // --- which merchants are "in the world" ---------------------------------
 // Lifted verbatim from `MerchantManager.worldMerchants`. The rule it encodes: a linked
 // token IS its sidebar Actor and is a shop whether or not it is placed; an unlinked
@@ -352,6 +401,29 @@ assert.ok(!holdsList({ min: 1, max: 2 }), 'and so does a plain object of numbers
         'and not a list of rarities either — it falls back rather than meaning anything');
 }
 console.log('ok  a shrinking list replaces rather than merging');
+
+// --- schema 5: every shelf says what it draws ---------------------------
+// The default source moved to Manual. A shelf with no stored source would otherwise stop
+// rolling the tables it has had all along — a shop quietly going empty because a default
+// changed somewhere else. Migration stamps an explicit source on every existing shelf.
+function sourceFor(tables) { return tables.length ? 'table' : 'manual'; }
+assert.strictEqual(sourceFor([{ uuid: 'x' }]), 'table', 'a shelf with tables keeps drawing from them');
+assert.strictEqual(sourceFor([]), 'manual', 'and one without draws nothing, which is what it already did');
+
+// One update per item id. Two entries for the same id in one `updateEmbeddedDocuments`
+// is a coin toss over which survives, and the legacy pass and the source pass both write
+// to inventory containers.
+{
+    const claimed = new Set();
+    const updates = [];
+    const legacyShelves = [{ id: 'a' }];
+    const allShelves = [{ id: 'a' }, { id: 'b' }];
+    for (const shelf of legacyShelves) { claimed.add(shelf.id); updates.push(shelf.id); }
+    for (const shelf of allShelves) { if (claimed.has(shelf.id)) continue; updates.push(shelf.id); }
+    assert.deepStrictEqual(updates, ['a', 'b'], 'a legacy shelf is written once, not twice');
+    assert.strictEqual(new Set(updates).size, updates.length, 'and no id appears twice');
+}
+console.log('ok  the source migration is explicit and writes each shelf once');
 
 // --- the ratchet this replaces ------------------------------------------
 // Kept as a check rather than a comment, because the failure was invisible: the shop

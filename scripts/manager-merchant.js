@@ -7,8 +7,8 @@
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
-    DEFAULT_TILL, INVENTORY_FLAG, LEGACY_INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
-    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE,
+    DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES,
+    inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
 } from './const.js';
 import {
@@ -29,13 +29,17 @@ const CONTEXT = 'merchant-interaction';
 /**
  * The inventory schema this build writes.
  *
- * Bumped when a stored shape changes in a way that needs moving rather than reading
- * around. **1** was untyped shelves; **2** is typed inventories under a renamed flag;
- * **3** renames `pricing.buybackOverrides` to `purchaseOverrides`, the one stored key
- * left behind when *buyback* left the vocabulary. Stamped per merchant by
- * `migrateWorld`, which is safe to run against any earlier version.
+ * **Nothing migrates, and nothing needs to.** Merchant has not shipped, so no world
+ * holds a shape this build cannot read — five schema versions and their migration
+ * passes came out on 2026-08-24 along with the flag rename, the type derivation and the
+ * par backfill they carried. Two of that week's bugs were *in* migration code that would
+ * never have run, which is the argument against writing it early rather than for it.
+ *
+ * The number stays because it costs one line and the first release makes it real: from
+ * then on, a stored shape that changes needs moving rather than reading around, and the
+ * version is what says which world is which. Bump it and write the pass at the same time.
  */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 1;
 
 /**
  * Whether a value contains an array anywhere a flag merge would mangle.
@@ -302,6 +306,51 @@ export class MerchantManager {
     static _lastScheduled = new Map();
 
     /**
+     * Every merchant **in the world**, which is not the same set as every merchant Actor.
+     *
+     * A linked token *is* its sidebar Actor: Bob keeps a shop in Phlan, and what the
+     * party does to his till is still true next season and in whatever city he turns up
+     * in. He is a shop whether or not a token of him happens to be on the current map,
+     * so he is yielded from `game.actors`.
+     *
+     * An **unlinked** token is a shop in its own right, with its own ActorDelta, and
+     * there can be several of them at once — Flipper the travelling salesman, placed
+     * three times, is three shops that know nothing about each other. Each one's
+     * `token.actor` is a synthetic Actor living on a scene and is in `game.actors`
+     * nowhere, which is why the clock never reached them.
+     *
+     * And an unlinked merchant Actor sitting in the sidebar is **not** a shop. It is the
+     * mould Flipper is cast from. It was the only thing being restocked: the clock ticked
+     * on the template, and because an unlinked token inherits anything its delta has not
+     * overridden, the template's new stock was then *delivered* into every placed copy.
+     * That is not a shop restocking, it is a leak with a schedule.
+     *
+     * Walks every scene, not the viewed one. A shop does not stop keeping stock because
+     * nobody is looking at the map it stands on.
+     */
+    static *worldMerchants() {
+        for (const actor of game.actors ?? []) {
+            // `prototypeToken.actorLink` is the whole test: linked means persistent and
+            // one of a kind, unlinked means this Actor is a template.
+            if (!actor.prototypeToken?.actorLink) continue;
+            if (this.isMerchant(actor)) yield actor;
+        }
+
+        for (const scene of game.scenes ?? []) {
+            for (const token of scene.tokens ?? []) {
+                if (token.actorLink) continue;          // already yielded, as its Actor
+                // Two cheap reads before the expensive one. This runs on every world-time
+                // tick, and `token.actor` on an unlinked token resolves a synthetic Actor;
+                // a big world is thousands of tokens and almost none of them are shops.
+                if (!token.actorId) continue;
+                const actor = token.actor;
+                if (this.isMerchant(actor)) yield actor;
+            }
+        }
+    }
+
+
+    /**
      * Set the gold in the till.
      *
      * **Written directly, and this is the one place Merchant touches currency without
@@ -371,37 +420,17 @@ export class MerchantManager {
     /**
      * An inventory's configuration, with its type guaranteed.
      *
-     * `migrateWorld` rewrites everything at load, so the derivation below is a belt
-     * for its braces: a world whose GM has not logged in since the rename, a
-     * container copied in from another world, or an inventory a macro made by hand
-     * still reads as *something* rather than as a shop with no settings.
-     *
-     * The derivation is not a guess — each of these was the only way that state could
-     * be expressed before types existed.
+     * A stored type that is not one we know falls back to `general` rather than to
+     * nothing — a container copied in from another world, or one a macro made by hand,
+     * should read as *a shelf* rather than as a shop with no settings.
      */
     static getInventoryConfig(item) {
-        const stored = item?.getFlag(MODULE.ID, INVENTORY_FLAG)
-            ?? item?.getFlag(MODULE.ID, LEGACY_INVENTORY_FLAG)
-            ?? null;
+        const stored = item?.getFlag(MODULE.ID, INVENTORY_FLAG) ?? null;
         if (!stored) return null;
         if (INVENTORY_TYPES[stored.type]) return stored;
-        return { ...stored, type: this.deriveInventoryType(stored) };
+        return { ...stored, type: INVENTORY_TYPE.GENERAL };
     }
 
-    /** What an inventory configured before types must have meant. */
-    static deriveInventoryType(config) {
-        if (config?.mode === 'buyback') return INVENTORY_TYPE.PURCHASED;
-        if (config?.mode === 'barter') return INVENTORY_TYPE.UNPRICED;
-        if (config?.visible === false) return INVENTORY_TYPE.HIDDEN;
-        const markup = Number(config?.markup);
-        if (Number.isFinite(markup) && markup > 1) return INVENTORY_TYPE.PREMIUM;
-        if (Number.isFinite(markup) && markup > 0 && markup < 1) return INVENTORY_TYPE.DISCOUNTED;
-        return INVENTORY_TYPE.GENERAL;
-    }
-
-    static isInventory(item) {
-        return item?.type === 'container' && Boolean(this.getInventoryConfig(item));
-    }
 
     /** The inventory the shop buys into, or null when this merchant buys nothing. */
     static getPurchasedInventory(actor) {
@@ -413,123 +442,6 @@ export class MerchantManager {
     // ===== MIGRATION ==============================================
     // ==============================================================
 
-    /**
-     * Move every inventory onto the new flag, once.
-     *
-     * Shelves became inventories with a type, and the stored key moved with the word:
-     * one vocabulary in the interface and another in the data is how the two drift
-     * apart. That rename would orphan every shop already configured, so this walks
-     * them over.
-     *
-     * **GM-only, and idempotent.** It stamps a schema version on the Actor, so a
-     * second GM logging in does not repeat the work, and a shop already migrated is
-     * skipped rather than rewritten. The old flag is deleted in the same update as the
-     * new one is written, so there is never a moment with two truths on one container.
-     *
-     * One write per Actor, batched over its items: two writes to one Actor is the
-     * shape that trips dnd5e's encumbrance recompute, and a migration touching every
-     * merchant in a world is exactly where that would show up.
-     */
-    static async migrateWorld() {
-        if (!game.user.isGM) return 0;
-
-        // **Every merchant Actor, plus every placed unlinked one** — a wider set than
-        // `worldMerchants` on purpose. A template is not a shop, but it holds the flags
-        // every token cast from it inherits, so leaving it unmigrated means every future
-        // placement arrives stale. Deduped by uuid because a linked token's actor and
-        // its sidebar entry are the same document reached two ways.
-        const seen = new Set();
-        const candidates = [
-            ...(game.actors ?? []).filter((a) => this.isMerchant(a)),
-            ...this.worldMerchants()
-        ].filter((actor) => actor?.uuid && !seen.has(actor.uuid) && seen.add(actor.uuid));
-
-        let migrated = 0;
-        for (const actor of candidates) {
-            if (this.getConfig(actor)?.schema >= SCHEMA_VERSION) continue;
-
-            const updates = [];
-            for (const item of actor.items) {
-                const legacy = item.getFlag(MODULE.ID, LEGACY_INVENTORY_FLAG);
-                if (!legacy) continue;
-
-                const config = { ...legacy, type: this.deriveInventoryType(legacy) };
-                // `mode` was what the code branched on and the type has taken that
-                // job. Left behind it would be a second, staler answer to the same
-                // question.
-                delete config.mode;
-
-                updates.push({
-                    _id: item.id,
-                    [`flags.${MODULE.ID}.${INVENTORY_FLAG}`]: config,
-                    [`flags.${MODULE.ID}.-=${LEGACY_INVENTORY_FLAG}`]: null
-                });
-            }
-
-            // **Adopt every unmaintained row.** Before schema 4 only a hand-typed
-            // quantity wrote a restock target; everything that arrived by roll table or
-            // by drag had none, and `getStock` fell back to whatever was on the shelf at
-            // the time it was asked. That reads as maintained and is not: the target
-            // followed the stock downward, so a shop could only ever lose depth. Every
-            // such row is stamped here with what it currently holds, on the reasonable
-            // assumption that a shop sitting in a world nobody is shopping in is a shop
-            // at rest.
-            for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
-                if (isPurchased(config?.type)) continue;   // no level to return to
-                for (const item of this.getInventoryContents(actor, inventory)) {
-                    if (Number.isFinite(Number(item.getFlag(MODULE.ID, PAR_FLAG)))) continue;
-                    updates.push({
-                        _id: item.id,
-                        [`flags.${MODULE.ID}.${PAR_FLAG}`]: Math.max(0, Math.trunc(Number(item.system?.quantity ?? 0)))
-                    });
-                }
-            }
-
-            try {
-                if (updates.length) await actor.updateEmbeddedDocuments('Item', updates);
-                await this._migrateConfig(actor);
-                migrated += updates.length;
-            } catch (error) {
-                console.error(`${MODULE.TITLE} | Could not migrate ${actor.name}:`, error);
-            }
-        }
-
-        if (migrated) {
-            console.log(`${MODULE.TITLE} | Migrated ${migrated} inventor${migrated === 1 ? 'y' : 'ies'} to the typed schema.`);
-        }
-        return migrated;
-    }
-
-    /**
-     * Move the merchant's own flag on, and stamp the schema.
-     *
-     * One rename so far: `pricing.buybackOverrides` became `pricing.purchaseOverrides`
-     * when *buyback* left the vocabulary. A stored key is the expensive half of a
-     * rename — everything else was free — and it is done here rather than read around
-     * for ever, because a second name for one thing is how the two drift.
-     *
-     * **Written as one `update` with an explicit `-=` delete.** `setFlag` merges, so
-     * assigning a `pricing` object without the old key would leave the old key exactly
-     * where it was: set and delete have to travel together or the shop ends up holding
-     * both answers.
-     */
-    static async _migrateConfig(actor) {
-        const config = this.getConfig(actor) ?? {};
-        const pricing = { ...(config.pricing ?? {}) };
-        const path = `flags.${MODULE.ID}.${MERCHANT_FLAG}`;
-        const update = { [`${path}.schema`]: SCHEMA_VERSION };
-
-        if (pricing.buybackOverrides && !pricing.purchaseOverrides) {
-            update[`${path}.pricing.purchaseOverrides`] = { ...pricing.buybackOverrides };
-        }
-        if ('buybackOverrides' in pricing) {
-            update[`${path}.pricing.-=buybackOverrides`] = null;
-        }
-
-        // Stamped even when nothing moved, so a merchant with nothing to migrate is
-        // not re-examined at every load for the rest of its life.
-        await actor.update(update);
-    }
 
     /** Inventories in display order. Hidden ones are omitted unless asked for. */
     static getInventories(actor, { includeHidden = false } = {}) {
@@ -1216,6 +1128,66 @@ export class MerchantManager {
      * identity `grantItems` uses, and a cap that is approximately right is worth far
      * more than one that reimplements the predicate and drifts from it.
      */
+    static _withinLimits(actor, inventory, drawn, resolved) {
+        const config = this.getInventoryConfig(inventory);
+        const { maxProducts, maxPerItem } = this.getInventoryLimits(config);
+        const scale = depthScale(config?.depth ?? DEFAULT_STOCK_DEPTH);
+        const caps = { typeCaps: typeCaps(), rarityCaps: rarityCaps() };
+        const key = (name, type) => `${name}\u0000${type}`;
+
+        const held = new Set();
+        for (const item of this.getInventoryContents(actor, inventory)) {
+            held.add(key(item.name, item.type));
+        }
+        let rows = held.size;
+
+        const allowed = [];
+        let carried = 0;
+        let full = 0;
+        for (const uuid of drawn) {
+            const item = resolved.get(uuid);
+            if (!item) continue;
+            const k = key(item.name, item.type);
+
+            // **A roll brings new products, never more of what is already here.**
+            // Topping up is what a restock does, and it refills to the level the GM
+            // set; a table adding to the same row would push it past that level and
+            // make the number they typed mean nothing. It is also where duplicate
+            // rows came from. So the shelf's own stock is left entirely alone and the
+            // table answers the other question: what else has this shop got hold of.
+            if (held.has(k)) { carried++; continue; }
+
+            // The product count is a **target**, not a ceiling to clip against: a
+            // shelf that carries twenty and has fifteen rolls for five more. Once it
+            // is back to twenty there is nothing left to ask for.
+            if (rows >= maxProducts) { full++; continue; }
+
+            // A roll is a delivery, not a unit. How deep it goes is what it is first,
+            // then how rare, then what it costs -- see `stockDepth`.
+            const depth = stockDepth(item, { maxPerItem, scale, ...caps });
+            held.add(k);
+            rows++;
+
+            // **The delivery sets the level.** A new row arrives maintained, so the
+            // next restock brings it back to what turned up rather than to whatever
+            // is left of it. Without this the row has no target at all and `getStock`
+            // falls back to the current quantity, which can only ever ratchet down.
+            allowed.push({
+                itemUuid: uuid,
+                quantity: depth,
+                flags: { [MODULE.ID]: { [PAR_FLAG]: depth } }
+            });
+        }
+
+        if (carried || full) {
+            console.debug(
+                `${MODULE.TITLE} | ${inventory.name}: ${carried} rolled result${carried === 1 ? '' : 's'} `
+                + `already carried, ${full} refused for want of a product slot (${maxProducts}).`
+            );
+        }
+        return allowed;
+    }
+
     /**
      * Stock an inventory from the compendiums.
      *
@@ -1293,66 +1265,6 @@ export class MerchantManager {
         return items.length;
     }
 
-    static _withinLimits(actor, inventory, drawn, resolved) {
-        const config = this.getInventoryConfig(inventory);
-        const { maxProducts, maxPerItem } = this.getInventoryLimits(config);
-        const scale = depthScale(config?.depth ?? DEFAULT_STOCK_DEPTH);
-        const caps = { typeCaps: typeCaps(), rarityCaps: rarityCaps() };
-        const key = (name, type) => `${name}\u0000${type}`;
-
-        const held = new Set();
-        for (const item of this.getInventoryContents(actor, inventory)) {
-            held.add(key(item.name, item.type));
-        }
-        let rows = held.size;
-
-        const allowed = [];
-        let carried = 0;
-        let full = 0;
-        for (const uuid of drawn) {
-            const item = resolved.get(uuid);
-            if (!item) continue;
-            const k = key(item.name, item.type);
-
-            // **A roll brings new products, never more of what is already here.**
-            // Topping up is what a restock does, and it refills to the level the GM
-            // set; a table adding to the same row would push it past that level and
-            // make the number they typed mean nothing. It is also where duplicate
-            // rows came from. So the shelf's own stock is left entirely alone and the
-            // table answers the other question: what else has this shop got hold of.
-            if (held.has(k)) { carried++; continue; }
-
-            // The product count is a **target**, not a ceiling to clip against: a
-            // shelf that carries twenty and has fifteen rolls for five more. Once it
-            // is back to twenty there is nothing left to ask for.
-            if (rows >= maxProducts) { full++; continue; }
-
-            // A roll is a delivery, not a unit. How deep it goes is what it is first,
-            // then how rare, then what it costs -- see `stockDepth`.
-            const depth = stockDepth(item, { maxPerItem, scale, ...caps });
-            held.add(k);
-            rows++;
-
-            // **The delivery sets the level.** A new row arrives maintained, so the
-            // next restock brings it back to what turned up rather than to whatever
-            // is left of it. Without this the row has no target at all and `getStock`
-            // falls back to the current quantity, which can only ever ratchet down.
-            allowed.push({
-                itemUuid: uuid,
-                quantity: depth,
-                flags: { [MODULE.ID]: { [PAR_FLAG]: depth } }
-            });
-        }
-
-        if (carried || full) {
-            console.debug(
-                `${MODULE.TITLE} | ${inventory.name}: ${carried} rolled result${carried === 1 ? '' : 's'} `
-                + `already carried, ${full} refused for want of a product slot (${maxProducts}).`
-            );
-        }
-        return allowed;
-    }
-
     /**
      * Take everything off an inventory, leaving the inventory.
      *
@@ -1427,8 +1339,12 @@ export class MerchantManager {
         // A query shelf draws on the clock like a table-stocked one: it has no `auto`
         // flag to consult, because the shelf itself is the thing that says "keep me
         // stocked from the compendiums".
-        const draws = config.source === SOURCE.QUERY
-            || this.getInventoryTables(inventory).some((entry) => entry.auto);
+        const source = config.source ?? DEFAULT_SOURCE;
+        // A query shelf draws on the clock because the shelf itself says so; a table
+        // shelf draws when one of its tables is set to. "Both" qualifies on either.
+        const draws = source === SOURCE.QUERY || source === SOURCE.BOTH
+            || (source === SOURCE.TABLE
+                && this.getInventoryTables(inventory).some((entry) => entry.auto));
         if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !draws) return 0;
 
         const filled = await this._withStockLock(actor, async () => {
@@ -1452,9 +1368,23 @@ export class MerchantManager {
         // shop deals in, answered against what is installed right now. They are the same
         // step with different sources, so everything downstream -- new products only, up
         // to the product target, depth by type/rarity/price -- is shared.
-        const rolled = config.source === SOURCE.QUERY
-            ? await this.queryInventory(actor, inventoryId, { onStep: step })
-            : await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
+        // **Manual draws nothing, on purpose.** Its rows are still topped up to their
+        // quantity above; what it never does is bring in something the GM did not put
+        // there. That is a different statement from a table shelf that happens to have
+        // no tables, and it is the one a curated shelf wants to make.
+        // **Tables first, then the query.** Both feed the same slot count, so on a shelf
+        // that is nearly full the order decides who gets the last few. Tables are the
+        // deliberate half — somebody wrote that list — and the query is filler, so the
+        // curated stock lands and the ordinary stock takes what is left. Nothing arrives
+        // twice: `_withinLimits` matches rows by name and type, so the same longsword
+        // from both sources is one row.
+        let rolled = 0;
+        if (source === SOURCE.TABLE || source === SOURCE.BOTH) {
+            rolled += await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
+        }
+        if (source === SOURCE.QUERY || source === SOURCE.BOTH) {
+            rolled += await this.queryInventory(actor, inventoryId, { onStep: step });
+        }
 
         await this.setInventoryConfig(actor, inventoryId, { lastRestock: game.time.worldTime });
         if (filled || rolled) this.broadcastActorRefresh(actor);
@@ -1468,50 +1398,6 @@ export class MerchantManager {
      * week restocks once. A shop does not accumulate seven days of stock while nobody
      * was looking; it is simply full again.
      */
-    /**
-     * Every merchant **in the world**, which is not the same set as every merchant Actor.
-     *
-     * A linked token *is* its sidebar Actor: Bob keeps a shop in Phlan, and what the
-     * party does to his till is still true next season and in whatever city he turns up
-     * in. He is a shop whether or not a token of him happens to be on the current map,
-     * so he is yielded from `game.actors`.
-     *
-     * An **unlinked** token is a shop in its own right, with its own ActorDelta, and
-     * there can be several of them at once — Flipper the travelling salesman, placed
-     * three times, is three shops that know nothing about each other. Each one's
-     * `token.actor` is a synthetic Actor living on a scene and is in `game.actors`
-     * nowhere, which is why the clock never reached them.
-     *
-     * And an unlinked merchant Actor sitting in the sidebar is **not** a shop. It is the
-     * mould Flipper is cast from. It was the only thing being restocked: the clock ticked
-     * on the template, and because an unlinked token inherits anything its delta has not
-     * overridden, the template's new stock was then *delivered* into every placed copy.
-     * That is not a shop restocking, it is a leak with a schedule.
-     *
-     * Walks every scene, not the viewed one. A shop does not stop keeping stock because
-     * nobody is looking at the map it stands on.
-     */
-    static *worldMerchants() {
-        for (const actor of game.actors ?? []) {
-            // `prototypeToken.actorLink` is the whole test: linked means persistent and
-            // one of a kind, unlinked means this Actor is a template.
-            if (!actor.prototypeToken?.actorLink) continue;
-            if (this.isMerchant(actor)) yield actor;
-        }
-
-        for (const scene of game.scenes ?? []) {
-            for (const token of scene.tokens ?? []) {
-                if (token.actorLink) continue;          // already yielded, as its Actor
-                // Two cheap reads before the expensive one. This runs on every world-time
-                // tick, and `token.actor` on an unlinked token resolves a synthetic Actor;
-                // a big world is thousands of tokens and almost none of them are shops.
-                if (!token.actorId) continue;
-                const actor = token.actor;
-                if (this.isMerchant(actor)) yield actor;
-            }
-        }
-    }
-
     static async _applyRestocks(worldTime) {
         for (const actor of this.worldMerchants()) {
             for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
@@ -1811,19 +1697,6 @@ export class MerchantManager {
     }
 
     /**
-     * The coin legs of a transaction: money one way, change back.
-     *
-     * `payerUuid` hands over `plan.pay` and `payeeUuid` hands back `plan.change`, so
-     * buying and selling are the same call with the two swapped — which is the whole
-     * reason a symmetric primitive was asked for.
-     *
-     * Never netted: the payer must actually hold what they hand over, which is what
-     * happens at a counter, and every leg is validated against the balances at the
-     * start of the call so change arriving cannot fund the payment.
-     *
-     * An empty leg is a no-op rather than an error, so exact money adds nothing.
-     */
-    /**
      * Re-cut a purse into the coins a payment needs. Same money, different coins.
      *
      * Absolute, and through `setCurrency` so it takes the inventory lock -- a raw write
@@ -2036,6 +1909,14 @@ export class MerchantManager {
                 if (!recut) return { ok: false, code: 'CANNOT_MAKE_CHANGE', price: owed };
             }
 
+            // **The coin legs: money one way, change back.** The payer hands over
+            // `plan.pay` and the payee hands back `plan.change`, so buying and selling
+            // are the same call with the two swapped — which is the whole reason a
+            // symmetric primitive was asked for.
+            //
+            // Never netted: the payer must actually hold what they hand over, which is
+            // what happens at a counter, and every leg is validated against the balances
+            // at the start of the call, so change arriving cannot fund the payment.
             coin = [{ from: payer.uuid, to: payee.uuid, currency: plan.pay }];
         }
         // net === 0 moves no coin at all, which is what an even trade is.

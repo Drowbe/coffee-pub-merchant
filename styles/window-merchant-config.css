@@ -501,7 +501,45 @@
  * still occupies its place — so the shape of the row says how much was turned off.
  */
 .merchant-config-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.merchant-config-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 10px; font-size: .74rem; cursor: pointer; }
+
+/*
+ * The pill IS the control. The checkbox inside it is kept for keyboard reach and form
+ * semantics and is given no size at all — `appearance: none` and zero width, rather than
+ * `display: none`, which would take it out of the tab order too.
+ *
+ * **No `gap`, precisely because the input is still a flex child.** A zero-width element
+ * with a gap beside it is not zero-width: it left four pixels of dead space before the
+ * label, which read as room still being reserved for a box that is no longer drawn.
+ *
+ * Selected is stated with fill AND weight, never colour alone, so the difference survives
+ * a monochrome theme and a reader who cannot separate the two hues.
+ */
+ .merchant-config-chip {
+   display: inline-flex; align-items: center; justify-content: center; gap: 0;
+   padding: 2px 8px;
+   border: 1px solid var(--blacksmith-tool-divider); 
+   border-radius: 4px;
+   background: var(--blacksmith-tool-surface-sunken, transparent);
+   color: var(--blacksmith-tool-text-muted);
+   font-size: .65rem; line-height: 1.5;
+   font-weight: 700;
+   text-transform: uppercase;
+   cursor: pointer; user-select: none;
+   transition: background-color .1s ease, color .1s ease, border-color .1s ease;
+}
+.merchant-config-chip input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 0; height: 0; margin: 0; padding: 0; border: 0;
+    opacity: 0; pointer-events: none;
+}
+.merchant-config-chip:hover { border-color: var(--blacksmith-tool-accent); }
+.merchant-config-chip.is-on {
+    background: var(--blacksmith-tool-accent);
+    border-color: var(--blacksmith-tool-accent);
+    color: var(--blacksmith-tool-field-background, #fff);
+}
+/* Focus is shown on the pill, because the input it belongs to cannot show it. */
+.merchant-config-chip:focus-within { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }
 
 /* --- Query price range ----------------------------------------------------- */
 /*
@@ -518,8 +556,10 @@
  * which read as one long list of unrelated things and invited ticking a rarity to mean a
  * kind. A label in front of each says which question the row answers.
  */
-.merchant-config-chipset { display: flex; align-items: baseline; gap: 8px; margin-top: 5px; }
-.merchant-config-chipset > .merchant-config-label { flex: 0 0 auto; min-width: 52px; }
+/* Label above, matching every other card-style setting in this window: a label
+   beside a wrapping row of pills sits against whichever line happens to be last,
+   which is why it read as floating. */
+.merchant-config-chipset { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
 .merchant-config-chipset > .merchant-config-chips { margin-top: 0; }
 
 /* --- Chips are the control, not a label beside one -------------------------- */
@@ -531,27 +571,6 @@
  * Selected is stated with fill AND weight, never colour alone: the difference has to
  * survive a monochrome theme and a reader who cannot separate the two hues.
  */
-.merchant-config-chip { position: relative; }
-.merchant-config-chip input[type="checkbox"] {
-    appearance: none; -webkit-appearance: none;
-    width: 0; height: 0; margin: 0; padding: 0; border: 0;
-    opacity: 0; pointer-events: none;
-}
-.merchant-config-chip {
-    background: var(--blacksmith-tool-surface-sunken, transparent);
-    color: var(--blacksmith-tool-text-muted);
-    transition: background-color .1s ease, color .1s ease, border-color .1s ease;
-    user-select: none;
-}
-.merchant-config-chip:hover { border-color: var(--blacksmith-tool-accent); }
-.merchant-config-chip.is-on {
-    background: var(--blacksmith-tool-accent);
-    border-color: var(--blacksmith-tool-accent);
-    color: var(--blacksmith-tool-field-background, #fff);
-    font-weight: 600;
-}
-/* Keyboard focus has to be visible on the pill, since the input it belongs to is not. */
-.merchant-config-chip:focus-within { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }
 
 /* --- The price readout, said the way every other rate is -------------------- */
 /*
@@ -564,4 +583,17 @@
     background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text);
     font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums;
     text-align: center; white-space: nowrap; flex: 0 0 auto;
+}
+
+/* --- The one control here that creates something --------------------------- */
+/*
+ * Labelled, not a bare icon. It sat unlabelled between a heading and a count, where it
+ * read as decoration on the count rather than as the way to add a shelf — and a tooltip
+ * only helps somebody who already suspected the thing did something.
+ */
+.merchant-config-inventory-add-wide {
+    display: inline-flex; align-items: center; gap: 5px;
+    width: auto; padding: 2px 9px;
+    font-size: .64rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    white-space: nowrap;
 }

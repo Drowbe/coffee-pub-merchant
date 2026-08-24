@@ -156,9 +156,11 @@
             <h3>
                 <span><i class="fa-solid fa-layer-group"></i> {{localize "coffee-pub-merchant.config.inventories"}}</span>
                 <span class="merchant-config-head-actions">
-                    <button type="button" class="merchant-config-inventory-add" data-action="addInventory"
-                            data-tooltip="{{localize "coffee-pub-merchant.config.addInventory"}}">
+                    <button type="button" class="merchant-config-inventory-add merchant-config-inventory-add-wide"
+                            data-action="addInventory"
+                            data-tooltip="{{localize "coffee-pub-merchant.config.addInventoryHint"}}">
                         <i class="fa-solid fa-plus"></i>
+                        <span>{{localize "coffee-pub-merchant.config.addInventory"}}</span>
                     </button>
                     <span class="merchant-config-count">{{inventoryCount}}</span>
                 </span>
@@ -266,7 +268,8 @@
                                 <h4>{{localize "coffee-pub-merchant.config.stocking"}}</h4>
                                 <div class="merchant-config-restock">
                                     <label class="merchant-config-row merchant-config-restock-method">
-                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.depth"}}</span>
+                                        <span class="merchant-config-label"
+                                              data-tooltip="{{localize "coffee-pub-merchant.config.depthTooltip"}}">{{localize "coffee-pub-merchant.config.depth"}}</span>
                                         <select data-inventory-depth="{{id}}" data-tooltip="{{depthHint}}">
                                             {{#each depthOptions}}
                                                 <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
@@ -357,6 +360,11 @@
                                 {{/unless}}
                             </div>
 
+                            {{#if isManual}}
+                                <div class="merchant-config-inv-group">
+                                    <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.manualNote"}}</div>
+                                </div>
+                            {{/if}}
                             {{#if isQuery}}
                                 <div class="merchant-config-inv-group">
                                     <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
@@ -413,7 +421,8 @@
 
                                     <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
                                 </div>
-                            {{else}}
+                            {{/if}}
+                            {{#if isTable}}
                             <div class="merchant-config-inv-group">
                                 <h4>{{localize "coffee-pub-merchant.config.rollTables"}}</h4>
                                 {{#if hasTables}}

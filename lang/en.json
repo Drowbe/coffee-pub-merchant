@@ -76,7 +76,7 @@
             "tillHint": "What this shop can pay out when the party sells to it.",
             "pricing": "Pricing",
             "reputationToggle": "Reputation impacts prices",
-            "addInventory": "Add an inventory",
+            "addInventory": "Add Inventory",
             "hiddenTooltip": "Players are never sent this inventory",
             "refillTooltip": "Refill this inventory now",
             "openInventoryTooltip": "Open this inventory to stock it",
@@ -85,7 +85,7 @@
             "artworkTooltip": "Click to choose different artwork",
             "inventoryName": "Inventory name",
             "stocking": "Stocking",
-            "depth": "Depth",
+            "depth": "How many of each",
             "products": "Products",
             "productsTooltip": "How many different things this inventory carries. A roll table fills it back up to this number.",
             "productsLabel": "How many different products this inventory carries",
@@ -128,7 +128,10 @@
             "kinds": "Kinds",
             "rarities": "Rarity",
             "priceFrom": "Lowest price",
-            "priceTo": "Highest price"
+            "priceTo": "Highest price",
+            "manualNote": "Nothing is drawn in. Whatever you put on this shelf is all it carries, and a restock tops those rows back up to their quantity without adding anything you did not choose.",
+            "addInventoryHint": "Add a container to this merchant — a shelf, a back room, a case of curios.",
+            "depthTooltip": "How deep this shelf stacks a thing it carries — one lantern or eight. Scales the world limits below; Products is how many different things it carries, and Max stack is the ceiling on any one of them."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -396,8 +399,10 @@
             "priceRange": "{min} to {max} gp"
         },
         "source": {
-            "table": "Roll tables",
-            "query": "Configured Compendiums"
+            "table": "Roll Tables",
+            "query": "Configured Compendiums",
+            "manual": "Manual Only — Stocked By Hand",
+            "both": "Roll Tables, then Configured Compendiums"
         }
     }
 }

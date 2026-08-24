@@ -215,9 +215,20 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
         {
             classes: ['merchant-config-window'],
-            position: { width: 420, height: 'auto' },
+            position: { width: 520, height: 620 },
             window: { title: 'Merchant Settings', resizable: true, minimizable: true },
-            windowSizeConstraints: { minWidth: 360, minHeight: 260, maxWidth: 720, maxHeight: 'calc(100vh - 80px)' },
+            // **A floor, not a ceiling.** `maxWidth` was doing the work here: 720 capped a
+            // window a GM might reasonably want wider — three cards of pills, a slider and
+            // two rate tracks all read better with room — while the floor was low enough
+            // to let it be dragged down to a size nothing fits in. The cap is gone and the
+            // floor is where the content actually stops working: below 475 the rate
+            // sliders and the chip rows start wrapping into each other, and below 550
+            // there is not enough height to see a card and its controls at once.
+            //
+            // `height` is a number rather than 'auto' for the same reason. Auto grows to
+            // the content, so a merchant with six inventories opened at the full height of
+            // the screen and could not be made smaller than its own contents.
+            windowSizeConstraints: { minWidth: 475, minHeight: 550, maxHeight: 'calc(100vh - 80px)' },
             toolTitlebar: 'full',
             // One saved position for every merchant's settings, for the reason the
             // shop shares one: it is the same window about a different shop.
@@ -265,6 +276,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         return this.openFor(actor);
     }
 
+    _onClose(options) {
+        // A tick the GM can already see on the pill is a decision they have made. It is
+        // written now rather than dropped because a debounce timer had not fired.
+        this._flushQueryWrites();
+        super._onClose?.(options);
+    }
+
     async _resolveActor() {
         return fromUuid(this.actorUuid);
     }
@@ -275,6 +293,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
      */
     _onRender(context, options) {
         super._onRender?.(context, options);
+        this._flushQueryWrites();
         const toggle = this.element?.querySelector('[data-merchant-enabled]');
         if (toggle && toggle.dataset.merchantBound !== 'true') {
             toggle.dataset.merchantBound = 'true';
@@ -401,19 +420,40 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             for (const group of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
                 if (group.dataset.merchantBound === 'true') continue;
                 group.dataset.merchantBound = 'true';
-                group.addEventListener('change', () => {
-                    const chosen = [...group.querySelectorAll('input[type="checkbox"]')]
-                        .filter((box) => box.checked)
-                        .map((box) => box.value);
+                group.addEventListener('change', (event) => {
+                    // **The pill answers the click, not the round trip.** The label is
+                    // the control now, so its state has to change on the click rather
+                    // than when a document write and a re-render come back.
+                    const box = event.target;
+                    box.closest('.merchant-config-chip')?.classList.toggle('is-on', box.checked);
+
                     const inventoryId = group.getAttribute(attribute);
-                    const current = this._queryOf(inventoryId);
-                    // Every kind ticked is stored as "no filter" rather than as a list of
-                    // all of them: a shelf that meant "anything" would otherwise silently
-                    // narrow the day dnd5e adds a physical type.
-                    const value = field === 'subtypes' && chosen.length === physicalTypes().length
-                        ? null
-                        : chosen;
-                    void this._commitInventoryStock(inventoryId, { query: { ...current, [field]: value } });
+                    // **Coalesced.** Setting up a shelf is half a dozen clicks in a row,
+                    // and each one is two document writes plus a broadcast to every
+                    // client. Batched, that burst is one write; the pills are already
+                    // showing the answer, so nothing is waiting on it.
+                    const write = () => {
+                        const chosen = [...group.querySelectorAll('input[type="checkbox"]')]
+                            .filter((input) => input.checked)
+                            .map((input) => input.value);
+                        // Every kind ticked is stored as "no filter" rather than a list of
+                        // all of them: a shelf that meant "anything" would otherwise
+                        // silently narrow the day dnd5e adds a physical type.
+                        const value = field === 'subtypes' && chosen.length === physicalTypes().length
+                            ? null
+                            : chosen;
+                        void this._commitInventoryStock(
+                            inventoryId,
+                            { query: { ...this._queryOf(inventoryId), [field]: value } },
+                            { redraw: false }
+                        );
+                    };
+
+                    clearTimeout(this._queryWrites.get(group)?.timer);
+                    this._queryWrites.set(group, {
+                        run: write,
+                        timer: setTimeout(() => { this._queryWrites.delete(group); write(); }, 300)
+                    });
                 });
             }
         }
@@ -1188,10 +1228,36 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             console.error(`${MODULE.TITLE} | Could not set the restock method:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryUpdateFailed'));
         }
+        // **Always redraws, and must.** The method decides which *other* controls exist:
+        // Frequency belongs to a restocking shelf and Max stack to a counted one, so the
+        // card is a different shape after this than before it.
         await this.render(false);
     }
 
-    /** Stock policy and restock cadence, both per inventory. */
+    /** Pending chip writes, keyed by the group they belong to. See the binding. */
+    _queryWrites = new Map();
+
+    /**
+     * Run any pending chip write now rather than waiting out its timer.
+     *
+     * Called before the window closes and before it re-renders. **Run, not cancel:** a
+     * tick is a decision the GM has already made and can already see on the pill, so
+     * dropping it because a timer had not fired would lose an edit that looked saved.
+     * Re-rendering matters too — the groups are rebuilt, and a timer holding the old
+     * DOM would read checkboxes that are no longer on screen.
+     */
+    _flushQueryWrites() {
+        for (const [group, pending] of this._queryWrites) {
+            clearTimeout(pending.timer);
+            this._queryWrites.delete(group);
+            try {
+                pending.run();
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not save that filter:`, error);
+            }
+        }
+    }
+
     /**
      * The stored query for one inventory, filled in.
      *
@@ -1205,7 +1271,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         return normalizeQuery(MerchantManager.getInventoryConfig(inventory)?.query);
     }
 
-    async _commitInventoryStock(inventoryId, changes) {
+    async _commitInventoryStock(inventoryId, changes, { redraw = true } = {}) {
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
@@ -1216,7 +1282,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             console.error(`${MODULE.TITLE} | Could not update that inventory:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryUpdateFailed'));
         }
-        await this.render(false);
+        // **A control that already shows its own new state does not need the window
+        // rebuilt underneath it.** A filter pill costs a full redraw of every shelf
+        // otherwise, which is what made toggling feel slow — the write is small, the
+        // redraw is not. Everything that changes the *shape* of the card still redraws.
+        if (redraw) await this.render(false);
     }
 
     /** Opening the inventory is how a GM stocks it — dnd5e's own container sheet. */
@@ -1310,11 +1380,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // Where new products come from. One or the other: a shelf drawing
                     // from a table *and* a query would fill twice over from two rules
                     // nobody is holding in their head at once.
-                    isQuery: (config.source ?? DEFAULT_SOURCE) === SOURCE.QUERY,
+                    // Each section shows when its source contributes, so "both" shows
+                    // the table list *and* the filter rather than a third arrangement.
+                    isQuery: [SOURCE.QUERY, SOURCE.BOTH].includes(config.source ?? DEFAULT_SOURCE),
+                    isTable: [SOURCE.TABLE, SOURCE.BOTH].includes(config.source ?? DEFAULT_SOURCE),
+                    isManual: (config.source ?? DEFAULT_SOURCE) === SOURCE.MANUAL,
                     queryAvailable: hasQuery(),
                     sourceOptions: [
+                        { value: SOURCE.MANUAL, label: game.i18n.localize('coffee-pub-merchant.source.manual') },
+                        { value: SOURCE.QUERY, label: game.i18n.localize('coffee-pub-merchant.source.query') },
                         { value: SOURCE.TABLE, label: game.i18n.localize('coffee-pub-merchant.source.table') },
-                        { value: SOURCE.QUERY, label: game.i18n.localize('coffee-pub-merchant.source.query') }
+                        { value: SOURCE.BOTH, label: game.i18n.localize('coffee-pub-merchant.source.both') }
                     ].map((option) => ({ ...option, selected: option.value === (config.source ?? DEFAULT_SOURCE) })),
                     priceMinIndex: priceStopIndex(normalizeQuery(config.query).priceGp.min),
                     // A null ceiling is "no ceiling" and sits on the last stop, which

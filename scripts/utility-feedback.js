@@ -92,13 +92,6 @@ export function registerToastChannels() {
     });
 }
 
-/**
- * Show one toast, or fall back to a Foundry notification.
- *
- * The fallback is not politeness — Merchant requires Blacksmith, but it does not
- * require a Blacksmith *new enough* to have this API, and a world one version behind
- * should lose the styling rather than the message.
- */
 /** A configured sound path for the toast API, or undefined to stay silent. */
 function configuredSound(key) {
     try {
@@ -109,6 +102,13 @@ function configuredSound(key) {
     }
 }
 
+/**
+ * Show one toast, or fall back to a Foundry notification.
+ *
+ * The fallback is not politeness — Merchant requires Blacksmith, but it does not
+ * require a Blacksmith *new enough* to have this API, and a world one version behind
+ * should lose the styling rather than the message.
+ */
 function show(kind, title, { subtitle, duration, channel, onClick, stackKey, icon, image, sound } = {}) {
     const toast = api();
     if (typeof toast?.show !== 'function') {

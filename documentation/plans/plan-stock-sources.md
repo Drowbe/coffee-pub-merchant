@@ -1,6 +1,6 @@
 # Plan — where a shop's stock comes from
 
-**Status:** built 2026-08-23, both sides. Delete this file once it has been used at a table and the
+**Status:** built 2026-08-24, four sources. Delete this file once it has been used at a table and the
 notes below have nothing left to teach.
 
 **One caveat that outlives this plan:** `compendiums.query` is on Blacksmith master and not yet in a
@@ -123,6 +123,15 @@ carries at all. That symmetry is the argument that this is one idea rather than 
 An inventory's stock source becomes table *or* query; `maxProducts` stays the target either way, and
 `restockInventory` keeps refilling to par first and drawing new products second. **No change to what
 a restock means.**
+
+## Tables first, and why the order is fixed
+
+Both sources feed one product target, so on a nearly full shelf the order decides who gets
+the last few slots. Tables win: somebody *wrote* that list, and the query is filler. The
+curated stock lands; the ordinary stock takes what is left.
+
+Nothing arrives twice. `_withinLimits` matches rows by name and type, so the same longsword
+offered by a table and by the query is one row — which is why "both" does not mean "double".
 
 ## Not doing
 

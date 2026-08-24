@@ -182,21 +182,6 @@ Hooks.once('ready', async function () {
     registerSettings();
     registerToastChannels();
 
-    // **Migrate before anything starts listening.** Every shop configured under the
-    // old schema needs walking over, and `initialize()` below registers a watcher that
-    // broadcasts a refresh whenever our flags change — which is exactly what each
-    // migration write is. Run the other way round, a world with twenty merchants fired
-    // a hundred socket emits at load, all of them announcing a change nobody could see
-    // yet. Migrate the data, then start listening to it.
-    //
-    // GM-only and idempotent — it stamps a schema version per merchant — and awaited
-    // rather than fired and forgotten, so nothing below reads a half-migrated world.
-    try {
-        await MerchantManager.migrateWorld();
-    } catch (error) {
-        console.error(`${MODULE.TITLE} | Inventory migration failed:`, error);
-    }
-
     // Registered for every user, not just the GM: the interaction claim and the
     // request path both have to exist on a player's client.
     MerchantManager.initialize();

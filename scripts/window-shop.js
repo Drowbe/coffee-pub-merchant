@@ -2193,13 +2193,6 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
-     * Restock an inventory from the shop itself.
-     *
-     * The same act as the button in Merchant Settings, put where a GM already is when
-     * they notice an inventory is bare. A press is deliberate, so every table on the inventory
-     * rolls — the reroll flag governs the clock, not the button.
-     */
-    /**
      * Take something off an inventory for good.
      *
      * Not the same as setting it to zero: zero is a shop that has sold out of
@@ -2256,6 +2249,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         }
     }
 
+    /**
+     * Restock an inventory from the shop itself.
+     *
+     * The same act as the button in Merchant Settings, put where a GM already is when
+     * they notice an inventory is bare. A press is deliberate, so every table on the inventory
+     * rolls — the reroll flag governs the clock, not the button.
+     */
     async restockInventory(inventoryId) {
         const token = await this._resolveToken();
         const merchant = token?.actor;

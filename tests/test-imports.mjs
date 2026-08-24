@@ -153,4 +153,31 @@ if (unusedImports.length) {
 assert.strictEqual(unusedImports.length, 0, 'no imports are left behind by a rename');
 console.log('ok  no unused imports');
 
+// ---------------------------------------------------------------- orphaned docs
+// **A doc comment must describe something.** Two of them in a row means an insertion
+// landed between a comment and the thing it documented, so the first one now describes
+// whatever happened to follow — and reads as an explanation of the wrong function.
+//
+// This is cheap to check and easy to cause: it happened six times across one afternoon
+// of edits, and every instance was silently wrong prose rather than a broken build.
+// Comments are most of how this codebase explains itself, so a comment attached to the
+// wrong thing is worse than none — it is confidently misleading.
+const orphaned = [];
+for (const file of files) {
+    const lines = fs.readFileSync(path.join(SCRIPTS, file), 'utf8').split('\n');
+    lines.forEach((line, index) => {
+        if (!/\*\/\s*$/.test(line)) return;
+        const next = (lines[index + 1] ?? '').trim();
+        if (next.startsWith('/**') || next.startsWith('/*')) {
+            orphaned.push(`${file}:${index + 2}  ${next.slice(0, 60)}`);
+        }
+    });
+}
+if (orphaned.length) {
+    console.error('doc comments with another comment where their subject should be:');
+    for (const entry of orphaned) console.error('  ' + entry);
+}
+assert.strictEqual(orphaned.length, 0, 'every doc comment describes the thing beneath it');
+console.log(`ok  ${files.length} files, no doc comment left describing the wrong thing`);
+
 console.log('\nall import checks passed');

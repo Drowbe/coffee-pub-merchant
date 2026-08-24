@@ -60,7 +60,7 @@ is the one most likely to be got wrong out of habit.
     name: 'Potions and Stuff',   // the shop's name; the Actor's name is the shopkeeper's
     kind: 'general',             // SHOP_KINDS — drives the icon and category label
     description: '',             // GM-authored, enriched on display
-    schema: 3,                   // migration stamp — see §12
+    schema: 1,                   // stamp for future migrations — see §12
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
@@ -81,9 +81,14 @@ Read with `MerchantManager.getConfig(actor)`, written with `setConfig(actor, cha
 
 ```js
 { type: 'general', order: 0, visible: true, markup: 1, stock: 'infinite',
-  buyRate: 0.5,                                  // purchased only — what the shop PAYS
-  restockDays: 7, lastRestock: <worldTime>, maxProducts: 25, maxPerItem: 20,
-  tables: [{ uuid, rolls, auto }] }
+  buyRate: 0.7,                                  // purchased only — what the shop PAYS
+  restockDays: 7, lastRestock: <worldTime>,
+  maxProducts: 50,                               // a TARGET a drawing shelf fills up to
+  maxPerItem: 20,                                // a CEILING on any one row
+  depth: 'normal',                               // scales the world's depth tables
+  source: 'manual',                              // manual | query | table | both
+  tables: [{ uuid, rolls, auto }],               // when the source draws from tables
+  query: { subtypes, rarity, priceGp: { min, max } } }   // when it draws from compendiums
 ```
 
 **The type is stored, and the settings follow from it.** Six of them, defined in `INVENTORY_TYPES`:
@@ -253,9 +258,11 @@ not because a shop keeps one; taking it literally is what made every dragged row
 
 ### Ceilings, and the clock
 
-`maxPerItem` — *max stack* — and `maxProducts` — *products* — are both on the card now, under
-**Stocking**. They answer different questions: how deep one line goes, and how many lines the shelf
-carries. Both are enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }`
+`maxPerItem` — *max stack* — and `maxProducts` — *products* — are both on the card, under **Stocking**,
+and they are **not the same kind of number**. `maxProducts` is a **target**: a drawing shelf fills up to it
+and stops, so it says how big a shop *is*. It was a ceiling against runaway growth until a draw started
+bringing in new products only, which removed the runaway. `maxPerItem` is still a **ceiling**, and still
+guards its own: without it a shelf restocking rations builds toward thousands of them. Both are enforced on write, and `setStockQuantity` returns `{ value, clamped, maxPerItem }`
 so the window can say what happened rather than silently correcting a number a GM typed.
 
 Restocking is driven by `updateWorldTime` — the same watcher that opens and closes shops, so there is
@@ -282,9 +289,6 @@ restocking, it is a leak with a schedule.
 stop keeping stock because nobody is looking at the map it stands on — with two cheap reads before
 `token.actor`, which resolves a synthetic Actor and runs on every world-time tick.
 
-`migrateWorld` deliberately walks a **wider** set: every merchant Actor *plus* every placed unlinked one. A
-template is not a shop, but it holds the flags every token cast from it inherits, so leaving it unmigrated
-means every future placement arrives stale.
 
 ---
 
@@ -739,33 +743,20 @@ which is the shortest document here and the one most worth reading before writin
 
 ---
 
-## 12. Migration
+## 12. Migration — there isn't any
 
-`SCHEMA_VERSION` in `manager-merchant.js` is the shape this build writes. **1** was untyped shelves under
-`flags["coffee-pub-merchant"].shelf`; **2** is typed inventories under `.inventory`; **3** renames `pricing.buybackOverrides` to `purchaseOverrides`, the last stored word from the old vocabulary.
+**Nothing migrates, because nothing has shipped.** No world holds a shape this build cannot read.
 
-`MerchantManager.migrateWorld()` runs from the `ready` hook, **GM-only**, and is awaited before anything
-reads a merchant. For each shop it has not already stamped, it rewrites every container's flag to the new
-key, derives the `type` from what the old settings must have meant, drops `mode`, and deletes the old flag
-**in the same update** — so there is never a moment when one container carries two answers.
+There was a great deal of it, and it went on 2026-08-24: `LEGACY_INVENTORY_FLAG`, `deriveInventoryType`,
+`migrateWorld`, `_migrateConfig` and three passes carrying a `shelf`→`inventory` rename, a
+`buybackOverrides` rename, a par backfill and a stock-source stamp. All of it for worlds that cannot exist.
 
-The derivation is not a guess. Each branch was the only way that state could be expressed before types
-existed:
+**Two of that week's bugs were in migration code that would never have run** — a doc comment describing the
+wrong function, and an id collision between two passes writing the same item. That is the argument against
+writing migrations early: they are untestable by definition, and their bugs are found by reading rather than
+by running.
 
-| old state | becomes |
-|---|---|
-| `mode: 'buyback'` | `purchased` |
-| `mode: 'barter'` | `unpriced` |
-| `visible: false` | `hidden` |
-| `markup > 1` | `premium` |
-| `markup < 1` | `discounted` |
-| anything else | `general` |
-
-`getInventoryConfig` applies the same derivation on read, which is a belt for those braces: a world whose GM
-has not logged in since the rename, a container copied in from elsewhere, or an inventory built by a macro
-still reads as *something* rather than as a shop with no settings.
-
-**Stamped even when nothing moved**, so a merchant with no inventories is not re-examined at every load for
-the rest of its life. One batched write per Actor, because two writes to one Actor is the shape that trips
-dnd5e's encumbrance recompute — and a migration touching every merchant in a world is exactly where that
-would show up.
+`SCHEMA_VERSION` stays, at **1**. It costs one line, and the first release makes it real: from then on a
+stored shape that changes needs moving rather than reading around, and the version is what says which world
+is which. **Bump it and write the pass in the same commit** — the pass is what the number is for, and a
+number without one is a promise nobody kept.

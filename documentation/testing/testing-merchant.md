@@ -1184,3 +1184,39 @@ level onto every existing row; it logs how many.
     the window does not resize.
 101. The price range reads as a **badge** beside the track, like the Global Markup readout, and updates
     while the handle is dragged rather than only on release.
+
+102. **Pills respond instantly.** Click six in a row — each changes the moment it is clicked, with no
+    pause and no flicker of the shelves below. Reopen the window: all six stuck.
+103. Tick a pill and **close the window straight away**. Reopen it — the tick is there. The write is
+    debounced, so this is the case where a cancelled timer would have silently lost it.
+104. The **Kinds** and **Rarity** labels sit above their rows, not beside them.
+
+105. **Merchant Settings resizes both ways.** Drag it narrow: it stops at 475, with the sliders and pill
+    rows still intact rather than wrapping into each other. Drag it wide: it keeps going past 720, which
+    used to be a hard cap.
+106. Drag it short: it stops at 550. A merchant with several inventories no longer opens at the full
+    height of the screen.
+
+107. **Change the restock Method and the card reshapes immediately.** Pick *Restocks the same items*:
+    Frequency and Max stack appear straight away, without needing another edit to force it.
+108. **Source: *Nothing — stocked by hand*.** Put two items on the shelf by hand, sell one, and restock:
+    the sold row comes back to its quantity and **nothing new arrives**. No roll tables, no query filter.
+109. The Inventories header shows a labelled **Add Inventory** button rather than a bare +.
+110. Hovering **How many of each** explains what it does, not just what the chosen option means.
+
+111. **Restart, then check an existing shop's shelves.** Every one shows an explicit Source: *Roll
+    tables* where it has tables, *Manual — Stock by Hand* where it does not. Restock: the table shelves
+    still draw exactly as before. This is the migration; if a shelf that used to roll now says Manual,
+    it did not run.
+112. **Add Inventory** on a merchant. The new shelf defaults to *Manual — Stock by Hand* and draws
+    nothing until you choose otherwise.
+
+113. **Four sources in the dropdown**, in order: Manual Only, Configured Compendiums, Roll Tables, and
+    *Roll Tables, then Configured Compendiums*.
+114. Pick the fourth. The card shows **both** the roll-table list and the compendium filter.
+115. Give it one table drawing a handful of distinctive items and a broad filter. Clear the shelf and
+    restock: both arrive, and the shelf stops at its product target.
+116. **Tables take the last slots.** Set Products to just above the current row count, restock, and the
+    table's items land rather than the query's filler.
+117. Point a table at something the filter would also return. It appears **once**, not twice.
+118. Nothing anywhere refers to migration any more; a fresh world sets up with no migration step at load.

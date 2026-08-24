@@ -372,30 +372,6 @@ function rate(value, fallback = 1) {
  * @returns {number|null} null when the item has no price at all — a configuration gap
  *   on a priced inventory, and deliberate on an unpriced one.
  */
-/**
- * What the item itself says it is worth, in base units, or null.
- *
- * The number **before** anywhere and anyone: no market, no markup, no standing. It is
- * what `resolvePrice` multiplies and what the GM's price editor writes back, and
- * having one reading of the field means the editor cannot open showing a figure that
- * the shelf would then price differently.
- *
- * Null rather than 0 for "unpriced": dnd5e leaves `price.value` at 0 on anything
- * nobody has valued, so 0 is the absence of a price rather than a price of nothing.
- * A GM who means free can still agree 0 as a price — that is a decision, and it is
- * recorded somewhere that can tell the two apart.
- */
-export function listPriceBase(item) {
-    // Checked before the figure. A free row stores 0 like an unpriced one and is told
-    // apart only by the flag, so reading the number first would call every giveaway
-    // unpriced. See `FREE_FLAG`.
-    if (item?.flags?.[MODULE.ID]?.[FREE_FLAG]) return 0;
-    const price = item?.system?.price;
-    const value = Number(price?.value);
-    if (!Number.isFinite(value) || value <= 0) return null;
-    return toBase(value, price?.denomination ?? 'gp');
-}
-
 export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
     // An agreed price wins outright, which is what makes it agreed. Nothing is applied
     // on top: a haggled number is the number, not the start of an arithmetic.
@@ -425,6 +401,30 @@ export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation
     // accident, and multiplying it by a markup is still nothing.
     if (worth === 0) return 0;
     return Math.max(1, Math.round(worth * total));
+}
+
+/**
+ * What the item itself says it is worth, in base units, or null.
+ *
+ * The number **before** anywhere and anyone: no market, no markup, no standing. It is
+ * what `resolvePrice` multiplies and what the GM's price editor writes back, and
+ * having one reading of the field means the editor cannot open showing a figure that
+ * the shelf would then price differently.
+ *
+ * Null rather than 0 for "unpriced": dnd5e leaves `price.value` at 0 on anything
+ * nobody has valued, so 0 is the absence of a price rather than a price of nothing.
+ * A GM who means free can still agree 0 as a price — that is a decision, and it is
+ * recorded somewhere that can tell the two apart.
+ */
+export function listPriceBase(item) {
+    // Checked before the figure. A free row stores 0 like an unpriced one and is told
+    // apart only by the flag, so reading the number first would call every giveaway
+    // unpriced. See `FREE_FLAG`.
+    if (item?.flags?.[MODULE.ID]?.[FREE_FLAG]) return 0;
+    const price = item?.system?.price;
+    const value = Number(price?.value);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return toBase(value, price?.denomination ?? 'gp');
 }
 
 /**
