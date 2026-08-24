@@ -118,6 +118,28 @@ export function filterShopList(root, query) {
 }
 
 /**
+ * A stored image path, as a URL a stylesheet can actually fetch.
+ *
+ * **A relative `url()` in CSS resolves against the stylesheet, not the document.** The
+ * path travels into `--merchant-shop-illustration` and is substituted into a rule living
+ * in `styles/window-shop.css`, so `modules/x/y.webp` was requested as
+ * `modules/coffee-pub-merchant/styles/modules/x/y.webp` — a 404 with nothing in it to
+ * suggest the cause, since the path a GM typed was correct and the file was there.
+ *
+ * `getRoute` rather than a bare leading slash: a Foundry served under a route prefix
+ * needs that prefix, and hard-coding `/` breaks exactly the installs least able to debug
+ * it. An absolute URL or an already-rooted path is left alone — a GM may reasonably
+ * point at either.
+ */
+function illustrationUrl(stored) {
+    const path = String(stored ?? '').trim();
+    if (!path) return null;
+    if (/^(?:https?:)?\/\//i.test(path)) return path;
+    if (typeof foundry?.utils?.getRoute === 'function') return foundry.utils.getRoute(path);
+    return path.startsWith('/') ? path : `/${path}`;
+}
+
+/**
  * **The base class comes from the bridge, which is the supported path.**
  *
  * `api/blacksmith-api.js` re-exports both window bases precisely so a subclass can
@@ -1463,7 +1485,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // **The picture of the place, if there is one.** Absent is the ordinary case
             // and the card reads exactly as it always did; present, it sits behind the
             // card as a backdrop rather than replacing anything on it.
-            illustration: config?.illustration || null,
+            illustration: illustrationUrl(config?.illustration),
             // The shopkeeper is only worth naming when the shop is not named after
             // them. "Bob" over a shop called Bob is a line of nothing.
             keeperName: token?.actor?.name ?? token?.name ?? '',

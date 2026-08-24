@@ -217,6 +217,40 @@ assert.deepStrictEqual(drawsFrom(SRC.BOTH), { tables: true, query: true }, 'and 
 }
 console.log('ok  four sources, tables first, nothing drawn twice');
 
+// --- an illustration path has to survive being a CSS url() ---------------
+// **A relative `url()` in CSS resolves against the stylesheet, not the document.** The
+// path is substituted into a rule living in `styles/window-shop.css`, so `modules/x.webp`
+// was fetched as `modules/coffee-pub-merchant/styles/modules/x.webp` — a 404 with nothing
+// in it to suggest the cause, since the path was right and the file was there.
+function illustrationUrl(stored, getRoute) {
+    const path = String(stored ?? '').trim();
+    if (!path) return null;
+    if (/^(?:https?:)?\/\//i.test(path)) return path;
+    if (typeof getRoute === 'function') return getRoute(path);
+    return path.startsWith('/') ? path : `/${path}`;
+}
+const route = (p) => '/' + p.replace(/^\//, '');
+
+assert.strictEqual(illustrationUrl('modules/x/y.webp', route), '/modules/x/y.webp',
+    'a world-relative path is rooted, or CSS looks for it beside the stylesheet');
+assert.strictEqual(illustrationUrl('/modules/x/y.webp', route), '/modules/x/y.webp',
+    'an already-rooted path is not rooted twice');
+// A GM may reasonably point at either of these, and rewriting them breaks them.
+assert.strictEqual(illustrationUrl('https://example.test/x.png', route), 'https://example.test/x.png',
+    'an absolute URL is left alone');
+assert.strictEqual(illustrationUrl('//example.test/x.png', route), '//example.test/x.png',
+    'and so is a protocol-relative one');
+// Absent, blank and whitespace all mean "no illustration" — the card must render as it
+// always did rather than carrying an attribute pointing at nothing.
+for (const empty of [null, undefined, '', '   ']) {
+    assert.strictEqual(illustrationUrl(empty, route), null, `${JSON.stringify(empty)} is no illustration`);
+}
+// Without `getRoute` — an older Foundry — a leading slash is the fallback. It is not the
+// default, because an install served under a route prefix needs that prefix, and
+// hard-coding `/` breaks exactly the setups least able to debug it.
+assert.strictEqual(illustrationUrl('modules/x.webp', null), '/modules/x.webp', 'fallback roots the path');
+console.log('ok  an illustration path is a URL a stylesheet can fetch');
+
 // --- which merchants are "in the world" ---------------------------------
 // Lifted verbatim from `MerchantManager.worldMerchants`. The rule it encodes: a linked
 // token IS its sidebar Actor and is a shop whether or not it is placed; an unlinked

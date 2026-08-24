@@ -1236,3 +1236,7 @@ level onto every existing row; it logs how many.
     delivery rather than a single row.
 125. On a shelf set to *Roll Tables, then Configured Compendiums*, the **Roll Tables** group is above the
     compendium filter — the same order the draw runs in.
+
+126. **The illustration actually appears.** Set one and open the shop: the picture is behind the card,
+    with the name, hours badge and reputation line legible over it. The console shows no 404 — a
+    relative path here is resolved against the site root, not against the stylesheet.

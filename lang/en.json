@@ -121,7 +121,7 @@
             "drawTooltip": "How many items to take from this table. {when}",
             "newStock": "New Stock",
             "source": "Source",
-            "queryFilter": "What this shop deals in",
+            "queryFilter": "Configured Compendiums",
             "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
             "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables.",
             "priceRange": "Price",
