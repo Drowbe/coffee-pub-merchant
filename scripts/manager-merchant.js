@@ -37,6 +37,18 @@ const CONTEXT = 'merchant-interaction';
  */
 const SCHEMA_VERSION = 4;
 
+/**
+ * Whether a value contains an array anywhere a flag merge would mangle.
+ *
+ * Foundry merges arrays by index, so a shorter list never replaces a longer one. Scalars
+ * and plain objects merge correctly and need no clearing.
+ */
+function _holdsList(value) {
+    if (Array.isArray(value)) return true;
+    if (!value || typeof value !== 'object') return false;
+    return Object.values(value).some(_holdsList);
+}
+
 export class MerchantManager {
     static _interactionId = null;
 
@@ -608,7 +620,24 @@ export class MerchantManager {
         const inventory = actor?.items?.get(inventoryId);
         const config = this.getInventoryConfig(inventory);
         if (!config) return null;
-        await inventory.setFlag(MODULE.ID, INVENTORY_FLAG, { ...config, ...changes });
+
+        // **The flag is cleared before it is rewritten, and only when it holds a list.**
+        // `setFlag` merges, and Foundry merges an array *by index* — so writing
+        // `['weapon']` over a stored `['weapon', 'tool', 'loot']` leaves the last two in
+        // place, and the stored value comes back as `{0: …, 1: …, 2: …}` rather than an
+        // array at all. Unticking a chip therefore did nothing, twice over: the entry
+        // survived the merge, and the shape it survived as no longer read as a list.
+        //
+        // `-=` first is Foundry's own idiom for "replace, do not merge", and is the same
+        // one the schema migration uses. Only for keys that hold arrays: a plain scalar
+        // merges correctly and an extra write per keystroke is a write nobody needs.
+        const next = { ...config, ...changes };
+        const nested = Object.keys(changes).filter((key) => _holdsList(changes[key]));
+        if (nested.length) {
+            const path = `flags.${MODULE.ID}.${INVENTORY_FLAG}`;
+            await inventory.update(Object.fromEntries(nested.map((key) => [`${path}.-=${key}`, null])));
+        }
+        await inventory.setFlag(MODULE.ID, INVENTORY_FLAG, next);
         return inventory;
     }
 

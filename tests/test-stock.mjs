@@ -287,6 +287,72 @@ assert.deepStrictEqual(Q.normalizeQuery({ rarity: ['nonsense'] }).rarity, [...Q.
 }
 console.log('ok  the stock query filter defaults, clamps and degrades');
 
+// --- the price range, and "Any" ------------------------------------------
+// Stops are roughly logarithmic because shop prices span four orders of magnitude — a
+// torch is 0.01 gp and plate is 1,500 — so a linear slider spends nine tenths of its
+// travel in a band no shop cares about and cannot separate a torch from a lantern.
+const { PRICE_STOPS, priceStopIndex } = await import('../scripts/const.js');
+
+assert.strictEqual(PRICE_STOPS[0], 0, 'the range starts at nothing');
+assert.ok(!Number.isFinite(PRICE_STOPS.at(-1)),
+    'and ends at no ceiling at all — a number there would be a lie, since a GM cannot know what is installed');
+for (let i = 1; i < PRICE_STOPS.length; i++) {
+    assert.ok(PRICE_STOPS[i] > PRICE_STOPS[i - 1], 'stops ascend');
+}
+
+// A stored value lands on the first stop that covers it, so a shelf never silently
+// widens: 499 gp is "up to 500", not "up to 250".
+assert.strictEqual(PRICE_STOPS[priceStopIndex(499)], 500, 'a value lands on the stop that covers it');
+assert.strictEqual(PRICE_STOPS[priceStopIndex(500)], 500, 'and exactly on a stop stays there');
+// **Every not-a-number reads as no ceiling**, which is what makes null and Infinity the
+// same position by construction rather than by two code paths agreeing.
+for (const value of [Infinity, null, undefined, NaN]) {
+    assert.strictEqual(priceStopIndex(value), PRICE_STOPS.length - 1,
+        `${String(value)} reads as no ceiling`);
+}
+
+// `max: null` is "no ceiling" and must survive being written to a flag and read back.
+// Infinity cannot: `JSON.stringify(Infinity)` is `null`, so storing Infinity would come
+// back as null and mean something different by accident. Storing null says it on purpose.
+{
+    const round = JSON.parse(JSON.stringify({ rarity: ['mundane'], priceGp: { min: 25, max: null } }));
+    const filter = Q.normalizeQuery(round);
+    assert.strictEqual(filter.priceGp.max, null, 'a null ceiling survives the round trip as null');
+    assert.strictEqual(filter.priceGp.min, 25, 'and the floor with it');
+}
+// A finite ceiling is still a window.
+assert.strictEqual(Q.normalizeQuery({ priceGp: { min: 1, max: 50 } }).priceGp.max, 50,
+    'a real ceiling is kept');
+console.log('ok  the price range covers "any" without inventing a number');
+
+// --- flag writes that hold a list ---------------------------------------
+// **Foundry merges flag objects, and merges arrays BY INDEX.** Writing `['weapon']` over
+// a stored `['weapon', 'tool', 'loot']` leaves the last two in place, and what comes back
+// is `{0: …, 1: …, 2: …}` rather than an array at all. So unticking a chip did nothing
+// twice over: the entry survived the merge, and the shape it survived as stopped reading
+// as a list. `setInventoryConfig` clears such a key with `-=` before rewriting it.
+function holdsList(value) {
+    if (Array.isArray(value)) return true;
+    if (!value || typeof value !== 'object') return false;
+    return Object.values(value).some(holdsList);
+}
+assert.ok(holdsList(['weapon']), 'a bare array needs clearing');
+assert.ok(holdsList({ subtypes: ['a'], priceGp: { min: 1 } }), 'and one nested inside a query does too');
+assert.ok(!holdsList(5) && !holdsList('table') && !holdsList(null),
+    'while a scalar merges correctly and must not cost an extra write');
+assert.ok(!holdsList({ min: 1, max: 2 }), 'and so does a plain object of numbers');
+
+// The shape the merge produces must not read as a selection, or a mangled flag would
+// silently mean "every kind" instead of failing visibly.
+{
+    const mangled = { subtypes: { 0: 'weapon', 1: 'tool' }, rarity: { 0: 'rare' } };
+    const filter = Q.normalizeQuery(mangled);
+    assert.strictEqual(filter.subtypes, null, 'an index-keyed object is not a list of kinds');
+    assert.deepStrictEqual(filter.rarity, [...Q.DEFAULT_QUERY.rarity],
+        'and not a list of rarities either — it falls back rather than meaning anything');
+}
+console.log('ok  a shrinking list replaces rather than merging');
+
 // --- the ratchet this replaces ------------------------------------------
 // Kept as a check rather than a comment, because the failure was invisible: the shop
 // looked stocked, the restock reported success, and nothing moved.

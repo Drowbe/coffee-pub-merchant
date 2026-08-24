@@ -1150,7 +1150,7 @@ level onto every existing row; it logs how many.
 
 ### 21m. Stocking from the compendiums
 
-87. On a general inventory, set **Source** to *The compendiums*. The roll-table list is replaced by a
+87. On a general inventory, set **Source** to *Configured Compendiums*. The roll-table list is replaced by a
     filter: kinds, rarities and a gold range. Set it to *Weapon* only, *mundane*, 1–50 gp.
 88. Clear the inventory and restock. It fills with mundane weapons in that price band, and **nothing
     magical and nothing dear**.
@@ -1169,3 +1169,18 @@ level onto every existing row; it logs how many.
     were configured are still there.
 95. On a Blacksmith without `compendiums.query`, a query shelf shows a warning on its card and draws
     from its tables instead of going empty.
+
+96. **The stocking summary appears once**, above the shelves, not repeated on each card.
+97. Drag the **Price** slider's right handle to the far right: it reads **Any**, and the shelf then
+    stocks the dearest thing installed. Drag it back and a number returns. Reopen the window — the
+    handle is still at Any rather than snapped to the left.
+98. **Kinds and Rarity are separate labelled rows.** Ticking *Uncommon* does not change which kinds
+    are carried, and vice versa.
+
+99. **Untick a filter pill and it stays unticked.** Turn off two Kinds, close the window, reopen it —
+    both are still off. Turn them back on and restock: the shelf carries them again. Foundry merges
+    flag arrays by index, so a shrinking list is the case that used to silently do nothing.
+100. Clicking pills does not disturb the rest of the card: the shelves below stay where they were and
+    the window does not resize.
+101. The price range reads as a **badge** beside the track, like the Global Markup readout, and updates
+    while the handle is dragged rather than only on release.

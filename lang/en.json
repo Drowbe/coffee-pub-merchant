@@ -122,10 +122,13 @@
             "newStock": "New Stock",
             "source": "Source",
             "queryFilter": "What this shop deals in",
-            "priceFrom": "From (gp)",
-            "priceTo": "To (gp)",
             "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
-            "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables."
+            "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables.",
+            "priceRange": "Price",
+            "kinds": "Kinds",
+            "rarities": "Rarity",
+            "priceFrom": "Lowest price",
+            "priceTo": "Highest price"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -388,11 +391,13 @@
         },
         "query": {
             "anyKind": "anything a shop can carry",
-            "summary": "{kinds} · {rarity} · {min}–{max} gp"
+            "summary": "{kinds} · {rarity} · {min}–{max} gp",
+            "anyPrice": "Any",
+            "priceRange": "{min} to {max} gp"
         },
         "source": {
             "table": "Roll tables",
-            "query": "The compendiums"
+            "query": "Configured Compendiums"
         }
     }
 }

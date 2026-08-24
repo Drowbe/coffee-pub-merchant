@@ -546,6 +546,40 @@ export const STOCK_RARITY_CAPS = Object.freeze({
  * Tables stay the default because existing worlds have them, and because weighting is a
  * thing a query genuinely cannot express.
  */
+/**
+ * The gold-piece stops a price slider moves between.
+ *
+ * **Not a linear range.** Shop prices span four orders of magnitude — a torch is 0.01 gp
+ * and plate is 1,500 — so a linear 0-to-anything slider spends nine tenths of its travel
+ * in a band no shop cares about and cannot separate a torch from a lantern at all. These
+ * stops are roughly logarithmic, so every drag distance is about as meaningful as the last.
+ *
+ * `Infinity` is the last stop and reads as **Any**: the honest end of a shop that deals
+ * in whatever it can get, and the only way to say "no ceiling" without asking a GM to
+ * guess a number bigger than the most expensive thing they have installed.
+ */
+export const PRICE_STOPS = Object.freeze([
+    0, 1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, Infinity
+]);
+
+/** The nearest stop at or below a value, as an index. */
+export function priceStopIndex(gp) {
+    // **Checked before conversion.** `Number(null)` is 0, not NaN, so a null ceiling —
+    // which is how "no ceiling" is stored — would otherwise read as "0 gp" and put the
+    // top handle at the bottom of the range.
+    if (gp === null || gp === undefined) return PRICE_STOPS.length - 1;
+    const value = Number(gp);
+    if (!Number.isFinite(value)) return PRICE_STOPS.length - 1;
+    const found = PRICE_STOPS.findIndex((stop) => stop >= value);
+    return found < 0 ? PRICE_STOPS.length - 1 : found;
+}
+
+/** What a stop reads as. The top one is a word, because a number there would be a lie. */
+export function priceStopLabel(index) {
+    const stop = PRICE_STOPS[Math.max(0, Math.min(PRICE_STOPS.length - 1, Math.trunc(index)))];
+    return Number.isFinite(stop) ? String(stop) : game.i18n.localize('coffee-pub-merchant.query.anyPrice');
+}
+
 export const SOURCE = Object.freeze({ TABLE: 'table', QUERY: 'query' });
 
 export const DEFAULT_SOURCE = SOURCE.TABLE;

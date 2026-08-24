@@ -3,12 +3,13 @@ import {
     MODULE, INVENTORY_TYPES, inventoryType, DEFAULT_BUY_RATE, hoursPerDay, formatHour, STOCK,
     DEFAULT_RESTOCK_DAYS, SHOP_KINDS, DEFAULT_SHOP_KIND, isAlwaysOpen, isAlwaysClosed, REPUTATION_MARKUP,
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
+    PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
-import { hasQuery, normalizeQuery, RARITIES } from './utility-compendium.js';
+import { hasQuery, normalizeQuery, describeQuery, RARITIES } from './utility-compendium.js';
 import { physicalTypes } from './utility-inventory.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
@@ -319,6 +320,67 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        // **Two range inputs behaving as one range**, the same control the trading hours
+        // use. Dragging repaints the label and the band; the write lands on release, so a
+        // drag across nine stops is one document update rather than nine.
+        for (const root of this.element?.querySelectorAll('[data-price-slider]') ?? []) {
+            if (root.dataset.merchantBound === 'true') continue;
+            root.dataset.merchantBound = 'true';
+
+            const inventoryId = root.getAttribute('data-price-slider');
+            const minInput = root.querySelector('[data-price-min]');
+            const maxInput = root.querySelector('[data-price-max]');
+            const fill = root.querySelector('[data-price-fill]');
+            const label = root.closest('.merchant-config-inv-group')?.querySelector('[data-price-label]');
+            if (!minInput || !maxInput) continue;
+
+            const stopsFor = () => {
+                // The handles cannot cross: whichever is being dragged pushes the other
+                // rather than passing it, so the range never reads back to front.
+                const low = Math.min(Number(minInput.value), Number(maxInput.value));
+                const high = Math.max(Number(minInput.value), Number(maxInput.value));
+                return { low, high };
+            };
+
+            const paint = () => {
+                const { low, high } = stopsFor();
+                const span = PRICE_STOPS.length - 1;
+                if (fill) {
+                    const from = (low / span) * 100;
+                    const to = (high / span) * 100;
+                    fill.style.background =
+                        `linear-gradient(90deg, transparent 0 ${from}%, var(--merchant-open-bar) ${from}% ${to}%, transparent ${to}% 100%)`;
+                }
+                if (label) {
+                    label.textContent = game.i18n.format('coffee-pub-merchant.query.priceRange', {
+                        min: priceStopLabel(low),
+                        max: priceStopLabel(high)
+                    });
+                }
+            };
+
+            const commit = () => {
+                const { low, high } = stopsFor();
+                const current = this._queryOf(inventoryId);
+                const max = PRICE_STOPS[high];
+                void this._commitInventoryStock(inventoryId, {
+                    query: {
+                        ...current,
+                        // Null rather than Infinity: a stored query is a document flag and
+                        // JSON turns Infinity into null anyway — storing null on purpose
+                        // makes the round trip mean what it said.
+                        priceGp: { min: PRICE_STOPS[low], max: Number.isFinite(max) ? max : null }
+                    }
+                });
+            };
+
+            for (const input of [minInput, maxInput]) {
+                input.addEventListener('input', paint);
+                input.addEventListener('change', commit);
+            }
+            paint();
+        }
+
         for (const select of this.element?.querySelectorAll('[data-inventory-source]') ?? []) {
             if (select.dataset.merchantBound === 'true') continue;
             select.dataset.merchantBound = 'true';
@@ -356,23 +418,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             }
         }
 
-        for (const [attribute, bound] of [
-            ['data-inventory-query-min', 'min'],
-            ['data-inventory-query-max', 'max']
-        ]) {
-            for (const input of this.element?.querySelectorAll(`[${attribute}]`) ?? []) {
-                if (input.dataset.merchantBound === 'true') continue;
-                input.dataset.merchantBound = 'true';
-                input.addEventListener('change', (event) => {
-                    const inventoryId = input.getAttribute(attribute);
-                    const current = this._queryOf(inventoryId);
-                    const value = Math.max(0, Math.trunc(Number(event.target.value) || 0));
-                    void this._commitInventoryStock(inventoryId, {
-                        query: { ...current, priceGp: { ...current.priceGp, [bound]: value } }
-                    });
-                });
-            }
-        }
 
         for (const select of this.element?.querySelectorAll('[data-inventory-depth]') ?? []) {
             if (select.dataset.merchantBound === 'true') continue;
@@ -1271,8 +1316,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         { value: SOURCE.TABLE, label: game.i18n.localize('coffee-pub-merchant.source.table') },
                         { value: SOURCE.QUERY, label: game.i18n.localize('coffee-pub-merchant.source.query') }
                     ].map((option) => ({ ...option, selected: option.value === (config.source ?? DEFAULT_SOURCE) })),
-                    queryMin: normalizeQuery(config.query).priceGp.min,
-                    queryMax: normalizeQuery(config.query).priceGp.max,
+                    priceMinIndex: priceStopIndex(normalizeQuery(config.query).priceGp.min),
+                    // A null ceiling is "no ceiling" and sits on the last stop, which
+                    // reads as Any. `priceStopIndex` answers that for a non-finite value,
+                    // so null and Infinity land in the same place by construction.
+                    priceTopIndex: priceStopIndex(normalizeQuery(config.query).priceGp.max ?? Infinity),
+                    priceMaxIndex: PRICE_STOPS.length - 1,
+                    priceFloorLabel: priceStopLabel(0),
+                    priceCeilingLabel: priceStopLabel(PRICE_STOPS.length - 1),
+                    priceLabel: describeQuery(config.query),
                     // An empty stored list means "every physical kind", so every chip
                     // reads as on rather than the shelf looking like it carries nothing.
                     queryKinds: physicalTypes().map((type) => ({

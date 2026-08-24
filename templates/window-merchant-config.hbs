@@ -164,7 +164,18 @@
                 </span>
             </h3>
 
+            {{!-- **Stated once, above the shelves.** These are world settings, so a copy
+                  on every card repeated the same four lines five times and made each
+                  shelf look like it owned them. Here it reads as what it is: the rules
+                  every shelf below is playing by. --}}
             {{#if hasInventories}}
+                <div class="merchant-config-note merchant-config-depth-summary">
+                    <span>{{localize "coffee-pub-merchant.config.depthSummary"}}</span>
+                    <span class="merchant-config-depth-row">{{depthByType}}</span>
+                    <span class="merchant-config-depth-row">{{depthByRarity}}</span>
+                    <span>{{localize "coffee-pub-merchant.config.depthWorldNote"}}</span>
+                </div>
+
                 {{#each inventories}}
                     {{!-- Each inventory is its own card with its own headings, so it
                           reads like the shop window rather than like a row in a table
@@ -282,16 +293,6 @@
                                     {{/if}}
                                 </div>
 
-                                {{!-- The summary, not the tables. What governs depth is a
-                                      fact about the world, so it is stated once and set
-                                      once; repeating twelve controls on every card would
-                                      restate the same world in every shop in it. --}}
-                                <div class="merchant-config-note merchant-config-depth-summary">
-                                    <span>{{localize "coffee-pub-merchant.config.depthSummary"}}</span>
-                                    <span class="merchant-config-depth-row">{{depthByType}}</span>
-                                    <span class="merchant-config-depth-row">{{depthByRarity}}</span>
-                                    <span>{{localize "coffee-pub-merchant.config.depthWorldNote"}}</span>
-                                </div>
                             </div>
                         {{/if}}
 
@@ -359,39 +360,55 @@
                             {{#if isQuery}}
                                 <div class="merchant-config-inv-group">
                                     <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
-                                    <div class="merchant-config-restock">
-                                        <label class="merchant-config-row merchant-config-restock-stack">
-                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.priceFrom"}}</span>
-                                            <input type="number" min="0" max="999999" step="1" value="{{queryMin}}"
-                                                   data-inventory-query-min="{{id}}"
-                                                   aria-label="{{localize "coffee-pub-merchant.config.priceFrom"}}">
-                                        </label>
-                                        <label class="merchant-config-row merchant-config-restock-stack">
-                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.priceTo"}}</span>
-                                            <input type="number" min="1" max="999999" step="1" value="{{queryMax}}"
-                                                   data-inventory-query-max="{{id}}"
-                                                   aria-label="{{localize "coffee-pub-merchant.config.priceTo"}}">
-                                        </label>
+                                    {{!-- Two ends of one range, the same control the
+                                          trading hours use. Stops are roughly
+                                          logarithmic — shop prices span four orders of
+                                          magnitude, and a linear slider spends nine
+                                          tenths of its travel in a band no shop cares
+                                          about. The top stop reads **Any**. --}}
+                                    <div class="merchant-config-row merchant-config-row-tall">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.priceRange"}}</span>
+                                        <div class="merchant-config-hours">
+                                            <div class="merchant-config-hours-row">
+                                                <span class="merchant-config-hours-bound">{{priceFloorLabel}}</span>
+                                                <div class="merchant-config-hours-slider" data-price-slider="{{id}}">
+                                                    <div class="merchant-config-hours-fill" data-price-fill></div>
+                                                    <input type="range" min="0" max="{{priceMaxIndex}}" step="1" value="{{priceMinIndex}}"
+                                                           data-price-min aria-label="{{localize "coffee-pub-merchant.config.priceFrom"}}">
+                                                    <input type="range" min="0" max="{{priceMaxIndex}}" step="1" value="{{priceTopIndex}}"
+                                                           data-price-max aria-label="{{localize "coffee-pub-merchant.config.priceTo"}}">
+                                                </div>
+                                                <span class="merchant-config-hours-bound">{{priceCeilingLabel}}</span>
+                                                <output class="merchant-config-price-value" data-price-label>{{priceLabel}}</output>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {{!-- Checkboxes rather than a multi-select: a GM reads
-                                          "what does this shop carry" far faster off a row
-                                          of ticks than off a list with three highlighted. --}}
-                                    <div class="merchant-config-chips" data-inventory-query-kinds="{{id}}">
-                                        {{#each queryKinds}}
-                                            <label class="merchant-config-chip{{#unless on}} is-off{{/unless}}">
-                                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
-                                                <span>{{label}}</span>
-                                            </label>
-                                        {{/each}}
+                                    {{!-- **Two questions, two labelled groups.** Kinds and
+                                          rarities were adjacent rows of identical chips,
+                                          which read as one long list of unrelated things
+                                          and invited ticking a rarity to mean a kind. --}}
+                                    <div class="merchant-config-chipset">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.kinds"}}</span>
+                                        <div class="merchant-config-chips" data-inventory-query-kinds="{{id}}">
+                                            {{#each queryKinds}}
+                                                <label class="merchant-config-chip{{#if on}} is-on{{/if}}">
+                                                    <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                                                    <span>{{label}}</span>
+                                                </label>
+                                            {{/each}}
+                                        </div>
                                     </div>
-                                    <div class="merchant-config-chips" data-inventory-query-rarity="{{id}}">
-                                        {{#each queryRarities}}
-                                            <label class="merchant-config-chip{{#unless on}} is-off{{/unless}}">
-                                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
-                                                <span>{{label}}</span>
-                                            </label>
-                                        {{/each}}
+                                    <div class="merchant-config-chipset">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.rarities"}}</span>
+                                        <div class="merchant-config-chips" data-inventory-query-rarity="{{id}}">
+                                            {{#each queryRarities}}
+                                                <label class="merchant-config-chip{{#if on}} is-on{{/if}}">
+                                                    <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                                                    <span>{{label}}</span>
+                                                </label>
+                                            {{/each}}
+                                        </div>
                                     </div>
 
                                     <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>

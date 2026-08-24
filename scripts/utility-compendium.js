@@ -77,9 +77,15 @@ export function normalizeQuery(query) {
     return {
         subtypes,
         rarity: rarity.length ? rarity : [...DEFAULT_QUERY.rarity],
+        // **`max: null` is "no ceiling", and it has to be null rather than Infinity.**
+        // A stored query is a document flag, and `JSON.stringify(Infinity)` is `null`
+        // — so writing Infinity would read back as null on the next load and mean
+        // something different by accident. Storing null on purpose makes the round trip
+        // say what it meant.
         priceGp: {
             min: Number.isFinite(min) && min >= 0 ? min : DEFAULT_QUERY.priceGp.min,
-            max: Number.isFinite(max) && max > 0 ? max : DEFAULT_QUERY.priceGp.max
+            max: stored.priceGp?.max === null ? null
+                : (Number.isFinite(max) && max > 0 ? max : DEFAULT_QUERY.priceGp.max)
         }
     };
 }
@@ -99,7 +105,11 @@ export async function queryStock(query, limit = 200) {
             type: 'Item',
             subtypes: filter.subtypes ?? physicalTypes(),
             rarity: filter.rarity,
-            priceGp: filter.priceGp,
+            // A null ceiling is omitted rather than sent: the API reads a missing bound
+            // as "no bound", where a null one is a value it would have to interpret.
+            priceGp: filter.priceGp.max === null
+                ? { min: filter.priceGp.min }
+                : filter.priceGp,
             // A shelf sells things, and a thing with no price cannot be sold. Merchant's
             // own giveaways are a flag on an item it owns, not an absent price.
             includeUnpriced: false,
@@ -122,6 +132,8 @@ export function describeQuery(query) {
         kinds,
         rarity: filter.rarity.join(', '),
         min: filter.priceGp.min,
-        max: filter.priceGp.max
+        max: filter.priceGp.max === null
+            ? game.i18n.localize('coffee-pub-merchant.query.anyPrice')
+            : filter.priceGp.max
     });
 }

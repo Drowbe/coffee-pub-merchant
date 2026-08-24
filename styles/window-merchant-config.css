@@ -502,6 +502,66 @@
  */
 .merchant-config-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .merchant-config-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 10px; font-size: .74rem; cursor: pointer; }
-.merchant-config-chip input { margin: 0; }
-/* Quiet, not struck through: the chip is available, simply not chosen. */
-.merchant-config-chip.is-off { color: var(--blacksmith-tool-text-muted); opacity: .75; }
+
+/* --- Query price range ----------------------------------------------------- */
+/*
+ * Reuses the trading-hours slider wholesale — two range inputs stacked over one filled
+ * band. Same control, same gesture, one set of rules to learn.
+ */
+.merchant-config-price { align-items: center; gap: 8px; }
+.merchant-config-price .merchant-config-hours-slider { flex: 1; }
+.merchant-config-price-readout { font-variant-numeric: tabular-nums; }
+
+/* --- Chip groups ----------------------------------------------------------- */
+/*
+ * Kinds and rarities are two questions, and were two adjacent rows of identical chips —
+ * which read as one long list of unrelated things and invited ticking a rarity to mean a
+ * kind. A label in front of each says which question the row answers.
+ */
+.merchant-config-chipset { display: flex; align-items: baseline; gap: 8px; margin-top: 5px; }
+.merchant-config-chipset > .merchant-config-label { flex: 0 0 auto; min-width: 52px; }
+.merchant-config-chipset > .merchant-config-chips { margin-top: 0; }
+
+/* --- Chips are the control, not a label beside one -------------------------- */
+/*
+ * The pill and the checkbox said the same thing twice. The input stays for keyboard
+ * reach and form semantics and is taken out of the picture visually — `appearance: none`
+ * with no box, rather than `display: none`, which would take it out of the tab order too.
+ *
+ * Selected is stated with fill AND weight, never colour alone: the difference has to
+ * survive a monochrome theme and a reader who cannot separate the two hues.
+ */
+.merchant-config-chip { position: relative; }
+.merchant-config-chip input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 0; height: 0; margin: 0; padding: 0; border: 0;
+    opacity: 0; pointer-events: none;
+}
+.merchant-config-chip {
+    background: var(--blacksmith-tool-surface-sunken, transparent);
+    color: var(--blacksmith-tool-text-muted);
+    transition: background-color .1s ease, color .1s ease, border-color .1s ease;
+    user-select: none;
+}
+.merchant-config-chip:hover { border-color: var(--blacksmith-tool-accent); }
+.merchant-config-chip.is-on {
+    background: var(--blacksmith-tool-accent);
+    border-color: var(--blacksmith-tool-accent);
+    color: var(--blacksmith-tool-field-background, #fff);
+    font-weight: 600;
+}
+/* Keyboard focus has to be visible on the pill, since the input it belongs to is not. */
+.merchant-config-chip:focus-within { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }
+
+/* --- The price readout, said the way every other rate is -------------------- */
+/*
+ * A badge beside the track, not a line of prose under it. The Global Markup slider
+ * already answers "what does this setting currently say" this way, and a second
+ * spelling of the same question is a second thing to learn.
+ */
+.merchant-config-price-value {
+    padding: 2px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px;
+    background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text);
+    font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums;
+    text-align: center; white-space: nowrap; flex: 0 0 auto;
+}
