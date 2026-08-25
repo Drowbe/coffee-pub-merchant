@@ -4,8 +4,9 @@ Shipped work lives in `CHANGELOG.md`. This file is for what is still open, what 
 what has been considered but not scheduled. It is ordered by severity: the top of the file is what to do
 next, and nothing below *Standing rules* is work.
 
-**Where things go:** `documentation/architecture/` describes implemented systems, `documentation/plans/`
-records intent and reasoning, `documentation/testing/` holds verification checklists.
+**Where things go:** `documentation/architecture/` describes implemented systems and `documentation/testing/`
+holds verification checklists. A plan lives in `documentation/plans/` only while it is being built — the
+directory is empty between plans, and that is the correct state for it.
 
 `architecture/architecture-merchant.md` is the map: what the system does and how the pieces fit. Read it
 before changing anything, and change it in the same commit as the thing it describes. A map that lies is

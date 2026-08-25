@@ -780,6 +780,16 @@ has cost this suite real time twice. What is used:
 | `entityList`, `quantitySplit`, `uiContextMenu` | embedded controls |
 | compendium search window | stocking an inventory by hand |
 | `compendiums.query` | a shelf that stocks itself from what is installed — feature-detected, §4 |
+
+**`limit` caps the output; the scan is always complete.** Worth knowing because the obvious reading
+is the wrong one, and being wrong about it is undetectable: `search()` takes a *stop-scan* limit, and
+a query built on that assumption would draw every shop's stock from the first configured pack and
+never open the sixth — producing a result set indistinguishable from a correct one. Blacksmith
+corrected our proposal on this before any of it was written. `queryDetailed().scannedSources` reports
+the whole order when the question is which packs actually answered.
+
+An entry whose type has no rarity or price field — a spell, a class — **fails** a filter on it rather
+than passing unfiltered, so a price range plus a non-physical type returns nothing, deliberately.
 | `dialog.pickActor` | choosing who is shopping |
 | `sockets` | slate mirroring and refreshes, module-prefixed — `utility-sockets.js` |
 | `toast` | every message the module shows |

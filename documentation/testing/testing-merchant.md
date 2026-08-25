@@ -2,8 +2,8 @@
 
 Working checklist for the shop feature. Tick as you go; note failures inline.
 
-`../plans/plan-merchant.md` records intent; `../architecture/architecture-merchant.md` will describe what
-the system actually does once behaviour is verified.
+`../architecture/architecture-merchant.md` describes what the system actually does, and is the thing to
+read before changing any of it.
 
 **Run the logic checks first** — see `tests/README.md`. They cover making change, stock policy, the restock
 cadence, the lock, and the search filter against the real templates. Everything below needs a table; those do

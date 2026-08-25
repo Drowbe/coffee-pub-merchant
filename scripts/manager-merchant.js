@@ -7,7 +7,7 @@
 import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
-    DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS,
+    DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
 } from './const.js';
@@ -937,9 +937,21 @@ export class MerchantManager {
             : [];
     }
 
-    /** One to twenty. An inventory rolling nothing is an inventory with no table on it. */
+    /**
+     * One to fifty. An inventory rolling nothing is an inventory with no table on it.
+     *
+     * **The ceiling matches the product target**, because the two numbers mean the same
+     * thing from opposite ends: how big a shop this is. It was twenty, set when the
+     * target was twenty-five, and it bit harder than it looked -- a draw brings *new
+     * products only* and coalesces repeats within itself, so twenty rolls on a thirty-row
+     * table yields well under twenty rows. A single-table shelf could not reach a target
+     * of fifty and had no way to ask.
+     *
+     * Not higher. Each roll is its own await, and a ceiling nobody will use invites a
+     * mistyped 90 that spends ninety of them.
+     */
     static _rollCount(value) {
-        return Math.min(20, Math.max(1, Math.trunc(Number(value) || 1)));
+        return Math.min(MAX_TABLE_ROLLS, Math.max(1, Math.trunc(Number(value) || 1)));
     }
 
     static async addInventoryTable(actor, inventoryId, uuid) {

@@ -154,7 +154,7 @@ line that says it does not.
 control that cannot act says why rather than disappearing.
 
 Your call, taken from the two options offered. Recorded here only because it reverses a rule stated in three
-places (`plan-merchant.md` phase 3, `CHANGELOG.md`, `testing-merchant.md`), all of which now say the new
+places (the build plan, `CHANGELOG.md`, `testing-merchant.md`), all of which said the new
 thing. The rule it replaces was *"absent rather than present-and-broken"*; the rule now is that a control
 which cannot act says why on hover.
 

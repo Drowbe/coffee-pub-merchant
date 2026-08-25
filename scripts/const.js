@@ -128,6 +128,15 @@ export const DEFAULT_MAX_PRODUCTS = 50;
  * shelf has already said what they want from it.
  */
 export const DEFAULT_TABLE_ROLLS = 10;
+
+/**
+ * The most times one table is rolled in a single restock.
+ *
+ * Matches `DEFAULT_MAX_PRODUCTS`: the two are the same question from opposite ends --
+ * how big a shop this is -- and a roll ceiling below the product target is a shelf that
+ * cannot reach its own size.
+ */
+export const MAX_TABLE_ROLLS = 50;
 export const DEFAULT_MAX_PER_ITEM = 20;
 
 /**
