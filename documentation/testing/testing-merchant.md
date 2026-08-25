@@ -1259,3 +1259,5 @@ level onto every existing row; it logs how many.
 135. **Search reaches into folded shelves.** Fold one that holds a match, then search for it: the shelf
     opens and shows the row. Clear the search — it folds itself back up. Shelves with no match stay
     hidden rather than opening empty.
+136. **Sort the stock.** The icon right of the search toggles name ⇄ price. Rows reorder inside each
+    category and the categories themselves stay put. Unpriced rows sit at the end of a price sort.

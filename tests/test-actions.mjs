@@ -88,4 +88,54 @@ for (const nothing of [null, undefined, '', {}, 0]) {
 }
 console.log('ok  a chosen shopper is resolved however the picker hands them over');
 
+// --- ordering stock inside a category ------------------------------------
+// Lifted from the shop's context builder. **Within the category, never across it:** the
+// grouping is the coarse answer and this is the fine one, and sorting a whole inventory
+// would throw away the kinds that make forty rows readable at all.
+function sortRows(rows, order) {
+    const byName = (a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''));
+    return [...rows].sort((a, b) => {
+        if (order !== 'price') return byName(a, b);
+        const left = a.price ?? null;
+        const right = b.price ?? null;
+        if (left === null && right === null) return byName(a, b);
+        if (left === null) return 1;
+        if (right === null) return -1;
+        return right - left || byName(a, b);
+    });
+}
+const names = (rows) => rows.map((r) => r.name);
+const stock = [
+    { name: 'Musket', price: 48500 },
+    { name: 'Club', price: 10 },
+    { name: 'Javelin', price: 49 },
+    { name: 'Amulet', price: null },      // an unpriced row
+    { name: 'Whip', price: 194 }
+];
+
+assert.deepStrictEqual(names(sortRows(stock, 'name')),
+    ['Amulet', 'Club', 'Javelin', 'Musket', 'Whip'],
+    'by name is alphabetical, and an unpriced row is just another name');
+
+assert.deepStrictEqual(names(sortRows(stock, 'price')),
+    ['Musket', 'Whip', 'Javelin', 'Club', 'Amulet'],
+    'by price is dearest first, and the unpriced row goes last');
+
+// **"No price" is not a number**, so it cannot sit at either end of one — it would read
+// as free at the bottom or priceless at the top, and it is neither.
+const unpriced = [{ name: 'Zither', price: null }, { name: 'Anvil', price: null }, { name: 'Rope', price: 1 }];
+assert.deepStrictEqual(names(sortRows(unpriced, 'price')), ['Rope', 'Anvil', 'Zither'],
+    'unpriced rows fall to the end and hold their own order by name');
+
+// Ties break by name rather than by whatever order the shelf happened to be in, so two
+// restocks of the same shop do not present the same goods differently.
+const tied = [{ name: 'Sling', price: 10 }, { name: 'Club', price: 10 }];
+assert.deepStrictEqual(names(sortRows(tied, 'price')), ['Club', 'Sling'], 'equal prices break by name');
+
+// The input is never reordered in place: the caller holds the inventory's own list.
+const original = [{ name: 'B', price: 2 }, { name: 'A', price: 1 }];
+sortRows(original, 'name');
+assert.deepStrictEqual(names(original), ['B', 'A'], 'sorting copies rather than mutating');
+console.log('ok  stock sorts by name or price, within each category');
+
 console.log('\nall action checks passed');

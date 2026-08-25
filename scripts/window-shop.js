@@ -256,6 +256,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         showBuy: (_event, _target, win) => win.showSide(false),
         showSell: (_event, _target, win) => win.showSide(true),
         sortSell: (_event, _target, win) => win.cycleSellSort(),
+        sortStock: (_event, _target, win) => win.cycleStockSort(),
         addToCart: (_event, target, win) => void win.addToCart(target.dataset.itemId),
         addToBasketRow: (_event, target, win) => void win.addToBasketRow(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
@@ -513,6 +514,36 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const stock = MerchantManager.getStock(merchant, item);
         if (stock.unlimited) return ShopWindow.MAX_PER_ACQUISITION;
         return Math.min(ShopWindow.MAX_PER_ACQUISITION, stock.available - (this.cart.get(item.id) ?? 0));
+    }
+
+    /**
+     * How the shop's own stock is ordered, **within each category**.
+     *
+     * Two, not the sell side's three: a category *is* the grouping, so a "by kind" order
+     * would be a second answer to a question the layout has already given. Name first,
+     * because that is how somebody looks for a thing they came in for; price second, for
+     * the other question anybody asks a shopkeeper.
+     */
+    static STOCK_SORTS = [
+        {
+            key: 'name', icon: 'fa-solid fa-arrow-down-a-z',
+            labelKey: 'coffee-pub-merchant.sort.name'
+        },
+        {
+            key: 'price', icon: 'fa-solid fa-arrow-down-9-1',
+            labelKey: 'coffee-pub-merchant.sort.value'
+        }
+    ];
+
+    get stockSort() {
+        return ShopWindow.STOCK_SORTS.find((s) => s.key === this._stockSort) ?? ShopWindow.STOCK_SORTS[0];
+    }
+
+    cycleStockSort() {
+        const order = ShopWindow.STOCK_SORTS;
+        const at = order.findIndex((s) => s.key === this.stockSort.key);
+        this._stockSort = order[(at + 1) % order.length].key;
+        void this.render(false);
     }
 
     /**
@@ -1470,16 +1501,35 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
                 // Grouped by kind within the inventory. A storefront with forty rows is
                 // a wall of text otherwise.
+                // **Within the category, never across it.** The grouping is the coarse
+                // answer and this is the fine one; sorting the whole inventory would
+                // throw away the kinds that make forty rows readable at all.
+                //
+                // An unpriced row sorts last whichever way round, because "no price" is
+                // not a number and putting it at either end of one is a lie. It keeps
+                // its place among the other unpriced rows by name.
+                const order = this.stockSort.key;
+                const byName = (a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''));
+                const sortRows = (rows) => [...rows].sort((a, b) => {
+                    if (order !== 'price') return byName(a, b);
+                    const left = a.price ?? null;
+                    const right = b.price ?? null;
+                    if (left === null && right === null) return byName(a, b);
+                    if (left === null) return 1;
+                    if (right === null) return -1;
+                    return right - left || byName(a, b);
+                });
+
                 const categories = ITEM_CATEGORIES
                     .map((category) => ({
                         ...category,
-                        items: contents.filter((item) => item.type === category.type)
+                        items: sortRows(contents.filter((item) => item.type === category.type))
                     }))
                     .filter((category) => category.items.length > 0);
 
                 const known = new Set(ITEM_CATEGORIES.map((c) => c.type));
                 const other = contents.filter((item) => !known.has(item.type));
-                if (other.length) categories.push({ type: 'other', label: 'Other', icon: 'fa-solid fa-question', items: other });
+                if (other.length) categories.push({ type: 'other', label: 'Other', icon: 'fa-solid fa-question', items: sortRows(other) });
 
                 return {
                     id: inventory.id,
@@ -1506,6 +1556,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || 'Shop',
+            stockSortIcon: this.stockSort.icon,
+            stockSortTooltip: game.i18n.format('coffee-pub-merchant.shop.sortTooltip', {
+                how: game.i18n.localize(this.stockSort.labelKey)
+            }),
             // **The picture of the place, if there is one.** Absent is the ordinary case
             // and the card reads exactly as it always did; present, it sits behind the
             // card as a backdrop rather than replacing anything on it.

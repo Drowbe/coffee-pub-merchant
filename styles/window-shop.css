@@ -772,3 +772,19 @@
     border-radius: 5px;
     box-shadow: none;
 }
+
+/* --- Sorting the stock ------------------------------------------------------ */
+/*
+ * Beside the clear button, not inside the field. It acts on the list below rather than
+ * on the text in the box, and sitting within the input's own frame would say otherwise.
+ * It is always there, where clear appears only when there is something to clear.
+ */
+.merchant-shop-search-sort {
+    flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0;
+    border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px;
+    background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text-muted);
+    font-size: .72rem; cursor: pointer;
+}
+.merchant-shop-search-sort:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-search-sort:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }

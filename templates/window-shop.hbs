@@ -195,6 +195,10 @@
                             data-tooltip="{{localize "coffee-pub-merchant.shop.clearSearch"}}" hidden>
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                    <button type="button" class="merchant-shop-search-sort" data-action="sortStock"
+                            data-tooltip="{{stockSortTooltip}}">
+                        <i class="{{stockSortIcon}}"></i>
+                    </button>
                 </section>
 
                 {{!-- The scrolling region starts here, below the search, so the
