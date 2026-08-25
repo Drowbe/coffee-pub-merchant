@@ -60,7 +60,8 @@
             "onlyShopper": "{name} is the only character who can shop here, so there is nobody to switch to.",
             "collapseInventory": "Fold this inventory away",
             "expandInventory": "Open this inventory",
-            "sortTooltip": "Sorted by {how} within each category. Click to change."
+            "sortTooltip": "Sorted by {how} within each category. Click to change.",
+            "mergeTooltip": "Fold duplicate rows together — same name and kind, quantities added up"
         },
         "config": {
             "title": "Merchant Settings",
@@ -191,7 +192,10 @@
             "clampedToMaxStack": "This inventory holds at most {max} of any one thing, so that is {value}. Raise the inventory’s \"each\" limit in Merchant Settings to keep more.",
             "brokenTableRows": "{count} result(s) from {tables} no longer exist and were skipped. The table points at content that has been renamed, moved or uninstalled.",
             "queryUnavailable": "This inventory stocks from the compendiums, which needs a newer Coffee Pub Blacksmith.",
-            "queryEmpty": "Nothing installed matches what {inventory} asks for. Widen its kinds, rarities or price range."
+            "queryEmpty": "Nothing installed matches what {inventory} asks for. Widen its kinds, rarities or price range.",
+            "merged": "Folded {count} duplicate row(s) together.",
+            "nothingToMerge": "Nothing on that inventory is duplicated.",
+            "mergeFailed": "Could not merge those rows."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",

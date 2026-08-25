@@ -2,6 +2,7 @@
 // cannot catch a wrong document path — but it does catch arithmetic, inheritance
 // and lock ordering, which are the parts that are pure logic.
 import assert from 'node:assert';
+import fs from 'node:fs';
 
 globalThis.game = {
     user: { isGM: true },
@@ -600,5 +601,129 @@ console.log('\nall stock logic checks passed');
     assert.strictEqual(emitted.length, 3, 'a later change refreshes again');
 }
 console.log('ok  refreshes coalesce per merchant without losing one');
+
+console.log('\nall stock logic checks passed');
+
+// --- folding duplicate rows together --------------------------------------
+// Nothing in the current code makes a second row for the same thing -- a draw skips
+// what the shelf already carries -- so this exists for the ones already in a world.
+// The rules it has to keep: grouped by name *and* type, quantities added up, the
+// highest level kept, the first row the survivor, and nothing above the ceiling.
+{
+    const maxPerItem = 10;
+    // The shape of `mergeInventoryDuplicates`, with the writes collected rather than made.
+    const merge = (rows) => {
+        const groups = new Map();
+        for (const item of rows) {
+            const key = `${item.name}\u0000${item.type}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(item);
+        }
+        const updates = [];
+        const deletes = [];
+        for (const group of groups.values()) {
+            if (group.length < 2) continue;
+            const [keep, ...rest] = group;
+            const total = group.reduce((sum, item) => sum + Math.max(0, Math.trunc(Number(item.quantity ?? 0))), 0);
+            const par = group.reduce((highest, item) => {
+                const stored = Number(item.par);
+                return Number.isFinite(stored) ? Math.max(highest, stored) : highest;
+            }, 0);
+            const quantity = Math.min(total, maxPerItem);
+            updates.push({ id: keep.id, quantity, par: Math.min(par, maxPerItem) });
+            deletes.push(...rest.map((item) => item.id));
+        }
+        return { updates, deletes };
+    };
+
+    const three = merge([
+        { id: 'a', name: 'Light Hammer', type: 'weapon', quantity: 2, par: 2 },
+        { id: 'b', name: 'Light Hammer', type: 'weapon', quantity: 1, par: 4 },
+        { id: 'c', name: 'Light Hammer', type: 'weapon', quantity: 3, par: 3 }
+    ]);
+    assert.deepStrictEqual(three.deletes, ['b', 'c'], 'the first row survives, the rest go');
+    assert.strictEqual(three.updates[0].quantity, 6, 'the counts are added up, not maxed');
+    assert.strictEqual(three.updates[0].par, 4, 'and the level is the highest of the three');
+
+    // A potion called Longsword and a sword called Longsword are two things.
+    const kinds = merge([
+        { id: 'a', name: 'Longsword', type: 'weapon', quantity: 1, par: 1 },
+        { id: 'b', name: 'Longsword', type: 'consumable', quantity: 1, par: 1 }
+    ]);
+    assert.strictEqual(kinds.deletes.length, 0, 'same name, different kind, left alone');
+
+    // Three rows of four under a ceiling of ten: the merged row is clamped, and its
+    // level with it, so no count exists that the inventory's own limit forbids.
+    const over = merge([
+        { id: 'a', name: 'Torch', type: 'consumable', quantity: 4, par: 4 },
+        { id: 'b', name: 'Torch', type: 'consumable', quantity: 4, par: 4 },
+        { id: 'c', name: 'Torch', type: 'consumable', quantity: 4, par: 4 }
+    ]);
+    assert.strictEqual(over.updates[0].quantity, maxPerItem, 'twelve is clamped to the ceiling');
+    assert.strictEqual(over.updates[0].par, 4, 'and the level is untouched by the clamp');
+
+    // The level is not the total. Two rows kept at three and two make one row holding
+    // five kept at three: what the shelf keeps is a decision, and the surplus sells
+    // through like any other over-stocked row rather than becoming the new normal.
+    const kept = merge([
+        { id: 'a', name: 'Dagger', type: 'weapon', quantity: 3, par: 3 },
+        { id: 'b', name: 'Dagger', type: 'weapon', quantity: 2, par: 2 }
+    ]);
+    assert.strictEqual(kept.updates[0].quantity, 5, 'all five are on the shelf');
+    assert.strictEqual(kept.updates[0].par, 3, 'but the level stays the highest of the two, not their sum');
+
+    assert.deepStrictEqual(merge([{ id: 'a', name: 'Rations', type: 'consumable', quantity: 1, par: 1 }]),
+        { updates: [], deletes: [] }, 'a tidy shelf is not written to at all');
+}
+console.log('ok  duplicate rows fold together by name and kind');
+
+// --- which shelves offer a restock button ---------------------------------
+// The control has to be absent where pressing it could only ever say "nothing to
+// restock": a buyback shelf, and a hand-stocked shelf that is not set to restock.
+{
+    const SOURCE = { MANUAL: 'manual', QUERY: 'query', TABLE: 'table', BOTH: 'both' };
+    // The shape of `MerchantManager.canRestock`.
+    const canRestock = ({ purchased = false, source = SOURCE.MANUAL, tables = 0, policy = STOCK.INFINITE }) => {
+        if (purchased) return false;
+        if (source === SOURCE.QUERY || source === SOURCE.BOTH) return true;
+        if (source === SOURCE.TABLE && tables) return true;
+        return policy === STOCK.RESTOCKING;
+    };
+
+    assert.strictEqual(canRestock({ purchased: true, source: SOURCE.QUERY, policy: STOCK.RESTOCKING }), false,
+        'a buyback shelf never restocks, whatever else is set on it');
+    assert.strictEqual(canRestock({ source: SOURCE.QUERY }), true, 'a compendium shelf always can');
+    assert.strictEqual(canRestock({ source: SOURCE.BOTH }), true, 'and so can one doing both');
+    assert.strictEqual(canRestock({ source: SOURCE.TABLE, tables: 1 }), true, 'a table shelf with a table on it');
+    // Deliberately not the clock's test: the clock skips a table whose automatic switch
+    // is off, but pressing the button is exactly what that table is there for.
+    assert.strictEqual(canRestock({ source: SOURCE.TABLE, tables: 0 }), false, 'a table shelf with no tables cannot');
+    assert.strictEqual(canRestock({ source: SOURCE.MANUAL, policy: STOCK.RESTOCKING }), true,
+        'a hand-stocked shelf that is kept at a level tops itself up');
+    assert.strictEqual(canRestock({ source: SOURCE.MANUAL, policy: STOCK.FINITE }), false,
+        'once gone is gone: nothing to restock to');
+    assert.strictEqual(canRestock({ source: SOURCE.MANUAL, policy: STOCK.INFINITE }), false,
+        'a bottomless shelf has nothing to refill');
+}
+console.log('ok  the restock control is offered only where it does something');
+
+// --- and both are actually wired up ---------------------------------------
+// The mirrors above are logic tests; these are the two lines that catch a rename.
+{
+    const manager = fs.readFileSync(new URL('../scripts/manager-merchant.js', import.meta.url), 'utf8');
+    const shop = fs.readFileSync(new URL('../scripts/window-shop.js', import.meta.url), 'utf8');
+    const template = fs.readFileSync(new URL('../templates/window-shop.hbs', import.meta.url), 'utf8');
+
+    for (const name of ['canRestock', 'mergeInventoryDuplicates']) {
+        assert.ok(manager.includes(`static ${name.startsWith('merge') ? 'async ' : ''}${name}(`),
+            `the manager still has ${name}`);
+        assert.ok(shop.includes(name), `the shop window still calls ${name}`);
+    }
+    assert.ok(template.includes('{{#if canRestock}}'), 'the restock button is behind its own condition');
+    assert.ok(!/{{#if canStock}}[\s\S]*?data-action="restockInventory"[\s\S]*?{{\/if}}/.test(
+        template.slice(template.indexOf('{{#if canRestock}}') + 1)), 'and not behind canStock as well');
+    assert.ok(template.includes('data-action="mergeInventory"'), 'the tidy button is on the header');
+}
+console.log('ok  restock and merge are wired to the template');
 
 console.log('\nall stock logic checks passed');

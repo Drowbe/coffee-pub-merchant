@@ -267,6 +267,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
         restockInventory: (_event, target, win) => void win.restockInventory(target.dataset.inventoryId),
         clearInventory: (_event, target, win) => void win.clearInventory(target.dataset.inventoryId),
+        mergeInventory: (_event, target, win) => void win.mergeInventory(target.dataset.inventoryId),
         removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
     };
 
@@ -1539,6 +1540,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     canToggle: isGM,
                     collapsed: (_collapsed.get(this.tokenUuid) ?? new Set()).has(inventory.id),
                     canStock: isGM,
+                    canRestock: isGM && MerchantManager.canRestock(merchant, inventory),
                     isUnpricedInventory,
                     categories,
                     count: contents.length,
@@ -2405,6 +2407,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
             bar.finish(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
+        }
+    }
+
+    /**
+     * Fold this inventory's duplicate rows into one.
+     *
+     * Says what it did, including when it did nothing -- a tidy button that produces no
+     * visible change is otherwise indistinguishable from a broken one.
+     */
+    async mergeInventory(inventoryId) {
+        if (!game.user.isGM) return;
+        const token = await this._resolveToken();
+        const merchant = token?.actor;
+        if (!merchant || !inventoryId) return;
+
+        try {
+            const merged = await MerchantManager.mergeInventoryDuplicates(merchant, inventoryId);
+            notify.info(merged
+                ? game.i18n.format('coffee-pub-merchant.notify.merged', { count: merged })
+                : game.i18n.localize('coffee-pub-merchant.notify.nothingToMerge'));
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not merge duplicate rows:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.mergeFailed'));
         }
     }
 

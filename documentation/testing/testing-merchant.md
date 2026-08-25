@@ -1261,3 +1261,14 @@ level onto every existing row; it logs how many.
     hidden rather than opening empty.
 136. **Sort the stock.** The icon right of the search toggles name ⇄ price. Rows reorder inside each
     category and the categories themselves stay put. Unpriced rows sit at the end of a price sort.
+137. **Fold duplicate rows together.** On a shelf carrying the same item twice (drag a second copy of
+    something already on it), press the stack icon on the header. The rows become one, its count is the
+    two added up, and the level is the higher of the two rather than the sum. Press it on a tidy shelf:
+    it says nothing is duplicated rather than appearing to do nothing.
+138. Two rows of the same *name* but different **kinds** — a Longsword weapon and a Longsword potion —
+    are left alone.
+139. Folding rows on a shelf whose ceiling is lower than the total clamps the merged count to the
+    ceiling. Nothing on the shelf reads higher than its own limit afterwards.
+140. **The restock button is absent where it would do nothing.** A Purchased/buyback shelf has no
+    restock icon at all. A Manual shelf set to *finite* or *infinite* has none either; set it to
+    *restocking* and it appears. Compendium and table shelves keep theirs.

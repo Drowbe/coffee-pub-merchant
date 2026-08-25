@@ -265,15 +265,26 @@
                                     <i class="fa-solid fa-comments"></i> {{localize "coffee-pub-merchant.shop.negotiate"}}
                                 </span>
                             {{/if}}
-                            {{#if canStock}}
+                            {{!-- Its own condition, not `canStock`: a buyback shelf and a
+                                  hand-stocked one that never restocks have nothing this
+                                  button could do, and a control that can only ever report
+                                  "nothing to restock" reads as broken. --}}
+                            {{#if canRestock}}
                                 <button type="button" class="merchant-shop-inventory-add" data-action="restockInventory"
                                         data-inventory-id="{{id}}"
                                         data-tooltip="{{localize "coffee-pub-merchant.shop.restockTooltip"}}">
                                     <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
+                            {{/if}}
+                            {{#if canStock}}
                                 <button type="button" class="merchant-shop-inventory-add" data-action="addToInventory" data-inventory-id="{{id}}"
                                         data-tooltip="{{localize "coffee-pub-merchant.shop.compendiumTooltip"}}">
                                     <i class="fa-solid fa-magnifying-glass"></i>
+                                </button>
+                                <button type="button" class="merchant-shop-inventory-add"
+                                        data-action="mergeInventory" data-inventory-id="{{id}}"
+                                        data-tooltip="{{localize "coffee-pub-merchant.shop.mergeTooltip"}}">
+                                    <i class="fa-solid fa-layer-group"></i>
                                 </button>
                                 {{!-- Last, and the only one that asks first. Setting a
                                       count to zero says "sold out"; this says "take it

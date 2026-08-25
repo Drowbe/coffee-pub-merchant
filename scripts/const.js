@@ -81,9 +81,15 @@ export const FREE_FLAG = 'free';
  * yet know a till is a thing. Seeded once, on enabling, and only when the Actor has
  * no coin at all — so it never quietly tops up a shop a GM has deliberately emptied.
  *
+ * **Enough to buy things with.** The till is also the buyback ceiling -- a shop cannot
+ * take what it cannot pay for -- so a small seed does not read as a modest shopkeeper,
+ * it reads as a shop that refuses every sale the party actually wants to make. Three
+ * thousand covers ordinary gear and most of the middling magic items a party turns up
+ * with, and still says no to the sort of thing that should need a specialist.
+ *
  * Editable per shop in Merchant Settings afterwards.
  */
-export const DEFAULT_TILL = Object.freeze({ gp: 250 });
+export const DEFAULT_TILL = Object.freeze({ gp: 3000 });
 
 /** Days between restocks when an inventory does not say otherwise. */
 export const DEFAULT_RESTOCK_DAYS = 1;

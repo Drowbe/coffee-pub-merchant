@@ -1276,6 +1276,119 @@ export class MerchantManager {
     }
 
     /**
+     * Can this inventory be restocked at all?
+     *
+     * **The button's question, which is not quite the clock's.** `restockInventory`
+     * decides whether an *unforced* pass does anything; this decides whether the control
+     * should be on screen. They differ on one point deliberately: a table with its
+     * automatic switch off is skipped by the clock but is exactly what the button is for,
+     * so a shelf with tables offers the control even when none of them fire on their own.
+     *
+     * Everything else is a real dead end. A buyback inventory holds what the party sold
+     * and has no level to return to, so restocking it is refused outright. A hand-stocked
+     * shelf that is not set to restock has nothing to refill *to* and no source to draw
+     * from -- pressing it can only ever report that it did nothing.
+     */
+    static canRestock(actor, inventory) {
+        const config = this.getInventoryConfig(inventory);
+        if (!config) return false;
+        if (isPurchased(config.type)) return false;
+
+        const source = config.source ?? DEFAULT_SOURCE;
+        if (source === SOURCE.QUERY || source === SOURCE.BOTH) return true;
+        if (source === SOURCE.TABLE && this.getInventoryTables(inventory).length) return true;
+        // Manual, or a table shelf with no tables on it: the only thing left that a
+        // restock could do is bring rows back up to their level, and that is only a
+        // thing this shelf does if it is set to.
+        return this.resolveStockPolicy(actor, config) === STOCK.RESTOCKING;
+    }
+
+    /**
+     * Fold duplicate rows on an inventory into one.
+     *
+     * **Nothing creates these any more, and nothing else removes them.** A draw skips
+     * anything the shelf already carries, so the current code cannot produce a second
+     * Light Hammer -- but a restock only tops rows up to their level, so pairs made before
+     * that rule existed, or by a merge that was refused for a reason since fixed, sit
+     * there indefinitely. This is the only way to clear them.
+     *
+     * **Matched on name and type**, the dominant part of the identity a grant merges on.
+     * Deliberately not that whole predicate: a second copy of it here is a second copy to
+     * drift from the first, and the cost of being approximately right is that a GM might
+     * merge two rows they had a reason to keep apart -- which is why this is a button
+     * somebody presses rather than something that happens to them.
+     *
+     * The survivor keeps the **highest** par of the group. Par is what the shelf is kept
+     * at, and rows that each restocked to their own level were between them keeping the
+     * largest of them.
+     */
+    static async mergeInventoryDuplicates(actor, inventoryId) {
+        if (!game.user.isGM) return 0;
+        const inventory = actor?.items?.get(inventoryId);
+        const config = this.getInventoryConfig(inventory);
+        if (!config) return 0;
+        const { maxPerItem } = this.getInventoryLimits(config);
+
+        return this._withStockLock(actor, async () => {
+            // Read inside the lock: a purchase settling right now changes these counts,
+            // and folding rows together from a stale read invents or loses stock.
+            const groups = new Map();
+            for (const item of this.getInventoryContents(actor, inventory)) {
+                const key = `${item.name}\u0000${item.type}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(item);
+            }
+
+            const updates = [];
+            const deletes = [];
+            for (const rows of groups.values()) {
+                if (rows.length < 2) continue;
+                // The first row survives, so the shelf keeps the order it had rather than
+                // reshuffling around whichever copy happened to be the largest.
+                const [keep, ...rest] = rows;
+                const total = rows.reduce(
+                    (sum, item) => sum + Math.max(0, Math.trunc(Number(item.system?.quantity ?? 0))), 0);
+                const par = rows.reduce((highest, item) => {
+                    const stored = Number(item.getFlag(MODULE.ID, PAR_FLAG));
+                    return Number.isFinite(stored) ? Math.max(highest, stored) : highest;
+                }, 0);
+
+                // Clamped like every other write of these two numbers. Three rows of four
+                // under a ceiling of ten is the case: the merged row cannot hold twelve,
+                // and storing it anyway would leave a count the inventory's own limit says
+                // is impossible.
+                //
+                // The level is the highest of the group and is *not* raised to the merged
+                // total. What the shelf is kept at is a decision about the shop; adding
+                // together three accidents of history is not that decision. A row sitting
+                // above its level is the ordinary state of a shelf somebody just stocked
+                // by hand -- a restock tops rows up and never trims them -- so the extra
+                // sells through and the shelf settles back to what it keeps.
+                const quantity = Math.min(total, maxPerItem);
+                updates.push({
+                    _id: keep.id,
+                    'system.quantity': quantity,
+                    [`flags.${MODULE.ID}.${PAR_FLAG}`]: Math.min(par, maxPerItem)
+                });
+                deletes.push(...rest.map((item) => item.id));
+            }
+
+            if (!deletes.length) return 0;
+            try {
+                // Update before delete. If the delete then fails the shelf is over-counted,
+                // which is visible and fixable; the other order loses stock silently.
+                await actor.updateEmbeddedDocuments('Item', updates);
+                await actor.deleteEmbeddedDocuments('Item', deletes);
+            } catch (error) {
+                console.error(`${MODULE.TITLE} | Could not merge duplicates on ${inventory.name}:`, error);
+                return 0;
+            }
+            this.broadcastActorRefresh(actor);
+            return deletes.length;
+        });
+    }
+
+    /**
      * Take everything off an inventory, leaving the inventory.
      *
      * Distinct from removing the inventory and from setting counts to zero, which are the
