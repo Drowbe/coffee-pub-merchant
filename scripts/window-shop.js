@@ -1,6 +1,7 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
-    MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased
+    MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
+    normalizeTint
 } from './const.js';
 import { startProgress } from './utility-progress.js';
 import {
@@ -1566,6 +1567,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // and the card reads exactly as it always did; present, it sits behind the
             // card as a backdrop rather than replacing anything on it.
             illustration: illustrationUrl(config?.illustration),
+            // Normalised again here rather than trusted from the flag: this is the value
+            // that ends up inside a `style` attribute, and the setter is not the only
+            // way a flag gets written.
+            tint: normalizeTint(config?.tint),
             // The shopkeeper is only worth naming when the shop is not named after
             // them. "Bob" over a shop called Bob is a line of nothing.
             keeperName: token?.actor?.name ?? token?.name ?? '',

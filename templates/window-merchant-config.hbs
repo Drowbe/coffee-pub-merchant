@@ -52,13 +52,33 @@
                       cleared — a browse-only field has no way to say "none". --}}
                 <label class="merchant-config-row">
                     <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.illustration"}}</span>
-                    <div class="merchant-config-file">
+                    <div class="merchant-config-file merchant-config-tint">
                         <input type="text" value="{{illustration}}" data-merchant-illustration
                                placeholder="{{localize "coffee-pub-merchant.config.illustrationPlaceholder"}}">
                         <button type="button" class="merchant-config-file-browse"
                                 data-merchant-illustration-browse
                                 data-tooltip="{{localize "coffee-pub-merchant.config.illustrationBrowse"}}">
                             <i class="fa-solid fa-file-image"></i>
+                        </button>
+                        {{!-- The tint rides on the end of the illustration row because it
+                              is the same question about the same card -- what this place
+                              looks like -- and a row of its own said it was a third thing.
+                              Typed as well as picked: a hex pasted from wherever the GM
+                              keeps their palette is a real way to set one, and blank is
+                              how it is cleared. The swatch opens on the card's own leather
+                              when there is no tint, so it starts somewhere sane rather
+                              than on a black nobody chose. --}}
+                        <input type="text" value="{{tint}}" data-merchant-tint spellcheck="false"
+                               placeholder="{{localize "coffee-pub-merchant.config.tintPlaceholder"}}"
+                               data-tooltip="{{localize "coffee-pub-merchant.config.tint"}}"
+                               aria-label="{{localize "coffee-pub-merchant.config.tint"}}">
+                        <input type="color" value="{{tintSwatch}}" data-merchant-tint-swatch
+                               data-tooltip="{{localize "coffee-pub-merchant.config.tint"}}"
+                               aria-label="{{localize "coffee-pub-merchant.config.tint"}}">
+                        <button type="button" class="merchant-config-file-browse" data-merchant-tint-clear
+                                data-tooltip="{{localize "coffee-pub-merchant.config.tintClear"}}"
+                                {{#unless tint}}disabled{{/unless}}>
+                            <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
                     <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.illustrationHint"}}</small>

@@ -388,6 +388,44 @@ export const DEFAULT_BUY_RATE = 0.5;
  */
 export const DEFAULT_ILLUSTRATION = null;
 
+/**
+ * A colour wash on the shop card, so a smithy and an apothecary are not two identical
+ * grey cards.
+ *
+ * **Decoration that carries meaning, which is why it is the GM's to set and not
+ * derived.** A tint could have come from the shop kind automatically -- and would then
+ * say what Merchant thinks the shop is rather than what this table has agreed it is. A
+ * GM colour-coding by district, by faction or by who owes them money is doing something
+ * a fixed palette cannot.
+ *
+ * Null is the ordinary case and renders exactly the card it always did: the wash is an
+ * extra layer over the existing ground, never a replacement for it.
+ */
+export const DEFAULT_TINT = null;
+
+/**
+ * A stored tint as a hex colour, or null.
+ *
+ * **Validated because it is substituted into an inline `style` attribute.** A flag is
+ * a value a GM can hand-edit and a macro can write, so anything reaching that attribute
+ * has to be a colour and nothing else -- `#c33` and `#cc3333` in, one lowercase
+ * six-digit form out, and everything else null. A typo painting no tint is the right
+ * failure; a typo painting arbitrary CSS into the card is not.
+ */
+export function normalizeTint(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    const hex = raw.startsWith('#') ? raw.slice(1) : raw;
+    // Three-digit shorthand expanded rather than passed through: one stored form means
+    // the swatch, the text box and the stylesheet never disagree about the same colour.
+    if (/^[0-9a-f]{3}$/i.test(hex)) return `#${[...hex].map((c) => c + c).join('')}`.toLowerCase();
+    if (/^[0-9a-f]{6}$/i.test(hex)) return `#${hex}`.toLowerCase();
+    return null;
+}
+
+/** What the swatch opens on when a shop has no tint: the card's own leather. */
+export const HOUSE_TINT = '#8a5a2b';
+
 export const MARKET_FLAG = 'market';
 
 export const DEFAULT_MARKET_RATE = 1.0;

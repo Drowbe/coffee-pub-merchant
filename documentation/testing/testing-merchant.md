@@ -1272,3 +1272,13 @@ level onto every existing row; it logs how many.
 140. **The restock button is absent where it would do nothing.** A Purchased/buyback shelf has no
     restock icon at all. A Manual shelf set to *finite* or *infinite* has none either; set it to
     *restocking* and it appears. Compendium and table shelves keep theirs.
+141. **Tint a shop.** In Merchant Settings, use the swatch at the right of the **Shop Illustration** row: the shop card washes to
+    it — border, background and the rules inside the card — and the name stays readable. Type a hex into
+    the box instead and it takes; type rubbish and it clears rather than sitting there disagreeing with
+    the card.
+142. The cross clears the tint and the card goes back to exactly the leather card it was. It is greyed
+    out on a shop with no tint.
+143. **Tint a shop that has an illustration.** The picture is still fully visible with the colour over
+    it, and every line of text over it is still readable — check the blurb and the Buying-as row.
+144. Two shops with different tints, open side by side, are told apart at a glance from across the room.
+

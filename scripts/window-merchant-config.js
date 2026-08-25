@@ -5,7 +5,7 @@ import {
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
     PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
-    MAX_BUYBACK_RATIO
+    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
@@ -410,6 +410,37 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (illustration && illustration.dataset.merchantBound !== 'true') {
             illustration.dataset.merchantBound = 'true';
             illustration.addEventListener('click', () => void this._pickIllustration());
+        }
+
+        // Three controls, one value. The text box is the one that can say "none", the
+        // swatch is the one that can browse a colour, and the cross is the fast way back
+        // to none -- a GM who has just seen a tint they dislike should not have to select
+        // six characters to be rid of it.
+        const tintField = this.element?.querySelector('[data-merchant-tint]');
+        if (tintField && tintField.dataset.merchantBound !== 'true') {
+            tintField.dataset.merchantBound = 'true';
+            tintField.addEventListener('change', (event) => {
+                // Rubbish is cleared rather than kept: the field would otherwise sit
+                // there reading `ochre` while the card showed no tint at all.
+                void this._setField({ tint: normalizeTint(event.target.value) });
+            });
+        }
+
+        const tintSwatch = this.element?.querySelector('[data-merchant-tint-swatch]');
+        if (tintSwatch && tintSwatch.dataset.merchantBound !== 'true') {
+            tintSwatch.dataset.merchantBound = 'true';
+            // `change` rather than `input`: a native colour picker fires continuously
+            // while the cursor moves around the wheel, and each one would be a document
+            // write broadcast to every client.
+            tintSwatch.addEventListener('change', (event) => {
+                void this._setField({ tint: normalizeTint(event.target.value) });
+            });
+        }
+
+        const tintClear = this.element?.querySelector('[data-merchant-tint-clear]');
+        if (tintClear && tintClear.dataset.merchantBound !== 'true') {
+            tintClear.dataset.merchantBound = 'true';
+            tintClear.addEventListener('click', () => void this._setField({ tint: null }));
         }
 
         const illustrationField = this.element?.querySelector('[data-merchant-illustration]');
@@ -1611,6 +1642,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             actorName: actor?.name ?? 'Unknown',
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
             illustration: merchantConfig.illustration ?? '',
+            tint: normalizeTint(merchantConfig.tint) ?? '',
+            // `<input type="color">` has no empty state -- it is black or it is a colour
+            // -- so an untinted shop opens the picker on the card's own leather rather
+            // than on a black nobody chose.
+            tintSwatch: normalizeTint(merchantConfig.tint) ?? HOUSE_TINT,
             enabled,
             // A shop that has never had hours set is open all day, which is the same
             // thing the slider says when it covers the whole span — so there is one

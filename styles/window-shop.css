@@ -38,14 +38,49 @@
    against a warm background, so the shop front looked drab for the one reason nobody
    would guess from the stylesheet: it was tinted, just in the wrong direction.
    Warm, and a little stronger, so it reads as a deliberate surface. */
-.merchant-shop-subject { 
-   display: grid; 
-   grid-template-columns: 58px minmax(0,1fr); 
-   gap: 11px; 
-   align-items: center; 
-   padding: 10px; 
-   border-color: color-mix(in srgb, #8a5a2b 34%, var(--blacksmith-tool-divider)); 
-   background: linear-gradient(135deg, color-mix(in srgb, #000000 15%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #000000 10%, var(--blacksmith-tool-surface-sunken))); 
+.merchant-shop-subject {
+   display: grid;
+   grid-template-columns: 58px minmax(0,1fr);
+   gap: 11px;
+   align-items: center;
+   padding: 10px;
+   border-color: color-mix(in srgb, #8a5a2b 34%, var(--blacksmith-tool-divider));
+   /* Named rather than written inline, because the tint and the illustration both layer
+      *over* this and would otherwise each have to restate it. Three states of one card:
+      ground, ground under a wash, and a picture under a veil under a wash. */
+   --merchant-shop-card-ground: linear-gradient(135deg, color-mix(in srgb, #000000 15%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #000000 10%, var(--blacksmith-tool-surface-sunken)));
+   --merchant-shop-card-veil: linear-gradient(90deg, rgba(16, 11, 7, .42), rgba(16, 11, 7, .24));
+   background-image: var(--merchant-shop-card-ground);
+}
+
+/*
+ * A GM's colour on the card: a smithy red, an apothecary green, whatever this table has
+ * agreed the colours mean.
+ *
+ * **Additive, so an untinted shop is the card it always was.** The wash is an extra
+ * layer above the ground rather than a different ground, and a shop with no tint never
+ * reaches these rules at all.
+ *
+ * Mixed *with transparent* rather than into the surface colour. `color-mix` against an
+ * `rgba` adds the two alphas together -- a tint would quietly darken the card as well as
+ * colour it, and the veil under an illustration would get heavier every time somebody
+ * picked a colour. Against transparent the percentage *is* the opacity, which is the
+ * thing being reasoned about.
+ *
+ * Diagonal and unequal, matching the ground beneath it: a flat wash reads as a filter
+ * laid over the card, a graded one reads as the card being that colour.
+ */
+.merchant-shop-subject[data-tint] {
+   --merchant-shop-card-wash: linear-gradient(135deg, color-mix(in srgb, var(--merchant-shop-tint) 30%, transparent), color-mix(in srgb, var(--merchant-shop-tint) 10%, transparent));
+   border-color: color-mix(in srgb, var(--merchant-shop-tint) 50%, var(--blacksmith-tool-divider));
+   background-image: var(--merchant-shop-card-wash), var(--merchant-shop-card-ground);
+}
+/* The rules inside the card follow the border, or the card reads as two colours. Above
+   the illustration rules on purpose: those carry the same weight, so on an illustrated
+   card the light rule written for a dark ground wins on source order. */
+.merchant-shop-subject[data-tint] .merchant-shop-actor,
+.merchant-shop-subject[data-tint] .merchant-shop-reputation {
+   border-color: color-mix(in srgb, var(--merchant-shop-tint) 42%, var(--blacksmith-tool-divider));
 }
 /* A row inside the shop's card rather than a card of its own: it says who is
    visiting, which belongs to the shop being looked at. A rule above it instead of a
@@ -642,13 +677,23 @@
        this card sizes to its content inside a column with no spare room, so a floor on
        it pushed the rows below straight out of the card. Whatever height the content
        comes to is the height the picture gets. */
-    background-image:
-        linear-gradient(90deg, rgba(16, 11, 7, .42), rgba(16, 11, 7, .24)),
-        var(--merchant-shop-illustration);
+    background-image: var(--merchant-shop-card-veil), var(--merchant-shop-illustration);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     border-color: rgba(255, 255, 255, .22);
+}
+
+/*
+ * Both at once: the picture, the veil that seats light text on it, and the GM's colour
+ * over the top. Lighter than the wash on a plain card -- there is a photograph under it
+ * carrying its own colour, and a wash strong enough to read against parchment turns a
+ * scene into a filter.
+ */
+.merchant-shop-subject[data-tint][data-has-illustration] {
+    --merchant-shop-card-wash: linear-gradient(135deg, color-mix(in srgb, var(--merchant-shop-tint) 22%, transparent), color-mix(in srgb, var(--merchant-shop-tint) 7%, transparent));
+    background-image: var(--merchant-shop-card-wash), var(--merchant-shop-card-veil), var(--merchant-shop-illustration);
+    border-color: color-mix(in srgb, var(--merchant-shop-tint) 55%, rgba(255, 255, 255, .22));
 }
 
 /*

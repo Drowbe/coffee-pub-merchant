@@ -163,6 +163,44 @@ These cost Curator real time. They apply here identically and there is no reason
 
 ## Ideas, not scheduled
 
+### A full-screen shop
+
+Recorded 2026-08-24, discussed and deferred the same day. The shop fills the viewport, the illustration
+becomes the ground rather than a backdrop behind one card, and a shop without an illustration falls through
+to the glass it already uses — that half is nearly free, because the illustration is already an optional
+attribute.
+
+Four things settled in the discussion, so they do not have to be re-derived:
+
+- **Not the browser's fullscreen API.** `requestFullscreen` puts one element on its own layer, and Foundry
+  renders tooltips into a global `#tooltip` and dialogs as separate apps at body level — both would draw
+  *behind* the shop, which is to say invisibly. Every hover card, the clear-inventory confirm and the actor
+  picker would vanish. It has to mean **fills the Foundry viewport**: a positioned window without chrome.
+- **A view preference, not a property of the shop.** Same argument as the folds: a GM on an ultrawide
+  ticking a box, and a player's laptop getting a shop that swallows the screen, is the bad version. It wants
+  to be a **header toggle, per client, remembered per shop**, so a player with a big monitor gets it too. If
+  a config field is wanted as well it should mean the honestly different thing — *open this shop expanded
+  by default* — and the per-client toggle still governs.
+- **Full screen is not this layout stretched, and that is the actual work.** A 2560px window holding one
+  column of shelves is worse than what is there now: forty-character rows with a metre of picture either
+  side. Width buys **columns**, not longer rows, and three inventories abreast is genuinely better for a
+  six-shelf shop — but it interacts with the folds and the search. So: stage one is the toggle with the
+  existing single column capped at a sane width and centred, and stage two is columns *if* stage one reads
+  silly. Stage one may well be enough.
+- **The veil gets stronger, not lighter**, because there is more picture and fewer cards sitting on it. And
+  a 512px illustration blown to 2560 will look rough: the fix is a blurred scaled copy as fill with the real
+  image `contain`ed over it, which also handles portrait art on a widescreen.
+
+**Blacksmith should own half of it.** The frame — the header button, saving and restoring the pre-expand
+geometry, staying clear of the sidebar and hotbar, z-index, escape to restore, surviving a viewport resize
+— is chrome, is identical for Squire and Minstrel, and is where the fiddly bugs live. Merchant owns what
+happens inside: an `is-expanded` class is all it needs to do columns and a heavier veil. So the honest first
+step here is a conversation with Blacksmith, not a stylesheet.
+
+One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 already has `maximize()` and
+it means "un-minimize"; a subclass overriding it would break Foundry's own minimise. `expand`, or `theatre`
+if the presentation connotation is wanted.
+
 ### Catalogue mode
 
 Shopping remotely — the party browses a merchant's stock without a token on the scene, and orders are

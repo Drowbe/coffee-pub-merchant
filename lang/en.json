@@ -141,7 +141,10 @@
             "illustration": "Shop illustration",
             "illustrationPlaceholder": "No illustration",
             "illustrationBrowse": "Browse for an illustration",
-            "illustrationHint": "A picture of the place itself, shown behind the shop card. Clear it to remove."
+            "illustrationHint": "A picture of the place itself, shown behind the shop card, and a tint washed over it. Clear either to remove it.",
+            "tint": "Shop tint — a colour for this shop’s card",
+            "tintPlaceholder": "No tint",
+            "tintClear": "Remove the tint"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

@@ -138,4 +138,27 @@ sortRows(original, 'name');
 assert.deepStrictEqual(names(original), ['B', 'A'], 'sorting copies rather than mutating');
 console.log('ok  stock sorts by name or price, within each category');
 
+// --- a shop tint is a colour, or it is nothing -----------------------------
+// Not a cosmetic check. The value is substituted into an inline `style` attribute, and a
+// flag is something a GM can hand-edit and a macro can write -- so anything that is not
+// a hex colour has to come back as no tint at all.
+{
+    const { normalizeTint, HOUSE_TINT } = await import('../scripts/const.js');
+
+    assert.strictEqual(normalizeTint('#C33'), '#cc3333', 'shorthand is expanded, and one case is stored');
+    assert.strictEqual(normalizeTint('CC3333'), '#cc3333', 'a hash is optional on the way in');
+    assert.strictEqual(normalizeTint('  #cc3333  '), '#cc3333', 'and the field is trimmed');
+    assert.strictEqual(normalizeTint(HOUSE_TINT), HOUSE_TINT, 'the swatch default survives a round trip');
+
+    for (const rubbish of ['', '   ', null, undefined, 'ochre', '#12', '#1234567', 'rgb(1,2,3)',
+        '#cc33zz', {}, []]) {
+        assert.strictEqual(normalizeTint(rubbish), null, `${JSON.stringify(rubbish)} is not a tint`);
+    }
+    // The one that matters: nothing that could close the declaration and open another
+    // gets through, so the attribute can only ever hold a colour.
+    assert.strictEqual(normalizeTint('#cc3333; background-image: url(evil.png)'), null,
+        'a colour with CSS after it is not a colour');
+}
+console.log('ok  a shop tint is a hex colour or nothing at all');
+
 console.log('\nall action checks passed');
