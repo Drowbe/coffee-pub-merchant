@@ -1729,7 +1729,7 @@ export class MerchantManager {
         const gmRequest = game.modules.get('coffee-pub-blacksmith')?.api?.gmRequest;
         if (typeof gmRequest?.registerOp !== 'function') {
             console.error(`${MODULE.TITLE} | Blacksmith's GM request API is unavailable; `
-                + 'nothing can be bought or sold. This needs coffee-pub-blacksmith 13.19.0 or newer.');
+                + 'nothing can be bought or sold. This needs coffee-pub-blacksmith 13.19.2 or newer.');
             return;
         }
         gmRequest.unregisterOp?.(this.OP);

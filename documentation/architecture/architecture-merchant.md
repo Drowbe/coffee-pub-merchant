@@ -32,6 +32,8 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-progress.js` | The restock progress bar. Core's notification, not a toast. |
 | `scripts/utility-reputation.js` | The party's standing here, as a multiplier. Thin over Blacksmith's scale. |
 | `scripts/utility-market.js` | What goods are worth in a place. A number on the Scene. |
+| `scripts/utility-compendium.js` | A shelf's compendium query: its shape, its defaults, and how it reads. |
+| `scripts/utility-sockets.js` | Cross-client traffic, through `blacksmith.sockets` with a legacy fallback. |
 | `scripts/settings.js` | The six sound settings, and nothing else. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
@@ -60,6 +62,8 @@ is the one most likely to be got wrong out of habit.
     name: 'Potions and Stuff',   // the shop's name; the Actor's name is the shopkeeper's
     kind: 'general',             // SHOP_KINDS — drives the icon and category label
     description: '',             // GM-authored, enriched on display
+    illustration: null,          // a picture of the PLACE — see §6
+    tint: null,                  // '#rrggbb' or null — a colour wash on the shop card
     schema: 1,                   // stamp for future migrations — see §12
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
@@ -188,8 +192,10 @@ followed the stock downward, so selling three of four flutes silently set the ta
 selling the last set it to zero. "Restocks the same items" could never put anything back, and
 the failure was invisible: the shop looked stocked and the restock reported success.
 
-Schema 4 stamps a par onto every row that lacks one, from what it currently holds — a shop
-sitting in a world nobody is shopping in is a shop at rest.
+A row that has never had a par read falls back to what it currently holds — a shop sitting in a
+world nobody is shopping in is a shop at rest. That is a *fallback in `getStock`*, not a
+migration pass: there are no migrations (§12), and a row acquires a real par the first time
+anything that is not a sale touches it.
 
 ### A roll brings new products, never more of what is already carried
 
@@ -203,6 +209,75 @@ Torch lines, two Flutes, growing by one set per restock.
 
 `maxProducts` is therefore a **target**, not a clip: a shelf that carries twenty and holds
 fifteen rolls for five more, and once it is back to twenty there is nothing left to ask for.
+
+### Where the stock comes from
+
+Four sources, stated per inventory as `source`. They are not four mechanisms — they are which
+half of one restock runs, and everything downstream (new products only, up to the target, depth
+by type/rarity/price) is shared.
+
+| `source` | Draws from | For |
+|---|---|---|
+| `manual` | nothing | Curated stock. A fence's shady goods, a smith's one good blade |
+| `table` | the inventory's roll tables | A list somebody wrote, weighted the way they wrote it |
+| `query` | the installed compendiums | Broad stock that maintains itself |
+| `both` | tables **then** the query | What a real shop is: a few chosen things, and a lot of ordinary ones |
+
+**Manual draws nothing on purpose.** Its rows are still topped up to their par — what it never
+does is bring in something the GM did not put there. That is a different statement from a table
+shelf that happens to have no tables on it, and it is the one a curated shelf wants to make. It
+is also the default: a new inventory takes what it is given until somebody says otherwise.
+
+**A query is a description of what this shop deals in** — which kinds, which rarities, what price
+window — answered by `blacksmith.compendiums.query` against what is installed *at the moment it
+runs*. A roll table stores references, so it goes stale when a pack is renamed and dangles when a
+module is uninstalled; a query cannot, and picks up new content on its own. The three dnd5e facts
+that make this hard are Blacksmith's to own, and each is a silent wrong answer rather than an
+error: mundane gear has a **blank** rarity rather than `common`, prices carry a denomination so
+50 sp is 5 gp, and unpriced and free share a stored 0.
+
+Candidates are **over-fetched and shuffled** (Fisher-Yates — not a comparator returning random
+signs, which is not a shuffle). The query answers in scan order, so taking the first N would give
+every shop in the world the same opening stock from the same pack.
+
+**On `both`, tables land first.** Both feed one product target, so on a nearly full shelf the
+order decides who gets the last few slots: the curated half is the deliberate one and the query is
+filler. Nothing arrives twice — `_withinLimits` matches by name and type, so the same longsword
+from both sources is one row.
+
+Feature-detected, never version-pinned: on a hub without `compendiums.query` the card says so and
+the shelf falls back to its tables rather than going quietly empty.
+
+### Which shelves can restock, and which are asked
+
+`canRestock` is what the shop window's control asks, and it is deliberately **not** the clock's
+test. The clock skips a table whose `auto` switch is off; the button is exactly what that table is
+for. What it refuses is the dead ends — a **purchased** inventory, which holds what the party sold
+and has no level to return to, and a **manual** shelf that is not set to restock, which has nothing
+to refill *to* and no source to draw from. Both could only ever report "nothing to restock", and a
+control that never does anything reads as broken rather than as absent.
+
+The manager refuses those too (`restockInventory` returns 0 for a purchased inventory whatever
+else is set on it). Hiding a control is not a rule; the GM-side refusal is what makes it one.
+
+### Duplicate rows, and folding them together
+
+**Nothing creates them any more.** A draw skips whatever the shelf already carries, and
+`_withinLimits` coalesces repeats inside one draw, so the current code cannot produce a second
+Light Hammer. Nothing *removed* them either — a restock tops rows up to their level and never
+merges — so pairs made before that rule existed, or by a hub-side merge that was refused for a
+reason since fixed, sit there indefinitely.
+
+`mergeInventoryDuplicates` is the only way to clear them: rows grouped by **name and type**,
+quantities added up, the first row surviving so the shelf keeps its order, the **highest** par of
+the group kept, and the result clamped to `maxPerItem` like every other write of those two
+numbers. Par is *not* raised to the merged total: what a shelf is kept at is a decision about the
+shop, not the sum of three accidents, so the surplus sells through like any other over-stocked row.
+
+Name and type is the dominant part of the identity a grant merges on, and deliberately not that
+whole predicate — a second copy of it here is a second copy to drift from the first. The cost of
+being approximately right is that a GM might merge two rows they had a reason to keep apart, which
+is why this is a button somebody presses rather than something that happens to them.
 
 ### How deep a row arrives
 
@@ -465,7 +540,7 @@ in the buyer's pack claiming to be free.
 A **negotiated** price of 0 already worked and still does — that is one trade rather than a
 standing offer, and it clears when the trade settles.
 
-### Two pictures, answering two questions
+### Two pictures and a colour, answering three questions
 
 **The portrait is who is behind the counter; the illustration is what the place looks like.** They are
 different questions and neither substitutes for the other, so they are stored separately: the portrait is
@@ -477,10 +552,38 @@ disagree is two characters as far as anybody at the table is concerned, and the 
 actually see. **Placed tokens are left alone**: they are already on a map, and changing art under a player
 mid-scene is a different act from setting up a merchant.
 
-The illustration is a **backdrop, not a replacement**. It renders on `::before` beneath the shop's subject
-card, at low opacity with a gradient over the text edge — the card keeps its own gradient, its border, and
-every word in the position it already had. A shop without one renders exactly the markup it always did, which
-is what makes this safe to add to a window full of working controls.
+The illustration is a **backdrop, not a replacement**. It is the subject card's own
+`background-image` — layers on one element, not a `::before` — and the card is read as a dark
+card rather than as a faded picture: the whole illustration at full size under a light veil, with
+the text switched to a warm off-white carrying a dark halo. Hierarchy on it is size and weight, not
+faded colour, which is a light-card habit that reads as *harder* rather than quieter over a
+photograph. **No `min-height`**: the card sizes to its content inside a column with no spare room,
+and a floor on it pushes the rows below straight out of the card.
+
+A stored path is turned into a URL by `illustrationUrl`, not used raw. **A relative `url()` in CSS
+resolves against the stylesheet**, so `modules/x/y.webp` was fetched as
+`modules/coffee-pub-merchant/styles/modules/x/y.webp` — a 404 with nothing in it to suggest the
+cause. `foundry.utils.getRoute` rather than a bare leading slash, because a Foundry served under a
+route prefix needs that prefix.
+
+**The tint is the GM's colour for this shop**, washed over the same card: a smithy red, an
+apothecary green, whatever this table has agreed the colours mean. Deliberately set rather than
+derived from `kind` — a tint taken from the kind would say what Merchant thinks the shop is, where
+a GM colour-coding by district or by faction is doing something a fixed palette cannot.
+
+It is **additive**, so a shop with no tint renders exactly the card it always did, and it layers in
+a fixed order: picture, then the veil that seats light text on it, then the colour — lighter over an
+illustration, which carries its own. Mixed against `transparent` rather than into the surface:
+`color-mix` with an `rgba` adds the two alphas, so a tint would have quietly darkened the card as
+well as colouring it and every colour picked would have made the veil heavier.
+
+`normalizeTint` validates on the way in **and** again at render, because the value is substituted
+into an inline `style` attribute and a flag is something a GM can hand-edit and a macro can write.
+`#c33` and `#cc3333` become one lowercase six-digit form; a colour name, a typo, or a colour with
+more CSS after it become no tint at all.
+
+A shop with neither renders exactly the markup it always did, which is what makes both safe to add
+to a window full of working controls.
 
 The field takes a **typed path as well as a browsed one**. Typing matters twice over: a path pasted from
 somewhere else is a real way to set one, and clearing the box is the only way to say *none* — which a
@@ -634,6 +737,24 @@ so an inventory emptied out from under a standing slate trims the line instead o
 Notable behaviours worth knowing before you touch it:
 
 - **Search** is a pure function, `filterShopList()`, exported so `tests/test-search.mjs` can cover it.
+  A search **opens any folded inventory holding a result** — a folded shelf that hid a match would
+  make the search lie, which is worse than finding nothing because an empty result reads as an
+  answer. It is a second class laid over the fold, never a rewrite of it: clearing the box puts
+  every fold straight back.
+- **Folding an inventory, and the stock sort, are view preferences and are never written to a
+  document.** Per client and per token, held in module-level maps: two people at one counter can
+  have different sections shut, and a GM tidying their own view must not reach into what a player
+  sees. That is also why neither needs a permission check — there is nothing here anyone could do
+  to anyone else.
+- **Stock sorts within each category, never across it.** The category is the coarse answer and the
+  sort is the fine one; sorting a whole inventory would throw away the kinds that make forty rows
+  readable. Two orders, not the sell side's three — a category *is* the grouping, so "by kind"
+  would answer a question the layout already has. An unpriced row sorts last either way: "no price"
+  is not a number, and at either end of one it would read as free or as priceless.
+- **Rows show rarity beside the kind**, on both sides of the counter, and a **blank rarity shows
+  nothing rather than "Mundane"** — dnd5e leaves `system.rarity` empty on everything non-magical,
+  which is most of a shop. `itemRarity` and `rarityLabel` (`const.js`) are the one place either is
+  derived; the query filter's chips had their own copy and were an edit from disagreeing.
 - **Quantity and price edits** are in-place double-click, matching Curator's loot window: Enter or clicking
   away commits, Escape abandons, `0` removes the line. Price edits are GM-only and write to the document.
 - **Item tooltips** come from dnd5e's own `richTooltip()` — the same thing Squire uses. Free, and correct.
@@ -657,7 +778,10 @@ has cost this suite real time twice. What is used:
 | `BlacksmithToolWindowBaseV2` | both windows, including `openFor` and its per-subclass registry |
 | `dialog.confirm / choose / wait` + `controls` | every prompt |
 | `entityList`, `quantitySplit`, `uiContextMenu` | embedded controls |
-| compendium search window | stocking an inventory |
+| compendium search window | stocking an inventory by hand |
+| `compendiums.query` | a shelf that stocks itself from what is installed — feature-detected, §4 |
+| `dialog.pickActor` | choosing who is shopping |
+| `sockets` | slate mirroring and refreshes, module-prefixed — `utility-sockets.js` |
 | `toast` | every message the module shows |
 | `utils.playSound` + `arrSoundChoices` | the sound settings |
 

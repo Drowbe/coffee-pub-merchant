@@ -30,7 +30,7 @@ The money comes from the player who is shopping. There is no separate payer and 
 
 ## Requirements
 
-- [Coffee Pub Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) **13.19.0 or newer**: provides the inventory primitives, token interaction, window components, dialogs, and socket infrastructure. Merchant does not function without it, and an older Blacksmith is missing APIs it calls directly.
+- [Coffee Pub Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) **13.19.2 or newer**: provides the inventory primitives, token interaction, window components, dialogs, compendium queries, and socket infrastructure. Merchant does not function without it, and an older Blacksmith is missing APIs it calls directly.
 - **D&D 5e.** Stock and pricing read `system.price`, `system.quantity`, and `CONFIG.DND5E.currencies`.
 - **Foundry v13.**
 
