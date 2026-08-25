@@ -1,7 +1,7 @@
 {
   "id": "coffee-pub-merchant",
   "title": "Coffee Pub Merchant",
-  "description": "Shops and merchants for Foundry VTT: mark an actor as a merchant and let players browse and acquire from their stock.",
+  "description": "Shops and Merchants: mark an actor as a merchant and let players browse and acquire from their stock.",
   "version": "13.1.0",
 
   "manifest": "https://github.com/Drowbe/coffee-pub-merchant/releases/latest/download/module.json",
