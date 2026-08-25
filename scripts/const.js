@@ -426,6 +426,39 @@ export function normalizeTint(value) {
 /** What the swatch opens on when a shop has no tint: the card's own leather. */
 export const HOUSE_TINT = '#8a5a2b';
 
+/**
+ * An item's rarity as one token, or null for the ordinary case.
+ *
+ * **Blank is not `common`, and the difference is the whole reason this exists.** dnd5e
+ * leaves `system.rarity` empty on everything non-magical -- rope, torches, a plain
+ * longsword -- while `common` means a common *magic* item. So null here means "an
+ * ordinary object", which is what most of a shop is, and is why a row with no rarity
+ * shows none rather than showing "Mundane" beside every torch.
+ *
+ * Spaces are tolerated on the way in because a hand-authored item may carry
+ * `very rare` where the system writes `veryRare`, and a row that silently declined to
+ * label the one legendary item in the shop is the kind of thing nobody reports.
+ */
+export function itemRarity(item) {
+    const raw = String(item?.system?.rarity ?? '').trim();
+    if (!raw) return null;
+    const camel = raw.replace(/\s+(.)/g, (_match, next) => next.toUpperCase());
+    return `${camel.charAt(0).toLowerCase()}${camel.slice(1)}`;
+}
+
+/**
+ * A rarity token as words: `veryRare` reads "Very rare".
+ *
+ * Shared by the shop row and the query filter's chips, which derived it separately and
+ * were one edit away from disagreeing about the same six words.
+ */
+export function rarityLabel(token) {
+    const raw = String(token ?? '').trim();
+    if (!raw) return null;
+    const spaced = raw.replace(/([a-z])([A-Z])/g, '$1 $2');
+    return `${spaced.charAt(0).toUpperCase()}${spaced.slice(1).toLowerCase()}`;
+}
+
 export const MARKET_FLAG = 'market';
 
 export const DEFAULT_MARKET_RATE = 1.0;

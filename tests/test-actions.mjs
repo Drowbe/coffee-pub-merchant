@@ -161,4 +161,29 @@ console.log('ok  stock sorts by name or price, within each category');
 }
 console.log('ok  a shop tint is a hex colour or nothing at all');
 
+// --- rarity on a row -------------------------------------------------------
+// The one that matters is the empty string. dnd5e leaves `system.rarity` blank on
+// everything non-magical, and reading that as `common` would put "Common" beside every
+// torch in the shop -- and, worse, is the same conflation that once capped mundane gear
+// at the common-magic-item ceiling.
+{
+    const { itemRarity, rarityLabel } = await import('../scripts/const.js');
+
+    assert.strictEqual(itemRarity({ system: { rarity: '' } }), null, 'blank is an ordinary object');
+    assert.strictEqual(itemRarity({ system: { rarity: '   ' } }), null, 'and so is whitespace');
+    assert.strictEqual(itemRarity({}), null, 'and so is an item with no system data at all');
+    assert.strictEqual(itemRarity({ system: { rarity: 'common' } }), 'common',
+        'common is a magic item and is not the blank case');
+    assert.strictEqual(itemRarity({ system: { rarity: 'veryRare' } }), 'veryRare');
+    // A hand-authored item may carry the words rather than the token.
+    assert.strictEqual(itemRarity({ system: { rarity: 'very rare' } }), 'veryRare', 'spaces are tolerated');
+    assert.strictEqual(itemRarity({ system: { rarity: 'Legendary' } }), 'legendary', 'and so is a capital');
+
+    assert.strictEqual(rarityLabel('veryRare'), 'Very rare', 'the token reads as words');
+    assert.strictEqual(rarityLabel('rare'), 'Rare');
+    assert.strictEqual(rarityLabel(null), null, 'nothing to say about an ordinary object');
+    assert.strictEqual(rarityLabel(''), null);
+}
+console.log('ok  rarity reads off an item, and blank is not common');
+
 console.log('\nall action checks passed');

@@ -1281,4 +1281,11 @@ level onto every existing row; it logs how many.
 143. **Tint a shop that has an illustration.** The picture is still fully visible with the colour over
     it, and every line of text over it is still readable — check the blurb and the Buying-as row.
 144. Two shops with different tints, open side by side, are told apart at a glance from across the room.
+145. **The trading-hours readout is a badge at the end of the track**, matching the markup sliders and
+    the price range. Drag either handle: it updates as you drag, and it still says the same hours after
+    the window is reopened.
+146. **Rows show rarity beside the kind.** A Potion of Healing reads *Consumable · Common*; a plain
+    longsword reads *Weapon* and nothing else. Check both sides — the shop's stock and the sell list.
+147. Searching *rare* finds the rare things and not the rope.
+148. The rarity colours are legible in Light, Dark and Glass — check a legendary and an uncommon in each.
 

@@ -23,7 +23,10 @@
 
     <div class="merchant-shop-item-copy">
         <strong>{{name}}</strong>
-        <span>{{typeLabel}}</span>
+        {{!-- Kind, then rarity where there is one. Most of a shop is ordinary objects
+              with no rarity at all, and printing "Mundane" beside every torch would
+              spend the line on the rows that need it least. --}}
+        <span>{{typeLabel}}{{#if rarity}} · <em data-rarity="{{rarityKey}}">{{rarity}}</em>{{/if}}</span>
     </div>
 
     {{!-- Unlimited reads as a symbol, anything else as a number, so the column does

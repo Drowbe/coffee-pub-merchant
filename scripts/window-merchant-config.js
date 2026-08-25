@@ -5,7 +5,7 @@ import {
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
     PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
-    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT
+    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
@@ -1511,14 +1511,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         on: !normalizeQuery(config.query).subtypes
                             || normalizeQuery(config.query).subtypes.includes(type)
                     })),
-                    queryRarities: RARITIES.map((token) => {
-                        const spaced = token.replace(/([a-z])([A-Z])/g, '$1 $2');
-                        return {
-                            value: token,
-                            label: spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase(),
-                            on: normalizeQuery(config.query).rarity.includes(token)
-                        };
-                    }),
+                    queryRarities: RARITIES.map((token) => ({
+                        value: token,
+                        label: rarityLabel(token),
+                        on: normalizeQuery(config.query).rarity.includes(token)
+                    })),
 
                     // Restock is stated per inventory now, never inherited, and every
                     // type has it except the one that cannot mean it.

@@ -122,12 +122,16 @@
                                 <input type="range" min="0" max="{{dayEnd}}" step="1" value="{{closeHour}}" data-hours-close aria-label="{{localize "coffee-pub-merchant.config.closingHour"}}">
                             </div>
                             <span class="merchant-config-hours-bound">{{dayEndLabel}}</span>
+                            {{!-- Beside the track, where every other slider in this
+                                  window puts its answer, rather than as a line of prose
+                                  underneath. It used to be the odd one out: the eye
+                                  lands at the end of the track after dragging, and the
+                                  hours were the one control that had nothing there. --}}
+                            <output class="merchant-config-hours-value" data-hours-readout>
+                                <span data-hours-open-label>{{openLabel}}</span>–<span data-hours-close-label>{{closeLabel}}</span>
+                            </output>
                         </div>
                     </div>
-                    <small class="merchant-config-hint">
-                        <strong data-hours-open-label>{{openLabel}}</strong> to
-                        <strong data-hours-close-label>{{closeLabel}}</strong>
-                    </small>
                 </div>
             </div>
 

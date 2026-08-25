@@ -1,7 +1,7 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
-    normalizeTint
+    normalizeTint, itemRarity, rarityLabel
 } from './const.js';
 import { startProgress } from './utility-progress.js';
 import {
@@ -635,7 +635,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     name: item.name,
                     img: item.img,
                     typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
-                    searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
+                    rarity: rarityLabel(itemRarity(item)),
+                    rarityKey: itemRarity(item),
+                    searchKey: `${item.name ?? ''} ${item.type ?? ''} ${itemRarity(item) ?? ''}`.toLowerCase(),
                     offer: offer ?? -1,
                     // A negotiate-inventory price is not published, and neither is an offer
                     // for something nobody has priced yet. TBD says the same thing here.
@@ -1428,10 +1430,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                         name: item.name,
                         img: item.img,
                         typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                        // Null on anything non-magical, which is most of a shop -- see
+                        // `itemRarity`. The row shows nothing rather than "Mundane".
+                        rarity: rarityLabel(itemRarity(item)),
+                        rarityKey: itemRarity(item),
                         owner: 'merchant',
-                        // Name and kind both, so "potion" finds a Potion of Healing
-                        // and "consumable" finds the whole category.
-                        searchKey: `${item.name ?? ''} ${item.type ?? ''}`.toLowerCase(),
+                        // Name, kind and rarity, so "potion" finds a Potion of Healing,
+                        // "consumable" finds the whole category, and "rare" finds the
+                        // things worth asking about.
+                        searchKey: `${item.name ?? ''} ${item.type ?? ''} ${itemRarity(item) ?? ''}`.toLowerCase(),
                         busy: item.id === busyRow,
                         price,
                         // **A negotiate inventory never shows a figure**, not even once a

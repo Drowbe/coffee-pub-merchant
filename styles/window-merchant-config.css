@@ -572,13 +572,14 @@
  * survive a monochrome theme and a reader who cannot separate the two hues.
  */
 
-/* --- The price readout, said the way every other rate is -------------------- */
+/* --- The price and trading-hours readouts, said the way every rate is -------- */
 /*
  * A badge beside the track, not a line of prose under it. The Global Markup slider
  * already answers "what does this setting currently say" this way, and a second
  * spelling of the same question is a second thing to learn.
  */
-.merchant-config-price-value {
+.merchant-config-price-value,
+.merchant-config-hours-value {
     padding: 2px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px;
     background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text);
     font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums;

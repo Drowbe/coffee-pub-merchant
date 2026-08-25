@@ -107,6 +107,23 @@
 .merchant-shop-item-copy strong, .merchant-shop-item-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-item-copy strong { font-size: .82rem; }
 .merchant-shop-item-copy span { margin-top: 1px; color: var(--blacksmith-tool-text-muted); font-size: .66rem; }
+/*
+ * Rarity, in the colours everyone at the table already reads without being told.
+ *
+ * **Mixed toward the theme's own text colour rather than set flat.** A fixed green dark
+ * enough to read on parchment is a green that disappears on the dark theme, and this
+ * window runs in three. The mix keeps the hue and lets the theme decide how light it is.
+ *
+ * Upright, not italic: `em` is here for what it means, and a slanted six-letter word at
+ * .66rem is harder to read than the plain one.
+ */
+.merchant-shop-item-copy span > em { font-style: normal; font-weight: 600; }
+.merchant-shop-item-copy span > em[data-rarity="common"] { color: color-mix(in srgb, #4a5568 70%, var(--blacksmith-tool-text)); }
+.merchant-shop-item-copy span > em[data-rarity="uncommon"] { color: color-mix(in srgb, #2f855a 78%, var(--blacksmith-tool-text)); }
+.merchant-shop-item-copy span > em[data-rarity="rare"] { color: color-mix(in srgb, #2b6cb0 78%, var(--blacksmith-tool-text)); }
+.merchant-shop-item-copy span > em[data-rarity="veryRare"] { color: color-mix(in srgb, #6b46c1 78%, var(--blacksmith-tool-text)); }
+.merchant-shop-item-copy span > em[data-rarity="legendary"] { color: color-mix(in srgb, #b7791f 78%, var(--blacksmith-tool-text)); }
+.merchant-shop-item-copy span > em[data-rarity="artifact"] { color: color-mix(in srgb, #9c4221 78%, var(--blacksmith-tool-text)); }
 
 .merchant-shop-row-actions { display: flex; gap: 4px; align-items: center; }
 .merchant-shop-row-actions > button { min-width: 0; min-height: 28px; margin: 0; padding: 2px 8px; font-size: .7rem; white-space: nowrap; }
