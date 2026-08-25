@@ -68,4 +68,24 @@ assert.deepStrictEqual(missing, [], `data-action values with no handler:\n  ${mi
 assert.ok(checked >= 15, `only ${checked} actions checked — the scan is probably not finding them`);
 console.log(`ok  ${checked} data-action bindings all have handlers`);
 
+// --- whoever is shopping ------------------------------------------------
+// `blacksmith.dialog.pickActor` documents `Promise<string|null>` and returns the entity
+// descriptor instead — its `getValue` calls `readFrom`, which yields objects, where
+// `readIdsFrom` yields ids. Handed an object, the uuid lookup matched nothing and the
+// window fell back to the first eligible character: choosing somebody silently kept
+// whoever you already were, with no error anywhere.
+function toUuid(picked) {
+    return (typeof picked === 'string' ? picked : (picked?.uuid ?? picked?.id)) || null;
+}
+assert.strictEqual(toUuid('Actor.abc'), 'Actor.abc', 'a plain uuid is the documented shape');
+assert.strictEqual(toUuid({ id: 'Actor.abc', name: 'Nik' }), 'Actor.abc', 'an entity descriptor carries it as `id`');
+assert.strictEqual(toUuid({ uuid: 'Actor.abc' }), 'Actor.abc', 'and an Actor-shaped object as `uuid`');
+// `uuid` wins: an Actor document has both, and its `id` is the bare id rather than a uuid.
+assert.strictEqual(toUuid({ uuid: 'Actor.abc', id: 'abc' }), 'Actor.abc',
+    'uuid is preferred, since an Actor\u2019s own `id` is not one');
+for (const nothing of [null, undefined, '', {}, 0]) {
+    assert.strictEqual(toUuid(nothing), null, `${JSON.stringify(nothing)} is nobody`);
+}
+console.log('ok  a chosen shopper is resolved however the picker hands them over');
+
 console.log('\nall action checks passed');

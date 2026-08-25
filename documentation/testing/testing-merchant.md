@@ -1249,3 +1249,5 @@ level onto every existing row; it logs how many.
     warning-tinted card rather than as a card that failed to draw.
 130. **The visibility toggle survives being used.** Click **Shown** on an inventory: it becomes **Hidden**,
     the card dashes, and the button is still there reading Hidden. Click it again to bring it back.
+131. **Buying as actually switches.** Open the picker, choose a different character, confirm: the card
+    names them, prices reprice against their standing, and the slate shown is theirs.

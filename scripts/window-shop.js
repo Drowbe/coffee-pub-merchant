@@ -372,7 +372,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return options.find((actor) => actor.uuid === (this._recipientUuid ?? _lastRecipientUuid)) ?? options[0];
     }
 
-    setRecipient(uuid) {
+    setRecipient(picked) {
+        const uuid = (typeof picked === 'string' ? picked : (picked?.uuid ?? picked?.id)) || null;
         if (!uuid) return;
         this._recipientUuid = uuid;
         _lastRecipientUuid = uuid;
