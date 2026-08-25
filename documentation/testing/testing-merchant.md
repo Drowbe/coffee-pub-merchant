@@ -1240,3 +1240,8 @@ level onto every existing row; it logs how many.
 126. **The illustration actually appears.** Set one and open the shop: the picture is behind the card,
     with the name, hours badge and reputation line legible over it. The console shows no 404 — a
     relative path here is resolved against the site root, not against the stylesheet.
+
+127. **A shop with an illustration reads as a dark card.** The whole picture is visible at full size —
+    not faded out on one side — with light text over it. Check the quiet lines especially: the blurb, the
+    kind and hours row, the Buying-as name and the reputation line.
+128. With only one eligible character, the **Buying as** button says so rather than doing nothing.

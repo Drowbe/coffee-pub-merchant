@@ -56,7 +56,8 @@
             "buyingSegment": "Buying",
             "sellingSegment": "Selling",
             "reputationSentence": "Your reputation in this area is {band}, so you get a {effect} on pricing.",
-            "noShopper": "No character here can shop."
+            "noShopper": "No character here can shop.",
+            "onlyShopper": "{name} is the only character who can shop here, so there is nobody to switch to."
         },
         "config": {
             "title": "Merchant Settings",

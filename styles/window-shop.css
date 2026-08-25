@@ -38,7 +38,15 @@
    against a warm background, so the shop front looked drab for the one reason nobody
    would guess from the stylesheet: it was tinted, just in the wrong direction.
    Warm, and a little stronger, so it reads as a deliberate surface. */
-.merchant-shop-subject { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 11px; align-items: center; padding: 10px; border-color: color-mix(in srgb, #8a5a2b 34%, var(--blacksmith-tool-divider)); background: linear-gradient(135deg, color-mix(in srgb, #8a5a2b 15%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #6b4420 9%, var(--blacksmith-tool-surface-sunken))); }
+.merchant-shop-subject { 
+   display: grid; 
+   grid-template-columns: 58px minmax(0,1fr); 
+   gap: 11px; 
+   align-items: center; 
+   padding: 10px; 
+   border-color: color-mix(in srgb, #8a5a2b 34%, var(--blacksmith-tool-divider)); 
+   background: linear-gradient(135deg, color-mix(in srgb, #000000 15%, var(--blacksmith-tool-surface-raised)), color-mix(in srgb, #000000 10%, var(--blacksmith-tool-surface-sunken))); 
+}
 /* A row inside the shop's card rather than a card of its own: it says who is
    visiting, which belongs to the shop being looked at. A rule above it instead of a
    border around it, which also gives the stock and the slate back the height a
@@ -596,27 +604,107 @@
 
 /* --- The shop's own illustration ------------------------------------------- */
 /*
- * **Background layers, not a pseudo-element.** The first attempt put the picture on
- * `::before` and gave the section `position: relative`, `isolation: isolate` and
- * `overflow: hidden` to contain it — and broke the card. That section is a grid whose
- * children sit in specific tracks, so a new stacking context and a clip changed where
- * things landed and what survived. A backdrop is not worth restructuring a working card.
+ * **Minstrel's sound-scene header, translated to a light window.** Theirs is
+ * `background-image` on the panel with a gradient over it at `rgba(0,0,0,.01)` to
+ * `.15` — which is to say almost nothing. They can do that because their whole window
+ * is dark and their scene art is dark, so light text lands on a dark ground for free.
  *
- * CSS paints multiple background layers on one element, first on top. So the card's own
- * gradient stays exactly where it was, made translucent, and the illustration goes
- * underneath it — no extra elements, no stacking context, no clipping, and nothing about
- * the layout changes at all. A shop without one is untouched by every rule here.
+ * Merchant's window is parchment, so the ground has to come from somewhere, and the two
+ * earlier attempts got the trade wrong in both directions: first a translucent card that
+ * washed the picture out, then a left-to-right fade that hid half of it, and finally a
+ * veil so heavy the market became a dark rectangle. **The picture is the point.**
  *
- * The gradient doubles as the scrim: it is what keeps the name, the hours badge and the
- * reputation line readable over a picture nobody vetted for contrast.
+ * Their panel also carries a `min-height`, and that part does not transfer: this card
+ * sizes to its content inside a column with no spare room, and a floor on it pushes the
+ * rows below out of the card. So the picture gets whatever height the content comes to,
+ * the veil stays light, and the text carries a dark halo to survive the bright patches
+ * a lighter veil leaves in.
  */
 .merchant-shop-subject[data-has-illustration] {
+    /* A light hand: enough to seat light text, not enough to grey the scene. The lean
+       is Minstrel's — barely visible, and it keeps the left side, where every line of
+       text starts, a shade steadier than the right.
+
+       **No `min-height`.** Minstrel's panel has one and it was the wrong half to copy:
+       this card sizes to its content inside a column with no spare room, so a floor on
+       it pushed the rows below straight out of the card. Whatever height the content
+       comes to is the height the picture gets. */
     background-image:
-        linear-gradient(135deg,
-            color-mix(in srgb, var(--blacksmith-tool-surface-raised) 84%, transparent),
-            color-mix(in srgb, var(--blacksmith-tool-surface-sunken) 76%, transparent)),
+        linear-gradient(90deg, rgba(16, 11, 7, .42), rgba(16, 11, 7, .24)),
         var(--merchant-shop-illustration);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    border-color: rgba(255, 255, 255, .22);
+}
+
+/*
+ * **The shadow does the work the veil is no longer doing.** With the scene this visible
+ * there will be bright patches under some line of text on some shop, and a thin dark
+ * halo is what survives that — it costs the picture nothing, where another ten percent
+ * of veil costs it everywhere.
+ *
+ * Warm off-white rather than pure white: the card sits in a parchment window, and #fff
+ * reads as a hole punched in the page.
+ */
+.merchant-shop-subject[data-has-illustration],
+.merchant-shop-subject[data-has-illustration] .merchant-shop-title,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-keeper,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-description,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-reputation,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-override,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-actor-copy small,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-actor-copy strong {
+    color: rgba(244, 240, 232, .96);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 10px rgba(0, 0, 0, .65);
+}
+/*
+ * **Hierarchy by size and weight, not by fading the colour.** Minstrel keeps every line
+ * in its scene header between .9 and .95 of the same warm white; dimming the secondary
+ * ones to .82 was a light-card habit brought onto a dark ground. Against parchment grey
+ * reads as quieter — against a photograph it just reads as harder.
+ */
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-description,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-actor-copy small {
+    color: rgba(244, 240, 232, .9);
+}
+
+.merchant-shop-subject[data-has-illustration] .merchant-shop-reputation strong,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb strong,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb b,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb em,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-blurb a {
+    color: rgba(244, 240, 232, .96);
+}
+
+/* Rules between the rows were drawn for a light card and vanish on a dark one. */
+.merchant-shop-subject[data-has-illustration] .merchant-shop-actor,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-reputation {
+    border-color: rgba(255, 255, 255, .16);
+}
+
+/*
+ * Open and Closed keep their green and red — the two colours in this window that carry
+ * meaning rather than decoration — lightened to hold contrast, on a plate dark enough to
+ * work over any part of any picture.
+ */
+.merchant-shop-subject[data-has-illustration] .merchant-shop-open-toggle,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-open-state {
+    background: rgba(16, 11, 7, .72);
+    border-color: rgba(255, 255, 255, .3);
+    color: #8fd694;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
+}
+.merchant-shop-subject[data-has-illustration] .merchant-shop-open-toggle.is-closed,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-open-state.is-closed {
+    border-color: rgba(255, 255, 255, .3);
+    color: #f0937f;
+}
+
+/* Both portraits gain an edge they did not need against parchment. */
+.merchant-shop-subject[data-has-illustration] .merchant-shop-subject-image,
+.merchant-shop-subject[data-has-illustration] .merchant-shop-actor-image {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .28), 0 2px 10px rgba(0, 0, 0, .5);
 }

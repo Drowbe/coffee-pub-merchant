@@ -403,7 +403,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async changeRecipient() {
         const options = this.recipients;
-        if (options.length < 2) return;
+        if (!options.length) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.shop.noShopper'));
+            return;
+        }
+        if (options.length < 2) {
+            notify.info(game.i18n.format('coffee-pub-merchant.shop.onlyShopper', { name: options[0].name }));
+            return;
+        }
 
         const blacksmith = _blacksmith();
         if (typeof blacksmith?.dialog?.pickActor !== 'function') {
