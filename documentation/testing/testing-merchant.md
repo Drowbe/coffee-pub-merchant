@@ -1245,3 +1245,7 @@ level onto every existing row; it logs how many.
     not faded out on one side — with light text over it. Check the quiet lines especially: the blurb, the
     kind and hours row, the Buying-as name and the reputation line.
 128. With only one eligible character, the **Buying as** button says so rather than doing nothing.
+129. **A hidden inventory is framed, not frameless.** Beside a visible one it reads as a dashed,
+    warning-tinted card rather than as a card that failed to draw.
+130. **The visibility toggle survives being used.** Click **Shown** on an inventory: it becomes **Hidden**,
+    the card dashes, and the button is still there reading Hidden. Click it again to bring it back.

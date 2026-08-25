@@ -243,7 +243,7 @@
                             {{#if canToggle}}
                                 {{!-- GM only. The shop is where you are standing when
                                       you decide to bring the good stuff out. --}}
-                                <button type="button" class="merchant-shop-inventory-toggle{{#if hidden}} is-hidden{{/if}}"
+                                <button type="button" class="merchant-shop-inventory-toggle{{#if hidden}} is-put-away{{/if}}"
                                         data-action="toggleInventory" data-inventory-id="{{id}}"
                                         data-tooltip="{{#if hidden}}Hidden from players — click to bring it out front{{else}}On display — click to put it away{{/if}}">
                                     <i class="fa-solid {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>

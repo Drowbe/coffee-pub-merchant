@@ -100,7 +100,7 @@
 /* GM toggle: bring an inventory out front, or put it away, without leaving the shop. */
 .merchant-shop-inventory-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
 .merchant-shop-inventory-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
-.merchant-shop-inventory-toggle.is-hidden { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
+.merchant-shop-inventory-toggle.is-put-away { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
 
 /* A hidden inventory is GM-only. Dashed, so it does not read as ordinary stock. */
 .merchant-shop-inventory-hidden { border-style: dashed; border-color: color-mix(in srgb, #8c2f22 30%, var(--blacksmith-tool-divider)); }
@@ -190,8 +190,13 @@
 .merchant-shop-sides > .merchant-shop-side.is-on { background: var(--blacksmith-tool-surface-hover, rgba(0,0,0,.07)); color: var(--blacksmith-tool-text); }
 .merchant-shop-sides > .merchant-shop-side:disabled { opacity: .45; cursor: default; }
 /* Hidden rather than unrendered: the search keeps its text and the inventories keep
-   their scroll position, so switching back is where you left it. */
-.merchant-shop-stock .is-hidden { display: none; }
+   their scroll position, so switching back is where you left it.
+
+   **Scoped to what it was written for.** As a bare `.is-hidden` it also matched the
+   per-inventory visibility toggle, whose class meant something else entirely — so
+   hiding an inventory removed the only button that could bring it back. A utility class
+   general enough to collide is a utility class that will. */
+.merchant-shop-stock > .merchant-shop-search.is-hidden { display: none; }
 
 /* --- Row columns ------------------------------------------------------ */
 .merchant-shop-item { grid-template-columns: 38px minmax(0,1fr) 42px 96px auto; }
@@ -436,8 +441,13 @@
 .merchant-shop-inventories { gap: 12px; }
 /* Clear of the scrollbar, which the gutter reserves but does not pad away from. */
 .merchant-shop-inventories { padding-right: 3px; }
-/* A hidden inventory loses its dashed frame and says so on the heading instead. */
-.merchant-shop-stock .merchant-shop-inventory-hidden { border-style: none; opacity: .82; }
+/* A hidden inventory keeps its frame and dashes it. Removing the border outright left
+   it sitting flush between two framed cards, which reads as something failing to draw
+   rather than as a state — and a state is what it is. */
+.merchant-shop-stock .merchant-shop-inventory-hidden {
+    border-style: dashed;
+    border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider));
+}
 
 /* The search is an input, not a panel. */
 .merchant-shop-stock > .merchant-shop-search { padding: 0; border: 0; border-radius: 0; background: none; }
@@ -494,10 +504,9 @@
 /* The name reads first; the controls beside it stay quiet. */
 .merchant-shop-stock .merchant-shop-inventory > h3 > span:first-child { color: var(--blacksmith-tool-accent); font-weight: 700; }
 
-/* Hidden inventories lost their dashed frame with everything else, so the band
-   carries that too rather than leaving the pill to say it alone. */
+/* The heading band carries the state as well as the frame does — two quiet signals
+   agreeing, rather than one doing all the work. */
 .merchant-shop-stock .merchant-shop-inventory-hidden > h3 { border-color: color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); background: color-mix(in srgb, #8c2f22 8%, var(--blacksmith-tool-surface-raised)); }
-.merchant-shop-stock .merchant-shop-inventory-hidden { opacity: 1; }
 
 /* Rows sit in from the heading, so the group reads as one thing hanging off it. */
 .merchant-shop-inventory-body { padding: 9px; }
