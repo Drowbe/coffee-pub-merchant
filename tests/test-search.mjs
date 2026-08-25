@@ -80,7 +80,8 @@ const { filterShopList } = await import('../scripts/window-shop.js')
     });
 
 const visible = (sel) => [...el.querySelectorAll(sel)].filter((n) => !n.hidden);
-const inventories = () => visible('.merchant-shop-inventory').map((s) => s.querySelector('h3 span').textContent.trim());
+const inventories = () => visible('.merchant-shop-inventory')
+    .map((s) => s.querySelector('.merchant-shop-inventory-name').textContent.trim());
 const rows = () => visible('.merchant-shop-item').map((r) => r.querySelector('strong').textContent.trim());
 const cats = () => visible('.merchant-shop-category').length;
 const noMatches = () => !el.querySelector('[data-shop-no-matches]').hidden;

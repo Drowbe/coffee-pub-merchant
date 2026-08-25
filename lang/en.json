@@ -57,7 +57,9 @@
             "sellingSegment": "Selling",
             "reputationSentence": "Your reputation in this area is {band}, so you get a {effect} on pricing.",
             "noShopper": "No character here can shop.",
-            "onlyShopper": "{name} is the only character who can shop here, so there is nobody to switch to."
+            "onlyShopper": "{name} is the only character who can shop here, so there is nobody to switch to.",
+            "collapseInventory": "Fold this inventory away",
+            "expandInventory": "Open this inventory"
         },
         "config": {
             "title": "Merchant Settings",

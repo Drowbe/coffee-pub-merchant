@@ -236,9 +236,15 @@
             </section>
             {{else}}
             {{#each inventories}}
-                <section class="merchant-shop-section merchant-shop-inventory{{#if hidden}} merchant-shop-inventory-hidden{{/if}}">
+                <section class="merchant-shop-section merchant-shop-inventory{{#if hidden}} merchant-shop-inventory-hidden{{/if}}{{#if collapsed}} is-collapsed{{/if}}">
                     <h3>
-                        <span><img class="merchant-shop-inventory-icon" src="{{img}}" alt="">{{label}}</span>
+                        <button type="button" class="merchant-shop-inventory-name"
+                                data-action="collapseInventory" data-inventory-id="{{id}}"
+                                aria-expanded="{{#if collapsed}}false{{else}}true{{/if}}"
+                                data-tooltip="{{#if collapsed}}{{localize "coffee-pub-merchant.shop.expandInventory"}}{{else}}{{localize "coffee-pub-merchant.shop.collapseInventory"}}{{/if}}">
+                            <i class="fa-solid fa-chevron-down merchant-shop-inventory-chevron"></i>
+                            <img class="merchant-shop-inventory-icon" src="{{img}}" alt="">{{label}}
+                        </button>
                         <span class="merchant-shop-head-actions">
                             {{#if canToggle}}
                                 {{!-- GM only. The shop is where you are standing when

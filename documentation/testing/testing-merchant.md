@@ -1251,3 +1251,8 @@ level onto every existing row; it logs how many.
     the card dashes, and the button is still there reading Hidden. Click it again to bring it back.
 131. **Buying as actually switches.** Open the picker, choose a different character, confirm: the card
     names them, prices reprice against their standing, and the slate shown is theirs.
+132. **Fold a shelf away.** Click its name: the rows collapse, the chevron turns, and the heading keeps
+    its count and its buttons — restock still works on a folded shelf. Click again to open it.
+133. Fold two, close the shop, reopen it: the same two are still folded. Open a *different* merchant and
+    its shelves are untouched — the state is per shop, not global.
+134. A player folding a shelf changes nothing for anyone else.

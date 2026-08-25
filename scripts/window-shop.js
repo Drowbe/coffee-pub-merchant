@@ -118,6 +118,15 @@ export function filterShopList(root, query) {
 }
 
 /**
+ * Which inventories are folded shut, per shop.
+ *
+ * Module level rather than per window: the shop is one window reopened, and a section a
+ * GM folded away should still be folded when they come back to the same counter. Keyed
+ * by token, so two shops do not share one answer.
+ */
+const _collapsed = new Map();
+
+/**
  * A stored image path, as a URL a stylesheet can actually fetch.
  *
  * **A relative `url()` in CSS resolves against the stylesheet, not the document.** The
@@ -237,6 +246,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
 
         toggleInventory: (_event, target, win) => void win.toggleInventory(target.dataset.inventoryId),
+        collapseInventory: (_event, target, win) => win.collapseInventory(target.dataset.inventoryId),
         toggleOpen: (_event, _target, win) => void win.toggleOpen(),
         showBuy: (_event, _target, win) => win.showSide(false),
         showSell: (_event, _target, win) => win.showSide(true),
@@ -1472,6 +1482,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     img: inventory.img,
                     hidden: config.visible === false,
                     canToggle: isGM,
+                    collapsed: (_collapsed.get(this.tokenUuid) ?? new Set()).has(inventory.id),
                     canStock: isGM,
                     isUnpricedInventory,
                     categories,
@@ -1690,6 +1701,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 onClick: () => void this.openPrototypeToken()
             }
         ];
+    }
+
+    /**
+     * Fold an inventory shut, or open it again.
+     *
+     * **A view preference, not a fact about the shop.** It is per client and per shop and
+     * is never written to a document: two people looking at the same counter can have
+     * different sections folded, and a GM tidying their own view must not reach into what
+     * a player sees. That is also why it needs no permission check — there is nothing here
+     * anyone could do to anyone else.
+     *
+     * Kept in a module-level map keyed by token, so closing the shop and opening it again
+     * finds it as you left it — the same promise the search box and the scroll positions
+     * already make.
+     */
+    collapseInventory(inventoryId) {
+        if (!inventoryId) return;
+        const folded = _collapsed.get(this.tokenUuid) ?? new Set();
+        if (folded.has(inventoryId)) folded.delete(inventoryId);
+        else folded.add(inventoryId);
+        _collapsed.set(this.tokenUuid, folded);
+        void this.render(false);
     }
 
     /**
