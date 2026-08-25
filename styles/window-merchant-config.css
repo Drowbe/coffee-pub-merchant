@@ -634,7 +634,7 @@ button.merchant-config-image:focus-visible { outline: 2px solid var(--blacksmith
 /* The tint controls share the illustration's row, so the path keeps the stretch and the
    three colour controls are each sized to themselves -- `flex: 1` from the file row would
    otherwise give a colour chip a third of the dialog. */
-.merchant-config-tint > [data-merchant-tint] { flex: 0 0 8ch; }
+.merchant-config-tint > [data-merchant-tint] { flex: 0 0 10ch; }
 /* A hex is a hash and six characters. Monospace so it is a fixed width whatever is typed,
    and so `0`/`O` and `1`/`l` are told apart while typing it. */
 .merchant-config-tint > input[type="text"][data-merchant-tint] { font-family: var(--font-mono, monospace); }
