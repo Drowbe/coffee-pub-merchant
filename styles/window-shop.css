@@ -750,6 +750,23 @@
  * folding is about screen space, not about putting the shelf beyond reach.
  */
 .merchant-shop-inventory.is-collapsed > .merchant-shop-inventory-body { display: none; }
+/*
+ * ...unless a search found something in it. A folded shelf that hid a match would make
+ * the search lie — and this is a temporary override, not a change to the fold: the class
+ * is put on by the filter and taken off when the box is cleared, so the shelf closes
+ * again on its own.
+ *
+ * `flex`, matching the body's own display, rather than `block` — the rows are a column
+ * flex and `block` would drop the gaps between the categories.
+ */
+.merchant-shop-inventory.is-collapsed.is-search-open > .merchant-shop-inventory-body { display: flex; }
+.merchant-shop-inventory.is-collapsed.is-search-open > h3 {
+    border-bottom: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px 5px 0 0;
+}
+/* The chevron follows what is on screen, not what was chosen — it would otherwise point
+   shut over an open list. */
+.merchant-shop-inventory.is-collapsed.is-search-open .merchant-shop-inventory-chevron { transform: none; }
 .merchant-shop-inventory.is-collapsed > h3 {
     border-bottom: 0;
     border-radius: 5px;

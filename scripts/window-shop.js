@@ -99,6 +99,11 @@ export function filterShopList(root, query) {
         const empty = inventory.querySelector('.merchant-shop-empty');
         if (empty) empty.hidden = Boolean(needle);
 
+        // A folded shelf with a match opens for as long as the search lasts. The fold
+        // itself is untouched: clearing the box puts it straight back, because somebody
+        // chose it and a search is not a decision about layout.
+        inventory.classList.toggle('is-search-open', Boolean(needle) && inventoryVisible > 0);
+
         inventory.hidden = Boolean(needle) && inventoryVisible === 0;
         visibleTotal += inventoryVisible;
 

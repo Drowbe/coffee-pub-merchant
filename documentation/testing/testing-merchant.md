@@ -1256,3 +1256,6 @@ level onto every existing row; it logs how many.
 133. Fold two, close the shop, reopen it: the same two are still folded. Open a *different* merchant and
     its shelves are untouched — the state is per shop, not global.
 134. A player folding a shelf changes nothing for anyone else.
+135. **Search reaches into folded shelves.** Fold one that holds a match, then search for it: the shelf
+    opens and shows the row. Clear the search — it folds itself back up. Shelves with no match stay
+    hidden rather than opening empty.

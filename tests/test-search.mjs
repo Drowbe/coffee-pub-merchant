@@ -142,3 +142,33 @@ assert.ok(!noMatches());
 console.log('ok  clearing after a dead end restores everything');
 
 console.log('\nall search checks passed');
+
+// --- a folded inventory opens for a search, and closes again --------------
+// **A folded shelf that hid a match would make the search lie**, which is worse than
+// finding nothing: an empty result reads as an answer. But the fold is a decision
+// somebody made, so the search overrides it for as long as it lasts and never rewrites
+// it — clearing the box has to give it straight back.
+const all = () => [...el.querySelectorAll('.merchant-shop-inventory')];
+const holdingPlate = all().find((inv) => [...inv.querySelectorAll('.merchant-shop-item')]
+    .some((row) => (row.dataset.search ?? '').includes('plate')));
+assert.ok(holdingPlate, 'the fixture has an inventory holding Plate Armor');
+holdingPlate.classList.add('is-collapsed');
+
+filterShopList(el, 'plate');
+assert.ok(holdingPlate.classList.contains('is-search-open'),
+    'a folded inventory holding a match opens for the search');
+assert.ok(holdingPlate.classList.contains('is-collapsed'),
+    'and stays folded underneath — the search overrides, it does not decide');
+
+// An inventory with no match is hidden outright, so it has no reason to open.
+for (const inventory of all().filter((inv) => inv !== holdingPlate)) {
+    assert.ok(!inventory.classList.contains('is-search-open'),
+        'an inventory with no match is not opened');
+}
+
+filterShopList(el, '');
+assert.ok(!holdingPlate.classList.contains('is-search-open'), 'clearing the search closes it again');
+assert.ok(holdingPlate.classList.contains('is-collapsed'), 'and the fold that was there is still there');
+
+holdingPlate.classList.remove('is-collapsed');
+console.log('ok  a search opens what it needs to and puts it back');
