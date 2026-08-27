@@ -610,6 +610,67 @@ console.log('ok  a shelf draws from the curated set, or from its own list, never
 }
 console.log('ok  a drop names a compendium, or it names nothing');
 
+// --- which half of a "both" shelf draws first ------------------------------
+// Both halves feed one product target, so on a nearly full shelf whichever runs first
+// gets the last slots. That used to be fixed at tables-first; it is a GM's decision.
+{
+    const { SOURCE, drawsFromQuery, drawsFromTables } = await import('../scripts/const.js');
+
+    for (const source of [SOURCE.QUERY, SOURCE.BOTH, SOURCE.BOTH_QUERY]) {
+        assert.ok(drawsFromQuery(source), `${source} draws from the compendiums`);
+    }
+    for (const source of [SOURCE.TABLE, SOURCE.BOTH, SOURCE.BOTH_QUERY]) {
+        assert.ok(drawsFromTables(source), `${source} draws from tables`);
+    }
+    assert.ok(!drawsFromQuery(SOURCE.TABLE) && !drawsFromTables(SOURCE.QUERY),
+        'a single-source shelf draws from one of them');
+    // Manual is the one that draws nothing at all -- its rows are still topped up to par.
+    assert.ok(!drawsFromQuery(SOURCE.MANUAL) && !drawsFromTables(SOURCE.MANUAL),
+        'manual draws from neither');
+
+    // The shape of the leg ordering in `restockInventory`.
+    const legOrder = (source) => {
+        const order = source === SOURCE.BOTH_QUERY
+            ? [SOURCE.QUERY, SOURCE.TABLE]
+            : [SOURCE.TABLE, SOURCE.QUERY];
+        return order.filter((leg) => (leg === SOURCE.TABLE ? drawsFromTables(source) : drawsFromQuery(source)));
+    };
+    assert.deepStrictEqual(legOrder(SOURCE.BOTH), [SOURCE.TABLE, SOURCE.QUERY], 'tables take the free slots first');
+    assert.deepStrictEqual(legOrder(SOURCE.BOTH_QUERY), [SOURCE.QUERY, SOURCE.TABLE], 'and the other way round on request');
+    assert.deepStrictEqual(legOrder(SOURCE.TABLE), [SOURCE.TABLE], 'one source runs one leg');
+    assert.deepStrictEqual(legOrder(SOURCE.QUERY), [SOURCE.QUERY]);
+    assert.deepStrictEqual(legOrder(SOURCE.MANUAL), [], 'and manual runs none');
+}
+console.log('ok  a both-shelf draws in the order the GM chose');
+
+// --- moving an inventory up and down --------------------------------------
+// Every inventory is renumbered on a move, not just the pair that swapped: they start
+// life sharing an order of 0, so swapping two zeroes would move nothing at all.
+{
+    const move = (ids, id, delta) => {
+        const from = ids.indexOf(id);
+        if (from < 0) return null;
+        const to = from + delta;
+        if (to < 0 || to >= ids.length) return null;
+        const moved = [...ids];
+        moved.splice(to, 0, ...moved.splice(from, 1));
+        return moved;
+    };
+
+    assert.deepStrictEqual(move(['a', 'b', 'c'], 'c', -1), ['a', 'c', 'b'], 'up swaps with the one above');
+    assert.deepStrictEqual(move(['a', 'b', 'c'], 'a', 1), ['b', 'a', 'c'], 'down swaps with the one below');
+    assert.strictEqual(move(['a', 'b', 'c'], 'a', -1), null, 'the top cannot go up');
+    assert.strictEqual(move(['a', 'b', 'c'], 'c', 1), null, 'and the bottom cannot go down');
+    assert.strictEqual(move(['a', 'b'], 'zzz', -1), null, 'an inventory that is not there does not move');
+
+    // Renumbering is what makes it stick: a sequence out of a set of ties comes back
+    // ordered, which is also what repairs a shop whose numbers were never set.
+    const ordered = move(['a', 'b', 'c'], 'b', -1).map((id, index) => ({ id, order: index }));
+    assert.deepStrictEqual(ordered, [{ id: 'b', order: 0 }, { id: 'a', order: 1 }, { id: 'c', order: 2 }],
+        'every inventory gets its position written, not just the two that swapped');
+}
+console.log('ok  inventories move up and down, and the whole shop is renumbered');
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------

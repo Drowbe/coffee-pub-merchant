@@ -1304,4 +1304,14 @@ level onto every existing row; it logs how many.
 155. Switch back to *Curated Set* and restock: the ordinary content returns. Switch to the custom list
     again — the packs you had listed are still there.
 156. Uninstall (or disable) a module whose pack is on a list: the row reads **Gone** rather than vanishing.
+157. **The inventory card reads top to bottom in order:** Item Source, Item Filters, Inventory
+    Configuration, Inventory Restocking. Item Filters only appears on a shelf drawing from
+    compendiums.
+158. **Both orderings draw in the order named.** On a nearly full shelf with a table *and* a
+    compendium filter, set *Roll Tables First* and restock: the table's items land and the query
+    fills what is left. Switch to *Item Compendiums First* and the other way round.
+159. **Move an inventory up and down** with the chevrons on its card. The order sticks after closing
+    and reopening Merchant Settings, and the shop window shows the same order. The top card's up
+    chevron and the bottom card's down chevron are greyed rather than missing.
+160. Move an inventory past a **hidden** one: it moves one place, not two.
 

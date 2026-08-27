@@ -42,6 +42,11 @@
 .merchant-shop-inventory-add:hover,
 .merchant-config-inventory-add:hover,
 .merchant-config-inv-btn:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+/* At the top or the bottom of the shop, the move button stays where it is and reads as
+   inert. Removing it would shuffle the row of controls every time an inventory reached
+   an end, which moves the button you were aiming at. */
+.merchant-config-inv-btn[disabled] { opacity: .35; cursor: default; }
+.merchant-config-inv-btn[disabled]:hover { border-color: var(--blacksmith-tool-divider); color: var(--blacksmith-tool-text-muted); }
 
 /* Destructive ones warn on hover and only on hover: a permanently red button in a
    row of quiet ones is read as an alarm rather than as an option. */

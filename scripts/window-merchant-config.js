@@ -5,7 +5,7 @@ import {
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
     PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
-    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel
+    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
@@ -252,6 +252,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             void win._setSources(target.dataset.inventoryId, null),
         useCustomSources: (_event, target, win) =>
             void win._setSources(target.dataset.inventoryId, []),
+        moveInventoryUp: (_event, target, win) => void win._moveInventory(target.dataset.inventoryId, -1),
+        moveInventoryDown: (_event, target, win) => void win._moveInventory(target.dataset.inventoryId, 1),
         removeInventorySource: (_event, target, win) =>
             void win._removeSource(target.dataset.inventoryId, target.dataset.packId),
         removeInventoryTable: (_event, target, win) =>
@@ -724,6 +726,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         pip.classList.add('is-visible');
         clearTimeout(this._savedTimer);
         this._savedTimer = setTimeout(() => pip.classList.remove('is-visible'), 1400);
+    }
+
+    /** Move an inventory up or down the shop. */
+    async _moveInventory(inventoryId, delta) {
+        const actor = await this._resolveActor();
+        if (!actor || !inventoryId) return;
+        try {
+            if (await MerchantManager.moveInventory(actor, inventoryId, delta)) this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not reorder the inventories:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.reorderFailed'));
+        }
+        await this.render(false);
     }
 
     /** Switch a shelf between the curated set and its own list. */
@@ -1494,7 +1509,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // Hidden inventories included: this window is GM-only, and an inventory you cannot see
         // in your own configuration is worse than useless.
         const inventories = enabled
-            ? MerchantManager.getInventories(actor, { includeHidden: true }).map(({ item, config }) => {
+            ? MerchantManager.getInventories(actor, { includeHidden: true }).map(({ item, config }, index, all) => {
                 const count = MerchantManager.getInventoryContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);
@@ -1512,6 +1527,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     typeLabel: inventoryTypeName(definition.key),
                     typeHint: inventoryTypeHint(definition.key),
                     hidden: config.visible === false,
+                    // Which end of the shop this is, so the move buttons can be disabled
+                    // rather than absent -- a control that cannot act keeps its place.
+                    isFirst: index === 0,
+                    isLast: index === all.length - 1,
                     count,
                     one: count === 1,
 
@@ -1572,15 +1591,18 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // nobody is holding in their head at once.
                     // Each section shows when its source contributes, so "both" shows
                     // the table list *and* the filter rather than a third arrangement.
-                    isQuery: [SOURCE.QUERY, SOURCE.BOTH].includes(config.source ?? DEFAULT_SOURCE),
-                    isTable: [SOURCE.TABLE, SOURCE.BOTH].includes(config.source ?? DEFAULT_SOURCE),
+                    isQuery: drawsFromQuery(config.source ?? DEFAULT_SOURCE),
+                    isTable: drawsFromTables(config.source ?? DEFAULT_SOURCE),
                     isManual: (config.source ?? DEFAULT_SOURCE) === SOURCE.MANUAL,
                     queryAvailable: hasQuery(),
+                    // Listed narrowest first: nothing, one source, the other, then the
+                    // two orderings of both. A GM reads down until the sentence is true.
                     sourceOptions: [
                         { value: SOURCE.MANUAL, label: game.i18n.localize('coffee-pub-merchant.source.manual') },
                         { value: SOURCE.QUERY, label: game.i18n.localize('coffee-pub-merchant.source.query') },
                         { value: SOURCE.TABLE, label: game.i18n.localize('coffee-pub-merchant.source.table') },
-                        { value: SOURCE.BOTH, label: game.i18n.localize('coffee-pub-merchant.source.both') }
+                        { value: SOURCE.BOTH, label: game.i18n.localize('coffee-pub-merchant.source.both') },
+                        { value: SOURCE.BOTH_QUERY, label: game.i18n.localize('coffee-pub-merchant.source.bothQuery') }
                     ].map((option) => ({ ...option, selected: option.value === (config.source ?? DEFAULT_SOURCE) })),
                     // **Curated or custom, never both.** `null` is the curated set --
                     // the Item packs the GM put in Blacksmith's slots, which is the

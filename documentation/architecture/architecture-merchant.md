@@ -221,7 +221,8 @@ by type/rarity/price) is shared.
 | `manual` | nothing | Curated stock. A fence's shady goods, a smith's one good blade |
 | `table` | the inventory's roll tables | A list somebody wrote, weighted the way they wrote it |
 | `query` | the installed compendiums | Broad stock that maintains itself |
-| `both` | tables **then** the query | What a real shop is: a few chosen things, and a lot of ordinary ones |
+| `both` | tables **then** the query | A shop whose character is a written list, with ordinary stock as filler |
+| `bothQuery` | the query **then** tables | A shop that is mostly ordinary, with a few chosen things |
 
 **Manual draws nothing on purpose.** Its rows are still topped up to their par — what it never
 does is bring in something the GM did not put there. That is a different statement from a table
@@ -264,13 +265,26 @@ Candidates are **over-fetched and shuffled** (Fisher-Yates — not a comparator 
 signs, which is not a shuffle). The query answers in scan order, so taking the first N would give
 every shop in the world the same opening stock from the same pack.
 
-**On `both`, tables land first.** Both feed one product target, so on a nearly full shelf the
-order decides who gets the last few slots: the curated half is the deliberate one and the query is
-filler. Nothing arrives twice — `_withinLimits` matches by name and type, so the same longsword
-from both sources is one row.
+**On a two-source shelf, the order is the GM's.** Both halves feed one product target, so on a
+nearly full shelf whichever runs first gets the last slots — which is the whole difference between a
+shop stocked from a list somebody wrote and one stocked from whatever is installed. That was fixed at
+tables-first with the reasoning in a comment; a fence and a general store want opposite answers, so it
+is two menu entries. Nothing arrives twice either way — `_withinLimits` matches by name and type, so
+the same longsword from both sources is one row.
 
 Feature-detected, never version-pinned: on a hub without `compendiums.query` the card says so and
 the shelf falls back to its tables rather than going quietly empty.
+
+### The order of the shop
+
+An inventory's `order` is its place in the shop — what is on the counter and what is in the back
+room — and it was whatever order the containers happened to be created in. `moveInventory` renumbers
+**every** inventory on each move rather than swapping the pair: presets all set `order: 0`, so a swap
+of two zeroes moves nothing, and writing a whole sequence makes the stored order say what the screen
+says. It is self-repairing for the same reason, and it includes hidden inventories — they are still
+part of the layout, and skipping them would make a move jump two places whenever one sat between.
+
+One `updateEmbeddedDocuments` for the shop, like every other multi-row write here.
 
 ### Which shelves can restock, and which are asked
 

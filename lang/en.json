@@ -89,7 +89,7 @@
             "removeInventoryTooltip": "Remove this inventory",
             "artworkTooltip": "Click to choose different artwork",
             "inventoryName": "Inventory name",
-            "stocking": "Stocking",
+            "stocking": "Inventory Configuration",
             "depth": "How many of each",
             "products": "Products",
             "productsTooltip": "How many different things this inventory carries. A roll table fills it back up to this number.",
@@ -98,7 +98,7 @@
             "maxStackLabel": "Maximum quantity of any one item",
             "depthSummary": "Type, rarity and price each set a ceiling, and the lowest wins.",
             "depthWorldNote": "These are world settings, in Merchant's module settings. Depth scales them for this inventory.",
-            "restock": "Restock",
+            "restock": "Inventory Restocking",
             "method": "Method",
             "frequency": "Frequency",
             "purchasedNote": "Items bought from this inventory are removed and never restocked. Its stock is whatever the party has sold to the shop.",
@@ -124,9 +124,9 @@
             "tableManual": "Drawn only when you press Restock.",
             "restockEverythingTooltip": "Bring every inventory back to its quantities and roll all of its tables",
             "drawTooltip": "How many items to take from this table. {when}",
-            "newStock": "New Stock",
+            "newStock": "Item Source",
             "source": "Source",
-            "queryFilter": "What To Draw",
+            "queryFilter": "Item Filters",
             "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
             "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables.",
             "priceRange": "Price",
@@ -145,9 +145,9 @@
             "tint": "Shop tint — a colour for this shop’s card",
             "tintPlaceholder": "No tint",
             "tintClear": "Remove the tint",
-            "whichCompendiums": "Which Compendiums",
-            "curatedSet": "Curated Set",
-            "customSet": "This Shelf’s Own List",
+            "whichCompendiums": "Compendiums",
+            "curatedSet": "Curated Blacksmith Compendiums",
+            "customSet": "Manually Selected Compendiums",
             "curatedTooltip": "Draw from the compendiums configured in Blacksmith — the ones this world officially uses",
             "customTooltip": "Draw only from compendiums you drop here, whether or not they are curated",
             "curatedHint": "Drawn from the item compendiums configured in Blacksmith. Switch to a list of this shelf’s own to use packs the world does not otherwise search.",
@@ -158,7 +158,9 @@
             "sourceMissingTooltip": "This compendium is no longer installed. Nothing is drawn from it.",
             "sourceUncurated": "Waiting",
             "sourceUncuratedTooltip": "Not in Blacksmith’s curated set. Blacksmith does not yet draw from an uncurated pack, so this one is listed but not stocked from — add it to Blacksmith’s item compendiums to use it today.",
-            "worldItems": "World items"
+            "worldItems": "World items",
+            "moveUpTooltip": "Move this inventory up",
+            "moveDownTooltip": "Move this inventory down"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -215,7 +217,8 @@
             "mergeFailed": "Could not merge those rows.",
             "compendiumNotAdded": "That is not a compendium, or it is already on the list.",
             "compendiumAddFailed": "Could not change this shelf’s compendiums.",
-            "querySourcesUnusable": "{inventory} draws from its own list of compendiums, and none of them can be drawn from yet — the list is empty, or every pack on it is outside Blacksmith’s curated set."
+            "querySourcesUnusable": "{inventory} draws from its own list of compendiums, and none of them can be drawn from yet — the list is empty, or every pack on it is outside Blacksmith’s curated set.",
+            "reorderFailed": "Could not reorder the inventories."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
@@ -433,9 +436,10 @@
         },
         "source": {
             "table": "Roll Tables",
-            "query": "Curated Compendiums",
-            "manual": "Manual Only — Stocked By Hand",
-            "both": "Roll Tables, then Curated Compendiums"
+            "query": "Item Compendiums",
+            "manual": "Manual Only — Drag Items to Stock",
+            "both": "Roll Tables First, Item Compendiums Second",
+            "bothQuery": "Item Compendiums First, Roll Tables Second"
         }
     }
 }

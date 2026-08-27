@@ -247,6 +247,23 @@
                                 {{/if}}
                             </span>
                             <span class="merchant-config-head-actions">
+                                {{!-- Where an inventory sits is the shop's layout: what is
+                                      on the counter and what is in the back room. It was
+                                      whatever order the containers happened to be created
+                                      in. Disabled at the ends rather than hidden, so the
+                                      pair does not move about as you use it. --}}
+                                <button type="button" class="merchant-config-inv-btn"
+                                        data-action="moveInventoryUp" data-inventory-id="{{id}}"
+                                        {{#if isFirst}}disabled{{/if}}
+                                        data-tooltip="{{localize "coffee-pub-merchant.config.moveUpTooltip"}}">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                                <button type="button" class="merchant-config-inv-btn"
+                                        data-action="moveInventoryDown" data-inventory-id="{{id}}"
+                                        {{#if isLast}}disabled{{/if}}
+                                        data-tooltip="{{localize "coffee-pub-merchant.config.moveDownTooltip"}}">
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
                                 {{#if canRoll}}
                                     <button type="button" class="merchant-config-inv-btn"
                                             data-action="restockInventory" data-inventory-id="{{id}}"
@@ -304,85 +321,6 @@
                                 </div>
                             </div>
                         {{/if}}
-
-                        {{#if canRoll}}
-                            {{!-- **How many, as distinct from when.** These were inside
-                                  Restock and read as part of that one decision, which is
-                                  why the ceilings kept being taken for restock settings.
-                                  Products is the number of lines this shelf carries and
-                                  is the target a roll fills back up to; Max stack is how
-                                  deep any one line goes. --}}
-                            <div class="merchant-config-inv-group">
-                                <h4>{{localize "coffee-pub-merchant.config.stocking"}}</h4>
-                                <div class="merchant-config-restock">
-                                    <label class="merchant-config-row merchant-config-restock-method">
-                                        <span class="merchant-config-label"
-                                              data-tooltip="{{localize "coffee-pub-merchant.config.depthTooltip"}}">{{localize "coffee-pub-merchant.config.depth"}}</span>
-                                        <select data-inventory-depth="{{id}}" data-tooltip="{{depthHint}}">
-                                            {{#each depthOptions}}
-                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                            {{/each}}
-                                        </select>
-                                    </label>
-
-                                    <label class="merchant-config-row merchant-config-restock-stack"
-                                           data-tooltip="{{localize "coffee-pub-merchant.config.productsTooltip"}}">
-                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.products"}}</span>
-                                        <input type="number" min="1" max="999" step="1" value="{{maxProducts}}"
-                                               data-inventory-max-products="{{id}}"
-                                               aria-label="{{localize "coffee-pub-merchant.config.productsLabel"}}">
-                                    </label>
-
-                                    {{#if showMaxStack}}
-                                        <label class="merchant-config-row merchant-config-restock-stack"
-                                               data-tooltip="{{maxStackTooltip}}">
-                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.maxStack"}}</span>
-                                            <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
-                                                   data-inventory-max-per-item="{{id}}"
-                                                   aria-label="{{localize "coffee-pub-merchant.config.maxStackLabel"}}">
-                                        </label>
-                                    {{/if}}
-                                </div>
-
-                            </div>
-                        {{/if}}
-
-                        <div class="merchant-config-inv-group">
-                            <h4>{{localize "coffee-pub-merchant.config.restock"}}</h4>
-                            {{#if canRoll}}
-                                {{!-- One row: what happens, how often, and how deep it
-                                      stacks are one decision made in one glance. They
-                                      wrap when the window is narrow rather than
-                                      squeezing, and Frequency is simply absent on a
-                                      method that has no cadence. --}}
-                                <div class="merchant-config-restock">
-                                    <label class="merchant-config-row merchant-config-restock-method">
-                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.method"}}</span>
-                                        <select data-inventory-stock="{{id}}">
-                                            {{#each stockOptions}}
-                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                            {{/each}}
-                                        </select>
-                                    </label>
-
-                                    {{#if restocking}}
-                                        <label class="merchant-config-row">
-                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.frequency"}}</span>
-                                            <select data-inventory-frequency="{{id}}">
-                                                {{#each frequencyOptions}}
-                                                    <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                                {{/each}}
-                                            </select>
-                                        </label>
-                                    {{/if}}
-
-                                </div>
-                            {{else}}
-                                <div class="merchant-config-note">
-                                    {{localize "coffee-pub-merchant.config.purchasedNote"}}
-                                </div>
-                            {{/if}}
-                        </div>
 
                         {{#if canRoll}}
                             {{!-- **Where new products come from.** A table is a list
@@ -587,6 +525,85 @@
                                     <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
                                 </div>
                             {{/if}}
+                        {{#if canRoll}}
+                            {{!-- **How many, as distinct from when.** These were inside
+                                  Restock and read as part of that one decision, which is
+                                  why the ceilings kept being taken for restock settings.
+                                  Products is the number of lines this shelf carries and
+                                  is the target a roll fills back up to; Max stack is how
+                                  deep any one line goes. --}}
+                            <div class="merchant-config-inv-group">
+                                <h4>{{localize "coffee-pub-merchant.config.stocking"}}</h4>
+                                <div class="merchant-config-restock">
+                                    <label class="merchant-config-row merchant-config-restock-method">
+                                        <span class="merchant-config-label"
+                                              data-tooltip="{{localize "coffee-pub-merchant.config.depthTooltip"}}">{{localize "coffee-pub-merchant.config.depth"}}</span>
+                                        <select data-inventory-depth="{{id}}" data-tooltip="{{depthHint}}">
+                                            {{#each depthOptions}}
+                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                            {{/each}}
+                                        </select>
+                                    </label>
+
+                                    <label class="merchant-config-row merchant-config-restock-stack"
+                                           data-tooltip="{{localize "coffee-pub-merchant.config.productsTooltip"}}">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.products"}}</span>
+                                        <input type="number" min="1" max="999" step="1" value="{{maxProducts}}"
+                                               data-inventory-max-products="{{id}}"
+                                               aria-label="{{localize "coffee-pub-merchant.config.productsLabel"}}">
+                                    </label>
+
+                                    {{#if showMaxStack}}
+                                        <label class="merchant-config-row merchant-config-restock-stack"
+                                               data-tooltip="{{maxStackTooltip}}">
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.maxStack"}}</span>
+                                            <input type="number" min="1" max="999" step="1" value="{{maxPerItem}}"
+                                                   data-inventory-max-per-item="{{id}}"
+                                                   aria-label="{{localize "coffee-pub-merchant.config.maxStackLabel"}}">
+                                        </label>
+                                    {{/if}}
+                                </div>
+
+                            </div>
+                        {{/if}}
+
+                        <div class="merchant-config-inv-group">
+                            <h4>{{localize "coffee-pub-merchant.config.restock"}}</h4>
+                            {{#if canRoll}}
+                                {{!-- One row: what happens, how often, and how deep it
+                                      stacks are one decision made in one glance. They
+                                      wrap when the window is narrow rather than
+                                      squeezing, and Frequency is simply absent on a
+                                      method that has no cadence. --}}
+                                <div class="merchant-config-restock">
+                                    <label class="merchant-config-row merchant-config-restock-method">
+                                        <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.method"}}</span>
+                                        <select data-inventory-stock="{{id}}">
+                                            {{#each stockOptions}}
+                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                            {{/each}}
+                                        </select>
+                                    </label>
+
+                                    {{#if restocking}}
+                                        <label class="merchant-config-row">
+                                            <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.frequency"}}</span>
+                                            <select data-inventory-frequency="{{id}}">
+                                                {{#each frequencyOptions}}
+                                                    <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                                {{/each}}
+                                            </select>
+                                        </label>
+                                    {{/if}}
+
+                                </div>
+                            {{else}}
+                                <div class="merchant-config-note">
+                                    {{localize "coffee-pub-merchant.config.purchasedNote"}}
+                                </div>
+                            {{/if}}
+                        </div>
+
                     </div>
                 {{/each}}
             {{else}}

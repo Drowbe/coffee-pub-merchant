@@ -725,8 +725,24 @@ export const SOURCE = Object.freeze({
     MANUAL: 'manual',
     QUERY: 'query',
     TABLE: 'table',
-    BOTH: 'both'
+    // Both, and **which one gets the last slots**. They feed one product target, so on a
+    // nearly full shelf the order is the whole difference between a shop stocked from a
+    // list somebody wrote and one stocked from whatever is installed. That used to be
+    // fixed at tables-first with the reasoning in a comment; it is a GM's decision, and
+    // a fence and a general store want opposite answers.
+    BOTH: 'both',
+    BOTH_QUERY: 'bothQuery'
 });
+
+/** Whether a source draws from the compendiums at all. */
+export function drawsFromQuery(source) {
+    return source === SOURCE.QUERY || source === SOURCE.BOTH || source === SOURCE.BOTH_QUERY;
+}
+
+/** Whether a source draws from roll tables at all. */
+export function drawsFromTables(source) {
+    return source === SOURCE.TABLE || source === SOURCE.BOTH || source === SOURCE.BOTH_QUERY;
+}
 
 /**
  * **Manual, because a new shelf has nothing on it and no opinion about what should be.**
@@ -736,8 +752,9 @@ export const SOURCE = Object.freeze({
  * happens to hold. Manual is the only default that does nothing until asked — which is
  * what a GM who has just pressed Add Inventory has actually said so far.
  *
- * Existing shelves are not touched by this: schema 5 stamps an explicit source on every
- * one of them, so nothing silently changes what it draws because a default moved.
+ * Read through `?? DEFAULT_SOURCE` everywhere rather than stamped onto shelves: a shelf
+ * with no source stored has never been told what to draw, which is exactly what manual
+ * means, so the fallback and the default say the same thing by construction.
  */
 export const DEFAULT_SOURCE = SOURCE.MANUAL;
 

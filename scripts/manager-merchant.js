@@ -9,7 +9,7 @@ import {
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
-    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps
+    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -464,6 +464,53 @@ export class MerchantManager {
             // because that is the only name an inventory has.
             .sort((a, b) => (a.config.order ?? 0) - (b.config.order ?? 0)
                 || String(a.item.name).localeCompare(String(b.item.name)));
+    }
+
+    /**
+     * Move an inventory up or down the shop.
+     *
+     * **Order is a shop's layout, and the GM's to set.** What is at the front of the
+     * counter and what is in the back room is a statement about the shop, and it was
+     * being made by whatever order the containers happened to be created in.
+     *
+     * **Every inventory is renumbered, not just the pair that swapped.** They start life
+     * sharing an order of 0 -- the presets all set the same number -- so a swap of two
+     * values would move nothing and leave the tie broken by name as before. Writing a
+     * whole sequence makes the stored order say what the screen says, once, and it is
+     * self-repairing: any shop with duplicate or missing numbers comes out ordered.
+     *
+     * Hidden inventories are included. They are still part of the layout, and skipping
+     * them would make a move jump two places whenever one sat between.
+     */
+    static async moveInventory(actor, inventoryId, delta) {
+        if (!game.user.isGM) return false;
+        const step = Math.trunc(Number(delta)) || 0;
+        if (!step) return false;
+
+        const ordered = this.getInventories(actor, { includeHidden: true });
+        const from = ordered.findIndex((entry) => entry.item.id === inventoryId);
+        if (from < 0) return false;
+        const to = from + step;
+        if (to < 0 || to >= ordered.length) return false;
+
+        const moved = [...ordered];
+        moved.splice(to, 0, ...moved.splice(from, 1));
+
+        // One write for the whole shop. dnd5e recomputes encumbrance on every item write
+        // against one fixed effect id with no lock, so N writes to one Actor are N racing
+        // recomputes -- the reason everything here batches.
+        const updates = moved.map((entry, index) => ({
+            _id: entry.item.id,
+            [`flags.${MODULE.ID}.${INVENTORY_FLAG}.order`]: index
+        }));
+        try {
+            await actor.updateEmbeddedDocuments('Item', updates);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not reorder the inventories:`, error);
+            return false;
+        }
+        this.broadcastActorRefresh(actor);
+        return true;
     }
 
     /**
@@ -1384,7 +1431,7 @@ export class MerchantManager {
         if (isPurchased(config.type)) return false;
 
         const source = config.source ?? DEFAULT_SOURCE;
-        if (source === SOURCE.QUERY || source === SOURCE.BOTH) return true;
+        if (drawsFromQuery(source)) return true;
         if (source === SOURCE.TABLE && this.getInventoryTables(inventory).length) return true;
         // Manual, or a table shelf with no tables on it: the only thing left that a
         // restock could do is bring rows back up to their level, and that is only a
@@ -1554,8 +1601,8 @@ export class MerchantManager {
         const source = config.source ?? DEFAULT_SOURCE;
         // A query shelf draws on the clock because the shelf itself says so; a table
         // shelf draws when one of its tables is set to. "Both" qualifies on either.
-        const draws = source === SOURCE.QUERY || source === SOURCE.BOTH
-            || (source === SOURCE.TABLE
+        const draws = drawsFromQuery(source)
+            || (drawsFromTables(source)
                 && this.getInventoryTables(inventory).some((entry) => entry.auto));
         if (!force && this.resolveStockPolicy(actor, config) !== STOCK.RESTOCKING && !draws) return 0;
 
@@ -1590,12 +1637,23 @@ export class MerchantManager {
         // curated stock lands and the ordinary stock takes what is left. Nothing arrives
         // twice: `_withinLimits` matches rows by name and type, so the same longsword
         // from both sources is one row.
+        // **Order is the GM's, not ours.** Both halves feed one product target, so on a
+        // nearly full shelf whichever runs first gets the last slots. Tables-first suits a
+        // shop whose character is a list somebody wrote, with ordinary stock as filler;
+        // compendiums-first suits one that is mostly ordinary with a few chosen things.
+        // Nothing arrives twice either way -- `_withinLimits` matches by name and type.
+        const order = source === SOURCE.BOTH_QUERY
+            ? [SOURCE.QUERY, SOURCE.TABLE]
+            : [SOURCE.TABLE, SOURCE.QUERY];
+
         let rolled = 0;
-        if (source === SOURCE.TABLE || source === SOURCE.BOTH) {
-            rolled += await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
-        }
-        if (source === SOURCE.QUERY || source === SOURCE.BOTH) {
-            rolled += await this.queryInventory(actor, inventoryId, { onStep: step });
+        for (const leg of order) {
+            if (leg === SOURCE.TABLE && drawsFromTables(source)) {
+                rolled += await this.rollInventoryTable(actor, inventoryId, { automatic: !force, onStep: step });
+            }
+            if (leg === SOURCE.QUERY && drawsFromQuery(source)) {
+                rolled += await this.queryInventory(actor, inventoryId, { onStep: step });
+            }
         }
 
         await this.setInventoryConfig(actor, inventoryId, { lastRestock: game.time.worldTime });
