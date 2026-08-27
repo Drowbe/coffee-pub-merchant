@@ -150,7 +150,7 @@
             "customSet": "Manually Selected Compendiums",
             "curatedTooltip": "Draw from the compendiums configured in Blacksmith — the ones this world officially uses",
             "customTooltip": "Draw only from compendiums you drop here, whether or not they are curated",
-            "curatedHint": "Drawn from the item compendiums configured in Blacksmith. Switch to a list of this shelf’s own to use packs the world does not otherwise search.",
+            "curatedHint": "Drawn from the item compendiums configured in Blacksmith: {list}.",
             "dropCompendium": "Drop a compendium here — or anything from one — to draw from it",
             "dropAnotherCompendium": "Drop another compendium to add it",
             "removeSourceTooltip": "Take this compendium off the list",
@@ -160,7 +160,9 @@
             "sourceUncuratedTooltip": "Not in Blacksmith’s curated set. Blacksmith does not yet draw from an uncurated pack, so this one is listed but not stocked from — add it to Blacksmith’s item compendiums to use it today.",
             "worldItems": "World items",
             "moveUpTooltip": "Move this inventory up",
-            "moveDownTooltip": "Move this inventory down"
+            "moveDownTooltip": "Move this inventory down",
+            "curatedHintNone": "Blacksmith has no item compendiums configured, so this shelf has nothing to draw from. Configure them there, or switch to a list of this shelf’s own.",
+            "useCompendium": "Draw from this compendium"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -218,7 +220,11 @@
             "compendiumNotAdded": "That is not a compendium, or it is already on the list.",
             "compendiumAddFailed": "Could not change this shelf’s compendiums.",
             "querySourcesUnusable": "{inventory} draws from its own list of compendiums, and none of them can be drawn from yet — the list is empty, or every pack on it is outside Blacksmith’s curated set.",
-            "reorderFailed": "Could not reorder the inventories."
+            "reorderFailed": "Could not reorder the inventories.",
+            "dropCompendiumHere": "That is a compendium — drop it on the Compendiums list below.",
+            "compendiumNeedsManual": "This shelf draws from Blacksmith’s curated compendiums. Switch it to Manually Selected Compendiums to name your own.",
+            "notAnItemPack": "That compendium does not hold items, so a shelf cannot stock from it.",
+            "dropTableOnTables": "That is a roll table — drop it on the Roll tables list above."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",

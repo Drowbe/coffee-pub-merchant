@@ -103,6 +103,24 @@ export function describeSource(id) {
     return { id, label: id, package: '', missing: true };
 }
 
+/** The ids a stored list actually draws from: the ones switched on. */
+export function enabledSources(sources) {
+    return (sources ?? []).filter((entry) => entry.enabled).map((entry) => entry.id);
+}
+
+/**
+ * Whether a pack id names a compendium of Items.
+ *
+ * **A compendium of roll tables is a compendium.** Dropping one on the item list was
+ * accepted and then displayed as *Gone* -- the row said the pack had been uninstalled,
+ * when it was installed and simply held the wrong kind of thing. Two different wrong
+ * answers from one missing check.
+ */
+export function isItemPack(id) {
+    if (id === 'world') return true;
+    return allItemPacks().some((entry) => entry.id === id);
+}
+
 /**
  * A pack id out of anything Foundry puts on a drop.
  *
@@ -146,8 +164,18 @@ export function normalizeQuery(query) {
     // custom list and not yet dropped a pack on it has a shelf that draws nothing, and
     // silently falling back to the curated set there would stock a shady fence from the
     // world's ordinary content -- the one thing they were trying to avoid.
+    //
+    // Entries are `{ id, enabled }`, matching the roll tables beside them: **off keeps the
+    // pack and its place and simply stops it contributing**, which is what a GM wants for
+    // a seasonal or a maybe-later pack. A bare string reads as an enabled entry, because
+    // that is what a list written before the switch existed meant.
+    const seen = new Set();
     const sources = Array.isArray(stored.sources)
-        ? [...new Set(stored.sources.filter((id) => typeof id === 'string' && id))]
+        ? stored.sources
+            .map((entry) => (typeof entry === 'string' ? { id: entry, enabled: true } : entry))
+            .filter((entry) => typeof entry?.id === 'string' && entry.id)
+            .filter((entry) => !seen.has(entry.id) && seen.add(entry.id))
+            .map((entry) => ({ id: entry.id, enabled: entry.enabled !== false }))
         : null;
     const min = Number(stored.priceGp?.min);
     const max = Number(stored.priceGp?.max);
@@ -178,10 +206,11 @@ export function normalizeQuery(query) {
 export async function queryStock(query, limit = 200) {
     if (!hasQuery()) return [];
     const filter = normalizeQuery(query);
-    // A custom list with nothing on it draws nothing, and says so here rather than
-    // reaching the hub -- `sources: []` there is "no sources configured for type",
-    // which is a warning about Blacksmith's settings for a state that is ours.
-    if (filter.sources?.length === 0) return [];
+    // A custom list with nothing switched on draws nothing, and says so here rather than
+    // reaching the hub -- `sources: []` there is "no sources configured for type", which
+    // is a warning about Blacksmith's settings for a state that is ours.
+    const chosen = filter.sources && enabledSources(filter.sources);
+    if (chosen && !chosen.length) return [];
     try {
         return await _api().query({
             type: 'Item',
@@ -196,7 +225,7 @@ export async function queryStock(query, limit = 200) {
             // own giveaways are a flag on an item it owns, not an absent price.
             includeUnpriced: false,
             // null asks for the curated set, which is the hub's own default.
-            sources: filter.sources,
+            sources: chosen,
             limit: Math.max(1, Math.trunc(Number(limit)) || 200)
         });
     } catch (error) {

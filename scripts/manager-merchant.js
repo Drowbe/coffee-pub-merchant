@@ -22,7 +22,9 @@ import { notify } from './utility-feedback.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
-import { hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources } from './utility-compendium.js';
+import {
+    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources
+} from './utility-compendium.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -1040,8 +1042,8 @@ export class MerchantManager {
         const inventory = actor?.items?.get(inventoryId);
         if (!this.getInventoryConfig(inventory)) return null;
         const current = this.getInventorySources(inventory) ?? [];
-        if (current.includes(packId)) return null;
-        return this.setInventorySources(actor, inventoryId, [...current, packId]);
+        if (current.some((entry) => entry.id === packId)) return null;
+        return this.setInventorySources(actor, inventoryId, [...current, { id: packId, enabled: true }]);
     }
 
     /**
@@ -1057,8 +1059,25 @@ export class MerchantManager {
         const inventory = actor?.items?.get(inventoryId);
         if (!this.getInventoryConfig(inventory)) return null;
         const current = this.getInventorySources(inventory);
-        if (!current || !current.includes(packId)) return null;
-        return this.setInventorySources(actor, inventoryId, current.filter((id) => id !== packId));
+        if (!current?.some((entry) => entry.id === packId)) return null;
+        return this.setInventorySources(actor, inventoryId, current.filter((entry) => entry.id !== packId));
+    }
+
+    /**
+     * Switch one compendium on or off without taking it off the list.
+     *
+     * The same gesture the roll tables have, for the same reason: a pack that is right for
+     * a season, or that a GM is trying out, should not have to be removed and re-dropped.
+     */
+    static async setInventorySourceEnabled(actor, inventoryId, packId, enabled) {
+        if (!game.user.isGM || !packId) return null;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return null;
+        const current = this.getInventorySources(inventory);
+        if (!current?.some((entry) => entry.id === packId)) return null;
+        return this.setInventorySources(actor, inventoryId, current.map((entry) => (
+            entry.id === packId ? { ...entry, enabled: Boolean(enabled) } : entry
+        )));
     }
 
     /** Add a compendium from whatever Foundry put on the drop. */
@@ -1356,7 +1375,7 @@ export class MerchantManager {
         // always nothing. "Found nothing matching" would be true and useless; the GM
         // needs to know it is the list, not the filter.
         const wanted = normalizeQuery(config.query).sources;
-        if (wanted && !wanted.some((id) => id === 'world' || curatedSources().includes(id))) {
+        if (wanted && !enabledSources(wanted).some((id) => id === 'world' || curatedSources().includes(id))) {
             notify.warn(game.i18n.format('coffee-pub-merchant.notify.querySourcesUnusable', { inventory: inventory.name }));
             return 0;
         }

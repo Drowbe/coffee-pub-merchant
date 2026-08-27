@@ -15,6 +15,20 @@
    this way the two names are provably one definition and neither window had to move.
 */
 
+/* --- The interactive colour -------------------------------------------
+   **Hover is orange, headings are the theme's accent, and they are not the same job.**
+   Under the Light theme `--blacksmith-tool-accent` resolves to the same near-black the
+   section headings use, so a hovered control looked exactly like an un-hovered heading --
+   nothing said "this responds to you". Orange is the house interactive colour for that
+   reason: Blacksmith's own titlebar and menubar use it, it reads on all three themes
+   without a per-theme value, and it means the same thing in every Coffee Pub window.
+
+   Named once here so both windows say it the same way, and so the day the hub exports a
+   token for it there is one line to change. */
+:root {
+    --merchant-interactive: var(--blacksmith-color-brand-accent, #c15701);
+}
+
 /* --- Header action rows ------------------------------------------------
    The strip of controls at the right-hand end of a section heading. */
 .merchant-shop-head-actions,
@@ -41,7 +55,7 @@
 }
 .merchant-shop-inventory-add:hover,
 .merchant-config-inventory-add:hover,
-.merchant-config-inv-btn:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-config-inv-btn:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 /* At the top or the bottom of the shop, the move button stays where it is and reads as
    inert. Removing it would shuffle the row of controls every time an inventory reached
    an end, which moves the button you were aiming at. */

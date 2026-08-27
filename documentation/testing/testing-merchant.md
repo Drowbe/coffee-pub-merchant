@@ -1317,4 +1317,23 @@ level onto every existing row; it logs how many.
 161. **The shelves sit beside the Inventories card**, not inside it — one column of cards, evenly
     spaced, no nested border. The Inventories card still carries Add Inventory, the count and the
     stocking-rules summary; a shop with no inventories still shows the empty note there.
+162. **Only the two labelled zones take a drop.** Drag a roll table over the card: nothing highlights
+    except the *Drop a roll table* zone, and dropping it elsewhere on the card does nothing. Same for a
+    compendium and its own zone. Each zone highlights only while something is over it.
+163. **A roll table from a compendium drops on the roll-table zone.** Open a compendium of tables, drag
+    one onto the zone: it is added. It must not be mistaken for the compendium itself.
+    Each zone names the other when it gets the wrong thing: a compendium on the table zone says to use
+    the Compendiums list (or, on a curated shelf, to switch to a manual list first), and a roll table on
+    the compendium list says to use the Roll tables list.
+164. **A compendium of roll tables is refused** by the item compendium list, with the reason — it must
+    not be added and then shown as *Gone*.
+165. **A curated shelf names its packs** under the mode buttons, comma-separated. With no item
+    compendiums configured in Blacksmith it says so instead.
+166. **Hover reads as orange** in Light, Dark and Glass — the drop zones, the chips, the header icon
+    buttons, the shop's fold headings and the search controls. It should never be the same colour as a
+    section heading.
+167. **A compendium can be switched off without being removed.** Untick one on a shelf's list: the row
+    dims, the pack stays listed, and a restock draws from the others only. Tick it again and it
+    contributes. Switch *every* pack off and the restock says the shelf has nothing to draw from,
+    exactly as an empty list does.
 

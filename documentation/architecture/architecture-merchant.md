@@ -249,8 +249,13 @@ Stored on the shelf's query as `sources`, in three states that must not be confl
 | stored | means |
 |---|---|
 | `null` | the curated set |
-| `['pack.id', …]` | this shelf's own list |
+| `[{ id, enabled }, …]` | this shelf's own list |
 | `[]` | a custom list nobody has filled yet — **draws nothing**, and says so |
+
+Entries carry a switch, like the roll tables beside them: **off keeps the pack and its place and simply
+stops it contributing.** A bare string reads as an enabled entry, because that is what a list written
+before the switch existed meant. A list whose every pack is off draws nothing, and is reported the same
+way an empty one is.
 
 The empty case is the one worth writing down: falling back to the curated set there would restock a shady
 fence from the world's ordinary content the moment its last pack came off the list. Emptying a list is not

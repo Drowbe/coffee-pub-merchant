@@ -237,7 +237,7 @@
         {{#each inventories}}
             {{!-- Each inventory is its own card with its own headings, so it reads like
                   the shop window rather than like a row in a table that grew settings. --}}
-            <div class="merchant-config-inv"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
+            <div class="merchant-config-inv">
 
                         {{!-- **The category is the heading; the name is content.** The
                               type is what this card *is* and cannot be changed, which
@@ -338,14 +338,15 @@
                                   shelf nobody can predict. --}}
                             <div class="merchant-config-inv-group">
                                 <h4>{{localize "coffee-pub-merchant.config.newStock"}}</h4>
-                                <label class="merchant-config-row">
-                                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.source"}}</span>
-                                    <select data-inventory-source="{{id}}">
-                                        {{#each sourceOptions}}
-                                            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-                                        {{/each}}
-                                    </select>
-                                </label>
+                                {{!-- No label: the heading above already says Item source,
+                                      and this is the only control under it. A label
+                                      repeating its own heading is a word to read twice. --}}
+                                <select class="merchant-config-source-select" data-inventory-source="{{id}}"
+                                        aria-label="{{localize "coffee-pub-merchant.config.source"}}">
+                                    {{#each sourceOptions}}
+                                        <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                    {{/each}}
+                                </select>
                                 {{#unless queryAvailable}}
                                     <small class="merchant-config-hint merchant-config-rate-warning">
                                         {{localize "coffee-pub-merchant.config.queryUnavailable"}}
@@ -402,7 +403,13 @@
                                         {{/each}}
                                     </div>
                                 {{/if}}
-                                <div class="merchant-config-drop">
+                                {{!-- **The labelled zone is the target, and the only one.**
+                                      The whole card used to take a roll table, which meant
+                                      the card lit up for a drop it might not accept and the
+                                      compendium list below sat inside a target for something
+                                      else. A drop zone that says what it takes should be the
+                                      only thing that takes it. --}}
+                                <div class="merchant-config-drop" data-drop-table="{{id}}">
                                     <i class="fa-solid fa-dice-d20"></i>
                                     {{#if hasTables}}Drop another roll table to add it{{else}}Drop a roll table here to stock this inventory by rolling{{/if}}
                                 </div>
@@ -434,9 +441,20 @@
                                         {{#if sourceList.length}}
                                             <div class="merchant-config-grid">
                                                 {{#each sourceList}}
-                                                    <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#if missing}} is-off{{/if}}">
+                                                    <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#unless enabled}} is-off{{/unless}}{{#if missing}} is-off{{/if}}">
                                                         <span class="merchant-config-label merchant-config-table-name"
                                                               data-tooltip="{{id}}">
+                                                            {{!-- Off keeps the pack and its
+                                                                  place and simply stops it
+                                                                  contributing, exactly as a
+                                                                  roll table's own switch
+                                                                  does -- a seasonal pack
+                                                                  should not have to be
+                                                                  removed and re-dropped. --}}
+                                                            <input type="checkbox" class="merchant-config-table-enabled"
+                                                                   data-inventory-source-enabled="{{../id}}"
+                                                                   data-pack-id="{{id}}" {{#if enabled}}checked{{/if}}
+                                                                   aria-label="{{localize "coffee-pub-merchant.config.useCompendium"}}">
                                                             <i class="fa-solid fa-book-atlas"></i> {{label}}
                                                             {{#if package}}<small class="merchant-config-source-pkg">{{package}}</small>{{/if}}
                                                         </span>
@@ -472,7 +490,10 @@
                                             {{#if sourceList.length}}{{localize "coffee-pub-merchant.config.dropAnotherCompendium"}}{{else}}{{localize "coffee-pub-merchant.config.dropCompendium"}}{{/if}}
                                         </div>
                                     {{else}}
-                                        <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.curatedHint"}}</small>
+                                        {{!-- Named, not just described. "The compendiums
+                                              configured in Blacksmith" is a place to go
+                                              and look; the list is the answer. --}}
+                                        <small class="merchant-config-hint">{{curatedHint}}</small>
                                     {{/if}}
                                 </div>
 

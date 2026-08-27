@@ -11,7 +11,7 @@ import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
 import {
     hasQuery, RARITIES, normalizeQuery, describeQuery,
-    curatedSources, describeSource, allItemPacks
+    curatedSources, describeSource, allItemPacks, packIdFromDrop, isItemPack
 } from './utility-compendium.js';
 import { physicalTypes } from './utility-inventory.js';
 import { startProgress } from './utility-progress.js';
@@ -598,6 +598,18 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        for (const box of this.element?.querySelectorAll('[data-inventory-source-enabled]') ?? []) {
+            if (box.dataset.merchantBound === 'true') continue;
+            box.dataset.merchantBound = 'true';
+            box.addEventListener('change', (event) => {
+                void this._setSourceEnabled(
+                    box.getAttribute('data-inventory-source-enabled'),
+                    box.getAttribute('data-pack-id'),
+                    event.target.checked
+                );
+            });
+        }
+
         for (const box of this.element?.querySelectorAll('[data-inventory-table-enabled]') ?? []) {
             if (box.dataset.merchantBound === 'true') continue;
             box.dataset.merchantBound = 'true';
@@ -756,6 +768,21 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         await this.render(false);
     }
 
+    /** Switch one compendium on or off without taking it off the list. */
+    async _setSourceEnabled(inventoryId, packId, enabled) {
+        const actor = await this._resolveActor();
+        if (!actor || !inventoryId || !packId) return;
+        try {
+            await MerchantManager.setInventorySourceEnabled(actor, inventoryId, packId, enabled);
+            MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not change that compendium:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.compendiumAddFailed'));
+        }
+        await this.render(false);
+    }
+
     /** Take one compendium off a shelf's list. */
     async _removeSource(inventoryId, packId) {
         const actor = await this._resolveActor();
@@ -787,6 +814,24 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             return;
         }
 
+        // The mirror of the near miss on the table zone: a roll table wants the list above,
+        // not this one, and saying so beats refusing it as "not an item pack" -- which is
+        // true of the table and not the point.
+        if (data?.type === 'RollTable') {
+            notify.info(game.i18n.localize('coffee-pub-merchant.notify.dropTableOnTables'));
+            return;
+        }
+
+        // **A compendium of roll tables is a compendium**, and this list holds item packs.
+        // Without this the pack was added and then displayed as *Gone* -- a row claiming
+        // the compendium had been uninstalled when it was installed and simply held the
+        // wrong kind of thing.
+        const packId = packIdFromDrop(data);
+        if (packId && !isItemPack(packId)) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.notAnItemPack'));
+            return;
+        }
+
         const actor = await this._resolveActor();
         if (!actor) return;
         try {
@@ -815,6 +860,24 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         try {
             data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
         } catch (_error) {
+            return;
+        }
+        // **A pack, not a document out of one.** `packIdFromDrop` answers for both, which
+        // is what the compendium list wants -- and is exactly wrong here, because a roll
+        // table dragged out of a compendium carries a pack id too. Checking the payload
+        // type instead is the difference between "you dropped a compendium" and "you
+        // dropped a table that happens to live in one".
+        //
+        // A compendium landing here is a near miss rather than a mistake: say which target
+        // it wants, or that the shelf is not set to take one. "That is not a roll table" is
+        // true and answers a question nobody asked.
+        if (data?.type === 'Compendium') {
+            const actor = await this._resolveActor();
+            const inventory = actor?.items?.get(inventoryId);
+            const custom = MerchantManager.getInventorySources(inventory) !== null;
+            notify.info(game.i18n.localize(custom
+                ? 'coffee-pub-merchant.notify.dropCompendiumHere'
+                : 'coffee-pub-merchant.notify.compendiumNeedsManual'));
             return;
         }
         if (data?.type !== 'RollTable' || !data.uuid) {
@@ -1609,19 +1672,29 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // world's answer to "what content do we use". An array is this
                     // shelf's own list, and an empty one is a list nobody has filled yet.
                     isCustomSources: normalizeQuery(config.query).sources !== null,
-                    sourceList: (normalizeQuery(config.query).sources ?? []).map((id) => {
-                        const described = describeSource(id);
+                    sourceList: (normalizeQuery(config.query).sources ?? []).map((entry) => {
+                        const described = describeSource(entry.id);
                         return {
                             ...described,
+                            enabled: entry.enabled,
                             // Marked, not hidden. Blacksmith's `query` filters a requested
                             // source against the curated set, so a pack outside it is
                             // dropped -- and a shelf drawing from four packs when the GM
                             // listed six, silently, is the exact failure this source was
                             // chosen to avoid. Delete this the day the hub honours them.
-                            uncurated: !described.missing && !curatedSources().includes(id)
+                            uncurated: !described.missing && !curatedSources().includes(entry.id)
                         };
                     }),
                     curatedCount: curatedSources().length,
+                    // Named rather than described. "The compendiums configured in
+                    // Blacksmith" is a place to go and look; the list is the answer, and
+                    // it is the only way to see from here whether this shelf is drawing
+                    // from three packs or from none.
+                    curatedHint: curatedSources().length
+                        ? game.i18n.format('coffee-pub-merchant.config.curatedHint', {
+                            list: curatedSources().map((id) => describeSource(id).label).join(', ')
+                        })
+                        : game.i18n.localize('coffee-pub-merchant.config.curatedHintNone'),
                     hasPacks: allItemPacks().length > 0,
                     priceMinIndex: priceStopIndex(normalizeQuery(config.query).priceGp.min),
                     // A null ceiling is "no ceiling" and sits on the last stop, which

@@ -151,7 +151,7 @@
 
 /* GM toggle: bring an inventory out front, or put it away, without leaving the shop. */
 .merchant-shop-inventory-toggle { display: inline-flex; gap: 5px; align-items: center; min-height: 20px; padding: 1px 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-family: inherit; font-size: .6rem; letter-spacing: .03em; text-transform: none; cursor: pointer; }
-.merchant-shop-inventory-toggle:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-inventory-toggle:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-shop-inventory-toggle.is-put-away { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
 
 /* A hidden inventory is GM-only. Dashed, so it does not read as ordinary stock. */
@@ -184,7 +184,7 @@
 
 /* --- Categories within an inventory --------------------------------------- */
 .merchant-shop-inventory-body { display: flex; flex-direction: column; gap: 9px; }
-.merchant-shop-inventory-body.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 3px; }
+.merchant-shop-inventory-body.is-dropping { outline: 2px solid var(--merchant-interactive); outline-offset: 3px; background: color-mix(in srgb, var(--merchant-interactive) 8%, transparent); }
 .merchant-shop-category > h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 5px; padding: 0; border: 0; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .merchant-shop-category > h4 i { width: 13px; text-align: center; }
 
@@ -301,7 +301,7 @@
    fire our handler, so it is suppressed in favour of the button beside it. */
 .merchant-shop-search > input::-webkit-search-cancel-button { display: none; }
 .merchant-shop-search-clear { display: inline-grid; width: 20px; height: 20px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--blacksmith-tool-text-muted); font-size: .62rem; cursor: pointer; }
-.merchant-shop-search-clear:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-search-clear:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-shop-no-matches { border-style: dashed; }
 
 /* `merchant-shop-description` was already taken by the stock-and-hours line, so
@@ -458,7 +458,7 @@
 
 .merchant-shop-cart-hint { font-size: .72rem; opacity: .8; }
 /* The whole panel takes a drop, so the whole panel highlights. */
-.merchant-shop-cart-column.is-dropping .merchant-shop-cart { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
+.merchant-shop-cart-column.is-dropping .merchant-shop-cart { outline: 2px solid var(--merchant-interactive); outline-offset: 2px; background: color-mix(in srgb, var(--merchant-interactive) 8%, var(--blacksmith-tool-surface-sunken)); }
 
 /* --- Search, pinned to its list ------------------------------------------ */
 /* It filters the list, so it travels with the list rather than sitting in the
@@ -798,7 +798,7 @@
     color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit;
     text-align: left; cursor: pointer;
 }
-.merchant-shop-inventory-name:hover { color: var(--blacksmith-tool-accent); }
+.merchant-shop-inventory-name:hover { color: var(--merchant-interactive); }
 .merchant-shop-inventory-name:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 2px; }
 
 /* Points down when open, right when shut — the direction people already read as
@@ -848,5 +848,5 @@
     background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text-muted);
     font-size: .72rem; cursor: pointer;
 }
-.merchant-shop-search-sort:hover { border-color: var(--blacksmith-tool-accent); color: var(--blacksmith-tool-accent); }
+.merchant-shop-search-sort:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-shop-search-sort:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }

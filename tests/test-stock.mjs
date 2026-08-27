@@ -588,8 +588,21 @@ console.log('ok  a whole-day schedule is open at every hour');
     assert.deepStrictEqual(Q.normalizeQuery({ sources: [] }).sources, [],
         'an empty list stays an empty list');
 
+    // Entries carry a switch, like the roll tables beside them. A bare string reads as
+    // enabled, because that is what a list written before the switch existed meant.
     assert.deepStrictEqual(Q.normalizeQuery({ sources: ['a.b', 'a.b', '', null, 'c.d'] }).sources,
-        ['a.b', 'c.d'], 'duplicates and blanks come out, order stays');
+        [{ id: 'a.b', enabled: true }, { id: 'c.d', enabled: true }],
+        'duplicates and blanks come out, order stays, and a bare id is on');
+    assert.deepStrictEqual(Q.normalizeQuery({ sources: [{ id: 'a.b', enabled: false }] }).sources,
+        [{ id: 'a.b', enabled: false }], 'and an entry switched off stays off');
+
+    // **Off is not gone.** The pack keeps its place on the list; it just stops
+    // contributing, which is the whole point of having a switch rather than a delete.
+    const mixed = Q.normalizeQuery({ sources: [{ id: 'a.b', enabled: false }, 'c.d'] }).sources;
+    assert.deepStrictEqual(Q.enabledSources(mixed), ['c.d'], 'only the ones switched on are drawn from');
+    assert.deepStrictEqual(mixed.map((entry) => entry.id), ['a.b', 'c.d'], 'but both are still listed');
+    assert.deepStrictEqual(Q.enabledSources([]), [], 'a list with nothing on it draws nothing');
+    assert.deepStrictEqual(Q.enabledSources(null), [], 'and neither does a missing one');
 }
 console.log('ok  a shelf draws from the curated set, or from its own list, never both');
 
