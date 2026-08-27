@@ -261,7 +261,26 @@
  * never carrying any of it.
  */
 .merchant-config-inv-group { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--blacksmith-tool-divider); }
-.merchant-config-inv-group > h4 { margin: 0 0 8px; color: var(--blacksmith-tool-text); font-size: .78rem; font-weight: 700; letter-spacing: .005em; text-transform: none; }
+/* **Every inherited heading property is stated, not only the ones being changed.**
+ * Foundry and dnd5e style bare `h4` with their own family and `font-variant: small-caps`.
+ * A class rule wins on specificity for the properties it declares -- and silently inherits
+ * the rest, which is why this read as a small-caps serif label at a size that fought the
+ * .72rem field labels beneath it. Anything left unsaid here is somebody else's decision. */
+.merchant-config-inv-group > h4 {
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+    color: var(--blacksmith-tool-text);
+    font-family: inherit;
+    /* Above the .72rem field labels under it, below the section heading above it. */
+    font-size: .86rem;
+    font-weight: 700;
+    font-variant: normal;
+    font-variant-caps: normal;
+    letter-spacing: .005em;
+    line-height: 1.25;
+    text-transform: none;
+}
 
 /* Roll tables: the name in the label column, its controls beside it, and what it
    will actually do spelled out underneath — "rolls" and "reroll" were two words
@@ -450,6 +469,10 @@
     align-items: center;
     min-width: 0;
     color: var(--blacksmith-tool-accent);
+    /* Stated for the same reason as the group headings below: this sits inside an `h3`,
+       and a bare `h3` is styled by Foundry and dnd5e with a family of their own. */
+    font-family: inherit;
+    font-variant: normal;
     font-size: .68rem;
     font-weight: 700;
     letter-spacing: .07em;
