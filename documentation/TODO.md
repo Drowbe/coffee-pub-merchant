@@ -33,10 +33,23 @@ Two things to read before changing anything load-bearing:
 
 ## At a glance
 
-Nothing outstanding. Every item that was in this table has landed; the sections below are
-reference rather than work.
+| Item | Notes |
+|---|---|
+| Shop setup: pick specific compendiums | In addition to Blacksmith's configured sources |
+| Canvas region as the physical shop | A place on the map, not only a token |
+| Open a shop from a Blacksmith pin | |
 
 *Standing rules*, *Ideas* and *Considered* below are not work and are not in this table.
+
+---
+
+## Play session (2026-08-27)
+
+- **Shop setup should let a GM choose specific compendiums**, on top of the sources already configured in Blacksmith. Blacksmith's list stays the default; a shop that needs a narrower or extra pack should not have to change the world-wide search.
+
+- **A region on the canvas should be able to stand as the physical shop.** Not only a merchant token: a stall, a market square, a room. Opening the shop from being in that place is the point.
+
+- **A Blacksmith pin should be able to trigger a shop.** Drop a pin, open that merchant.
 
 ---
 
