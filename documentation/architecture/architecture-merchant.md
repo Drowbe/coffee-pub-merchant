@@ -236,6 +236,30 @@ that make this hard are Blacksmith's to own, and each is a silent wrong answer r
 error: mundane gear has a **blank** rarity rather than `common`, prices carry a denomination so
 50 sp is 5 gp, and unpriced and free share a stored 0.
 
+**Which compendiums: curated, or this shelf's own list — never both.** The curated set is the Item packs
+the GM put in Blacksmith's slots, and it is the world's answer to "what content do we use": every Coffee Pub
+module matches items, scans journals and fills inventories against it. A shop reaching outside it is saying
+something *different*, not something extra — a fence drawing on a pack of cursed junk is not asking for that
+pack to become part of the world's item matching — and a union of the two would be exactly that with a
+longer route.
+
+Stored on the shelf's query as `sources`, in three states that must not be conflated:
+
+| stored | means |
+|---|---|
+| `null` | the curated set |
+| `['pack.id', …]` | this shelf's own list |
+| `[]` | a custom list nobody has filled yet — **draws nothing**, and says so |
+
+The empty case is the one worth writing down: falling back to the curated set there would restock a shady
+fence from the world's ordinary content the moment its last pack came off the list. Emptying a list is not
+the same gesture as abandoning it.
+
+Packs are **dragged on**, like the roll tables beside them — a compendium from the sidebar, or any document
+out of one, because finding the pack you want by finding a thing in it is how anybody browses. Dropping the
+first pack is what switches the shelf off the curated set: a GM dragging a pack has already said which packs
+they mean, and a switch to throw first is a step that exists only to be forgotten.
+
 Candidates are **over-fetched and shuffled** (Fisher-Yates — not a comparator returning random
 signs, which is not a shuffle). The query answers in scan order, so taking the first N would give
 every shop in the world the same opening stock from the same pack.
@@ -829,6 +853,14 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ## 11. Known seams
 
+- **An uncurated pack is listed but not yet drawn from.** `compendiums.query` filters a requested source
+  against the curated set — `requestedSources.filter(s => s === 'world' || mapping.packIds.includes(s))` —
+  so `sources` can only ever *narrow* it. A shelf naming a pack Blacksmith is not configured to search gets
+  it silently dropped, which is a plausible result set from the wrong content: the exact failure this source
+  was chosen to avoid. Merchant marks such a row **Waiting** on the card and refuses the draw outright when
+  *every* pack on a list is one of them, rather than reporting an empty query. The ask is small and the hub's
+  own comment already argues for it — "the only rejection left is a pack that no longer exists in this
+  world". **When it lands, delete the marker and the refusal**; the storage and the UI need no change.
 - ~~**`gm-request.js`** — a bridge, and the caller identity it could not verify~~ — **closed 2026-08-21.**
   The file is deleted and `blacksmith.gmRequest` hands the handler a `User` resolved from the authenticated
   socket. It was described as a deletion rather than a rewrite from the day it was written, and that is how

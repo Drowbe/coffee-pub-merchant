@@ -9,7 +9,10 @@ import {
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
-import { hasQuery, normalizeQuery, describeQuery, RARITIES } from './utility-compendium.js';
+import {
+    hasQuery, RARITIES, normalizeQuery, describeQuery,
+    curatedSources, describeSource, allItemPacks
+} from './utility-compendium.js';
 import { physicalTypes } from './utility-inventory.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
@@ -245,6 +248,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         restockInventory: (_event, target, win) => void win.restockInventory(target.dataset.inventoryId),
         clearInventory: (_event, target, win) => void win.clearInventory(target.dataset.inventoryId),
         restockAll: (_event, _target, win) => void win.restockAll(),
+        useCuratedSources: (_event, target, win) =>
+            void win._setSources(target.dataset.inventoryId, null),
+        useCustomSources: (_event, target, win) =>
+            void win._setSources(target.dataset.inventoryId, []),
+        removeInventorySource: (_event, target, win) =>
+            void win._removeSource(target.dataset.inventoryId, target.dataset.packId),
         removeInventoryTable: (_event, target, win) =>
             void win.removeInventoryTable(target.dataset.inventoryId, target.dataset.tableUuid)
     };
@@ -626,6 +635,26 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         }
 
 
+        // Dragged, like the tables beside it: a pack dragged out of the sidebar is how
+        // somebody says which pack they mean, and a dropdown of forty compendium names
+        // is a worse way to answer the same question.
+        for (const zone of this.element?.querySelectorAll('[data-drop-source]') ?? []) {
+            if (zone.dataset.merchantBoundDrop === 'true') continue;
+            zone.dataset.merchantBoundDrop = 'true';
+            const inventoryId = zone.getAttribute('data-drop-source');
+
+            zone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                zone.classList.add('is-dropping');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('is-dropping'));
+            zone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                zone.classList.remove('is-dropping');
+                void this._onDropCompendium(event, inventoryId);
+            });
+        }
+
         for (const zone of this.element?.querySelectorAll('[data-drop-table]') ?? []) {
             if (zone.dataset.merchantBoundDrop === 'true') continue;
             zone.dataset.merchantBoundDrop = 'true';
@@ -695,6 +724,65 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         pip.classList.add('is-visible');
         clearTimeout(this._savedTimer);
         this._savedTimer = setTimeout(() => pip.classList.remove('is-visible'), 1400);
+    }
+
+    /** Switch a shelf between the curated set and its own list. */
+    async _setSources(inventoryId, sources) {
+        const actor = await this._resolveActor();
+        if (!actor || !inventoryId) return;
+        try {
+            await MerchantManager.setInventorySources(actor, inventoryId, sources);
+            MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not change the compendium list:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.compendiumAddFailed'));
+        }
+        await this.render(false);
+    }
+
+    /** Take one compendium off a shelf's list. */
+    async _removeSource(inventoryId, packId) {
+        const actor = await this._resolveActor();
+        if (!actor || !inventoryId || !packId) return;
+        try {
+            await MerchantManager.removeInventorySource(actor, inventoryId, packId);
+            MerchantManager.broadcastActorRefresh(actor);
+            this.flashSaved();
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not remove that compendium:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.compendiumAddFailed'));
+        }
+        await this.render(false);
+    }
+
+    /**
+     * Add a compendium to a shelf's own list by dropping it.
+     *
+     * Takes a pack dragged from the sidebar **or** any document dragged out of one --
+     * both name a pack, and finding the pack you want by finding a thing in it is how
+     * anybody actually browses. Anything else says what it was rather than failing
+     * silently, because a drop that does nothing reads as a broken target.
+     */
+    async _onDropCompendium(event, inventoryId) {
+        let data = null;
+        try {
+            data = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+        } catch (_error) {
+            return;
+        }
+
+        const actor = await this._resolveActor();
+        if (!actor) return;
+        try {
+            const added = await MerchantManager.addInventorySourceFromDrop(actor, inventoryId, data);
+            if (added) MerchantManager.broadcastActorRefresh(actor);
+            else notify.info(game.i18n.localize('coffee-pub-merchant.notify.compendiumNotAdded'));
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not add that compendium:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.compendiumAddFailed'));
+        }
+        await this.render(false);
     }
 
     /**
@@ -1494,6 +1582,25 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         { value: SOURCE.TABLE, label: game.i18n.localize('coffee-pub-merchant.source.table') },
                         { value: SOURCE.BOTH, label: game.i18n.localize('coffee-pub-merchant.source.both') }
                     ].map((option) => ({ ...option, selected: option.value === (config.source ?? DEFAULT_SOURCE) })),
+                    // **Curated or custom, never both.** `null` is the curated set --
+                    // the Item packs the GM put in Blacksmith's slots, which is the
+                    // world's answer to "what content do we use". An array is this
+                    // shelf's own list, and an empty one is a list nobody has filled yet.
+                    isCustomSources: normalizeQuery(config.query).sources !== null,
+                    sourceList: (normalizeQuery(config.query).sources ?? []).map((id) => {
+                        const described = describeSource(id);
+                        return {
+                            ...described,
+                            // Marked, not hidden. Blacksmith's `query` filters a requested
+                            // source against the curated set, so a pack outside it is
+                            // dropped -- and a shelf drawing from four packs when the GM
+                            // listed six, silently, is the exact failure this source was
+                            // chosen to avoid. Delete this the day the hub honours them.
+                            uncurated: !described.missing && !curatedSources().includes(id)
+                        };
+                    }),
+                    curatedCount: curatedSources().length,
+                    hasPacks: allItemPacks().length > 0,
                     priceMinIndex: priceStopIndex(normalizeQuery(config.query).priceGp.min),
                     // A null ceiling is "no ceiling" and sits on the last stop, which
                     // reads as Any. `priceStopIndex` answers that for a non-finite value,

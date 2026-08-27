@@ -1291,4 +1291,17 @@ level onto every existing row; it logs how many.
 149. **A renamed token names the shop card.** Drop an unlinked merchant, rename the token, open the shop:
     the keeper line under the shop name is the *token's* name, not the Actor's. Place a second one with a
     different name — the two cards name two different people.
+150. **A shelf draws from its own compendiums.** On a query shelf, switch **Which Compendiums** to
+    *This Shelf’s Own List* and drag a compendium from the sidebar onto the drop target. It is listed by
+    name with its module beneath. Restock: the stock comes from that pack.
+151. Drag an *item* out of a compendium onto the same target — it adds that item’s pack, not the item.
+152. Drop something that is not a compendium: it says so rather than doing nothing.
+153. **A pack outside Blacksmith’s curated set is marked *Waiting*** with an explanation on hover. A list
+    whose every pack is uncurated refuses the restock and names the reason, rather than reporting that the
+    query found nothing.
+154. Remove the last pack from a custom list: the shelf still says *This Shelf’s Own List* and draws
+    **nothing**. It must not quietly go back to the curated set.
+155. Switch back to *Curated Set* and restock: the ordinary content returns. Switch to the custom list
+    again — the packs you had listed are still there.
+156. Uninstall (or disable) a module whose pack is on a list: the row reads **Gone** rather than vanishing.
 

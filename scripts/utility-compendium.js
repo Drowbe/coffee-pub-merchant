@@ -42,11 +42,80 @@ export const RARITIES = Object.freeze(['mundane', 'common', 'uncommon', 'rare', 
 export const DEFAULT_QUERY = Object.freeze({
     subtypes: null,                          // null means "every physical type"
     rarity: ['mundane', 'common'],
-    priceGp: { min: 0, max: 500 }
+    priceGp: { min: 0, max: 500 },
+    // null means the curated set; an array means this shelf's own list. See `normalizeQuery`.
+    sources: null
 });
 
 function _api() {
     return game.modules.get('coffee-pub-blacksmith')?.api?.compendiums ?? null;
+}
+
+/**
+ * The curated set: the Item compendiums the GM put in Blacksmith's slots.
+ *
+ * **This is the world's answer to "what content do we actually use".** Every Coffee Pub
+ * module matches items, scans journals and fills inventories against it, which is exactly
+ * why a shop should be able to step outside it without changing it: a shady fence drawing
+ * on a pack of cursed junk must not make that pack part of the world's item matching.
+ */
+export function curatedSources() {
+    const api = _api();
+    if (typeof api?.getSearchOrder !== 'function') return [];
+    try {
+        return api.getSearchOrder('Item') ?? [];
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not read the curated compendiums:`, error);
+        return [];
+    }
+}
+
+/**
+ * Every Item compendium installed, whether or not it is curated.
+ *
+ * `getAllPacks` rather than `getChoices`: the whole point of a custom list is reaching
+ * the packs Blacksmith is deliberately not searching.
+ */
+export function allItemPacks() {
+    const api = _api();
+    if (typeof api?.getAllPacks !== 'function') return [];
+    try {
+        return api.getAllPacks('Item') ?? [];
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not list the item compendiums:`, error);
+        return [];
+    }
+}
+
+/**
+ * What a source id is called on screen, and whether it still exists.
+ *
+ * A pack that has been uninstalled keeps its id on the shelf and is **reported** rather
+ * than dropped, the same as a roll table's dead row: a shelf quietly drawing from six
+ * packs when the GM listed seven is the failure this whole source was chosen to avoid.
+ */
+export function describeSource(id) {
+    if (id === 'world') {
+        return { id, label: game.i18n.localize('coffee-pub-merchant.config.worldItems'), package: '', missing: false };
+    }
+    const pack = allItemPacks().find((entry) => entry.id === id);
+    if (pack) return { id, label: pack.label, package: pack.package ?? '', missing: false };
+    return { id, label: id, package: '', missing: true };
+}
+
+/**
+ * A pack id out of anything Foundry puts on a drop.
+ *
+ * Two payloads, because both mean the same thing to a person: a compendium dragged from
+ * the sidebar (`{ type: 'Compendium', collection }`), and any document dragged out of one
+ * (a uuid of `Compendium.<pack>.<Doc>.<id>`). The second matters more than it looks --
+ * finding the pack you want by finding a thing in it is how anybody actually browses.
+ */
+export function packIdFromDrop(data) {
+    if (data?.type === 'Compendium' && data.collection) return String(data.collection);
+    const uuid = String(data?.uuid ?? '');
+    const match = /^Compendium\.([^.]+\.[^.]+)\./.exec(uuid);
+    return match ? match[1] : null;
 }
 
 /**
@@ -72,10 +141,19 @@ export function normalizeQuery(query) {
     const rarity = Array.isArray(stored.rarity) && stored.rarity.length
         ? stored.rarity.filter((token) => RARITIES.includes(token))
         : [...DEFAULT_QUERY.rarity];
+    // **null is the curated set; an array is this shelf's own list, and `[]` is a list
+    // with nothing on it.** Those are three states, not two: a GM who has switched to a
+    // custom list and not yet dropped a pack on it has a shelf that draws nothing, and
+    // silently falling back to the curated set there would stock a shady fence from the
+    // world's ordinary content -- the one thing they were trying to avoid.
+    const sources = Array.isArray(stored.sources)
+        ? [...new Set(stored.sources.filter((id) => typeof id === 'string' && id))]
+        : null;
     const min = Number(stored.priceGp?.min);
     const max = Number(stored.priceGp?.max);
     return {
         subtypes,
+        sources,
         rarity: rarity.length ? rarity : [...DEFAULT_QUERY.rarity],
         // **`max: null` is "no ceiling", and it has to be null rather than Infinity.**
         // A stored query is a document flag, and `JSON.stringify(Infinity)` is `null`
@@ -100,6 +178,10 @@ export function normalizeQuery(query) {
 export async function queryStock(query, limit = 200) {
     if (!hasQuery()) return [];
     const filter = normalizeQuery(query);
+    // A custom list with nothing on it draws nothing, and says so here rather than
+    // reaching the hub -- `sources: []` there is "no sources configured for type",
+    // which is a warning about Blacksmith's settings for a state that is ours.
+    if (filter.sources?.length === 0) return [];
     try {
         return await _api().query({
             type: 'Item',
@@ -113,7 +195,8 @@ export async function queryStock(query, limit = 200) {
             // A shelf sells things, and a thing with no price cannot be sold. Merchant's
             // own giveaways are a flag on an item it owns, not an absent price.
             includeUnpriced: false,
-            sources: null,
+            // null asks for the curated set, which is the hub's own default.
+            sources: filter.sources,
             limit: Math.max(1, Math.trunc(Number(limit)) || 200)
         });
     } catch (error) {

@@ -298,6 +298,28 @@
 }
 .merchant-config-inventory-name { font-size: .86rem; }
 
+/* --- A shelf's own compendium list ------------------------------------------ */
+/* The two modes read as one control with two states, not as two buttons that each do
+   something: they are the same chips the kind and rarity filters use, because this is the
+   same kind of answer. */
+.merchant-config-source-mode { margin-bottom: 6px; }
+/* The package under the pack name, quiet: "Burden of Knowledge" tells you which module a
+   pack called "Injuries" came from, and two packs of that name is exactly when you need
+   it. Inline rather than a second row, so a list of six stays six lines. */
+.merchant-config-source-pkg { margin-left: 6px; color: var(--blacksmith-tool-text-muted); font-size: .62rem; }
+/* Waiting on the hub, or gone. Both say why on hover; neither is a reason to hide the row,
+   because the GM put that pack there on purpose. */
+.merchant-config-source-flag {
+    display: inline-flex; gap: 4px; align-items: center;
+    padding: 1px 7px; border: 1px solid color-mix(in srgb, #b7791f 45%, var(--blacksmith-tool-divider));
+    border-radius: 999px; color: color-mix(in srgb, #b7791f 70%, var(--blacksmith-tool-text));
+    font-size: .6rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+}
+.merchant-config-source-flag.is-missing {
+    border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider));
+    color: color-mix(in srgb, #8c2f22 70%, var(--blacksmith-tool-text));
+}
+
 /* The type and count under the name, on one line, never wrapping mid-phrase. */
 
 /* Roll table rows: name on the left, its controls on the right, what it will do

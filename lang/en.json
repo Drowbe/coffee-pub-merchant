@@ -126,7 +126,7 @@
             "drawTooltip": "How many items to take from this table. {when}",
             "newStock": "New Stock",
             "source": "Source",
-            "queryFilter": "Configured Compendiums",
+            "queryFilter": "What To Draw",
             "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
             "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables.",
             "priceRange": "Price",
@@ -144,7 +144,21 @@
             "illustrationHint": "A picture of the place itself, shown behind the shop card, and a tint washed over it. Clear either to remove it.",
             "tint": "Shop tint — a colour for this shop’s card",
             "tintPlaceholder": "No tint",
-            "tintClear": "Remove the tint"
+            "tintClear": "Remove the tint",
+            "whichCompendiums": "Which Compendiums",
+            "curatedSet": "Curated Set",
+            "customSet": "This Shelf’s Own List",
+            "curatedTooltip": "Draw from the compendiums configured in Blacksmith — the ones this world officially uses",
+            "customTooltip": "Draw only from compendiums you drop here, whether or not they are curated",
+            "curatedHint": "Drawn from the item compendiums configured in Blacksmith. Switch to a list of this shelf’s own to use packs the world does not otherwise search.",
+            "dropCompendium": "Drop a compendium here — or anything from one — to draw from it",
+            "dropAnotherCompendium": "Drop another compendium to add it",
+            "removeSourceTooltip": "Take this compendium off the list",
+            "sourceMissing": "Gone",
+            "sourceMissingTooltip": "This compendium is no longer installed. Nothing is drawn from it.",
+            "sourceUncurated": "Waiting",
+            "sourceUncuratedTooltip": "Not in Blacksmith’s curated set. Blacksmith does not yet draw from an uncurated pack, so this one is listed but not stocked from — add it to Blacksmith’s item compendiums to use it today.",
+            "worldItems": "World items"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -198,7 +212,10 @@
             "queryEmpty": "Nothing installed matches what {inventory} asks for. Widen its kinds, rarities or price range.",
             "merged": "Folded {count} duplicate row(s) together.",
             "nothingToMerge": "Nothing on that inventory is duplicated.",
-            "mergeFailed": "Could not merge those rows."
+            "mergeFailed": "Could not merge those rows.",
+            "compendiumNotAdded": "That is not a compendium, or it is already on the list.",
+            "compendiumAddFailed": "Could not change this shelf’s compendiums.",
+            "querySourcesUnusable": "{inventory} draws from its own list of compendiums, and none of them can be drawn from yet — the list is empty, or every pack on it is outside Blacksmith’s curated set."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
@@ -416,9 +433,9 @@
         },
         "source": {
             "table": "Roll Tables",
-            "query": "Configured Compendiums",
+            "query": "Curated Compendiums",
             "manual": "Manual Only — Stocked By Hand",
-            "both": "Roll Tables, then Configured Compendiums"
+            "both": "Roll Tables, then Curated Compendiums"
         }
     }
 }

@@ -571,6 +571,45 @@ for (const hour of [0, 6, 12, 18, 23]) {
 assert.strictEqual(isScheduledOpen({ open: 0, close: 23 }, 23), false, 'the last hour is genuinely outside 0-23');
 console.log('ok  a whole-day schedule is open at every hour');
 
+// --- which compendiums a shelf draws from ---------------------------------
+// **Three states, not two**, and conflating any pair of them stocks a shop from content
+// the GM told it not to use.
+{
+    // Absent is the curated set: the packs configured in Blacksmith, which is what every
+    // other Coffee Pub module matches against.
+    assert.strictEqual(Q.normalizeQuery({}).sources, null, 'no list means the curated set');
+    assert.strictEqual(Q.normalizeQuery({ sources: 'bok.items' }).sources, null,
+        'and so does junk, rather than a list of one letter at a time');
+    assert.strictEqual(Q.DEFAULT_QUERY.sources, null, 'which is also the default');
+
+    // An empty list is a custom list nobody has filled yet. It must NOT read as curated:
+    // a shady fence whose list has just been emptied would otherwise quietly restock
+    // itself from the world's ordinary content.
+    assert.deepStrictEqual(Q.normalizeQuery({ sources: [] }).sources, [],
+        'an empty list stays an empty list');
+
+    assert.deepStrictEqual(Q.normalizeQuery({ sources: ['a.b', 'a.b', '', null, 'c.d'] }).sources,
+        ['a.b', 'c.d'], 'duplicates and blanks come out, order stays');
+}
+console.log('ok  a shelf draws from the curated set, or from its own list, never both');
+
+// --- a pack id out of a drop ----------------------------------------------
+// Two payloads mean the same thing to a person: the pack itself, and anything dragged
+// out of it. The second matters more than it looks -- finding the pack you want by
+// finding a thing in it is how anybody actually browses.
+{
+    assert.strictEqual(Q.packIdFromDrop({ type: 'Compendium', collection: 'bok.items' }), 'bok.items',
+        'a compendium dragged from the sidebar');
+    assert.strictEqual(Q.packIdFromDrop({ type: 'Item', uuid: 'Compendium.bok.items.Item.abc123' }), 'bok.items',
+        'an item dragged out of one names its pack');
+    assert.strictEqual(Q.packIdFromDrop({ type: 'Item', uuid: 'Item.abc123' }), null,
+        'an item from the sidebar is not a compendium');
+    assert.strictEqual(Q.packIdFromDrop({ type: 'Actor', uuid: 'Actor.xyz' }), null);
+    assert.strictEqual(Q.packIdFromDrop(null), null);
+    assert.strictEqual(Q.packIdFromDrop({}), null);
+}
+console.log('ok  a drop names a compendium, or it names nothing');
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------

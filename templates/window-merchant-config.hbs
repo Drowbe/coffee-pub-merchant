@@ -465,6 +465,72 @@
                             {{/if}}
                         {{/if}}
                             {{#if isQuery}}
+                                {{!-- **Which compendiums, before what to take from them.**
+                                      Curated or custom, never both: the curated set is the
+                                      world's answer to "what content do we use", and a shop
+                                      reaching outside it is saying something different
+                                      rather than something extra. --}}
+                                <div class="merchant-config-inv-group">
+                                    <h4>{{localize "coffee-pub-merchant.config.whichCompendiums"}}</h4>
+                                    <div class="merchant-config-chips merchant-config-source-mode">
+                                        <button type="button" class="merchant-config-chip{{#unless isCustomSources}} is-on{{/unless}}"
+                                                data-action="useCuratedSources" data-inventory-id="{{id}}"
+                                                data-tooltip="{{localize "coffee-pub-merchant.config.curatedTooltip"}}">
+                                            <span><i class="fa-solid fa-check-double"></i> {{localize "coffee-pub-merchant.config.curatedSet"}}</span>
+                                        </button>
+                                        <button type="button" class="merchant-config-chip{{#if isCustomSources}} is-on{{/if}}"
+                                                data-action="useCustomSources" data-inventory-id="{{id}}"
+                                                data-tooltip="{{localize "coffee-pub-merchant.config.customTooltip"}}">
+                                            <span><i class="fa-solid fa-list-check"></i> {{localize "coffee-pub-merchant.config.customSet"}}</span>
+                                        </button>
+                                    </div>
+
+                                    {{#if isCustomSources}}
+                                        {{#if sourceList.length}}
+                                            <div class="merchant-config-grid">
+                                                {{#each sourceList}}
+                                                    <div class="merchant-config-row merchant-config-row-inline merchant-config-table{{#if missing}} is-off{{/if}}">
+                                                        <span class="merchant-config-label merchant-config-table-name"
+                                                              data-tooltip="{{id}}">
+                                                            <i class="fa-solid fa-book-atlas"></i> {{label}}
+                                                            {{#if package}}<small class="merchant-config-source-pkg">{{package}}</small>{{/if}}
+                                                        </span>
+                                                        <div class="merchant-config-table-controls">
+                                                            {{#if missing}}
+                                                                <span class="merchant-config-source-flag is-missing"
+                                                                      data-tooltip="{{localize "coffee-pub-merchant.config.sourceMissingTooltip"}}">
+                                                                    <i class="fa-solid fa-triangle-exclamation"></i> {{localize "coffee-pub-merchant.config.sourceMissing"}}
+                                                                </span>
+                                                            {{else if uncurated}}
+                                                                {{!-- Marked rather than hidden: the hub filters an
+                                                                      uncurated source out of a query, so this pack is
+                                                                      listed and not yet drawn from. A control that
+                                                                      cannot act says why. --}}
+                                                                <span class="merchant-config-source-flag"
+                                                                      data-tooltip="{{localize "coffee-pub-merchant.config.sourceUncuratedTooltip"}}">
+                                                                    <i class="fa-solid fa-hourglass-half"></i> {{localize "coffee-pub-merchant.config.sourceUncurated"}}
+                                                                </span>
+                                                            {{/if}}
+                                                            <button type="button" class="merchant-config-icon-btn merchant-config-remove"
+                                                                    data-action="removeInventorySource" data-inventory-id="{{../id}}"
+                                                                    data-pack-id="{{id}}"
+                                                                    data-tooltip="{{localize "coffee-pub-merchant.config.removeSourceTooltip"}}">
+                                                                <i class="fa-solid fa-xmark"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                {{/each}}
+                                            </div>
+                                        {{/if}}
+                                        <div class="merchant-config-drop" data-drop-source="{{id}}">
+                                            <i class="fa-solid fa-book-atlas"></i>
+                                            {{#if sourceList.length}}{{localize "coffee-pub-merchant.config.dropAnotherCompendium"}}{{else}}{{localize "coffee-pub-merchant.config.dropCompendium"}}{{/if}}
+                                        </div>
+                                    {{else}}
+                                        <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.curatedHint"}}</small>
+                                    {{/if}}
+                                </div>
+
                                 <div class="merchant-config-inv-group">
                                     <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
                                     {{!-- Two ends of one range, the same control the

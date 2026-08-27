@@ -21,40 +21,34 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Per-shop compendium picks](#1-per-shop-compendium-picks) | Stocking | S | Ready to build |
-| 2 | [Open a shop from a Blacksmith pin](#2-open-a-shop-from-a-blacksmith-pin) | Ways in | S | Needs the pin API |
-| 3 | [A canvas region as the shop](#3-a-canvas-region-as-the-shop) | Ways in | M | Design open |
-| 4 | [A full-screen shop](#4-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
-| 5 | [Canvas marker for merchant tokens](#5-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
-| 6 | [Catalogue mode](#6-catalogue-mode) | Ways in | L | Fiction decisions first |
+| 1 | [Open a shop from a Blacksmith pin](#1-open-a-shop-from-a-blacksmith-pin) | Ways in | S | Needs the pin API |
+| 2 | [A canvas region as the shop](#2-a-canvas-region-as-the-shop) | Ways in | M | Design open |
+| 3 | [A full-screen shop](#3-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
+| 4 | [Canvas marker for merchant tokens](#4-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
+| 5 | [Catalogue mode](#5-catalogue-mode) | Ways in | L | Fiction decisions first |
 
-**1–3 were asked for at the table** (play session, 2026-08-27) and are ranked by what they cost against what
-they unblock. **4–6 are recorded ideas**, each parked on something that has to be settled before code:
-two of them on a conversation with Blacksmith, one on a question about the fiction.
+**1–2 were asked for at the table** (play session, 2026-08-27) and are ranked by what they cost against
+what they unblock; the third of that set, per-shop compendium picks, shipped in 13.1.0. **3–5 are recorded
+ideas**, each parked on something that has to be settled before code: two of them on a conversation with
+Blacksmith, one on a question about the fiction.
+
+**One open ask with Blacksmith**, from the shipped work: `compendiums.query` filters a requested source
+against the curated set, so a shelf naming an uncurated pack has it silently dropped. Merchant marks those
+rows *Waiting* and refuses the draw rather than reporting an empty query. Recorded with what to delete in
+`architecture/architecture-merchant.md` §11.
 
 [*Considered — not scheduled*](#considered--not-scheduled) below is a record of declines, not a backlog.
 
 ---
 
-## 1. Per-shop compendium picks
-
-**Category:** Stocking · **Size:** S · **Ready to build**
-
-A query shelf draws from the sources configured in Blacksmith, world-wide. A GM should be able to name
-specific packs for *this* shop on top of that: Blacksmith's list stays the default, and a shop that needs a
-narrower or an extra pack should not have to change the world's search set to get one.
-
-`compendiums.query` already takes `sources` and already defaults it to the GM's configured set, so this is
-a field on the inventory's query config and a picker for it — the drawing half needs no change.
-
-## 2. Open a shop from a Blacksmith pin
+## 1. Open a shop from a Blacksmith pin
 
 **Category:** Ways in · **Size:** S · **Needs the pin API**
 
 Drop a pin, open that merchant. The shop already opens for a token uuid, so the work is the binding rather
 than the window: which merchant a pin names, and what happens when it names one that has been deleted.
 
-## 3. A canvas region as the shop
+## 2. A canvas region as the shop
 
 **Category:** Ways in · **Size:** M · **Design open**
 
@@ -67,7 +61,7 @@ is explicit that a shop is what stands in the world), and proximity has never ma
 is somebody you are standing in front of. Settle both before building: what a region-shop *is* when nobody
 is standing in it, and whether entering opens the window or only offers to.
 
-## 4. A full-screen shop
+## 3. A full-screen shop
 
 **Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
@@ -107,7 +101,7 @@ One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 a
 it means "un-minimize"; a subclass overriding it would break Foundry's own minimise. `expand`, or `theatre`
 if the presentation connotation is wanted.
 
-## 5. Canvas marker for merchant tokens
+## 4. Canvas marker for merchant tokens
 
 **Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
@@ -139,7 +133,7 @@ Things to settle before building it, none of them obvious:
 That last point is the reason this is recorded rather than started: the honest first step is a conversation
 with Blacksmith, not a sprite.
 
-## 6. Catalogue mode
+## 5. Catalogue mode
 
 **Category:** Ways in · **Size:** L · **Fiction decisions first**
 
@@ -151,8 +145,8 @@ Worth recording now because it pulls against two things the current design assum
 
 - **Interaction is token-shaped.** A shop opens by double-clicking a placed token. A catalogue has no token,
   so it needs another way in — a journal link, a chat command, a menubar entry, or a scene-independent
-  browser listing every merchant flagged as catalogue-available. Overlaps [#2](#2-open-a-shop-from-a-blacksmith-pin)
-  and [#3](#3-a-canvas-region-as-the-shop): all three are the same question about ways in, and whichever
+  browser listing every merchant flagged as catalogue-available. Overlaps [#2](#1-open-a-shop-from-a-blacksmith-pin)
+  and [#3](#2-a-canvas-region-as-the-shop): all three are the same question about ways in, and whichever
   lands first should answer it for the others.
 - **Proximity is currently a non-issue** because a shopkeeper is someone you are standing in front of. A
   catalogue makes distance the point, which reopens the gating question that was deliberately closed.

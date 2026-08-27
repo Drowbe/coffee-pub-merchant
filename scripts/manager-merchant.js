@@ -22,7 +22,7 @@ import { notify } from './utility-feedback.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
-import { hasQuery, queryStock } from './utility-compendium.js';
+import { hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources } from './utility-compendium.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -954,6 +954,71 @@ export class MerchantManager {
         return Math.min(MAX_TABLE_ROLLS, Math.max(1, Math.trunc(Number(value) || 1)));
     }
 
+    /**
+     * Which compendiums a query shelf draws from.
+     *
+     * **Curated or custom, never both.** The curated set is the world's answer to "what
+     * content do we use" -- every Coffee Pub module matches against it -- and a shop
+     * reaching outside it is saying something different, not something extra. A shady
+     * fence drawing on a pack of cursed junk is not asking for that pack to become part
+     * of the world's item matching, and a union of the two would be exactly that with an
+     * extra step.
+     *
+     * `null` is curated. An array is this shelf's own list, and an **empty** array is a
+     * custom list nobody has put a pack on yet -- a shelf that draws nothing and says so,
+     * rather than one that quietly falls back to the set it was told not to use.
+     */
+    static async setInventorySources(actor, inventoryId, sources) {
+        const inventory = actor?.items?.get(inventoryId);
+        const config = this.getInventoryConfig(inventory);
+        if (!config) return null;
+        const query = { ...normalizeQuery(config.query), sources: sources === null ? null : [...sources] };
+        return this.setInventoryConfig(actor, inventoryId, { query });
+    }
+
+    /** Read the list as stored: null for curated, an array for a custom list. */
+    static getInventorySources(inventory) {
+        return normalizeQuery(this.getInventoryConfig(inventory)?.query).sources;
+    }
+
+    /**
+     * Add a compendium to a shelf's own list, from a drop.
+     *
+     * Dropping the first one is what switches the shelf off the curated set: a GM
+     * dragging a pack onto a shelf has said which packs they mean, and making them throw
+     * a switch first would be a step that exists only to be forgotten.
+     */
+    static async addInventorySource(actor, inventoryId, packId) {
+        if (!game.user.isGM || !packId) return null;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return null;
+        const current = this.getInventorySources(inventory) ?? [];
+        if (current.includes(packId)) return null;
+        return this.setInventorySources(actor, inventoryId, [...current, packId]);
+    }
+
+    /**
+     * Take one off the list.
+     *
+     * Removing the last one leaves an **empty custom list**, not the curated set. Emptying
+     * a list is not the same gesture as abandoning it, and a shelf that silently went back
+     * to drawing world-wide content the moment its last pack came off would be the one
+     * surprise this whole feature exists to prevent.
+     */
+    static async removeInventorySource(actor, inventoryId, packId) {
+        if (!game.user.isGM || !packId) return null;
+        const inventory = actor?.items?.get(inventoryId);
+        if (!this.getInventoryConfig(inventory)) return null;
+        const current = this.getInventorySources(inventory);
+        if (!current || !current.includes(packId)) return null;
+        return this.setInventorySources(actor, inventoryId, current.filter((id) => id !== packId));
+    }
+
+    /** Add a compendium from whatever Foundry put on the drop. */
+    static async addInventorySourceFromDrop(actor, inventoryId, data) {
+        return this.addInventorySource(actor, inventoryId, packIdFromDrop(data));
+    }
+
     static async addInventoryTable(actor, inventoryId, uuid) {
         if (!uuid) return null;
         const inventory = actor?.items?.get(inventoryId);
@@ -1234,6 +1299,18 @@ export class MerchantManager {
         if (!hasQuery()) {
             console.warn(`${MODULE.TITLE} | ${inventory.name} stocks by query, but this Blacksmith has none.`);
             notify.warn(game.i18n.localize('coffee-pub-merchant.notify.queryUnavailable'));
+            return 0;
+        }
+
+        // **A shelf that cannot draw says so, rather than reporting an empty query.**
+        // Two states reach here looking identical from the outside: a custom list nobody
+        // has dropped a pack on, and one whose every pack sits outside the curated set --
+        // which the hub filters out of a query, so the scan is real and the answer is
+        // always nothing. "Found nothing matching" would be true and useless; the GM
+        // needs to know it is the list, not the filter.
+        const wanted = normalizeQuery(config.query).sources;
+        if (wanted && !wanted.some((id) => id === 'world' || curatedSources().includes(id))) {
+            notify.warn(game.i18n.format('coffee-pub-merchant.notify.querySourcesUnusable', { inventory: inventory.name }));
             return 0;
         }
 
