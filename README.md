@@ -60,17 +60,16 @@ The money comes from the player who is shopping. There is no separate payer and 
 
 ## Known gaps
 
-- **No localisation.** Every string is hardcoded English. See `documentation/TODO.md`.
-- **The GM cannot hand something over for free** from the shop window; drag it from the merchant's sheet instead.
+- **The GM cannot hand something over for free** from the shop window; drag it from the merchant's sheet instead. A shop *can* price something at zero — type `0` into a shelf price and the row reads **Free**.
 - **One seam waits on Blacksmith**: the request envelope does not yet forward the verified caller, so Merchant asserts it in its own payload. Documented in `documentation/architecture/architecture-merchant.md` § *Known seams*. The till is no longer among them — it goes through `inventory.setCurrency` and takes the lock.
 
 ## Documentation
 
 - `documentation/architecture/` — how the implemented systems work. **Start here.**
 - `CONTRIBUTING.md` — the conventions this codebase follows, and why
-- `documentation/plans/` — intent and the reasoning behind decisions
 - `documentation/testing/` — verification checklists
-- `documentation/TODO.md` — open items and patterns to avoid
+- `documentation/TODO.md` — what is still open, ranked
+- `documentation/DECISIONS-TO-REVIEW.md` — decisions taken unattended, and their review
 - `CHANGELOG.md` — what shipped, and the reasoning behind it
 
 ## License

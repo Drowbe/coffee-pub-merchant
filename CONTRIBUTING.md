@@ -3,9 +3,12 @@
 The conventions this codebase actually follows. They are not stylistic preferences — each one is here
 because breaking it has cost real time, in this module or in Curator next door.
 
-Read `documentation/architecture/architecture-merchant.md` first for what the system does.
-Read `documentation/TODO.md` § *Inherited lessons* before writing anything. It is the shortest document
-here and the highest-value one.
+Read `documentation/architecture/architecture-merchant.md` first for what the system does, and this file
+before writing anything. `documentation/TODO.md` is what is still open, and nothing else.
+
+Before touching the transaction model, read `documentation/DECISIONS-TO-REVIEW.md`. Its first entry is out
+of date in one respect: `exchange` shipped with both `copy` and `preserveEmptySource`, so buying is one
+atomic call again and the grant-then-charge failure it describes cannot happen.
 
 ---
 
@@ -157,16 +160,47 @@ out of scope; only opening the window catches that. Tests here are a floor, not 
   paragraphs are fine and normal here.
 - Update `documentation/architecture/architecture-merchant.md` in the **same commit** as a change to how
   the system works.
-- `documentation/TODO.md` holds what is open, what must not be repeated, and what was considered and not
-  scheduled. Put a date on anything that will expire.
+- `documentation/TODO.md` holds what is open, ranked, and nothing else. Conventions live here; finished
+  work lives in the changelog and the architecture doc.
+- **Put a date on any claim about what has been verified, and check the git log before repeating one.** An
+  earlier TODO said nothing since `beb8f41` had been run in Foundry. True when written, never retired when
+  it stopped being true, and then repeated as fact in a handoff review against a page of evidence to the
+  contrary.
 
 ---
 
-## 9. Blacksmith is a relationship, not a dependency
+## 9. Nothing may read `game` at module scope
 
-Four helpers are queued for extraction to Blacksmith, each with two consumers agreeing line-for-line
-(`documentation/plans/plan-extraction.md`). **Two consumers is the bar** — one is a guess about what is
-general, two that agree is evidence.
+Foundry evaluates module scripts before `game` exists, and **ESM caches a failed evaluation** — so the
+throw does not retry on the next call, it disables the module for the rest of the session. The symptom is
+one `Cannot read properties of undefined` followed by a module that simply is not there, which reads like a
+load-order problem and is not.
+
+Three incidents so far: resolving a base class from `module.api`, a `const METHOD_LABELS = { ... }` of
+translated strings, and a `static SELL_SORTS = [ ... ]` class field. **None of them looked like top-level
+code**, which is why the check that enforces this walks a real scope stack rather than indentation.
+
+The rule: **a table holds keys, a function resolves them.** Check 6 in `tests/test-i18n.mjs`.
+
+---
+
+## 10. Two Blacksmith traps that look like success
+
+Both render, both report a value, and neither errors.
+
+- **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
+  quantity split still draws and still reads back a value — it just never updates.
+- **`--blacksmith-tool-background` is a gradient.** Used as a `color` it silently drops the declaration,
+  and renders as an invisible label on a dark bar.
+
+---
+
+## 11. Blacksmith is a relationship, not a dependency
+
+**Two consumers is the bar** for handing something to Blacksmith — one is a guess about what is general,
+two that agree is evidence. An integration is a relationship rather than a file: somebody has to own the
+ask, take the answer, and delete our side of it when it lands. Four asks went out on 2026-08-19 and all
+four came back inside a day; where nobody owns that loop, workarounds quietly become the design.
 
 When something in Blacksmith is wrong, say so with the file, the line, and the reasoning, and propose the
 smallest change. Do not fork it and do not build a mitigation that becomes permanent. Two open asks are

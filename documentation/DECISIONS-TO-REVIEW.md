@@ -13,7 +13,7 @@ and extended in a live world over the following days, which is a stronger confir
 question would have been. Each entry says which, and an entry settled by use names what confirmed it.
 
 An earlier version of this header said none of it had been run in Foundry. That was true when written and
-false within days; see `TODO.md` for why that mattered.
+false within days; see `CONTRIBUTING.md` §8 for why that mattered.
 
 ---
 
@@ -103,7 +103,7 @@ item, or on next restock does it become 5 again?"* The answer built from that is
 clamps par on both write and read, so a hand-set target can never exceed what the shelf will hold.
 
 The remaining gap — temporarily dropping stock *without* moving par — is still not expressible, and is
-recorded under *Considered, not scheduled* in `TODO.md` rather than here.
+recorded under *Considered — not scheduled* in `TODO.md` rather than here.
 
 Restocking needs a target, and the target cannot be recovered from a shelf that has been sold down.
 

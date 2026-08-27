@@ -6,11 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [unrleased]
+
 
 ## [13.1.1] - Quick Fix
-
-
-
 
 ## [13.1.0] - 2026-08-24
 
@@ -33,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Candidates are **over-fetched and shuffled** (Fisher-Yates, not a comparator returning random signs, which is not a shuffle). The query answers in scan order, so taking the first N would give every shop in the world the same opening inventory from the same pack.
 
 ### Changed
+- **`documentation/TODO.md` is what is open, ranked, and nothing else.** It had grown a second job: eleven engineering rules under *Standing rules — inherited lessons*, five of which also appeared verbatim two sections above under *Nits and known gaps*, plus an empty *Couplings and gaps* heading. Those rules already had a home — `CONTRIBUTING.md` carried most of them — so the file now opens with a **ranked rollup table** and carries six detailed entries behind it, each with a category, a size and what it is waiting on. The three rules that were genuinely missing moved to `CONTRIBUTING.md` as §9 (nothing reads `game` at module scope) and §10 (the two Blacksmith traps that look like success), and the expiry rule now carries the incident that earned it.
+- **Five dangling documentation pointers fixed.** `CONTRIBUTING.md` opened by telling the reader to go and read a TODO section that is now in `CONTRIBUTING.md`; §9 cited `plan-extraction.md`, which does not exist; the architecture doc and `DECISIONS-TO-REVIEW.md` both pointed at *Inherited lessons*; and `README.md` still listed `documentation/plans/` and claimed **No localisation** under Known gaps, 330 keys after that stopped being true.
 - **One table can be rolled up to fifty times, not twenty** (`scripts/const.js`, `scripts/manager-merchant.js`). The old ceiling was set when a shelf carried twenty-five products, and it bit harder than it looked: a draw brings *new products only* and coalesces repeats within itself, so twenty rolls on a thirty-row table yields well under twenty rows — a single-table shelf could not reach a target of fifty and had no way to ask. `MAX_TABLE_ROLLS` now matches `DEFAULT_MAX_PRODUCTS`, because the two are the same question from opposite ends. Not higher: each roll is its own await, and a ceiling nobody will use invites a mistyped 90.
 - **Blacksmith is pinned to 13.19.2**, up from 13.19.0 (`module.json`, `scripts/merchant.js`, `README.md`). The compendium-stocked shelves and the “Buying as” picker run on `compendiums.query` and `dialog.pickActor`, neither of which exists before that. The query half feature-detects and falls back to roll tables, so on an older hub it fails *quietly* — which is the worse failure for a first run, and the reason the manifest states it rather than leaving it to be discovered.
 - **The architecture document is current again** (`documentation/architecture/architecture-merchant.md`). It described the illustration as a `::before` at low opacity — the treatment that was rejected — and still claimed a schema pass stamped par onto old rows, after every migration was deleted. It now also covers the four stock sources, `canRestock`, folding duplicate rows, the tint, and the shop window's folds, sort and rarity.

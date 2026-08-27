@@ -1,183 +1,75 @@
 # TODO
 
-Shipped work lives in `CHANGELOG.md`. This file is for what is still open, what must not be repeated, and
-what has been considered but not scheduled. It is ordered by severity: the top of the file is what to do
-next, and nothing below *Standing rules* is work.
+**What is open, ranked.** Nothing else belongs here.
 
-**Where things go:** `documentation/architecture/` describes implemented systems and `documentation/testing/`
-holds verification checklists. A plan lives in `documentation/plans/` only while it is being built — the
-directory is empty between plans, and that is the correct state for it.
-
-`architecture/architecture-merchant.md` is the map: what the system does and how the pieces fit. Read it
-before changing anything, and change it in the same commit as the thing it describes. A map that lies is
-worse than no map.
-
-**When something is finished, log it and then delete it from here.** Finished work lives in the architecture
-document, the API documentation and `CHANGELOG.md` — those get updated in the same commit as the change. An
-implemented plan is **deleted**, not marked done. A completed entry in this file is **deleted** once it is
-logged where it belongs. This file is only what is still open; anything else in it is a second copy waiting
-to go stale.
-
-Two things to read before changing anything load-bearing:
-
-- **`DECISIONS-TO-REVIEW.md`**, before touching the transaction model. Its first entry is out of date in one
-  respect: `exchange` shipped with both `copy` and `preserveEmptySource`, so buying is one atomic call again
-  and the grant-then-charge failure it describes cannot happen.
-- **`testing/testing-merchant.md`** is the checklist, and it is current. Every feature here has been run in
-  Foundry as it was built — the module is developed against a live world, and most of what is in `CHANGELOG`
-  arrived as a correction to something seen on screen. What `tests/` adds is the half a table cannot check
-  by looking: making change across 5,151 purse/price combinations, stock policy, the restock cadence, the
-  lock, the trading-hours derivation, stock depth, and the search filter.
-
----
-
-## At a glance
-
-| Item | Notes |
+| Looking for | It lives in |
 |---|---|
-| Shop setup: pick specific compendiums | In addition to Blacksmith's configured sources |
-| Canvas region as the physical shop | A place on the map, not only a token |
-| Open a shop from a Blacksmith pin | |
+| What shipped, and why | `CHANGELOG.md` |
+| How the system works | `architecture/architecture-merchant.md` |
+| The conventions this codebase follows | `../CONTRIBUTING.md` |
+| What to verify at a table | `testing/testing-merchant.md` |
+| Decisions taken unattended, and their review | `DECISIONS-TO-REVIEW.md` |
 
-*Standing rules*, *Ideas* and *Considered* below are not work and are not in this table.
-
----
-
-## Play session (2026-08-27)
-
-- **Shop setup should let a GM choose specific compendiums**, on top of the sources already configured in Blacksmith. Blacksmith's list stays the default; a shop that needs a narrower or extra pack should not have to change the world-wide search.
-
-- **A region on the canvas should be able to stand as the physical shop.** Not only a merchant token: a stall, a market square, a room. Opening the shop from being in that place is the point.
-
-- **A Blacksmith pin should be able to trigger a shop.** Drop a pin, open that merchant.
+A plan lives in `plans/` only while it is being built; the directory is empty between plans, and that is
+the correct state for it. **When something is finished, log it where it belongs and delete it from here** —
+an entry left behind is a second copy waiting to disagree with the first. **Put a date on anything that
+will expire.**
 
 ---
 
-## 1. Couplings and gaps
+## Rollup
 
-## 2. Nits and known gaps
+| # | Item | Category | Size | State |
+|---|---|---|---|---|
+| 1 | [Per-shop compendium picks](#1-per-shop-compendium-picks) | Stocking | S | Ready to build |
+| 2 | [Open a shop from a Blacksmith pin](#2-open-a-shop-from-a-blacksmith-pin) | Ways in | S | Needs the pin API |
+| 3 | [A canvas region as the shop](#3-a-canvas-region-as-the-shop) | Ways in | M | Design open |
+| 4 | [A full-screen shop](#4-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
+| 5 | [Canvas marker for merchant tokens](#5-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
+| 6 | [Catalogue mode](#6-catalogue-mode) | Ways in | L | Fiction decisions first |
 
-- **Check for a finished window before building one.** Merchant shipped its own compendium search and
-  deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
-  the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading
-  `api-compendiums.md`, finding `search()`, and treating a documented *primitive* as evidence that no
-  *feature* existed on top of it. It does not follow. Before building any window, check
-  `blacksmith.openWindow` for a registered id, `documentation/api/api-window.md` for the registry, and the
-  Blacksmith toolbar and menubar for something that already opens what you are about to write. This is a
-  different failure from forking a file — nothing was copied, a duplicate was simply invented — and the tell
-  is the same: two things doing one job, one of which nobody else maintains.
-- **Grepping a doc is not reading it, and this is the second time.** Merchant asked "is there a drop helper
-  in `api-inventory`?", searched the file for *drop* and *drag*, found nothing, and moved on. The answer was
-  correct and three unrelated rules in that same file were being broken: `registerTransientFlag` must be
-  called by whoever writes a flag to items, arrival flags belong in the `grantItem` call rather than a
-  follow-up `setFlag`, and `items` is an array so one leg per line batches nothing. None contain the word
-  "drop".
+**1–3 were asked for at the table** (play session, 2026-08-27) and are ranked by what they cost against what
+they unblock. **4–6 are recorded ideas**, each parked on something that has to be settled before code:
+two of them on a conversation with Blacksmith, one on a question about the fiction.
 
-  This is the compendium-search mistake in a different coat. There, `search()` was found and a *feature*
-  built on top of it was missed. Here, the absence of one keyword was read as the absence of guidance. Both
-  times the failure was treating a document as an index to query rather than a thing to read. **Read the
-  whole page for any API you call more than once**, and re-read it when the API ships something new — the
-  rules around `exchange` arrived in the same change as `exchange`.
-- **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
-  can never pick up anything landing later. Curator carried two forks — `ui-context-menu.js` and
-  `manager-hooks.js` — both with bugs already fixed upstream. To check: compare filenames against
-  `coffee-pub-blacksmith/scripts/`; a shared name is the tell.
-- **An integration is a relationship, not a file.** Somebody has to own the ask, take the answer, and delete
-  our side of it when each lands. Four asks went out on 2026-08-19 and all four came back inside a day; if
-  nobody owns that loop, workarounds quietly become the design.
-- **Put an expiry on any claim about what has been verified.** An earlier version of this file said nothing
-  since `beb8f41` had been run in Foundry. That was true when it was written, during two unattended
-  sessions, and was never retired when it stopped being true — after which it was repeated as fact in a
-  handoff review, against a page of evidence to the contrary. Check such a claim against the git log before
-  believing it, and date your own.
-- **Re-check documents after every await.** Anything writing to a Token, or to an Actor belonging to one,
-  must confirm it still exists *after* each await — a guard at the top of an async function proves nothing
-  ten awaits later. For a scheduled callback the check goes **inside** the timer, because the delay is
-  exactly the window in which the document is deleted. An unlinked token's Actor is synthetic and dies with
-  its token, so checking the Actor never catches it. Foundry reports this as
-  `undefined id [...] does not exist in the EmbeddedCollection`.
-- **A setting that hides a control must also refuse the request.** Hiding a button removes it from the
-  honest path only; the GM-side check is what makes a policy real. Applies to *disabled* as much as hidden:
-  out of stock is a refusal on the GM, not merely a greyed button.
-- **A control that cannot act should say why, not disappear.** An absent button reads as "this shop does not
-  do that"; a disabled one naming its reason reads as "not right now, and here is what would change it". It
-  also keeps the layout still on the day the missing thing arrives.
-- **`--blacksmith-tool-background` is a gradient.** Using it as a `color` silently drops the declaration and
-  renders as an invisible label on a dark bar.
-- **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
-  quantity split still renders and still reports a value, so the failure looks like success.
+[*Considered — not scheduled*](#considered--not-scheduled) below is a record of declines, not a backlog.
 
 ---
 
-## Standing rules — inherited lessons
+## 1. Per-shop compendium picks
 
-These cost Curator real time. They apply here identically and there is no reason to relearn them.
+**Category:** Stocking · **Size:** S · **Ready to build**
 
-- **Nothing may read `game` at module scope.** Foundry evaluates module scripts before `game` exists, and
-  **ESM caches a failed evaluation** — so the throw does not retry on the next call, it disables the module
-  for the rest of the session. The symptom is one `Cannot read properties of undefined` and then a module
-  that simply is not there, which reads like a load-order problem and is not.
+A query shelf draws from the sources configured in Blacksmith, world-wide. A GM should be able to name
+specific packs for *this* shop on top of that: Blacksmith's list stays the default, and a shop that needs a
+narrower or an extra pack should not have to change the world's search set to get one.
 
-  Three incidents so far: resolving a base class from `module.api`, a `const METHOD_LABELS = { ... }` of
-  translated strings, and a `static SELL_SORTS = [ ... ]` class field. **None of them looked like top-level
-  code** — which is why the check that enforces this walks a real scope stack rather than indentation.
-  The rule: **a table holds keys, a function resolves them.** Check 6 in `tests/test-i18n.mjs`.
+`compendiums.query` already takes `sources` and already defaults it to the GM's configured set, so this is
+a field on the inventory's query config and a picker for it — the drawing half needs no change.
 
-- **Check for a finished window before building one.** Merchant shipped its own compendium search and
-  deleted it the same day: Blacksmith already had one, better in every respect, and its result rows drag with
-  the `{ type, uuid }` payload our shelf drop targets already read. The mistake was reading
-  `api-compendiums.md`, finding `search()`, and treating a documented *primitive* as evidence that no
-  *feature* existed on top of it. It does not follow. Before building any window, check
-  `blacksmith.openWindow` for a registered id, `documentation/api/api-window.md` for the registry, and the
-  Blacksmith toolbar and menubar for something that already opens what you are about to write. This is a
-  different failure from forking a file — nothing was copied, a duplicate was simply invented — and the tell
-  is the same: two things doing one job, one of which nobody else maintains.
-- **Grepping a doc is not reading it, and this is the second time.** Merchant asked "is there a drop helper
-  in `api-inventory`?", searched the file for *drop* and *drag*, found nothing, and moved on. The answer was
-  correct and three unrelated rules in that same file were being broken: `registerTransientFlag` must be
-  called by whoever writes a flag to items, arrival flags belong in the `grantItem` call rather than a
-  follow-up `setFlag`, and `items` is an array so one leg per line batches nothing. None contain the word
-  "drop".
+## 2. Open a shop from a Blacksmith pin
 
-  This is the compendium-search mistake in a different coat. There, `search()` was found and a *feature*
-  built on top of it was missed. Here, the absence of one keyword was read as the absence of guidance. Both
-  times the failure was treating a document as an index to query rather than a thing to read. **Read the
-  whole page for any API you call more than once**, and re-read it when the API ships something new — the
-  rules around `exchange` arrived in the same change as `exchange`.
-- **Never fork a Blacksmith component.** A copy taken before a fix keeps the problem the hub has solved and
-  can never pick up anything landing later. Curator carried two forks — `ui-context-menu.js` and
-  `manager-hooks.js` — both with bugs already fixed upstream. To check: compare filenames against
-  `coffee-pub-blacksmith/scripts/`; a shared name is the tell.
-- **An integration is a relationship, not a file.** Somebody has to own the ask, take the answer, and delete
-  our side of it when each lands. Four asks went out on 2026-08-19 and all four came back inside a day; if
-  nobody owns that loop, workarounds quietly become the design.
-- **Put an expiry on any claim about what has been verified.** An earlier version of this file said nothing
-  since `beb8f41` had been run in Foundry. That was true when it was written, during two unattended
-  sessions, and was never retired when it stopped being true — after which it was repeated as fact in a
-  handoff review, against a page of evidence to the contrary. Check such a claim against the git log before
-  believing it, and date your own.
-- **Re-check documents after every await.** Anything writing to a Token, or to an Actor belonging to one,
-  must confirm it still exists *after* each await — a guard at the top of an async function proves nothing
-  ten awaits later. For a scheduled callback the check goes **inside** the timer, because the delay is
-  exactly the window in which the document is deleted. An unlinked token's Actor is synthetic and dies with
-  its token, so checking the Actor never catches it. Foundry reports this as
-  `undefined id [...] does not exist in the EmbeddedCollection`.
-- **A setting that hides a control must also refuse the request.** Hiding a button removes it from the
-  honest path only; the GM-side check is what makes a policy real. Applies to *disabled* as much as hidden:
-  out of stock is a refusal on the GM, not merely a greyed button.
-- **A control that cannot act should say why, not disappear.** An absent button reads as "this shop does not
-  do that"; a disabled one naming its reason reads as "not right now, and here is what would change it". It
-  also keeps the layout still on the day the missing thing arrives.
-- **`--blacksmith-tool-background` is a gradient.** Using it as a `color` silently drops the declaration and
-  renders as an invisible label on a dark bar.
-- **Embedded controls need `attach()` after their markup is in the document.** An unbound entity list or
-  quantity split still renders and still reports a value, so the failure looks like success.
+**Category:** Ways in · **Size:** S · **Needs the pin API**
 
----
+Drop a pin, open that merchant. The shop already opens for a token uuid, so the work is the binding rather
+than the window: which merchant a pin names, and what happens when it names one that has been deleted.
 
-## Ideas, not scheduled
+## 3. A canvas region as the shop
 
-### A full-screen shop
+**Category:** Ways in · **Size:** M · **Design open**
+
+A region should be able to stand as the physical shop — a stall, a market square, a room — not only a
+merchant token. **Opening the shop by being in that place is the point**, which is a different interaction
+from double-clicking a person.
+
+It reopens two things the current design closed deliberately: a shop is a token (§4 of the architecture doc
+is explicit that a shop is what stands in the world), and proximity has never mattered because a shopkeeper
+is somebody you are standing in front of. Settle both before building: what a region-shop *is* when nobody
+is standing in it, and whether entering opens the window or only offers to.
+
+## 4. A full-screen shop
+
+**Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
 Recorded 2026-08-24, discussed and deferred the same day. The shop fills the viewport, the illustration
 becomes the ground rather than a backdrop behind one card, and a shop without an illustration falls through
@@ -209,31 +101,15 @@ Four things settled in the discussion, so they do not have to be re-derived:
 geometry, staying clear of the sidebar and hotbar, z-index, escape to restore, surviving a viewport resize
 — is chrome, is identical for Squire and Minstrel, and is where the fiddly bugs live. Merchant owns what
 happens inside: an `is-expanded` class is all it needs to do columns and a heavier veil. So the honest first
-step here is a conversation with Blacksmith, not a stylesheet.
+step is a conversation with Blacksmith, not a stylesheet.
 
 One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 already has `maximize()` and
 it means "un-minimize"; a subclass overriding it would break Foundry's own minimise. `expand`, or `theatre`
 if the presentation connotation is wanted.
 
-### Catalogue mode
+## 5. Canvas marker for merchant tokens
 
-Shopping remotely — the party browses a merchant's stock without a token on the scene, and orders are
-fulfilled later or at a distance. A standing shop they can reach from anywhere rather than a place they walk
-to.
-
-Worth recording now because it pulls against two things the current design assumes:
-
-- **Interaction is token-shaped.** A shop opens by double-clicking a placed token. A catalogue has no token,
-  so it needs another way in — a journal link, a chat command, a menubar entry, or a scene-independent
-  browser listing every merchant flagged as catalogue-available.
-- **Proximity is currently a non-issue** because a shopkeeper is someone you are standing in front of. A
-  catalogue makes distance the point, which reopens the gating question that was deliberately closed.
-
-It also raises delivery: does an ordered item arrive immediately, at the next rest, or when the party reaches
-the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
-it is built.
-
-### Canvas marker for merchant tokens
+**Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
 A merchant token should be visibly a merchant, and visibly *what kind* of merchant, without anyone having to
 double-click it to find out. The shop kind already exists and already carries an icon
@@ -263,9 +139,33 @@ Things to settle before building it, none of them obvious:
 That last point is the reason this is recorded rather than started: the honest first step is a conversation
 with Blacksmith, not a sprite.
 
+## 6. Catalogue mode
+
+**Category:** Ways in · **Size:** L · **Fiction decisions first**
+
+Shopping remotely — the party browses a merchant's stock without a token on the scene, and orders are
+fulfilled later or at a distance. A standing shop they can reach from anywhere rather than a place they walk
+to.
+
+Worth recording now because it pulls against two things the current design assumes:
+
+- **Interaction is token-shaped.** A shop opens by double-clicking a placed token. A catalogue has no token,
+  so it needs another way in — a journal link, a chat command, a menubar entry, or a scene-independent
+  browser listing every merchant flagged as catalogue-available. Overlaps [#2](#2-open-a-shop-from-a-blacksmith-pin)
+  and [#3](#3-a-canvas-region-as-the-shop): all three are the same question about ways in, and whichever
+  lands first should answer it for the others.
+- **Proximity is currently a non-issue** because a shopkeeper is someone you are standing in front of. A
+  catalogue makes distance the point, which reopens the gating question that was deliberately closed.
+
+It also raises delivery: does an ordered item arrive immediately, at the next rest, or when the party reaches
+the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
+it is built.
+
 ---
 
-## Considered, not scheduled
+## Considered — not scheduled
+
+Declines, kept so they are not re-proposed from scratch. Not a backlog.
 
 - **Temporarily lowering a count without moving the restock target.** A GM editing a quantity in the shop
   window sets both, deliberately — one number, one meaning. If "the cart was raided but I still keep six"
@@ -279,10 +179,9 @@ with Blacksmith, not a sprite.
   predictable, and a GM who wants variety can put it in the table.
 - **Per-segment clears on the slate.** One control empties both segments. Dumping what you are selling while
   keeping what you are buying is per-line only.
-
-- **`api.worldClock` was evaluated and declined, 2026-08-21.** Their scheduler answers "tell me when the
-  world reaches a moment" — `dailyAt` for an hour of the day, `at` for an absolute time, with a `crossings`
-  count so a week-long rest fires once rather than seven times. It is well built and it is not what either of
+- **`api.worldClock`, evaluated and declined 2026-08-21.** Their scheduler answers "tell me when the world
+  reaches a moment" — `dailyAt` for an hour of the day, `at` for an absolute time, with a `crossings` count
+  so a week-long rest fires once rather than seven times. It is well built and it is not what either of
   Merchant's two clock needs actually is.
 
   **Trading hours need no scheduler at all.** `isOpen` is derived — it reads the schedule every time it is

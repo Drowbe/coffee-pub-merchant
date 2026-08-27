@@ -822,8 +822,8 @@ can never pick up anything landing later. To check: compare filenames against `c
 a shared name is the tell.
 
 **Read the whole page for any API you call more than once.** Grepping a doc for a keyword and concluding
-there is no guidance has produced two separate defects in this module — see `TODO.md` *Inherited lessons*,
-which is the shortest document here and the one most worth reading before writing anything.
+there is no guidance has produced two separate defects in this module — see `CONTRIBUTING.md` §3, which
+is the shortest document here and the one most worth reading before writing anything.
 
 ---
 
