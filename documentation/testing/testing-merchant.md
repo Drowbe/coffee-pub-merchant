@@ -1314,4 +1314,7 @@ level onto every existing row; it logs how many.
     and reopening Merchant Settings, and the shop window shows the same order. The top card's up
     chevron and the bottom card's down chevron are greyed rather than missing.
 160. Move an inventory past a **hidden** one: it moves one place, not two.
+161. **The shelves sit beside the Inventories card**, not inside it — one column of cards, evenly
+    spaced, no nested border. The Inventories card still carries Add Inventory, the count and the
+    stocking-rules summary; a shop with no inventories still shows the empty note there.
 

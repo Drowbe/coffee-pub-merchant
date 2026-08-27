@@ -225,12 +225,19 @@
                     <span class="merchant-config-depth-row">{{depthByRarity}}</span>
                     <span>{{localize "coffee-pub-merchant.config.depthWorldNote"}}</span>
                 </div>
+            {{else}}
+                <div class="merchant-config-empty">{{localize "coffee-pub-merchant.config.noInventories"}}</div>
+            {{/if}}
+        </section>
 
-                {{#each inventories}}
-                    {{!-- Each inventory is its own card with its own headings, so it
-                          reads like the shop window rather than like a row in a table
-                          that grew settings. --}}
-                    <div class="merchant-config-inv"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
+        {{!-- **The shelves are cards beside the Inventories card, not inside it.** The
+              nesting said nothing the position does not: a card in a card buys a second
+              border, a second background and eleven pixels of indent, and pays for them
+              with the width every row inside it has to fit in. --}}
+        {{#each inventories}}
+            {{!-- Each inventory is its own card with its own headings, so it reads like
+                  the shop window rather than like a row in a table that grew settings. --}}
+            <div class="merchant-config-inv"{{#if canRoll}} data-drop-table="{{id}}"{{/if}}>
 
                         {{!-- **The category is the heading; the name is content.** The
                               type is what this card *is* and cannot be changed, which
@@ -604,11 +611,7 @@
                             {{/if}}
                         </div>
 
-                    </div>
-                {{/each}}
-            {{else}}
-                <div class="merchant-config-empty">{{localize "coffee-pub-merchant.config.noInventories"}}</div>
-            {{/if}}
-        </section>
+            </div>
+        {{/each}}
     {{/if}}
 </div>

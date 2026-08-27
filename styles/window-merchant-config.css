@@ -240,12 +240,28 @@
 .merchant-config-rate-bound { color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-variant-numeric: tabular-nums; }
 
 /* --- An inventory as a card ------------------------------------------- */
-.merchant-config-inv { margin-top: 9px; padding: 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-sunken); }
+/* A shelf is a card beside the Inventories card, not inside it. The nesting said nothing
+   the position does not, and cost a second border, a second background and eleven pixels
+   of indent that every row inside had to fit in. So: the same chrome as a section, and no
+   margin of its own -- the column's own gap spaces them, like every other card here. */
+.merchant-config-inv { padding: 10px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
 .merchant-config-inv.is-dropping { outline: 2px dashed var(--blacksmith-tool-accent); outline-offset: 2px; }
 
-/* Group headings inside a card: quieter than a section heading, same shape. */
-.merchant-config-inv-group { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--blacksmith-tool-divider); }
-.merchant-config-inv-group > h4 { margin: 0 0 7px; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+/* --- Group headings inside a card --------------------------------------------
+ * **A heading for a settings group, not a category label.** These were the shop window's
+ * category treatment -- .62rem, muted, letterspaced, uppercase -- which is right over
+ * WEAPON and CONSUMABLE, where the word names a *kind of thing* and wants to recede
+ * behind the rows under it. Here the word names a *decision the GM is about to make*, and
+ * four of them stacked down a card at that size read as small print rather than as the
+ * structure of the card.
+ *
+ * So: sentence case, the card's own text colour, and a size that sits clearly under the
+ * section heading above it and clearly over the field labels below. The rule and the
+ * spacing do the separating, which is what they were already doing -- the shouting was
+ * never carrying any of it.
+ */
+.merchant-config-inv-group { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--blacksmith-tool-divider); }
+.merchant-config-inv-group > h4 { margin: 0 0 8px; color: var(--blacksmith-tool-text); font-size: .78rem; font-weight: 700; letter-spacing: .005em; text-transform: none; }
 
 /* Roll tables: the name in the label column, its controls beside it, and what it
    will actually do spelled out underneath — "rolls" and "reroll" were two words
