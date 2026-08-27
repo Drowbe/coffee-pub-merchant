@@ -1578,11 +1578,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // that ends up inside a `style` attribute, and the setter is not the only
             // way a flag gets written.
             tint: normalizeTint(config?.tint),
-            // The shopkeeper is only worth naming when the shop is not named after
-            // them. "Bob" over a shop called Bob is a line of nothing.
-            keeperName: token?.actor?.name ?? token?.name ?? '',
+            // **The token's name, not the Actor's.** The Actor is the mould -- "General
+            // Merchant" -- and the name given when the token was dropped is the person
+            // standing behind this counter. An unlinked merchant placed three times is
+            // Aldren Voss, Mira Feld and somebody else, and the card that called all
+            // three "General Merchant" was naming the template at the player.
+            //
+            // A linked token carries its Actor's name anyway, so this is the same answer
+            // there and the right one where they differ.
+            keeperName: token?.name || token?.actor?.name || '',
+            // Only worth naming when the shop is not named after them: "Bob" over a shop
+            // called Bob is a line of nothing.
             hasKeeper: Boolean(config?.name)
-                && String(config.name).trim() !== String(token?.actor?.name ?? '').trim(),
+                && String(config.name).trim() !== String(token?.name || token?.actor?.name || '').trim(),
             // The kind replaces the word "Merchant" above the name, which was telling
             // the player something they could already see.
             kindLabel: shopKind(config?.kind).label,

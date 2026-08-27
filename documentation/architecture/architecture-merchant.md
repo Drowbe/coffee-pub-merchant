@@ -542,6 +542,12 @@ standing offer, and it clears when the trade settles.
 
 ### Two pictures and a colour, answering three questions
 
+**The name on the card is the token's, not the Actor's.** The Actor is the mould an unlinked merchant is
+cast from — *General Merchant* — and the name given when the token was dropped is the person standing
+behind this counter. Three placements of one travelling salesman are three people, and reading the Actor
+would call all of them by the template's name. A linked token carries its Actor's name anyway, so it is the
+same answer there. The keeper line is suppressed entirely when the shop is named after them.
+
 **The portrait is who is behind the counter; the illustration is what the place looks like.** They are
 different questions and neither substitutes for the other, so they are stored separately: the portrait is
 the Actor's own `img`, the illustration is `illustration` on the merchant flag beside the name and the

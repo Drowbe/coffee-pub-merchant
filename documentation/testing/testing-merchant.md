@@ -1288,4 +1288,7 @@ level onto every existing row; it logs how many.
     longsword reads *Weapon* and nothing else. Check both sides — the shop's stock and the sell list.
 147. Searching *rare* finds the rare things and not the rope.
 148. The rarity colours are legible in Light, Dark and Glass — check a legendary and an uncommon in each.
+149. **A renamed token names the shop card.** Drop an unlinked merchant, rename the token, open the shop:
+    the keeper line under the shop name is the *token's* name, not the Actor's. Place a second one with a
+    different name — the two cards name two different people.
 

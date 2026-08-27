@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+
+## [13.1.1] - Quick Fix
+
+
+
+
 ## [13.1.0] - 2026-08-24
 
 ### Added
@@ -54,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`tests/test-sockets.mjs`** pins both paths: prefixed names and payloads through the hub, and the fallback binding a single listener however many events register — `game.socket.on` stacks rather than replaces, so binding per event would mean four handler calls per message.
 
 ### Fixed
+- **The shop card named the Actor, not the shopkeeper standing there** (`scripts/window-shop.js`). The keeper line read the Actor's name — the mould, *General Merchant* — while the token dropped on the map was Aldren Voss. An unlinked merchant placed three times is three people, and the card called all of them by the template's name. It now reads the token's name, which is the same answer on a linked token and the right one wherever they differ.
 - **Folded shelves rendered wrong, and every shelf heading lost its accent** (`styles/window-shop.css`). Two faults from one change. `.merchant-shop-inventory > h3 > span:first-child` styled the name — meaning “the name” only while the name happened to be the first span; it became a button and the rule went on matching nothing, so the headings quietly dropped to plain text. It names the element now, the way the search test’s selector had to. And zeroing the band’s bottom padding when folded left 6px above the text and nothing below it: folded, the heading *is* the card, so it keeps even padding, drops the rule beneath it and rounds all four corners.
 - **Choosing a different character to shop as did nothing** (`scripts/window-shop.js`). `blacksmith.dialog.pickActor` documents `Promise<string|null>` but returns the entity descriptor: its `getValue` calls `readFrom`, which yields objects, where `readIdsFrom` yields ids. Handed an object, the uuid lookup matched nothing and the window fell back to the first eligible character — so picking somebody silently kept whoever you already were, with no error anywhere. Merchant’s own picker used `readIdsFrom` before it was replaced, which is why this only appeared after the swap. Reported upstream; normalised here rather than waited on, because a window should not stop working over a hub returning something richer than it promised.
 - **Hiding an inventory removed the button that un-hides it** (`templates/window-shop.hbs`, `styles/window-shop.css`). Two things used the class `is-hidden` to mean different things: on the search panel it meant “not on screen right now”, on the visibility toggle it meant “the inventory this belongs to is hidden from players”. A stylesheet cannot tell those apart, so `.merchant-shop-stock .is-hidden { display: none }` — written for the first — swallowed the second, and the control vanished the moment it was used. The toggle now says what it means (`is-put-away`) and the display rule is scoped to the panel it was written for. A utility class general enough to collide is one that eventually will.
