@@ -96,8 +96,8 @@
             "productsLabel": "How many different products this inventory carries",
             "maxStack": "Max stack",
             "maxStackLabel": "Maximum quantity of any one item",
-            "depthSummary": "Type, rarity and price each set a ceiling, and the lowest wins.",
-            "depthWorldNote": "These are world settings, in Merchant's module settings. Depth scales them for this inventory.",
+            "depthSummary": "Type, rarity, and price each limit how many copies of an item can be stocked. The lowest applicable limit determines the quantity. A setting of 0 means no limit.",
+            "depthWorldNote": "These limits come from Merchant’s world settings. This inventory’s Depth setting scales them up or down.",
             "restock": "Inventory restocking",
             "method": "Method",
             "frequency": "Frequency",
@@ -127,7 +127,7 @@
             "newStock": "Item source",
             "source": "Source",
             "queryFilter": "Item filters",
-            "queryNote": "Drawn from what is installed right now, so it never goes stale and picks up new content on its own. Existing rows are topped up to their quantity first; this only brings in things the shelf does not already carry.",
+            "queryNote": "Items are pulled directly from the currently installed compendiums, so the available content stays current automatically.",
             "queryUnavailable": "Stocking from the compendiums needs a newer Coffee Pub Blacksmith. Until then this shelf draws from its roll tables.",
             "priceRange": "Price",
             "kinds": "Kinds",
@@ -162,7 +162,8 @@
             "moveDownTooltip": "Move this inventory down",
             "curatedHintNone": "Blacksmith has no item compendiums configured, so this shelf has nothing to draw from. Configure them there, or switch to a list of this shelf’s own.",
             "useCompendium": "Draw from this compendium",
-            "dropTable": "Drop a roll table here to stock this inventory by rolling"
+            "dropTable": "Drop a roll table here to stock this inventory by rolling",
+            "drawNote": "Existing items are restocked first. Draws then add new items the merchant doesn’t already carry."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

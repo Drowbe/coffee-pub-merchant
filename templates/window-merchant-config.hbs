@@ -495,6 +495,11 @@
                                               and look; the list is the answer. --}}
                                         <small class="merchant-config-hint">{{curatedHint}}</small>
                                     {{/if}}
+                                    {{!-- What is true of drawing from compendiums at all,
+                                          under the compendiums. It used to sit at the foot
+                                          of Item filters, where it described neither the
+                                          filters above it nor the configuration below. --}}
+                                    <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
                                 </div>
 
                             {{/if}}
@@ -557,7 +562,6 @@
                                         </div>
                                     </div>
 
-                                    <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.queryNote"}}</div>
                                 </div>
                             {{/if}}
                         {{#if canRoll}}
@@ -632,6 +636,12 @@
                                     {{/if}}
 
                                 </div>
+                                {{!-- **What a restock does, beside the controls that say
+                                      when.** True of either source, so it lives here
+                                      rather than under one of them. --}}
+                                {{#if canDraw}}
+                                    <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.drawNote"}}</div>
+                                {{/if}}
                             {{else}}
                                 <div class="merchant-config-note">
                                     {{localize "coffee-pub-merchant.config.purchasedNote"}}
