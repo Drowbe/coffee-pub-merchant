@@ -266,6 +266,17 @@ out of one, because finding the pack you want by finding a thing in it is how an
 first pack is what switches the shelf off the curated set: a GM dragging a pack has already said which packs
 they mean, and a switch to throw first is a step that exists only to be forgotten.
 
+**The filters are the shelf's, not the query's.** Kinds, rarities and the price window describe what
+this shelf carries, so they apply to a roll-table draw as well — `matchesFilter` asks of a resolved
+document what Blacksmith asks of the index. They were query-only, which made a shelf's own description
+depend on which source happened to fetch a row. A table entry that fails is reported apart from a dead
+one: the table is fine, the shelf simply does not carry that.
+
+The two halves differ on one point, and it is forced: **unpriced passes a price filter that is not
+filtering on price**. With the range wide open, dropping a GM's unpriced trinket would be a refusal
+nobody asked for; once a range is stated, a thing with no price is outside it. The index cannot make that
+call at all — unpriced and free share a stored 0 — so the query excludes unpriced outright.
+
 Candidates are **over-fetched and shuffled** (Fisher-Yates — not a comparator returning random
 signs, which is not a shuffle). The query answers in scan order, so taking the first N would give
 every shop in the world the same opening stock from the same pack.

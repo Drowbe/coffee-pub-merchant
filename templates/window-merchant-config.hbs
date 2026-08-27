@@ -497,6 +497,13 @@
                                     {{/if}}
                                 </div>
 
+                            {{/if}}
+
+                            {{!-- **The shelf's filters, not the compendium query's.** A
+                                  shelf that deals in consumables under 50 gp deals in them
+                                  whether they arrive from a pack or off a roll table, so
+                                  this shows for either source. --}}
+                            {{#if canDraw}}
                                 <div class="merchant-config-inv-group">
                                     <h4>{{localize "coffee-pub-merchant.config.queryFilter"}}</h4>
                                     {{!-- Two ends of one range, the same control the

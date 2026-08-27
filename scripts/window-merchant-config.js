@@ -1655,6 +1655,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     // Each section shows when its source contributes, so "both" shows
                     // the table list *and* the filter rather than a third arrangement.
                     isQuery: drawsFromQuery(config.source ?? DEFAULT_SOURCE),
+                    // Anything that draws at all has filters to state; only manual does not.
+                    canDraw: drawsFromQuery(config.source ?? DEFAULT_SOURCE)
+                        || drawsFromTables(config.source ?? DEFAULT_SOURCE),
                     isTable: drawsFromTables(config.source ?? DEFAULT_SOURCE),
                     isManual: (config.source ?? DEFAULT_SOURCE) === SOURCE.MANUAL,
                     queryAvailable: hasQuery(),

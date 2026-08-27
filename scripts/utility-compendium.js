@@ -26,8 +26,9 @@
 // stop-scan, which draws every shop's stock from the first configured pack and never opens
 // the sixth — a result set indistinguishable from a correct one.
 
-import { MODULE } from './const.js';
+import { MODULE, itemRarity } from './const.js';
 import { physicalTypes } from './utility-inventory.js';
+import { listPriceBase, baseDenomination } from './utility-pricing.js';
 
 /** Rarity tokens, in the order a GM reads them. `mundane` is unmarked gear. */
 export const RARITIES = Object.freeze(['mundane', 'common', 'uncommon', 'rare', 'veryRare', 'legendary', 'artifact']);
@@ -235,6 +236,40 @@ export async function queryStock(query, limit = 200) {
         console.error(`${MODULE.TITLE} | Could not query the compendiums:`, error);
         return [];
     }
+}
+
+/**
+ * Does this item match what the shelf says it carries?
+ *
+ * **The filter is the shelf's, not the compendium query's.** A shelf that deals in
+ * consumables under 50 gp deals in them whether they arrive from a pack or off a roll
+ * table, and a table result that ignored the filter made the answer depend on which
+ * source happened to bring the thing in. The query half is filtered at the index by
+ * Blacksmith; this is the same question asked of a resolved document, for the half that
+ * cannot be.
+ *
+ * **Unpriced passes only when no price bound is set.** With the range wide open the price
+ * filter is not filtering anything, so dropping a GM's unpriced trinket would be a
+ * refusal nobody asked for; once a range is stated, a thing with no price is outside it.
+ * The compendium half cannot make this distinction -- unpriced and free share a stored 0
+ * at the index -- which is why it excludes unpriced outright and this does not.
+ */
+export function matchesFilter(item, query) {
+    if (!item) return false;
+    const filter = normalizeQuery(query);
+
+    if (filter.subtypes && !filter.subtypes.includes(item.type)) return false;
+    // Blank rarity is `mundane`, and is most of a shop -- see `itemRarity`.
+    if (!filter.rarity.includes(itemRarity(item) ?? 'mundane')) return false;
+
+    const bounded = filter.priceGp.min > 0 || filter.priceGp.max !== null;
+    const base = listPriceBase(item);
+    if (base === null) return !bounded;
+
+    const perGp = baseDenomination().conversion || 1;
+    const gp = base / perGp;
+    if (gp < filter.priceGp.min) return false;
+    return filter.priceGp.max === null || gp <= filter.priceGp.max;
 }
 
 /** A one-line summary of what a query asks for, for the card that carries it. */

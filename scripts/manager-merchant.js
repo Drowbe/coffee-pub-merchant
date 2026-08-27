@@ -23,7 +23,7 @@ import { resolveReputation, invalidateReputation } from './utility-reputation.js
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
 import {
-    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources
+    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources, matchesFilter
 } from './utility-compendium.js';
 
 const CONTEXT = 'merchant-interaction';
@@ -1215,6 +1215,26 @@ export class MerchantManager {
             notify.warn(game.i18n.format('coffee-pub-merchant.notify.brokenTableRows', {
                 count: broken.length,
                 tables: tables.join(', ') || game.i18n.localize('coffee-pub-merchant.common.unknownTable')
+            }));
+        }
+
+        // **The shelf's filters apply to what a table brings in, not only to the query.**
+        // A shelf that deals in consumables under 50 gp deals in them whichever source
+        // fetched the thing; leaving tables unfiltered made the shelf's own description
+        // depend on where a row happened to come from. A table entry that fails is not a
+        // broken row -- the table is fine and the shelf simply does not carry that -- so it
+        // is counted and reported apart from the dead ones.
+        const filtered = [];
+        for (const [uuid, item] of resolved) {
+            if (item && !matchesFilter(item, config.query)) {
+                filtered.push(uuid);
+                resolved.set(uuid, null);
+            }
+        }
+        if (filtered.length) {
+            notify.info(game.i18n.format('coffee-pub-merchant.notify.filteredTableRows', {
+                count: filtered.length,
+                inventory: inventory.name
             }));
         }
 

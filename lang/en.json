@@ -224,7 +224,8 @@
             "dropCompendiumHere": "That is a compendium — drop it on the Compendiums list below.",
             "compendiumNeedsManual": "This shelf draws from Blacksmith’s curated compendiums. Switch it to Manually Selected Compendiums to name your own.",
             "notAnItemPack": "That compendium does not hold items, so a shelf cannot stock from it.",
-            "dropTableOnTables": "That is a roll table — drop it on the Roll tables list above."
+            "dropTableOnTables": "That is a roll table — drop it on the Roll tables list above.",
+            "filteredTableRows": "{count} rolled item(s) were outside what {inventory} carries and were left out."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",

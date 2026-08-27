@@ -1336,4 +1336,11 @@ level onto every existing row; it logs how many.
     dims, the pack stays listed, and a restock draws from the others only. Tick it again and it
     contributes. Switch *every* pack off and the restock says the shelf has nothing to draw from,
     exactly as an empty list does.
+168. **Item filters apply to roll tables too.** Put a table on a shelf whose filters exclude some of
+    what it rolls (say, consumables only, against a table of weapons and potions). Restock: only the
+    matching items land, and it says how many were left out — separately from any dead-row warning.
+169. The Item filters group appears on a table-only shelf, not just on a compendium one. It stays
+    hidden on a Manual shelf.
+170. With the price range wide open (0 to Any), an unpriced item from a table still lands. Set a range
+    and it does not.
 

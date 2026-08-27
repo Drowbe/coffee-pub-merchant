@@ -684,6 +684,53 @@ console.log('ok  a both-shelf draws in the order the GM chose');
 }
 console.log('ok  inventories move up and down, and the whole shop is renumbered');
 
+// --- the shelf's filters apply to a table draw too -------------------------
+// A shelf that deals in consumables under 50 gp deals in them whichever source fetched
+// the thing. The query half is filtered at the index by Blacksmith; this is the same
+// question asked of a resolved document, for the half that cannot be.
+{
+    globalThis.CONFIG = {
+        DND5E: {
+            currencies: {
+                pp: { conversion: 0.1 }, gp: { conversion: 1 },
+                ep: { conversion: 2 }, sp: { conversion: 10 }, cp: { conversion: 100 }
+            }
+        }
+    };
+    const item = (over = {}) => ({
+        type: over.type ?? 'consumable',
+        system: {
+            rarity: over.rarity ?? '',
+            price: over.price === undefined ? { value: 25, denomination: 'gp' } : over.price
+        },
+        flags: over.flags ?? {}
+    });
+    const filter = { subtypes: ['consumable'], rarity: ['mundane', 'common'], priceGp: { min: 10, max: 50 } };
+
+    assert.ok(Q.matchesFilter(item(), filter), 'a 25 gp mundane consumable is carried');
+    assert.ok(!Q.matchesFilter(item({ type: 'weapon' }), filter), 'a weapon is not, on a consumables shelf');
+    assert.ok(!Q.matchesFilter(item({ rarity: 'rare' }), filter), 'and neither is a rare one');
+    assert.ok(!Q.matchesFilter(item({ price: { value: 5, denomination: 'gp' } }), filter), 'under the floor');
+    assert.ok(!Q.matchesFilter(item({ price: { value: 500, denomination: 'gp' } }), filter), 'over the ceiling');
+
+    // **Price carries a denomination**: 300 sp is 30 gp and is inside a 10-50 gp window.
+    // A raw compare on the stored number would have called it 300 and thrown it out.
+    assert.ok(Q.matchesFilter(item({ price: { value: 300, denomination: 'sp' } }), filter),
+        '300 sp is 30 gp, which is inside the window');
+
+    // Unpriced passes only when no bound is set: with the range wide open the price filter
+    // is not filtering anything, so dropping a GM's unpriced trinket would be a refusal
+    // nobody asked for -- but once a range is stated, a thing with no price is outside it.
+    const open = { subtypes: null, rarity: ['mundane'], priceGp: { min: 0, max: null } };
+    assert.ok(Q.matchesFilter(item({ price: { value: 0, denomination: 'gp' } }), open),
+        'an unpriced item passes a filter that is not filtering on price');
+    assert.ok(!Q.matchesFilter(item({ price: { value: 0, denomination: 'gp' } }), filter),
+        'and fails one that is');
+
+    assert.ok(!Q.matchesFilter(null, filter), 'nothing matches nothing');
+}
+console.log('ok  a shelf filters what a table brings in, not only what a query does');
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------
