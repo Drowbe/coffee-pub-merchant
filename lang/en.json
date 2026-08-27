@@ -151,8 +151,7 @@
             "curatedTooltip": "Draw from the compendiums configured in Blacksmith — the ones this world officially uses",
             "customTooltip": "Draw only from compendiums you drop here, whether or not they are curated",
             "curatedHint": "Drawn from the item compendiums configured in Blacksmith: {list}.",
-            "dropCompendium": "Drop a compendium here — or anything from one — to draw from it",
-            "dropAnotherCompendium": "Drop another compendium to add it",
+            "dropCompendium": "Drop a compendium here to draw from it",
             "removeSourceTooltip": "Take this compendium off the list",
             "sourceMissing": "Gone",
             "sourceMissingTooltip": "This compendium is no longer installed. Nothing is drawn from it.",
@@ -162,7 +161,8 @@
             "moveUpTooltip": "Move this inventory up",
             "moveDownTooltip": "Move this inventory down",
             "curatedHintNone": "Blacksmith has no item compendiums configured, so this shelf has nothing to draw from. Configure them there, or switch to a list of this shelf’s own.",
-            "useCompendium": "Draw from this compendium"
+            "useCompendium": "Draw from this compendium",
+            "dropTable": "Drop a roll table here to stock this inventory by rolling"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

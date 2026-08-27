@@ -126,8 +126,11 @@ export function isItemPack(id) {
  *
  * Two payloads, because both mean the same thing to a person: a compendium dragged from
  * the sidebar (`{ type: 'Compendium', collection }`), and any document dragged out of one
- * (a uuid of `Compendium.<pack>.<Doc>.<id>`). The second matters more than it looks --
- * finding the pack you want by finding a thing in it is how anybody actually browses.
+ * (a uuid of `Compendium.<pack>.<Doc>.<id>`). The second is kept because finding the pack
+ * you want by finding a thing in it is how anybody actually browses -- but it is
+ * **deliberately not advertised on the drop zone**: "or anything from one" reads as an
+ * offer to add the *thing*, where what it adds is the pack around it. A convenience that
+ * works when you try it is worth having; a label that promises the wrong result is not.
  */
 export function packIdFromDrop(data) {
     if (data?.type === 'Compendium' && data.collection) return String(data.collection);
