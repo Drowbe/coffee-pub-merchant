@@ -17,7 +17,9 @@
 // as Curator does it. The pattern is copied deliberately: two modules solving this
 // differently is how the next person learns it twice.
 
-import { MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey } from './const.js';
+import {
+    MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP
+} from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 
 /** The sound settings, in the order they appear in the menu. */
@@ -71,13 +73,55 @@ export const SOUND_SETTINGS = Object.freeze([
 // **Zero means no ceiling.** It is the honest default for "common", where type and
 // price are already the whole answer and a third rule would only pretend to fire.
 
+/**
+ * A heading row in the module's settings tab.
+ *
+ * **The suite's convention, not a Merchant invention.** Blacksmith's `settings.css` styles
+ * any setting whose key starts `headingH1`..`headingH4` in a `coffee-pub-*` module -- it
+ * hides the (empty) control and renders the label and hint as a section header. Squire and
+ * Blacksmith both use it; Merchant was the odd one out, registering eighteen flat rows with
+ * no structure, which is why its settings tab looked like a different module's.
+ *
+ * The stored value is an empty string nobody reads. That is the whole trick: a setting is
+ * the only thing Foundry will render in this list, so a header has to be one.
+ */
+function registerHeader(id, level, nameKey, hintKey) {
+    game.settings.register(MODULE.ID, `heading${level}${id}`, {
+        name: game.i18n.localize(nameKey),
+        hint: game.i18n.localize(hintKey),
+        scope: 'world',
+        config: true,
+        type: String,
+        default: ''
+    });
+}
+
 /** Sentence-case a camelCase key for a settings label: veryRare -> Very rare. */
 function _label(key) {
     const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2');
     return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
 }
 
+/**
+ * **A range, not a number box.** Every one of these is a small integer with a floor, a
+ * ceiling and no meaningful decimal -- which is what a slider is for, and what the rest of
+ * the suite uses for the same shape of answer. A bare number field invites 250 into a
+ * question whose largest sensible answer is a dozen, and reads as though it wanted one.
+ *
+ * The top is `MAX_STOCK_CAP`: past that a "ceiling" is not capping anything a shop would
+ * ever draw, and a slider whose useful travel is its first tenth is a number box with a
+ * worse hit area.
+ */
+const CAP_RANGE = Object.freeze({ min: 0, max: MAX_STOCK_CAP, step: 1 });
+
 function registerStockingSettings() {
+    registerHeader('StockDepth', 'H2',
+        'coffee-pub-merchant.settings.headingStockDepth',
+        'coffee-pub-merchant.settings.headingStockDepthHint');
+
+    registerHeader('StockByType', 'H3',
+        'coffee-pub-merchant.settings.headingStockByType',
+        'coffee-pub-merchant.settings.headingStockByTypeHint');
     for (const [type, cap] of Object.entries(STOCK_TYPE_CAPS)) {
         game.settings.register(MODULE.ID, typeCapKey(type), {
             name: game.i18n.format('coffee-pub-merchant.settings.stockCapType', { what: _label(type) }),
@@ -85,10 +129,14 @@ function registerStockingSettings() {
             scope: 'world',
             config: true,
             type: Number,
+            range: CAP_RANGE,
             default: cap
         });
     }
 
+    registerHeader('StockByRarity', 'H3',
+        'coffee-pub-merchant.settings.headingStockByRarity',
+        'coffee-pub-merchant.settings.headingStockByRarityHint');
     for (const [rarity, cap] of Object.entries(STOCK_RARITY_CAPS)) {
         game.settings.register(MODULE.ID, rarityCapKey(rarity), {
             name: game.i18n.format('coffee-pub-merchant.settings.stockCapRarity', { what: _label(rarity) }),
@@ -96,6 +144,7 @@ function registerStockingSettings() {
             scope: 'world',
             config: true,
             type: Number,
+            range: CAP_RANGE,
             default: cap
         });
     }
@@ -108,7 +157,15 @@ function soundChoices() {
 }
 
 export function registerSettings() {
+    registerHeader('Merchant', 'H1',
+        'coffee-pub-merchant.settings.headingMerchant',
+        'coffee-pub-merchant.settings.headingMerchantHint');
+
     registerStockingSettings();
+
+    registerHeader('Sound', 'H2',
+        'coffee-pub-merchant.settings.headingSound',
+        'coffee-pub-merchant.settings.headingSoundHint');
 
     const choices = soundChoices();
 

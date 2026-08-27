@@ -589,6 +589,16 @@ export const STOCK_DEPTH_BANDS = Object.freeze([
 ]);
 
 /**
+ * The highest a stock ceiling can be set to.
+ *
+ * Not a rule about shops -- it is the top of the slider. Twenty is already more of one
+ * thing than any shop here draws (a shelf's own `maxPerItem` defaults to that), so past
+ * it a "ceiling" caps nothing, and a slider whose useful travel is its first tenth is a
+ * number box with a worse hit area.
+ */
+export const MAX_STOCK_CAP = 20;
+
+/**
  * How deep a shop stacks a thing because of **what it is**.
  *
  * The first lever, and the one closest to how anybody actually pictures a shop. Armour

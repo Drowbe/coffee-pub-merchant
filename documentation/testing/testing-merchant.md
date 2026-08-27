@@ -1343,4 +1343,8 @@ level onto every existing row; it logs how many.
     hidden on a Manual shelf.
 170. With the price range wide open (0 to Any), an unpriced item from a table still lands. Set a range
     and it does not.
+171. **The settings tab reads as sections:** Merchant, Stock Depth (By Item Type, By Rarity), Sound —
+    styled the same as Blacksmith's and Squire's, with the header rows carrying no control.
+172. Every stock ceiling is a slider from 0 to 20, and the value it shows is the one that takes effect:
+    set one, restock a shelf, and the deepest row of that kind matches.
 
