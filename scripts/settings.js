@@ -114,6 +114,13 @@ function _label(key) {
  */
 const CAP_RANGE = Object.freeze({ min: 0, max: MAX_STOCK_CAP, step: 1 });
 
+// **No per-setting hint, deliberately.** Thirteen rows each re-teaching the same model --
+// "the most of one X a shop stocks at once, 0 means no limit" -- is harder to scan than
+// thirteen labelled sliders, and it buries the one thing a reader has to be told: that
+// `Common: 0` means *no limit from rarity*, not *no common items*. That rule is stated
+// once, in the section heading above these, where it stays visible while the sliders are
+// read. Explain the system at the section level; label the controls at the control level.
+
 function registerStockingSettings() {
     registerHeader('StockDepth', 'H2',
         'coffee-pub-merchant.settings.headingStockDepth',
@@ -125,7 +132,6 @@ function registerStockingSettings() {
     for (const [type, cap] of Object.entries(STOCK_TYPE_CAPS)) {
         game.settings.register(MODULE.ID, typeCapKey(type), {
             name: game.i18n.format('coffee-pub-merchant.settings.stockCapType', { what: _label(type) }),
-            hint: game.i18n.format('coffee-pub-merchant.settings.stockCapTypeHint', { type }),
             scope: 'world',
             config: true,
             type: Number,
@@ -140,7 +146,6 @@ function registerStockingSettings() {
     for (const [rarity, cap] of Object.entries(STOCK_RARITY_CAPS)) {
         game.settings.register(MODULE.ID, rarityCapKey(rarity), {
             name: game.i18n.format('coffee-pub-merchant.settings.stockCapRarity', { what: _label(rarity) }),
-            hint: game.i18n.format('coffee-pub-merchant.settings.stockCapRarityHint', { rarity: _label(rarity).toLowerCase() }),
             scope: 'world',
             config: true,
             type: Number,
