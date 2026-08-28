@@ -36,6 +36,9 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-sockets.js` | Cross-client traffic, through `blacksmith.sockets` with a legacy fallback. |
 | `scripts/utility-pins.js` | A shop's second door: what a pin names, what it remembers, how it looks — §10. |
 | `scripts/region-shop.js` | A shop's third door: the Open Shop region behaviour. Registered at `init` — §11. |
+| `scripts/utility-catalogue.js` | A shop's fourth door: the catalogue Item, and what consulting one does — §12. |
+| `scripts/canvas-marker.js` | The badge on a merchant token. The category's own icon, in the pin's colours — §13. |
+| `scripts/utility-expand.js` | Where the expanded shop is remembered, and how big the viewport actually is — §14. |
 | `scripts/settings.js` | Every world setting, and the controls Foundry does not render for them. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
@@ -67,7 +70,7 @@ is the one most likely to be got wrong out of habit.
     illustration: null,          // a picture of the PLACE — see §6
     sounds: { open, close } | {},// this merchant's own door; absent means the world's
     tint: null,                  // '#rrggbb' or null — a colour wash on the shop card
-    schema: 1,                   // stamp for future migrations — see §14
+    schema: 1,                   // stamp for future migrations — see §17
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
@@ -197,7 +200,7 @@ the failure was invisible: the shop looked stocked and the restock reported succ
 
 A row that has never had a par read falls back to what it currently holds — a shop sitting in a
 world nobody is shopping in is a shop at rest. That is a *fallback in `getStock`*, not a
-migration pass: there are no migrations (§14), and a row acquires a real par the first time
+migration pass: there are no migrations (§17), and a row acquires a real par the first time
 anything that is not a sale touches it.
 
 ### A roll brings new products, never more of what is already carried
@@ -1028,7 +1031,123 @@ open here*, because the person who finds out should not be the one who cannot fi
 
 ---
 
-## 12. Blacksmith is not optional
+## 12. The catalogue: a shop as an object
+
+A token, a pin and a region are all *places*. You reach the shop by being somewhere. The catalogue is the
+fourth door and the only one that is not a place: an **Item** in somebody's pack that opens the shop from
+wherever they are reading it.
+
+**It is an Item because the fiction already has one.** A party who bought a catalogue can lose it, sell it,
+lend it to the rogue, or leave it in an inn — and every one of those is something an Item does for free, in
+front of the players, with no rule of ours attached. A journal, a macro or a chat button would be the same
+feature with a worse story and more machinery.
+
+It is a dnd5e **consumable**, which is not a comment on the fiction: consumable is the item type the system
+gives activities to and does not otherwise interfere with. Nothing is consumed — the activity configures no
+consumption — so consulting one a hundred times leaves the same one catalogue.
+
+**What it stores** is the merchant's uuid and a snapshot taken when it was printed: name, category, blurb,
+tint, illustration, portrait. The same `shopSnapshot` a pin takes, and for the same reason — a deleted Actor
+takes its configuration with it, and a catalogue for a shop that has closed down opens on the abandoned card
+under the name it was printed with rather than failing.
+
+**Only a linked merchant may be catalogued.** The same rule as a pin, asked through the same function: a
+catalogue outlives tokens and scenes, so what it names has to.
+
+**Two ways in, and both are needed.** Using it is the one players find: dnd5e fires `dnd5e.preUseActivity`,
+and returning `false` there cancels the roll — no chat card, no consumption, just the shop opening. That is
+Merchant's only `pre*` hook and the only one registered with `canCancel: true`; only an explicit `false`
+cancels, which is what keeps it from vetoing operations world-wide. The sheet header button is the one that
+always works: an activity can be deleted, a system can rename its hook, and a GM inspecting a catalogue in
+the sidebar has no character to use it as.
+
+**A catalogue is placeless, deliberately.** A shop you stand in front of is priced against the scene it
+stands on — the local market rate, and the party's standing here. A catalogue is explicitly about *not* being
+there, so it names no scene and prices at the default market. Handing it the reader's own scene would price a
+shop in another town against the market where the reader happens to be standing, and the GM side would refuse
+that claim anyway: `verifiedScene` honours only a scene the merchant actually has a token on. A window
+showing one figure while the settlement charges another is worse than a plain answer.
+
+It resolves to `openForActor`, exactly as a pin does. One shop, one window, one cart, whichever door.
+
+---
+
+## 13. The token marker
+
+A merchant token is visibly a merchant, and visibly *what kind*, without anyone double-clicking to find out.
+The glyph is the category's own icon and the colours are the pin's — the mark on a token, the pin on the map
+and the badge on the card are one vocabulary, learned once.
+
+**Drawn as a child of the Token placeable**, which is most of the work done for free: it moves with the
+token, scales with the scene, and vanishes when the token does, because PIXI does not render the children of
+an invisible container and Foundry already sets `visible = false` on a token you cannot see. A separate
+canvas layer would mean reimplementing visibility, elevation and hidden-token rules that already exist and
+are easy to get subtly wrong. `eventMode = 'none'`, so the badge cannot eat the double-click that opens the
+shop it advertises.
+
+**The glyph is asked for, not tabulated.** The obvious implementation is a table mapping `fa-flask` to a
+codepoint, seventeen entries of it — a table somebody has to keep in step with Font Awesome, transcribed by
+hand, where one wrong digit is an icon that renders as something else entirely and nothing in the code says
+why. Instead a hidden probe element carrying the class is appended, its `::before` computed style read for
+the character and the font, and the probe removed. The browser already knows the answer; it is what it uses
+to draw the same icon everywhere else in the module. Cached on success only — before the font loads the
+computed content is `none`, and caching that would blank the markers for the session.
+
+**A zoom threshold, not a constant.** A badge legible on one token is noise on twenty: zoomed out to a whole
+market square it is a wall of glyphs over the map the GM drew. So there is a floor, it is a setting, and zero
+means always.
+
+Markers are refreshed at registration as well as on `canvasReady`, because Merchant starts at `ready` — after
+the first canvas draw — and without it the markers would appear on the second scene a GM visited, which reads
+as them not working.
+
+---
+
+## 14. The expanded shop
+
+A per-client, per-shop toggle in the window header that makes the shop fill the Foundry viewport.
+
+**Not the browser's fullscreen API.** `requestFullscreen` puts one element on its own layer, and Foundry
+renders tooltips into a global `#tooltip` and dialogs as separate applications at body level. Both would draw
+*behind* the shop, which is to say invisibly: every hover card, the clear-inventory confirm and the character
+picker would vanish. It means *fills the Foundry viewport* — a positioned window, still a window, still
+framed.
+
+**Nor Blacksmith's `BlacksmithFullscreenWindowBaseV2`**, which exists and is the wrong tool: it is a
+*blocking takeover* surface for handouts and reveals — frameless, unpositioned, one at a time, and nothing
+underneath receives a pointer event. A shop is a window somebody keeps open while doing other things. What is
+wanted is an expand affordance on the **standard** base; see §15.
+
+**A view preference, not a property of the shop.** A GM on an ultrawide ticking a box, and a player's laptop
+getting a shop that swallows the screen, is the bad version. It is a client setting keyed by shop uuid, and a
+player with a big monitor gets it too. The map stores only `true` — "not in the map" already means collapsed,
+and a map of every shop anybody ever collapsed only grows.
+
+**Stage one is the toggle; columns are stage two.** A 2560px window holding one column of shelves is worse
+than the window it replaces: forty-character rows with a metre of picture either side. Width buys *columns*,
+not longer rows — three inventories abreast is genuinely better for a six-shelf shop — but that interacts
+with the folds and the search, and is worth building deliberately rather than discovering. So stage one caps
+the content at 1180px, centres it, and gives the illustration the room to be a place rather than a
+letterbox. The veil gets **stronger** with the extra area, not lighter: more picture and fewer cards sitting
+on it.
+
+Two things it has to defeat, both in the base class:
+
+- **The size caps are inline.** `_applyWindowSizeConstraints` writes `--blacksmith-window-max-width` as an
+  inline custom property on every render, and an inline property beats a class selector however specific. So
+  the caps are lifted in the override of that method rather than in the stylesheet — anywhere else and the
+  very next render puts them back.
+- **Position is persisted 250ms after any `setPosition`, under a key every shop shares.** Left alone,
+  expanding one shop would set the opening size of every shop, and closing it while expanded would make that
+  permanent. So `rememberPosition` is switched off for the duration. The size a person dragged a window to is
+  worth remembering; a size a button chose is not.
+
+It is deliberately **not** called `maximize`: ApplicationV2 has that method already and it means
+"un-minimise".
+
+---
+
+## 15. Blacksmith is not optional
 
 Merchant does not function without it, and this is deliberate — the alternative is forking components, which
 has cost this suite real time twice. What is used:
@@ -1086,8 +1205,17 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 13. Known seams
+## 16. Known seams
 
+- **No expand affordance on Blacksmith's standard window base.** `BlacksmithFullscreenWindowBaseV2` exists
+  and answers a different question: a frameless, unpositioned, blocking takeover surface for handouts and
+  reveals, one at a time, with nothing underneath receiving a pointer event. A shop is a window somebody
+  keeps open while doing other things. What is wanted is *this window, bigger* — the header toggle, the
+  saved and restored geometry, staying clear of the sidebar and hotbar, escape to restore, surviving a
+  viewport resize. That is chrome, it is identical for Squire and Minstrel, and it is where the fiddly bugs
+  live. Merchant owns what happens *inside* an expanded shop and should keep owning it; the frame half is
+  worth offering to the hub. **When it lands, `utility-expand.js` and the `_applyWindowSizeConstraints`
+  override go**, and the `is-expanded` stylesheet stays exactly as it is. §14.
 - **Blacksmith has no pin placement picker.** Merchant arms its own crosshair and converts the click itself,
   which is a dozen lines and works — but Squire and Curator will want the same the moment either drops a pin,
   and a `pins.pickLocation()` in the hub would be one implementation of the fiddly half (cancel, escape,
@@ -1175,7 +1303,7 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 14. Migration — there isn't any
+## 17. Migration — there isn't any
 
 **Nothing migrates, because nothing has shipped.** No world holds a shape this build cannot read.
 

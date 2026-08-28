@@ -1,4 +1,106 @@
-# Decisions taken unattended — reviewed and closed 2026-08-19
+# Decisions taken unattended
+
+**Part two — open, from the unattended session of 2026-08-28.** Part one is below it and is closed.
+
+---
+
+# Part two — 13.3.0, open
+
+Built overnight on "knock out the rest of the TODO", with three directions given and the rest inferred.
+Each entry says what was chosen, what was rejected, and what reversing it would cost.
+
+## A. The catalogue is a dnd5e `consumable` with a Utility activity
+
+**What was chosen.** *Print a Catalogue* creates a `consumable` item of subtype `trinket` and gives it one
+Utility activity called *Consult*. Clicking the item on a character sheet fires `dnd5e.preUseActivity`,
+which Merchant cancels and turns into an open-shop.
+
+**Why.** `consumable` is the item type dnd5e attaches activities to and does not otherwise interfere with.
+A `loot` item has no activities at all, so clicking it merely expands its description — there would be
+nothing to "use". Nothing is consumed, because the activity configures no consumption.
+
+**What was rejected.** Hand-writing the activity into the creation payload, which would be us guessing at a
+system's schema; and a `loot` item with the sheet-header button as its only door, which works for a GM and
+not for a player.
+
+**Reversing it** costs one item type and one activity name in `utility-catalogue.js`. Catalogues already
+printed would keep working through the sheet-header button.
+
+## B. A catalogue goes into the world Items directory, not onto a character
+
+**What was chosen.** Printing puts the Item in the sidebar and says so. The GM drags it to whoever should
+have it.
+
+**Why.** Who gets a catalogue is a decision about the fiction — bought, found, given by a contact — with no
+good default, and asking it mid-task interrupts a different job. Dragging is the gesture already used for
+every other item that changes hands.
+
+**What was rejected.** A `dialog.pickActor` prompt on print. Worth revisiting if it turns out GMs print one
+per party member.
+
+## C. A catalogue prices at the default market, not the reader's scene
+
+**What was chosen.** `openForActor(actor, { placeless: true })` — no scene, so no local market rate and no
+scene-scoped standing.
+
+**Why.** A catalogue is explicitly about not being there. Passing the reader's own scene would price a shop
+in another town against the market where the reader is standing — and the GM side would refuse that claim
+anyway, since `verifiedScene` honours only a scene the merchant has a token on. The window would show one
+figure while the settlement charged another.
+
+**What this leaves open** is the delivery question, which is a fiction decision and is recorded as TODO 3.
+
+## D. The token marker reads its glyph from the stylesheet at runtime
+
+**What was chosen.** A hidden probe element carrying the Font Awesome class is appended, its `::before`
+computed style read for the character and font family, and the probe removed. Cached on success.
+
+**Why.** The alternative is a hand-transcribed table of seventeen codepoints that somebody has to keep in
+step with Font Awesome, where one wrong digit renders the wrong icon and nothing in the code says why.
+
+**The risk taken.** It depends on `getComputedStyle(el, '::before').content` returning the resolved
+character, which is standard behaviour in every browser Foundry runs on. If a font has not loaded the
+content is `none`, which is why nothing is cached in that case.
+
+## E. The marker takes the pin's colours and has none of its own
+
+**What was chosen.** Four marker settings — who sees it, corner, size, zoom threshold — and no colours.
+
+**Why.** A pin and a badge naming the same shop in two different liveries is two shops as far as a reader
+is concerned. One question, one answer.
+
+**Reversing it** is three settings and three lines in `canvas-marker.js`.
+
+## F. The expanded shop was built rather than waited for
+
+**What was chosen.** Merchant owns the whole of expand for now — the toggle, the geometry, the size caps,
+the position suppression — in `utility-expand.js` plus one method override.
+
+**Why, given Blacksmith is said to be implementing it.** `api-window.md` as of Blacksmith 13.20.0 documents
+only `BlacksmithFullscreenWindowBaseV2`, which is a different thing: a blocking, frameless, one-at-a-time
+takeover for handouts and reveals, where nothing underneath receives a pointer event. A shop is a window
+somebody keeps open while doing other things. There is no expand affordance on the standard base to adopt.
+
+**The seam was kept clean deliberately.** Everything Merchant should stop owning is in one 130-line file and
+one method override; everything it should keep owning is the `is-expanded` stylesheet. When the hub ships
+the frame, the handover is a deletion. Recorded as TODO 2 and architecture §16.
+
+**If this was the wrong call**, reverting is deleting `utility-expand.js`, the override, the two header
+lines, and the stylesheet block. Nothing else refers to it.
+
+## G. Stage one only: no columns
+
+**What was chosen.** The expanded shop caps its single column at 1180px and centres it. Three inventories
+abreast is not built.
+
+**Why.** Columns interact with the folds (collapsing one leaves a hole or reflows the others) and with the
+search (`filterShopList` hides rows, then categories, then inventories — in three columns that reads as
+uneven emptying rather than a shortening list). Both are worth building deliberately, and stage one may
+well be enough. Recorded as TODO 1, to be judged by a session at a wide monitor rather than by argument.
+
+---
+
+# Part one — reviewed and closed 2026-08-19
 
 Built during two unattended sessions, on "build the remainder of the project unattended, log decisions I
 need to review." Each entry says what was chosen, what was rejected, and what reversing it would cost.

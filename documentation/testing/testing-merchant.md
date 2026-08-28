@@ -1727,3 +1727,50 @@ level onto every existing row; it logs how many.
 216. **The shelf never moves.** Agreeing a price on the slate leaves the shelf row reading what the shop
     asks — and the shelf price is still editable afterwards, showing the new figure straight away, even on
     an item that has been haggled over.
+
+## The token marker (13.3.0)
+
+217. **A merchant token wears a badge** in the corner, with the category's icon in it. Change the merchant's
+    category in Settings and the badge changes with it.
+218. **A token that is not a merchant has none**, and neither does one whose merchant is disabled.
+219. **The badge does not eat the gesture.** Double-clicking directly on the badge still opens the shop.
+220. **A GM-hidden token's badge is hidden too** — check from a player client, not by eye on the GM's.
+221. **Zoom out past the threshold and the badges come off**, all of them, together. Zoom back in and they
+    return. Set the threshold to 0 and they never come off.
+222. **The four settings all take**: who sees it (try *GM only* from a player client, and *Nobody*), which
+    corner, how big, and the threshold. Changing the **pin** colours changes the badge colours too.
+223. **An unlinked merchant token is badged as well** — it is a shop in its own right.
+224. **Switching scenes keeps them**, and so does reloading the world: the badges are there on the first
+    scene without visiting a second one.
+
+## The catalogue (13.3.0)
+
+225. **Print a Catalogue** appears in the shop window header and in Merchant Settings, for a linked merchant
+    only. It makes an Item in the world directory named after the shop, with the shop's illustration as its
+    picture and its blurb inside.
+226. **Drag it to a character and use it.** The shop opens — the same window, the same slate, the same cart
+    a token would give. No chat card is posted and nothing is consumed; the catalogue is still there
+    afterwards, quantity 1.
+227. **A player can use one** without owning the merchant, from their own sheet.
+228. **The sheet header carries *Open Merchant*** on the catalogue item, and it opens the same shop.
+229. **A catalogue prices at the default market**, not at the market of the scene the reader is standing on.
+    Set a scene market rate, stand on it, and consult a catalogue for a merchant with no token there: the
+    prices are the plain ones, and the settlement charges what the window showed.
+230. **Delete the merchant Actor and consult the catalogue.** It opens the abandoned shop under the name it
+    was printed with, wearing the category icon and the remembered look — not an error.
+231. **An unlinked merchant offers no Print button** in either window.
+
+## The expanded shop (13.3.0)
+
+232. **Expand** in the shop window header fills the viewport, clear of the sidebar, the scene controls, the
+    navigation and the hotbar. **Restore Size** puts it back to the size it was.
+233. **The content is capped and centred** rather than stretched — the rows do not become a monitor wide.
+234. **The illustration gets room** and the veil over it is heavier than in the small window.
+235. **It is per client.** A player expanding their shop does not expand the GM's.
+236. **It is remembered per shop.** Close an expanded shop and reopen it: expanded. Open a *different* shop:
+    normal size.
+237. **It does not poison the remembered size.** Expand a shop, close it while expanded, then open any shop:
+    it opens at the size you last dragged a window to, not at viewport size.
+238. **Minimise still works** while expanded, and restores to the expanded window.
+239. **Everything still reaches you** with the shop expanded: hover tooltips, the character picker, the
+    clear-inventory confirm, the compendium search.

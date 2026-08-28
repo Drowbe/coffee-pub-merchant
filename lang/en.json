@@ -246,7 +246,8 @@
             "notAnItemPack": "That compendium does not hold items, so a shelf cannot stock from it.",
             "dropTableOnTables": "That is a roll table — drop it on the Roll tables list above.",
             "filteredTableRows": "{count} rolled item(s) were outside what {inventory} carries and were left out.",
-            "noShopToOpen": "{name} is an unlinked merchant with no token on any scene, so there is no merchant to open."
+            "noShopToOpen": "{name} is an unlinked merchant with no token on any scene, so there is no merchant to open.",
+            "cataloguePrintFailed": "Could not print that catalogue."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
@@ -369,7 +370,20 @@
             "soundWindowOpen": "Opening a merchant",
             "soundWindowOpenHint": "Played when a merchant window opens, on the client that opened it. A merchant can choose its own in Merchant Settings.",
             "soundWindowClose": "Closing a merchant",
-            "soundWindowCloseHint": "Played when a merchant window closes. A merchant can choose its own in Merchant Settings."
+            "soundWindowCloseHint": "Played when a merchant window closes. A merchant can choose its own in Merchant Settings.",
+            "headingMarkers": "The Token Marker",
+            "headingMarkersHint": "A badge on every merchant token saying what it sells, wearing the category’s own icon in the pin colours above. Without it the only way to learn a token is a shop is to double-click it, which is a poor way to learn that most tokens are not.",
+            "markerShow": "Show the marker",
+            "markerEveryone": "Everyone",
+            "markerGm": "GM only",
+            "markerOff": "Nobody",
+            "markerCorner": "Corner",
+            "markerTopRight": "Top right",
+            "markerTopLeft": "Top left",
+            "markerBottomRight": "Bottom right",
+            "markerBottomLeft": "Bottom left",
+            "markerSize": "Marker size",
+            "markerZoom": "Hide below zoom"
         },
         "progress": {
             "rolling": "Rolling {table}",
@@ -486,7 +500,8 @@
             "notThatManyOf": "There are not that many {item} left.",
             "notThere": "That is not lying about in here.",
             "grantFailed": "It would not go into their pack.",
-            "noOneToAgreeWith": "Choose who is shopping first — a price is agreed with somebody, not posted on the shelf."
+            "noOneToAgreeWith": "Choose who is shopping first — a price is agreed with somebody, not posted on the shelf.",
+            "catalogueUnlinked": "Only a linked merchant can have a catalogue printed. An unlinked token is a copy, and its stock is its own."
         },
         "stock": {
             "unlimited": "Unlimited stock",
@@ -551,6 +566,13 @@
             "notLinked": "{name} is an unlinked merchant. Only a linked one can be a merchant on a map — an unlinked Actor is the mould its tokens are cast from, and has no stock of its own to sell.",
             "noMerchant": "This region names a merchant that no longer exists.",
             "nothingHere": "There is nothing open here."
+        },
+        "catalogue": {
+            "itemName": "{shop} — Catalogue",
+            "activity": "Consult",
+            "blurb": "Consult this to browse the merchant’s stock from wherever you are reading it.",
+            "open": "Open Merchant",
+            "printed": "Printed {name}. Drag it from the Items directory to whoever should have it."
         }
     },
     "TYPES": {

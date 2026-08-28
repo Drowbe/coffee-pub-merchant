@@ -20,9 +20,11 @@
 import {
     MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP,
     DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS, DEFAULT_SHOP_LOOK, SHOP_LOOK_SETTINGS,
-    DEFAULT_ABANDONED_STOCK
+    DEFAULT_ABANDONED_STOCK,
+    TOKEN_MARKER_SETTINGS
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
+import { registerExpandSetting } from './utility-expand.js';
 import { playSoundPath } from './utility-feedback.js';
 
 /**
@@ -289,6 +291,29 @@ function registerAestheticSettings() {
         }
         game.settings.register(MODULE.ID, setting.key, definition);
     }
+
+    registerHeader('TokenMarkers', 'H3',
+        'coffee-pub-merchant.settings.headingMarkers',
+        'coffee-pub-merchant.settings.headingMarkersHint');
+
+    // The marker takes its colours from the pin above it, deliberately: a pin and a badge
+    // naming one shop in two liveries is two shops as far as a reader is concerned.
+    for (const setting of TOKEN_MARKER_SETTINGS) {
+        const definition = {
+            name: game.i18n.localize(setting.nameKey),
+            scope: 'world',
+            config: true,
+            type: setting.range ? Number : String,
+            default: setting.default
+        };
+        if (setting.range) definition.range = setting.range;
+        if (setting.choices) {
+            definition.choices = Object.fromEntries(setting.choices.map(({ value, labelKey }) => [
+                value, game.i18n.localize(labelKey)
+            ]));
+        }
+        game.settings.register(MODULE.ID, setting.key, definition);
+    }
 }
 
 /**
@@ -399,6 +424,10 @@ export function registerSettings() {
     registerHeader('Merchant', 'H1',
         'coffee-pub-merchant.settings.headingMerchant',
         'coffee-pub-merchant.settings.headingMerchantHint');
+
+    // Not a question anybody answers here: it is answered by pressing Expand, and it is
+    // registered so the button has somewhere to write the answer down.
+    registerExpandSetting();
 
     registerStockingSettings();
     registerAestheticSettings();

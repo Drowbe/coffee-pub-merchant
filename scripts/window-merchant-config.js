@@ -9,6 +9,7 @@ import {
     SHOP_SOUND_KEYS
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
+import { canPrint } from './utility-catalogue.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
 import {
@@ -2011,6 +2012,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 label: 'Pin This Merchant',
                 onClick: () => void this.pinShop()
             }] : []),
+            ...(this.canBePrinted ? [{
+                id: 'merchant-config-catalogue',
+                icon: 'fa-solid fa-scroll',
+                label: 'Print a Catalogue',
+                onClick: () => void this.printCatalogue()
+            }] : []),
             {
                 id: 'merchant-config-shop',
                 icon: 'fa-solid fa-shop',
@@ -2018,6 +2025,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 onClick: () => void this.openShop()
             }
         ];
+    }
+
+    /**
+     * Whether a catalogue could be printed of this merchant.
+     *
+     * The linked test without the pins one: a catalogue is an Item in this world and
+     * needs nothing of Blacksmith to exist.
+     */
+    get canBePrinted() {
+        if (!game.user.isGM) return false;
+        let actor = null;
+        try {
+            actor = fromUuidSync(this.actorUuid);
+        } catch (_error) {
+            return false;
+        }
+        return MerchantManager.isMerchant(actor) && canPrint(actor);
     }
 
     /**
@@ -2048,6 +2072,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     async pinShop() {
         const actor = await this._resolveActor();
         if (actor) await MerchantManager.pinShop(actor);
+    }
+
+    /** Print a catalogue of this merchant, refusals and all owned by the manager. */
+    async printCatalogue() {
+        const actor = await this._resolveActor();
+        if (actor) await MerchantManager.printCatalogue(actor);
     }
 
     /**

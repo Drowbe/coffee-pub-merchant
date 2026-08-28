@@ -5,6 +5,8 @@ import {
 } from './const.js';
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
+import { canPrint } from './utility-catalogue.js';
+import { wasExpanded, rememberExpanded, viewportGeometry } from './utility-expand.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -290,7 +292,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     constructor(subject, options = {}) {
         const opts = foundry.utils.mergeObject({}, options);
-        opts.id ||= `merchant-shop-${subject.id}-${foundry.utils.randomID()}`;
+        // **A subject may be a uuid rather than a document**, and that is not an edge case:
+        // it is how a door onto a shop whose Actor has been deleted is opened at all. The
+        // base class already accepts a string in `keyFor`; this used to read `.uuid` and
+        // `.id` off it regardless, so an abandoned shop opened with no key of its own --
+        // registered under the string, addressed as `undefined` by everything after.
+        const key = typeof subject === 'string' ? subject : (subject?.uuid ?? null);
+        opts.id ||= `merchant-shop-${(typeof subject === 'string' ? subject : subject?.id) ?? 'gone'}-${foundry.utils.randomID()}`;
         opts.position = foundry.utils.mergeObject(
             foundry.utils.mergeObject({}, ShopWindow.DEFAULT_OPTIONS.position ?? {}),
             opts.position || {}
@@ -300,7 +308,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             opts.window || {}
         );
         super(opts);
-        this.shopKey = subject.uuid;
+        this.shopKey = key;
         // A TokenDocument's parent is its Scene. An Actor's is not, so a subject that is
         // an Actor is told where it is standing instead.
         this.sceneUuid = subject.parent?.documentName === 'Scene'
@@ -317,6 +325,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // this: a shop that still exists answers for itself, and would rather.
         this.remembered = options.remembered ?? null;
         this.busy = false;
+        // Applied on first render rather than here: the frame does not exist yet, and
+        // there is nothing to resize or put a class on.
+        this._expanded = false;
+        // What to put back. Taken at the moment of expanding, because the size a person
+        // chose is the size they want back -- not the default the window opened at.
+        this._beforeExpand = null;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
         // stock would be a puzzle.
@@ -1867,7 +1881,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Refresh is for everyone. Nothing watches the merchant's items, so a GM
         // restocking an inventory does not push anything to a player already looking at
         // the shop.
+        // **Everyone, not just the GM.** The whole reason this is a per-client toggle
+        // rather than a shop setting is that a player with a big monitor should get it
+        // too, and a GM ticking a box on their ultrawide should not decide it for them.
         const actions = [{
+            id: 'merchant-expand',
+            icon: this._expanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand',
+            label: this._expanded ? 'Restore Size' : 'Expand',
+            onClick: () => void this.toggleExpand()
+        }, {
             id: 'merchant-refresh',
             icon: 'fa-solid fa-rotate',
             label: 'Refresh',
@@ -1885,6 +1907,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 icon: 'fa-solid fa-map-pin',
                 label: 'Pin This Merchant',
                 onClick: () => void this.pinShop()
+            }] : []),
+            ...(this.canBePrinted ? [{
+                // The same *linked* gate as the pin, and for the same reason: a catalogue
+                // outlives tokens and scenes, so what it names has to. Not the same
+                // availability gate -- printing needs no pins API, only an Actor.
+                id: 'merchant-catalogue',
+                icon: 'fa-solid fa-scroll',
+                label: 'Print a Catalogue',
+                onClick: () => void this.printCatalogue()
             }] : []),
             {
                 id: 'merchant-config',
@@ -1958,6 +1989,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _onFirstRender(context, options) {
         super._onFirstRender?.(context, options);
         void this._playDoor(SOUND.WINDOW_OPEN);
+        // A shop left expanded opens expanded, on this client, for this shop. Deferred a
+        // frame because the geometry is measured off furniture Foundry may still be
+        // laying out on the render that opened us.
+        if (wasExpanded(this.shopKey)) requestAnimationFrame(() => this.setExpanded(true, { remember: false }));
     }
 
     /**
@@ -2718,6 +2753,24 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
+     * Whether a catalogue could be printed of this shop.
+     *
+     * The linked test, without the pins one. A catalogue is an Item in this world and
+     * needs nothing of Blacksmith to exist, so a world with no pins API still gets the
+     * door that does not need a map.
+     */
+    get canBePrinted() {
+        if (!game.user.isGM) return false;
+        let subject = null;
+        try {
+            subject = fromUuidSync(this.shopKey);
+        } catch (_error) {
+            return false;
+        }
+        return subject?.documentName === 'Actor' && canPrint(subject);
+    }
+
+    /**
      * Whether this shop could take a pin, answered synchronously.
      *
      * **Absent rather than disabled, and this is the exception to the rule.** A control
@@ -2741,11 +2794,88 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return subject?.documentName === 'Actor' && canPin(subject);
     }
 
+    /**
+     * Lift the size caps while expanded.
+     *
+     * **This cannot be done in the stylesheet.** The base class writes the caps as *inline*
+     * custom properties on the window element on every render, and an inline property beats
+     * a class selector however specific it is -- so a CSS rule for `.is-expanded` would be
+     * overwritten by the very next render, which `setExpanded` itself performs. Clearing
+     * them here, after `super`, is the only place that is not immediately undone.
+     *
+     * A max-width of 1040 is right for a window and is exactly what expanding asks to
+     * escape.
+     */
+    _applyWindowSizeConstraints() {
+        super._applyWindowSizeConstraints?.();
+        if (!this._expanded) return;
+        const frame = this.element;
+        if (!frame?.style) return;
+        frame.style.setProperty('--blacksmith-window-max-width', 'none');
+        frame.style.setProperty('--blacksmith-window-max-height', 'none');
+    }
+
+    /** Flip between the shop as a window and the shop as the screen. */
+    async toggleExpand() {
+        await this.setExpanded(!this._expanded);
+    }
+
+    /**
+     * Expand or restore, and remember which unless told not to.
+     *
+     * **`rememberPosition` is switched off while expanded**, and that is not a detail.
+     * The base class persists geometry 250ms after any `setPosition`, under a key every
+     * shop shares -- so without this, expanding one shop would set the opening size of
+     * every shop, and closing it while expanded would make that permanent. The size a
+     * person dragged a window to is the size worth remembering; a size a button chose
+     * is not.
+     */
+    async setExpanded(expanded, { remember = true } = {}) {
+        const on = Boolean(expanded);
+        if (on === this._expanded) return;
+
+        const frame = this.element;
+        if (!frame) return;
+
+        // **Set before anything is resized**, because lifting the caps reads it. Resizing
+        // first would set an inline width the stylesheet then clamped back to 1040px, which
+        // looks exactly like the button not working.
+        this._expanded = on;
+
+        if (on) {
+            this._beforeExpand = { ...this.position };
+            // Before `setPosition`, so the geometry a button chose is never the geometry a
+            // shop opens at next time.
+            this.options.rememberPosition = false;
+            frame.classList.add('is-expanded');
+            this._applyWindowSizeConstraints();
+            this.setPosition(viewportGeometry());
+        } else {
+            frame.classList.remove('is-expanded');
+            // Back on before the restore, so the size being returned to is the one saved.
+            this.options.rememberPosition = true;
+            this._applyWindowSizeConstraints();
+            if (this._beforeExpand) this.setPosition(this._beforeExpand);
+            this._beforeExpand = null;
+        }
+
+        if (remember) await rememberExpanded(this.shopKey, on);
+        // The header action is built during a render and its label has just changed.
+        await this.render(false);
+    }
+
     /** Put a pin for this shop on the scene being looked at. */
     async pinShop() {
         if (!game.user.isGM) return;
         const { actor } = await this._resolveSubject();
         if (actor) await MerchantManager.pinShop(actor);
+    }
+
+    /** Print a catalogue of this shop into the world Items directory. */
+    async printCatalogue() {
+        if (!game.user.isGM) return;
+        const { actor } = await this._resolveSubject();
+        if (actor) await MerchantManager.printCatalogue(actor);
     }
 
     async openConfig() {

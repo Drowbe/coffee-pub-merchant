@@ -19,6 +19,7 @@ import {
 } from './utility-pricing.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
+import { printCatalogue, canPrint, registerCatalogue } from './utility-catalogue.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
@@ -65,6 +66,8 @@ export class MerchantManager {
 
     static initialize() {
         this._registerPins();
+        // Every client: a player consulting a catalogue is the point of it.
+        registerCatalogue((name, description, callback, options) => this.hook(name, description, callback, options));
         this._registerTokenInteraction();
         this._registerRequestOp();
         this._registerRefreshListener();
@@ -109,11 +112,13 @@ export class MerchantManager {
      * returning a falsy value veto the operation *world-wide* — one Foundry handler
      * serves every callback on a hook name, so `(doc) => this.tracked.has(doc.id)` on
      * `preCreateItem` silently blocked item creation for every module in the world.
-     * Merchant watches only `updateItem`, `createItem`, `deleteItem`, `updateWorldTime`,
-     * `userConnected`, `getHeaderControlsApplicationV2` and two Blacksmith events; none
-     * of them cancels anything. If a `pre*` watcher is ever added here it must pass
-     * `canCancel: true` at the **top level** — inside `options` it is ignored with a
-     * warning — and the callbacks below must keep returning nothing.
+     * **One `pre*` watcher exists**, and it is the exception that rule was written for:
+     * `dnd5e.preUseActivity`, which the catalogue cancels so consulting one opens a shop
+     * rather than posting a chat card. It declares `canCancel: true` through the option
+     * below, which reaches `registerHook` at the **top level** — inside `options` it is
+     * ignored with a warning. Only an explicit `false` cancels, and every other callback
+     * here returns nothing, which is what keeps a falsy return from vetoing an operation
+     * for the whole world.
      */
     static hook(name, description, callback) {
         const manager = globalThis.BlacksmithHookManager;
@@ -1923,6 +1928,22 @@ export class MerchantManager {
     }
 
     /**
+     * Print a catalogue of this shop.
+     *
+     * Beside `pinShop` because it is the same kind of act: making a durable door onto a
+     * shop that is not the token standing in front of you. A pin puts one on a map; a
+     * catalogue puts one in a pack.
+     */
+    static async printCatalogue(actor) {
+        if (!game.user.isGM || !this.isMerchant(actor)) return null;
+        if (!canPrint(actor)) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.catalogueUnlinked'));
+            return null;
+        }
+        return printCatalogue(actor);
+    }
+
+    /**
      * Put a pin for this shop on a scene, and say why not when it cannot.
      *
      * **Only a linked merchant may be pinned.** A pin outlives tokens, scenes and sessions,
@@ -2055,11 +2076,17 @@ export class MerchantManager {
      * shop: the Actor in the sidebar is the mould it was cast from and has no stock of its
      * own to sell.
      */
-    static openForActor(actor, { scene = null } = {}) {
+    static openForActor(actor, { scene = null, placeless = false } = {}) {
         if (!this.isMerchant(actor)) return null;
 
         if (actor.prototypeToken?.actorLink === true) {
-            const here = scene ?? canvas?.scene ?? null;
+            // **A catalogue is read somewhere the shop is not.** Handing this the reader's
+            // own scene would price a shop in another town against the market where the
+            // reader happens to be standing -- and the GM side would refuse the claim
+            // anyway, since `verifiedScene` honours only a scene the merchant has a token
+            // on. A window showing one figure while the settlement charges another is
+            // worse than the plain answer, which is the default market.
+            const here = placeless ? null : (scene ?? canvas?.scene ?? null);
             return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null });
         }
 

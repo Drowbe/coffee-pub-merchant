@@ -461,6 +461,80 @@ export const DEFAULT_PIN_DESIGN = Object.freeze({
     pinTextScale: true
 });
 
+/**
+ * **What a merchant token wears on the canvas.**
+ *
+ * A mark saying *this is a shop, and this is what it sells*, so a party crossing a market
+ * square can tell the weaponsmith from the apothecary from the guard who is only standing
+ * there. The glyph is the category's own icon -- the same one the map pin wears and the
+ * same one the shop card shows -- so the vocabulary is learned once.
+ *
+ * **No colour settings of its own.** It takes the pin palette, because a pin and a marker
+ * naming the same shop in two different liveries is two shops as far as a reader is
+ * concerned. One question, one answer, in `Shop Aesthetics`.
+ */
+export const TOKEN_MARKER_SETTINGS = Object.freeze([
+    {
+        key: 'markerShow',
+        nameKey: 'coffee-pub-merchant.settings.markerShow',
+        default: 'everyone',
+        choices: [
+            { value: 'everyone', labelKey: 'coffee-pub-merchant.settings.markerEveryone' },
+            { value: 'gm', labelKey: 'coffee-pub-merchant.settings.markerGm' },
+            { value: 'off', labelKey: 'coffee-pub-merchant.settings.markerOff' }
+        ]
+    },
+    {
+        key: 'markerCorner',
+        nameKey: 'coffee-pub-merchant.settings.markerCorner',
+        default: 'topRight',
+        choices: [
+            { value: 'topRight', labelKey: 'coffee-pub-merchant.settings.markerTopRight' },
+            { value: 'topLeft', labelKey: 'coffee-pub-merchant.settings.markerTopLeft' },
+            { value: 'bottomRight', labelKey: 'coffee-pub-merchant.settings.markerBottomRight' },
+            { value: 'bottomLeft', labelKey: 'coffee-pub-merchant.settings.markerBottomLeft' }
+        ]
+    },
+    {
+        key: 'markerSize',
+        nameKey: 'coffee-pub-merchant.settings.markerSize',
+        default: 22,
+        range: { min: 10, max: 64, step: 2 }
+    },
+    {
+        // **Zero is "always", and it is not the default.** A marker per stallholder is the
+        // useful thing at conversation range and a wall of glyphs over the GM's map when
+        // the whole district is on screen.
+        key: 'markerZoom',
+        nameKey: 'coffee-pub-merchant.settings.markerZoom',
+        default: 0.35,
+        range: { min: 0, max: 1.5, step: 0.05 }
+    }
+]);
+
+/**
+ * What a door remembers about the shop it opens onto.
+ *
+ * **A door outlives the room.** A pin stays on a map and a catalogue stays in a pack after
+ * the Actor is deleted, and when that happens the shop's configuration goes with it --
+ * everything the GM wrote about the place. Without a copy, an abandoned shop is a grey
+ * card with a name on it.
+ *
+ * A **copy taken when the door was made**, deliberately, not a live read. It could not be
+ * live for the case it exists for, and where the shop is still there it answers for
+ * itself and would rather. A label says what was true when somebody wrote it.
+ */
+export function shopSnapshot(actor, config) {
+    return {
+        name: config?.name || actor?.name || null,
+        kind: config?.kind ?? null,
+        description: config?.description ?? '',
+        tint: config?.tint ?? null,
+        illustration: config?.illustration ?? null,
+        portrait: actor?.img ?? null
+    };
+}
+
 /** The kind's label and icon, falling back to the default rather than to nothing. */
 export function shopKind(key) {
     return SHOP_KINDS.find((kind) => kind.key === key)

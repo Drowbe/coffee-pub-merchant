@@ -21,127 +21,111 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [A full-screen shop](#1-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
-| 2 | [Canvas marker for merchant tokens](#2-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
-| 3 | [Catalogue mode](#3-catalogue-mode) | Ways in | L | Fiction decisions first |
+| 1 | [Columns in an expanded shop](#1-columns-in-an-expanded-shop) | Presentation | M | Built on 13.3.0, judged by use |
+| 2 | [Hand the expand frame to Blacksmith](#2-hand-the-expand-frame-to-blacksmith) | Suite | S | Conversation, then a deletion |
+| 3 | [Deliver what a catalogue orders](#3-deliver-what-a-catalogue-orders) | Ways in | M | Fiction decision first |
 
-**The play session's three asks have all shipped**: per-shop compendium picks in 13.1.0, opening a shop
-from a pin in 13.1.2, and walking into a region in 13.1.3. The pin and region models live in the
-architecture doc §10 and §11.
+**All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the expanded
+shop. What is left of each is written below: one stage-two that should not be built until stage one has
+been lived with, one seam to hand to the hub, and the one question the catalogue raised and did not answer.
 
-**Everything left is a recorded idea**, each parked on something that has to be settled before code: two on
-a conversation with Blacksmith, one on a question about the fiction. Nothing here is waiting on a decision
-somebody has already made.
+**Three open asks with Blacksmith**, all from shipped work and all recorded in
+`architecture/architecture-merchant.md` §16 with what to delete when they land:
 
-**Two open asks with Blacksmith**, both from shipped work and both recorded in
-`architecture/architecture-merchant.md` §12 with what to delete when they land:
-
+- No **expand affordance on the standard window base**. `BlacksmithFullscreenWindowBaseV2` exists and
+  answers a different question — a blocking, frameless takeover for handouts. See item 2.
 - `compendiums.query` filters a requested source against the curated set, so a shelf naming an uncurated
   pack has it silently dropped. Merchant marks those rows *Waiting* and refuses the draw rather than
   reporting an empty query.
 - The pins API has **no placement picker**. Merchant arms its own crosshair, which is a dozen lines and
   works — but Squire and Curator will want the same the moment either drops a pin, and the fiddly half
   (cancel, escape, right-click, the canvas menu that must not open) is one implementation's worth of work.
-  Worth offering rather than asking for.
 
 [*Considered — not scheduled*](#considered--not-scheduled) below is a record of declines, not a backlog.
 
 ---
 
-## 1. A full-screen shop
+## 1. Columns in an expanded shop
 
-**Category:** Presentation · **Size:** M · **Blacksmith conversation first**
+**Category:** Presentation · **Size:** M · **Built on 13.3.0, judged by use**
 
-Recorded 2026-08-24, discussed and deferred the same day. The shop fills the viewport, the illustration
-becomes the ground rather than a backdrop behind one card, and a shop without an illustration falls through
-to the glass it already uses — that half is nearly free, because the illustration is already an optional
-attribute.
+Stage two of the expanded shop, and deliberately not built with stage one.
 
-Four things settled in the discussion, so they do not have to be re-derived:
+The reasoning, which has not changed: a 2560px window holding one column of shelves is worse than the
+window it replaces — forty-character rows with a metre of picture either side, and an eye that travels the
+width of a monitor from an item's name to its price. **Width buys columns, not longer rows**, and three
+inventories abreast is genuinely better for a six-shelf shop.
 
-- **Not the browser's fullscreen API.** `requestFullscreen` puts one element on its own layer, and Foundry
-  renders tooltips into a global `#tooltip` and dialogs as separate apps at body level — both would draw
-  *behind* the shop, which is to say invisibly. Every hover card, the clear-inventory confirm and the actor
-  picker would vanish. It has to mean **fills the Foundry viewport**: a positioned window without chrome.
-- **A view preference, not a property of the shop.** Same argument as the folds: a GM on an ultrawide
-  ticking a box, and a player's laptop getting a shop that swallows the screen, is the bad version. It wants
-  to be a **header toggle, per client, remembered per shop**, so a player with a big monitor gets it too. If
-  a config field is wanted as well it should mean the honestly different thing — *open this shop expanded
-  by default* — and the per-client toggle still governs.
-- **Full screen is not this layout stretched, and that is the actual work.** A 2560px window holding one
-  column of shelves is worse than what is there now: forty-character rows with a metre of picture either
-  side. Width buys **columns**, not longer rows, and three inventories abreast is genuinely better for a
-  six-shelf shop — but it interacts with the folds and the search. So: stage one is the toggle with the
-  existing single column capped at a sane width and centred, and stage two is columns *if* stage one reads
-  silly. Stage one may well be enough.
-- **The veil gets stronger, not lighter**, because there is more picture and fewer cards sitting on it. And
-  a 512px illustration blown to 2560 will look rough: the fix is a blurred scaled copy as fill with the real
-  image `contain`ed over it, which also handles portrait art on a widescreen.
+What stopped it being stage one is that columns interact with two things that already work:
 
-**Blacksmith should own half of it.** The frame — the header button, saving and restoring the pre-expand
-geometry, staying clear of the sidebar and hotbar, z-index, escape to restore, surviving a viewport resize
-— is chrome, is identical for Squire and Minstrel, and is where the fiddly bugs live. Merchant owns what
-happens inside: an `is-expanded` class is all it needs to do columns and a heavier veil. So the honest first
-step is a conversation with Blacksmith, not a stylesheet.
+- **The folds.** An inventory can be collapsed. In a column layout, collapsing one either leaves a hole or
+  reflows the other two, and a layout that reflows while you are clicking through it is a layout that loses
+  your place.
+- **The search.** `filterShopList` hides rows, then categories, then whole inventories. In one column that
+  reads as a list getting shorter. In three it reads as columns emptying unevenly, which is the same
+  information presented as a mess.
 
-One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 already has `maximize()` and
-it means "un-minimize"; a subclass overriding it would break Foundry's own minimise. `expand`, or `theatre`
-if the presentation connotation is wanted.
+**Judge it by use before building it.** Stage one may well be enough — the honest test is a six-shelf shop
+opened expanded on a wide monitor for a session. If the answer is "this is fine", delete this entry.
 
-## 2. Canvas marker for merchant tokens
+If it is built: `container-type: inline-size` is already on `.merchant-shop-content`, so the breakpoint is
+a container query rather than a media query and asks about the window rather than the screen — which is
+what it should ask about, since the window is resizable independently of expanding.
 
-**Category:** Presentation · **Size:** M · **Blacksmith conversation first**
+## 2. Hand the expand frame to Blacksmith
 
-A merchant token should be visibly a merchant, and visibly *what kind* of merchant, without anyone having to
-double-click it to find out. The shop kind already exists and already carries an icon
-(`SHOP_KINDS` in `scripts/const.js`), so the data is there — what is missing is putting it on the canvas.
+**Category:** Suite · **Size:** S · **Conversation, then a deletion**
 
-The value is that a player walking into a market square can tell the weaponsmith from the apothecary from the
-NPC who is just standing there. Right now the only way to know a token is a shop at all is to try
-double-clicking it, which is a poor way to learn that most tokens are not.
+`utility-expand.js` is 130 lines, and roughly none of it is about shops. Measuring the free viewport around
+the sidebar and hotbar, remembering geometry to restore, lifting the size caps the base class writes inline,
+suppressing position persistence for the duration — that is *chrome*, it is identical for Squire and
+Minstrel, and it is where the fiddly bugs live.
 
-Things to settle before building it, none of them obvious:
+Two of those four are only necessary because they fight the base class, which is the clearest possible
+argument for the base class owning them:
 
-- **Where the marker is drawn.** A child of the Token, a separate canvas layer, or a `Token` HUD element.
-  A child sprite moves and hides with its token for free, which is most of the work; a separate layer means
-  reimplementing visibility, elevation and hidden-token rules that already exist.
-- **Whether players see it at all.** A GM's hidden shop, a closed shop, and a shop the party has not yet
-  found are three different cases. "Closed" probably still shows the marker — a shuttered shop is still
-  visibly a shop — but a token the GM has hidden must not, and that has to hold for the marker as much as
-  for the token.
-- **Scale and clutter.** Markers that are legible on a 100px token are noise on a 40px one, and a market
-  square with twelve merchants must not become a wall of badges. Likely wants a zoom threshold, which is a
-  design decision rather than a constant.
-- **Whether this is Merchant's to own.** Blacksmith already draws on tokens, and Curator marks lootable
-  corpses — which is the same problem with a different icon. **Two consumers is the bar**, and that is
-  exactly the situation the extraction exercise said to hand over rather than write twice. Check what
-  Blacksmith has before drawing anything.
+- `_applyWindowSizeConstraints` writes `--blacksmith-window-max-width` as an **inline** property on every
+  render, so a stylesheet cannot lift it and a subclass has to override the method.
+- `setPosition` persists geometry 250ms later under a shared key, so expanding has to switch
+  `rememberPosition` off or one expanded shop sets the opening size of every shop.
 
-That last point is the reason this is recorded rather than started: the honest first step is a conversation
-with Blacksmith, not a sprite.
+**What Merchant should keep** is what happens *inside* an expanded shop: the `is-expanded` class is all it
+needs to cap the column, centre it, and strengthen the veil. That division is already how the code is
+written, so the handover is a deletion rather than a rewrite.
 
-## 3. Catalogue mode
+The ask is an `expand()` / `restore()` pair on `BlacksmithWindowBaseV2` and `BlacksmithToolWindowBaseV2`,
+with the class applied to the frame. **Not** on the fullscreen base, which is a different thing: blocking,
+frameless, one at a time, for handouts and reveals.
 
-**Category:** Ways in · **Size:** L · **Fiction decisions first**
+One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 has that method and it means
+"un-minimise"; overriding it breaks Foundry's own minimise button.
 
-Shopping remotely — the party browses a merchant's stock without a token on the scene, and orders are
-fulfilled later or at a distance. A standing shop they can reach from anywhere rather than a place they walk
-to.
+## 3. Deliver what a catalogue orders
 
-Worth recording now because it pulls against two things the current design assumes:
+**Category:** Ways in · **Size:** M · **Fiction decision first**
 
-- **Interaction is no longer token-shaped at all**, which is most of an answer already. A token, a pin and
-  a region all reach the same shop, and a linked merchant is a shop whether or not a token of it is placed.
-  So what a catalogue needs is a **listing** — a way to name a shop that is nowhere in particular — not a
-  fourth way of resolving one.
-- **Proximity has become the open question rather than a closed one.** It was a non-issue while a shopkeeper
-  was somebody you stood in front of; a region is explicitly about standing somewhere, and a catalogue is
-  explicitly about not. Those two want the same question answered in opposite directions, and it should be
-  answered once.
+The catalogue shipped and it works: the shop opens, the slate fills, the settlement runs. What it does not
+answer is the question it raised — **when does an ordered item actually arrive?**
 
-It also raises delivery: does an ordered item arrive immediately, at the next rest, or when the party reaches
-the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of
-it is built.
+Right now it arrives immediately, because that is what settling a trade does and a catalogue reuses the
+transaction unchanged. That is the right first answer (it is the one that needed no new machinery, and a
+party ordering rope from three towns away getting rope is not absurd in a world with sending stones) and it
+is not obviously the right final one.
+
+The options, and what each would cost:
+
+- **Immediately.** What it does now. Nothing to build.
+- **At the next long rest.** Needs a queue on the merchant or the buyer, a hook on the rest, and an answer
+  for what happens if the party never rests.
+- **When the party next reaches the shop.** Needs the queue plus a proximity test — which is the same
+  question §11's regions answer in the opposite direction, and it should be answered once for both.
+
+**This is a fiction question before it is a mechanical one**, and it should be answered before any of it is
+built. The queue is the same shape in two of the three, so the cost is in choosing, not in coding.
+
+Note what it is no longer pulling against: interaction stopped being token-shaped when pins shipped, so a
+catalogue needed no fourth way of resolving a shop — it names an Actor, like a pin does. That half of the
+old entry is closed.
 
 ---
 
@@ -149,6 +133,13 @@ it is built.
 
 Declines, kept so they are not re-proposed from scratch. Not a backlog.
 
+- **Handing a catalogue straight to a character.** *Print a Catalogue* puts the Item in the world directory
+  and the GM drags it to whoever should have it. A picker would be a question with no good default in the
+  middle of a different task, and dragging is the gesture they already use for every other item that changes
+  hands. If a GM ends up printing one per party member, revisit.
+- **A marker that says whether the shop is open.** The marker says *this is a weaponsmith*, and a shuttered
+  shop is still visibly a shop. Making it say two things would need it to redraw on every world-time
+  crossing, and would make the map flicker at closing time for information the window already gives.
 - **Temporarily lowering a count without moving the restock target.** A GM editing a quantity in the shop
   window sets both, deliberately — one number, one meaning. If "the cart was raided but I still keep six"
   turns out to be a thing GMs say, it needs either a second field or a modifier on the edit.

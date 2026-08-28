@@ -22,7 +22,7 @@
 // clicked.
 
 import {
-    MODULE, PIN_TYPE, SHOP_KINDS, shopKind, DEFAULT_PIN_DESIGN, normalizeTint, ABANDONED_QUANTITY
+    MODULE, PIN_TYPE, SHOP_KINDS, shopKind, DEFAULT_PIN_DESIGN, normalizeTint, ABANDONED_QUANTITY, shopSnapshot
 } from './const.js';
 
 function _api() {
@@ -347,14 +347,7 @@ export async function createShopPin(actor, { config = null, scene = null, x = nu
             ...(await pinDesign(identity.image)),
             config: {
                 [PIN_ACTOR]: actor.uuid,
-                [PIN_SHOP]: {
-                    name: identity.name,
-                    kind: config?.kind ?? null,
-                    description: config?.description ?? '',
-                    tint: config?.tint ?? null,
-                    illustration: config?.illustration ?? null,
-                    portrait: actor.img ?? null
-                }
+                [PIN_SHOP]: { ...shopSnapshot(actor, config), name: identity.name }
             }
         }, { sceneId: target.id });
     } catch (error) {

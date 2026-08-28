@@ -14,6 +14,7 @@ const REQUIRED_BLACKSMITH = '13.19.2';
 import { registerToastChannels, notify } from './utility-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 import { registerRegionBehavior } from './region-shop.js';
+import { registerMerchantMarkers } from './canvas-marker.js';
 
 /**
  * Add the way in to the Actor sheet header.
@@ -217,6 +218,9 @@ Hooks.once('ready', async function () {
     MerchantManager.initialize();
     registerSheetControls();
     registerSceneControls();
+    // Every client for the same reason: a marker a player cannot see is a marker that
+    // does not do the one thing it is for.
+    registerMerchantMarkers();
 
     // Exposed for the same reason Curator exposes its loot manager — the permission
     // bypass can only be verified from a non-GM client.

@@ -30,6 +30,12 @@ The money comes from the player who is shopping. There is no separate payer and 
 
 **A shop can close down.** Delete the merchant and its pin stays, because deleting a GM’s map furniture unasked is worse than leaving it. Clicking it opens the place shuttered — the same card, the same picture, under the name the pin remembers — with whatever nobody bothered to carry away still lying in a barrel. No prices, no slate, one *Take* button; and once something is taken it is gone, for everybody.
 
+**A shop you can carry.** *Print a Catalogue* makes an Item naming the merchant — a bound list of goods a party can be given, buy, lose, or lend to the rogue. Consulting it opens the same shop from wherever they are reading it, with no token and no map involved. A catalogue for a merchant who has since closed down opens the shuttered card under the name it was printed with.
+
+**You can see who sells what.** Merchant tokens wear a small badge carrying their category’s icon in the pin’s colours, so a party crossing a market square can tell the weaponsmith from the apothecary from the guard who is only standing there. It comes off when you zoom out past a threshold you set, because a badge legible on one token is noise on twenty.
+
+**A shop the size of the screen.** A header toggle fills the viewport with the shop, per person and remembered per shop — the illustration gets to be a place rather than a strip, and the list stays a readable width rather than stretching to the monitor.
+
 **Buying and selling in one press.** The slate holds both directions at once, shows the running total in the direction it actually runs, and settles as a single atomic exchange. Goods and coin commit together or nothing does.
 
 ## Requirements

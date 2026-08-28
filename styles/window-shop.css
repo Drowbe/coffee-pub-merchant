@@ -875,3 +875,46 @@
 }
 .merchant-shop-search-sort:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-shop-search-sort:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }
+
+/* --- The expanded shop ----------------------------------------------------- */
+/*
+ * **Stage one: the toggle, and the column made readable at any width.**
+ *
+ * The temptation is to let the existing layout have the whole 2560px, and that is worse
+ * than the window it replaced: forty-character rows with a metre of picture either side,
+ * and an eye that has to travel the width of a monitor from an item's name to its price.
+ * So the content is capped and centred, and what the extra width buys is *picture* --
+ * the illustration finally has room to be a place rather than a letterbox.
+ *
+ * Columns are stage two. Three inventories abreast is genuinely better for a six-shelf
+ * shop, and it interacts with the folds and the search in ways worth building
+ * deliberately rather than discovering.
+ *
+ * The size caps are lifted in JavaScript rather than here: Blacksmith writes them as
+ * *inline* custom properties on every render, and an inline property beats a class
+ * selector no matter how specific. See `_applyWindowSizeConstraints` in `window-shop.js`.
+ */
+
+/* Capped and centred. 1180px is about ninety characters of item name at this size, which
+   is the width past which a list stops being a list and becomes a spreadsheet. */
+.merchant-shop-window.is-expanded .merchant-shop-content {
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 14px;
+    gap: 14px;
+}
+
+/*
+ * **The veil gets stronger, not lighter.** There is more picture and fewer cards sitting
+ * on it, so the same veil that seated text comfortably in a 740px card leaves it floating
+ * over a scene at three times the area. This is the one number that has to move with the
+ * size.
+ */
+.merchant-shop-window.is-expanded .merchant-shop-subject[data-has-illustration] {
+    --merchant-shop-card-veil: linear-gradient(90deg, rgba(16, 11, 7, .56), rgba(16, 11, 7, .38));
+    /* Room to be a picture. A floor is wrong in the ordinary window — the card sizes to
+       its content in a column with none to spare — and right here, where the column has
+       more height than the content needs and the alternative is a letterboxed strip. */
+    min-height: 220px;
+}
