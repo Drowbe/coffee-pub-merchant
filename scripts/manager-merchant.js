@@ -1867,6 +1867,28 @@ export class MerchantManager {
     }
 
     /**
+     * Take a shop pin off the map.
+     *
+     * **Asked for, never automatic.** A pin outliving its merchant is the case this exists
+     * for, and deleting a GM's map furniture because a document went away is the same
+     * failure as a roll table's dead row vanishing: the fix is to say so and let them
+     * decide.
+     */
+    static async unpinShop(pinId) {
+        if (!game.user.isGM || !pinId || !hasPins()) return false;
+        const pins = game.modules.get('coffee-pub-blacksmith')?.api?.pins;
+        try {
+            await pins.delete(pinId);
+            notify.info(game.i18n.localize('coffee-pub-merchant.pin.removed'));
+            return true;
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not remove that shop pin:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.pin.removeFailed'));
+            return false;
+        }
+    }
+
+    /**
      * Open the shop a pin names.
      *
      * **A pin whose merchant has gone still opens.** It opens an abandoned shop -- shutters
@@ -1890,7 +1912,11 @@ export class MerchantManager {
 
         // Nothing to be a shop of. The window is opened against the pin's own record so it
         // has a name to show and a key of its own, rather than being refused.
-        return ShopWindow.openFor(uuid, { sceneUuid: scene?.uuid ?? null, shopName: pin?.text ?? null });
+        return ShopWindow.openFor(uuid, {
+            sceneUuid: scene?.uuid ?? null,
+            shopName: pin?.text ?? null,
+            pinId: pin?.id ?? null
+        });
     }
 
     /**

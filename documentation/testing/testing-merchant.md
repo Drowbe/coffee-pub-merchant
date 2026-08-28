@@ -1644,10 +1644,15 @@ level onto every existing row; it logs how many.
     Pinning the same shop on a *different* scene is allowed, and each opens priced against its own
     scene's market rate.
 182. **An unlinked merchant refuses to be pinned**, naming the reason.
-183. **Delete the merchant Actor.** The pin stays. Double-click it: an abandoned shop opens — shutters
-    down, shelves bare, under the name the pin remembers — rather than an error.
-184. **Shop Pins settings take effect on the next pin made**, and not on pins already placed. Check the
+183. **Delete the merchant Actor.** The pin stays. Double-click it: an abandoned shop opens, laid out
+    like any shop — boarded-up mark where the portrait goes, **Abandoned** where Open/Closed goes, the
+    shuttered line where the stock would be, and the *Buying as* row still showing who is here. No
+    Clear Slate and no Complete Transaction; a GM sees **Remove Shop Pin**, which takes the pin off the
+    map and closes the window.
+184. **The pin button is absent on an unlinked merchant**, in both the shop window and Merchant
+    Settings, rather than present and refusing.
+185. **Shop Pins settings take effect on the next pin made**, and not on pins already placed. Check the
     shape, size and colours, and that *Show the name* does what it says.
-185. A pin is visible to players only if its pin ownership says so; a player double-clicking one gets
+186. A pin is visible to players only if its pin ownership says so; a player double-clicking one gets
     the shop with their own permissions, exactly as through the token.
 

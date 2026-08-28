@@ -63,7 +63,8 @@
             "mergeTooltip": "Fold duplicate rows together — same name and kind, quantities added up",
             "abandonedName": "Abandoned shop",
             "abandonedKeeper": "Nobody behind the counter",
-            "abandoned": "The shutters are down and the shelves are bare. Whoever kept this place has gone, and taken the stock with them."
+            "abandoned": "The shutters are down and the shelves are bare. Whoever kept this place has gone, and taken the stock with them.",
+            "abandonedBadge": "Abandoned"
         },
         "config": {
             "title": "Merchant Settings",
@@ -488,7 +489,11 @@
             "pinUnavailable": "Canvas pins need a newer Coffee Pub Blacksmith.",
             "pinNeedsLinked": "An unlinked merchant is a copy, not a shop. Link its token to the Actor, or pin a linked merchant.",
             "pinNoScene": "There is no scene to pin this shop to.",
-            "alreadyPinned": "{name} is already pinned to this scene."
+            "alreadyPinned": "{name} is already pinned to this scene.",
+            "remove": "Remove Shop Pin",
+            "removeTooltip": "Take this pin off the map. The shop it named is already gone.",
+            "removed": "The shop pin is gone.",
+            "removeFailed": "Could not remove that shop pin."
         }
     }
 }

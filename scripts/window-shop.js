@@ -3,6 +3,7 @@ import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel
 } from './const.js';
+import { hasPins, canPin } from './utility-pins.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -262,6 +263,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         addToBasketRow: (_event, target, win) => void win.addToBasketRow(target.dataset.itemId),
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearAll: (_event, _target, win) => void win.clearAll(),
+        removePin: (_event, _target, win) => void win.removePin(),
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
@@ -306,6 +308,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // names, and it knows what the place was called; the window has nothing else left
         // to read a name from. Absent, the abandoned card says so in general terms.
         this.shopName = options.shopName ?? null;
+        // The pin this was opened from, when it was. Only an abandoned shop uses it: it is
+        // the one window with nothing else to act on, and the pin is the only thing left.
+        this.pinId = options.pinId ?? null;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -1633,11 +1638,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             //
             // A linked token carries its Actor's name anyway, so this is the same answer
             // there and the right one where they differ.
-            keeperName: token?.name || token?.actor?.name || '',
+            keeperName: missing
+                ? game.i18n.localize('coffee-pub-merchant.shop.abandonedKeeper')
+                : (token?.name || token?.actor?.name || ''),
             // Only worth naming when the shop is not named after them: "Bob" over a shop
             // called Bob is a line of nothing.
-            hasKeeper: Boolean(config?.name)
-                && String(config.name).trim() !== String(token?.name || token?.actor?.name || '').trim(),
+            // An abandoned shop always says it: "nobody behind the counter" is the whole
+            // point of the line there, where on a working shop it is only worth saying
+            // when the shop is not named after them.
+            hasKeeper: missing || (Boolean(config?.name)
+                && String(config.name).trim() !== String(token?.name || token?.actor?.name || '').trim()),
             // The kind replaces the word "Merchant" above the name, which was telling
             // the player something they could already see.
             kindLabel: shopKind(config?.kind).label,
@@ -1777,7 +1787,20 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // The main action, right-justified, with the thing that undoes it beside
             // it. Always present: a button that vanishes when the cart is empty makes
             // the empty state a puzzle, so it stays and says why instead.
-            toolFooterRight: `
+            // **An abandoned shop has no slate to clear and nothing to settle.** What a GM
+            // may want is to take the pin off the map, which is the only thing left that
+            // still points at a shop -- and it stays their decision, which is why it is a
+            // button here rather than something that happened when the Actor was deleted.
+            toolFooterRight: missing
+                ? (game.user.isGM && this.pinId
+                    ? `
+                <button type="button" class="blacksmith-window-btn-secondary"
+                        data-action="removePin"
+                        data-tooltip="${game.i18n.localize('coffee-pub-merchant.pin.removeTooltip')}">
+                    <i class="fa-solid fa-trash"></i> ${game.i18n.localize('coffee-pub-merchant.pin.remove')}
+                </button>`
+                    : '')
+                : `
                 <button type="button" class="blacksmith-window-btn-secondary merchant-shop-clear"
                         data-action="clearAll" ${hasAnything ? '' : 'disabled'}
                         data-tooltip="${game.i18n.localize('coffee-pub-merchant.slate.clearTooltip')}">
@@ -1810,7 +1833,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!game.user.isGM) return actions;
         return [
             ...actions,
-            {
+            ...(this.canBePinned ? [{
                 // Mirrored in Merchant Settings. A GM standing in the shop is the one who
                 // knows it wants a pin, and sending them to another window to say so is a
                 // trip to answer a question they have already answered.
@@ -1818,7 +1841,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 icon: 'fa-solid fa-map-pin',
                 label: 'Pin This Shop',
                 onClick: () => void this.pinShop()
-            },
+            }] : []),
             {
                 id: 'merchant-config',
                 icon: 'fa-solid fa-sliders',
@@ -2567,6 +2590,41 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.addToInventoryFailed'));
         }
         await this.render(false);
+    }
+
+    /**
+     * Take the pin off the map, from inside the shop it no longer opens.
+     *
+     * The window closes with it: what it was a window onto is gone, and leaving it up
+     * would leave a shop nobody can reach a second way of not reaching.
+     */
+    async removePin() {
+        if (!game.user.isGM || !this.pinId) return;
+        if (await MerchantManager.unpinShop(this.pinId)) await this.close();
+    }
+
+    /**
+     * Whether this shop could take a pin, answered synchronously.
+     *
+     * **Absent rather than disabled, and this is the exception to the rule.** A control
+     * that cannot act normally says why -- but "you cannot pin an unlinked merchant" is a
+     * fact about a whole class of shop that will never change while you are looking at it,
+     * not a state that might clear. A permanently disabled button is furniture.
+     *
+     * `fromUuidSync` because header actions are built during a render and cannot await.
+     * It reads what is already in memory, which a shop's own subject always is.
+     */
+    get canBePinned() {
+        if (!game.user.isGM || !hasPins()) return false;
+        let subject = null;
+        try {
+            subject = fromUuidSync(this.shopKey);
+        } catch (_error) {
+            return false;
+        }
+        // The shop key is the Actor for a linked merchant and the token for an unlinked
+        // one, so this is the same question `canPin` asks, already answered by identity.
+        return subject?.documentName === 'Actor' && canPin(subject);
     }
 
     /** Put a pin for this shop on the scene being looked at. */

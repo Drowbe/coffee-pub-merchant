@@ -7,6 +7,7 @@ import {
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables
 } from './const.js';
+import { hasPins, canPin } from './utility-pins.js';
 import { MerchantManager } from './manager-merchant.js';
 import { purseValue, formatBase, denominations, safeBuyRate } from './utility-pricing.js';
 import {
@@ -1953,12 +1954,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 label: 'Refresh',
                 onClick: () => void this.render(false)
             },
-            {
+            ...(this.canBePinned ? [{
                 id: 'merchant-config-pin',
                 icon: 'fa-solid fa-map-pin',
                 label: 'Pin This Shop',
                 onClick: () => void this.pinShop()
-            },
+            }] : []),
             {
                 id: 'merchant-config-shop',
                 icon: 'fa-solid fa-shop',
@@ -1966,6 +1967,24 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 onClick: () => void this.openShop()
             }
         ];
+    }
+
+    /**
+     * Whether this merchant could take a pin, answered synchronously.
+     *
+     * Absent rather than disabled: an unlinked merchant will not become pinnable while the
+     * window is open, and a button that can never work is furniture. The manager still
+     * refuses -- hiding a control is not a rule.
+     */
+    get canBePinned() {
+        if (!game.user.isGM || !hasPins()) return false;
+        let actor = null;
+        try {
+            actor = fromUuidSync(this.actorUuid);
+        } catch (_error) {
+            return false;
+        }
+        return MerchantManager.isMerchant(actor) && canPin(actor);
     }
 
     /**

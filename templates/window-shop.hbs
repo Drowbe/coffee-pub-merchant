@@ -9,39 +9,29 @@
             </div>
         </div>
     {{/if}}
-    {{#if missing}}
-        {{!-- **A shop that has closed down, not an error.** This is reached when the Actor
-              behind a shop is gone and something still points at it -- a pin on a map
-              outlives the merchant it names, and a pin is deliberately not deleted out
-              from under a GM. A shuttered shop is a thing that happens in a world; a line
-              of apology in an empty window is a thing that happens to software. --}}
-        <div class="merchant-shop-columns">
-            <div class="merchant-shop-main">
-                <section class="merchant-shop-section merchant-shop-subject merchant-shop-abandoned">
-                    <div class="merchant-shop-subject-image merchant-shop-abandoned-mark">
-                        <i class="fa-solid fa-store-slash"></i>
-                    </div>
-                    <div class="merchant-shop-subject-copy">
-                        <div class="merchant-shop-title">{{shopName}}</div>
-                        <div class="merchant-shop-keeper">{{localize "coffee-pub-merchant.shop.abandonedKeeper"}}</div>
-                        <div class="merchant-shop-description">{{localize "coffee-pub-merchant.shop.abandoned"}}</div>
-                    </div>
-                </section>
-            </div>
-        </div>
-    {{else}}
+    {{!-- **A shop whose merchant is gone is still a shop.** It is the same card, the same
+          actor row and the same window -- shuttered, with the parts that need a living
+          merchant absent. Replacing the whole window with a line of apology said the
+          module had failed; a boarded-up shop says the *place* has, which is a thing that
+          happens in a world and is what the GM meant when they left the pin there. --}}
         <div class="merchant-shop-columns">
             {{!-- Everything the shop is and everything it sells, in one
                   column. The cart sits beside the whole of it rather than
                   beneath the header, and the only thing spanning both is
                   the action bar in the footer. --}}
             <div class="merchant-shop-main">
-                <section class="merchant-shop-section merchant-shop-subject"{{#if illustration}} data-has-illustration{{/if}}{{#if tint}} data-tint{{/if}}{{#if illustration}} style="--merchant-shop-illustration: url('{{illustration}}'){{#if tint}}; --merchant-shop-tint: {{tint}}{{/if}}"{{else}}{{#if tint}} style="--merchant-shop-tint: {{tint}}"{{/if}}{{/if}}>
+                <section class="merchant-shop-section merchant-shop-subject{{#if missing}} merchant-shop-abandoned{{/if}}"{{#if illustration}} data-has-illustration{{/if}}{{#if tint}} data-tint{{/if}}{{#if illustration}} style="--merchant-shop-illustration: url('{{illustration}}'){{#if tint}}; --merchant-shop-tint: {{tint}}{{/if}}"{{else}}{{#if tint}} style="--merchant-shop-tint: {{tint}}"{{/if}}{{/if}}>
                     {{!-- Who and what, across the top; anything the GM wrote spans the
                           full width beneath it, where a paragraph has room to be one
                           rather than a column squeezed beside a portrait. --}}
                     <div class="merchant-shop-subject-head">
-                        <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
+                        {{#if missing}}
+                            <div class="merchant-shop-subject-image merchant-shop-abandoned-mark">
+                                <i class="fa-solid fa-store-slash"></i>
+                            </div>
+                        {{else}}
+                            <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
+                        {{/if}}
                         <div class="merchant-shop-subject-copy">
                             {{!-- Name and whether the door is open at either end of one
                                   line; who runs it and what it is beneath, each running
@@ -52,7 +42,14 @@
                                   about the shop, not its billing. --}}
                             <div class="merchant-shop-titleline">
                                 <div class="merchant-shop-title">{{shopName}}</div>
-                                {{#if isGM}}
+                                {{!-- Nothing to open or close. The door is not shut, the
+                                      shop is gone. --}}
+                                {{#if missing}}
+                                    <span class="merchant-shop-open-state is-closed">
+                                        <i class="fa-solid fa-store-slash"></i>
+                                        {{localize "coffee-pub-merchant.shop.abandonedBadge"}}
+                                    </span>
+                                {{else if isGM}}
                                     <button type="button" class="merchant-shop-open-toggle{{#unless isOpen}} is-closed{{/unless}}"
                                             data-action="toggleOpen"
                                             data-tooltip="{{#if isOpen}}Open for business — click to close{{else}}Closed — click to open{{/if}}">
@@ -67,6 +64,7 @@
                                 {{/if}}
                             </div>
                             {{#if hasKeeper}}<div class="merchant-shop-keeper">{{keeperName}}</div>{{/if}}
+                            {{#unless missing}}
                             <div class="merchant-shop-description">
                                 <span><i class="{{kindIcon}}"></i> {{kindLabel}}</span>
                                 {{#if hoursLabel}}<span><i class="fa-solid fa-clock"></i> {{hoursLabel}}</span>{{/if}}
@@ -75,6 +73,7 @@
                                       player should be able to tell which. --}}
                                 {{#if marketLabel}}<span><i class="fa-solid fa-scale-balanced"></i> {{marketLabel}}</span>{{/if}}
                             </div>
+                            {{/unless}}
                         </div>
                     </div>
 
@@ -168,7 +167,12 @@
             {{/if}}
 
             <div class="merchant-shop-stock">
-        {{#if hasInventories}}
+        {{#if missing}}
+                <div class="merchant-shop-empty merchant-shop-abandoned-note">
+                    <i class="fa-solid fa-wind"></i>
+                    <span>{{localize "coffee-pub-merchant.shop.abandoned"}}</span>
+                </div>
+        {{else if hasInventories}}
                 {{!-- Which side of the counter you are on. It was a Sell button inside
                       the slate header, which put a control that changes what the *stock*
                       column shows into the panel that shows the result -- and left no
@@ -455,5 +459,4 @@
                 </aside>
             {{/if}}
         </div>
-    {{/if}}
 </div>
