@@ -536,6 +536,11 @@
             "removed": "The shop pin is gone.",
             "removeFailed": "Could not remove that shop pin.",
             "placing": "Click the map to place {name}. Right-click or Escape to cancel."
+        },
+        "region": {
+            "notLinked": "{name} is an unlinked merchant. Only a linked one can be a shop on a map — an unlinked Actor is the mould its tokens are cast from, and has no stock of its own to sell.",
+            "noMerchant": "This region names a merchant that no longer exists.",
+            "nothingHere": "There is nothing open here."
         }
     },
     "TYPES": {

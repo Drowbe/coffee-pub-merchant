@@ -17,6 +17,33 @@
 
 import { MODULE } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
+import { canPin } from './utility-pins.js';
+import { notify } from './utility-feedback.js';
+
+/**
+ * Refuse a merchant a region cannot open, while the GM is still looking at the field.
+ *
+ * **Only a linked merchant.** The same rule a pin follows, for the same reason: a region is
+ * a place, and an unlinked Actor is the mould three placements were cast from rather than a
+ * shop with stock on it. Naming one is naming nothing in particular.
+ *
+ * `fromUuidSync` because a validator cannot await, which also means a compendium uuid
+ * cannot be resolved here — those throw, and are let through to be answered on the way in.
+ * Anything unresolvable is let through for the same reason: a validator that rejects what
+ * it merely cannot see is a validator that blocks a GM from saving a correct region.
+ */
+function validateLinkedMerchant(value) {
+    if (!value) return undefined;
+    let actor = null;
+    try {
+        actor = fromUuidSync(value);
+    } catch (_error) {
+        return undefined;
+    }
+    if (!actor || actor.documentName !== 'Actor') return undefined;
+    if (canPin(actor)) return undefined;
+    return game.i18n.format('coffee-pub-merchant.region.notLinked', { name: actor.name });
+}
 
 /** The sub-type key, namespaced as Foundry requires of a module. */
 export const REGION_BEHAVIOR_TYPE = `${MODULE.ID}.openShop`;
@@ -49,12 +76,32 @@ export function registerRegionBehavior() {
                 // in it, so it names the merchant the way a pin does -- and for the same
                 // reason only a linked merchant is worth naming: an unlinked one is a copy
                 // per placement, and a region cannot say which copy it meant.
-                merchant: new fields.DocumentUUIDField({ type: 'Actor' }),
+                //
+                // **Labels are passed as keys, not inherited from the prefixes.**
+                // `LOCALIZATION_PREFIXES` is applied by `Localization.#localizeDataModels`,
+                // which walks `CONFIG[...].dataModels` and then fires `i18nInit` -- and
+                // `i18nInit` runs *before* `init`. A model registered at `init` has already
+                // missed that pass, so its prefixes are never resolved and every field
+                // renders with no label: a nameless checkbox in a fieldset. Naming the keys
+                // here works whatever the order, which is why core's own behaviours can
+                // rely on the prefixes and a module's cannot.
+                merchant: new fields.DocumentUUIDField({
+                    type: 'Actor',
+                    label: 'BEHAVIOR.TYPES.openShop.FIELDS.merchant.label',
+                    hint: 'BEHAVIOR.TYPES.openShop.FIELDS.merchant.hint',
+                    // Refused at the point of saving rather than at the point of walking in.
+                    // A region that cannot work is worth knowing about while you are looking
+                    // at its settings, not a session later when somebody steps on it.
+                    validate: (value) => validateLinkedMerchant(value)
+                }),
 
                 // Off by default. A shop that opens every time somebody crosses the
                 // threshold is right for a market stall and wrong for a corridor the party
                 // walks up and down, and only the GM who drew the region knows which.
-                once: new fields.BooleanField()
+                once: new fields.BooleanField({
+                    label: 'BEHAVIOR.TYPES.openShop.FIELDS.once.label',
+                    hint: 'BEHAVIOR.TYPES.openShop.FIELDS.once.hint'
+                })
             };
         }
 
@@ -77,12 +124,24 @@ export function registerRegionBehavior() {
             } catch (_error) {
                 actor = null;
             }
-            // A region naming a merchant that has been deleted says so once, to the person
-            // who walked into it, rather than failing silently in a place they cannot see.
+            // **Every refusal says so, to the person standing in the region.** A door that
+            // does nothing is indistinguishable from a door that is not there, and the
+            // person who finds out is the one who cannot fix it -- so the GM is told what
+            // is wrong with the region and everybody else is told the shop is not open.
             if (!MerchantManager.isMerchant(actor)) {
-                if (game.user.isGM) {
-                    console.warn(`${MODULE.TITLE} | A region names a merchant that no longer exists:`, this.merchant);
-                }
+                notify.warn(game.i18n.localize(game.user.isGM
+                    ? 'coffee-pub-merchant.region.noMerchant'
+                    : 'coffee-pub-merchant.region.nothingHere'));
+                return;
+            }
+            // Belt and braces: the field refuses an unlinked merchant on save, and this
+            // catches a region configured before that check existed, or an Actor unlinked
+            // after the fact. An unlinked Actor is the mould, not a shop -- there is
+            // nothing on it to sell.
+            if (!canPin(actor)) {
+                notify.warn(game.i18n.format(game.user.isGM
+                    ? 'coffee-pub-merchant.region.notLinked'
+                    : 'coffee-pub-merchant.region.nothingHere', { name: actor.name }));
                 return;
             }
 

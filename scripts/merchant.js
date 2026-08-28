@@ -138,6 +138,22 @@ async function openMarketDialog(scene) {
     }
 }
 
+/**
+ * **The one thing that cannot wait for `ready`.**
+ *
+ * Everything else Merchant does starts at `ready`, because it needs Blacksmith. A region
+ * behaviour data model does not — and registering it late is not merely late, it is broken:
+ * Foundry constructs the scene's `RegionBehavior` documents long before `ready`, and any
+ * whose sub-type it does not yet know get a `system` that is not our model. The first thing
+ * to ask that object for `_getTerrainEffects` is Foundry's own movement planner, so **every
+ * token drag on the scene throws** until the world is reloaded.
+ *
+ * It needs no `game`, only `foundry`, `CONFIG` and `CONST` — all of which exist at `init`.
+ */
+Hooks.once('init', function () {
+    registerRegionBehavior();
+});
+
 Hooks.once('ready', async function () {
     const blacksmith = game.modules.get('coffee-pub-blacksmith')?.api;
     if (!blacksmith) {
@@ -201,10 +217,6 @@ Hooks.once('ready', async function () {
     MerchantManager.initialize();
     registerSheetControls();
     registerSceneControls();
-
-    // A third door: a region a token can walk into. Foundry's own extension point, so this
-    // is a registration rather than a patch -- see `region-shop.js`.
-    registerRegionBehavior();
 
     // Exposed for the same reason Curator exposes its loot manager — the permission
     // bypass can only be verified from a non-GM client.
