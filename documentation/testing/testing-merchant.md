@@ -1722,3 +1722,5 @@ level onto every existing row; it logs how many.
     whole room gets.
 214. **A price agreed before this build is gone** — the row reads at the marked price. Re-agreeing works
     normally.
+215. **An agreed price survives a re-render and a reload.** Set one, close the window, reopen: it is still
+    there. Clear it and it is gone — and stays gone after a reload.

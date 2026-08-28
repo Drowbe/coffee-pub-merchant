@@ -482,9 +482,14 @@ export function safeBuyRate(inventoryMarkup, bestReputation) {
  * means applying somebody's discount to everybody. Agreements are cleared when a trade
  * settles, so the most this costs is one re-haggle.
  */
+export function shopperKey(shopperUuid) {
+    return shopperUuid ? String(shopperUuid).replaceAll('.', '_') : null;
+}
+
 export function negotiatedPrice(merchantConfig, itemId, shopperUuid) {
-    if (!shopperUuid) return null;
-    const agreed = merchantConfig?.pricing?.overrides?.[shopperUuid]?.[itemId];
+    const who = shopperKey(shopperUuid);
+    if (!who) return null;
+    const agreed = merchantConfig?.pricing?.overrides?.[who]?.[itemId];
     if (agreed === null || agreed === undefined) return null;
     // A plain number is base units, which is what the negotiate control writes. The
     // `{ value, denomination }` shape is what a per-item override was before it, and
@@ -502,8 +507,9 @@ export function negotiatedPrice(merchantConfig, itemId, shopperUuid) {
  * not a change to what the shop pays.
  */
 export function negotiatedPurchase(merchantConfig, itemId, shopperUuid) {
-    if (!shopperUuid) return null;
-    const agreed = merchantConfig?.pricing?.purchaseOverrides?.[shopperUuid]?.[itemId];
+    const who = shopperKey(shopperUuid);
+    if (!who) return null;
+    const agreed = merchantConfig?.pricing?.purchaseOverrides?.[who]?.[itemId];
     return Number.isFinite(Number(agreed)) ? Math.max(0, Math.round(Number(agreed))) : null;
 }
 

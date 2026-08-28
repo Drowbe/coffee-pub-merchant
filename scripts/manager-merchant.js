@@ -15,7 +15,7 @@ import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
 } from './utility-inventory.js';
 import {
-    resolvePrice, resolvePurchasePrice, planSettlement, purseValue, fromBase, stockDepth
+    resolvePrice, resolvePurchasePrice, planSettlement, purseValue, fromBase, stockDepth, shopperKey
 } from './utility-pricing.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
@@ -915,6 +915,29 @@ export class MerchantManager {
     }
 
     /**
+     * Write both agreement maps, so that removing one actually removes it.
+     *
+     * `setFlag` *merges*, and a merge cannot express a deletion: clearing an agreed price
+     * rewrote the map without that key and Foundry put the old key straight back. So each
+     * map is dropped and rewritten. `-=` first is Foundry's own idiom for "replace, do not
+     * merge", and the same one `setInventoryConfig` uses for its lists.
+     *
+     * The keys here are shopper uuids with their dots taken out, which is not cosmetic:
+     * **Foundry expands a dotted key at every depth of an update**, so `Actor.qk3` as a key
+     * wrote `overrides.Actor.qk3` — a two-level path — while every reader asked for the
+     * one-level key it had written. The agreement was stored and then unfindable, so a
+     * haggled price looked like it had been refused.
+     */
+    static async _writeAgreements(merchant, pricing) {
+        const path = `flags.${MODULE.ID}.${MERCHANT_FLAG}.pricing`;
+        await merchant.update({
+            [`${path}.-=overrides`]: null,
+            [`${path}.-=purchaseOverrides`]: null
+        });
+        return this.setConfig(merchant, { pricing });
+    }
+
+    /**
      * Agree a price for one thing, in base units.
      *
      * **Written to the merchant, not carried in the request.** A price is the one
@@ -936,9 +959,10 @@ export class MerchantManager {
         // one customer is not putting the shelf on sale, and this was keyed by item alone --
         // so one haggle repriced the row for everybody in the room, and for the shelf.
         const key = side === 'sell' ? 'purchaseOverrides' : 'overrides';
+        const who = shopperKey(shopper);
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
         const byShopper = { ...(pricing[key] ?? {}) };
-        const agreed = { ...(byShopper[shopper] ?? {}) };
+        const agreed = { ...(byShopper[who] ?? {}) };
 
         if (base === null || base === undefined) delete agreed[itemId];
         else agreed[itemId] = Math.max(0, Math.round(Number(base) || 0));
@@ -946,11 +970,11 @@ export class MerchantManager {
         // An empty agreement is dropped rather than left as a shopper with nothing agreed:
         // the flag is written on every haggle, and a bag of empty objects is a bag that
         // grows for ever.
-        if (Object.keys(agreed).length) byShopper[shopper] = agreed;
-        else delete byShopper[shopper];
+        if (Object.keys(agreed).length) byShopper[who] = agreed;
+        else delete byShopper[who];
 
         pricing[key] = byShopper;
-        await this.setConfig(merchant, { pricing });
+        await this._writeAgreements(merchant, pricing);
         this.broadcastActorRefresh(merchant);
         return true;
     }
@@ -2661,12 +2685,13 @@ export class MerchantManager {
      * one buyer must not clear a price agreed with somebody still standing at the counter.
      */
     static async _clearAgreedPrices(merchant, boughtLines, soldLines, shopper) {
-        if (!shopper) return;
+        const who = shopperKey(shopper);
+        if (!who) return;
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
         const overrides = { ...(pricing.overrides ?? {}) };
         const buyback = { ...(pricing.purchaseOverrides ?? {}) };
-        const bought = { ...(overrides[shopper] ?? {}) };
-        const sold = { ...(buyback[shopper] ?? {}) };
+        const bought = { ...(overrides[who] ?? {}) };
+        const sold = { ...(buyback[who] ?? {}) };
 
         let touched = false;
         for (const line of boughtLines ?? []) {
@@ -2677,15 +2702,15 @@ export class MerchantManager {
         }
         if (!touched) return;
 
-        if (Object.keys(bought).length) overrides[shopper] = bought;
-        else delete overrides[shopper];
-        if (Object.keys(sold).length) buyback[shopper] = sold;
-        else delete buyback[shopper];
+        if (Object.keys(bought).length) overrides[who] = bought;
+        else delete overrides[who];
+        if (Object.keys(sold).length) buyback[who] = sold;
+        else delete buyback[who];
 
         pricing.overrides = overrides;
         pricing.purchaseOverrides = buyback;
         try {
-            await this.setConfig(merchant, { pricing });
+            await this._writeAgreements(merchant, pricing);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clear the agreed prices:`, error);
         }

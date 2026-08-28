@@ -121,7 +121,16 @@ assert.strictEqual(P.resolvePrice({}, SALE, item('a', null)), null, 'nothing to 
 // standing at the same counter, did not.
 const PALADIN = 'Actor.pal';
 const ROGUE = 'Actor.rog';
-const AGREED = { pricing: { overrides: { [PALADIN]: { a: 1200 } } } };
+
+// Stored under the *key*, not the uuid. A uuid has dots in it and Foundry expands a
+// dotted key at every depth of an update, so `Actor.pal` as a key writes a two-level
+// path that no reader asks for -- the agreement is stored and then unfindable, which
+// reads in play as a haggled price being refused.
+const PAL_KEY = P.shopperKey(PALADIN);
+assert.strictEqual(PAL_KEY, 'Actor_pal', 'a key has no dots in it');
+assert.strictEqual(P.shopperKey(null), null, 'and nobody has no key');
+
+const AGREED = { pricing: { overrides: { [PAL_KEY]: { a: 1200 } } } };
 const withPal = { shopper: PALADIN };
 const withRog = { shopper: ROGUE };
 
@@ -144,25 +153,25 @@ assert.strictEqual(P.negotiatedPrice({}, 'a', PALADIN), null);
 // Free is a price a merchant can offer, so zero has to survive the round trip
 // rather than reading as "no agreement yet".
 assert.strictEqual(
-    P.negotiatedPrice({ pricing: { overrides: { [PALADIN]: { a: 0 } } } }, 'a', PALADIN), 0, 'nothing is a price');
+    P.negotiatedPrice({ pricing: { overrides: { [PAL_KEY]: { a: 0 } } } }, 'a', PALADIN), 0, 'nothing is a price');
 
 // The older `{ value, denomination }` override shape still reads, so a price agreed as
 // a denominated amount keeps its meaning.
 assert.strictEqual(
-    P.negotiatedPrice({ pricing: { overrides: { [PALADIN]: { a: { value: 7, denomination: 'gp' } } } } }, 'a', PALADIN),
+    P.negotiatedPrice({ pricing: { overrides: { [PAL_KEY]: { a: { value: 7, denomination: 'gp' } } } } }, 'a', PALADIN),
     700);
 
 const BUYBACK = { type: 'purchased', markup: 1, buyRate: 0.5 };
 assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
 assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', null), withPal),
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PAL_KEY]: { a: 900 } } } }, BUYBACK, item('a', null), withPal),
     900, 'until the GM says what the merchant will pay');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', 50), withRog),
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PAL_KEY]: { a: 900 } } } }, BUYBACK, item('a', 50), withRog),
     2500, 'and what it offers one seller is not what it offers the next');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { overrides: { [PALADIN]: { a: 9999 } } } }, BUYBACK, item('a', 50), withPal), 2500,
+    P.resolvePurchasePrice({ pricing: { overrides: { [PAL_KEY]: { a: 9999 } } } }, BUYBACK, item('a', 50), withPal), 2500,
     'a buy-side agreement does not decide what the shop pays');
 console.log('ok  agreed prices, both directions');
 
@@ -208,7 +217,7 @@ assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50), { reputati
 assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), { reputation: 0.5, shopper: PALADIN }), 1200,
     'reputation does not re-cut an agreed price');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', 50),
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PAL_KEY]: { a: 900 } } } }, BUYBACK, item('a', 50),
         { reputation: 0.5, shopper: PALADIN }),
     900, 'nor an agreed buyback');
 
@@ -646,7 +655,7 @@ const FLAT = { pricing: { purchaseOverrides: { a: 900 }, overrides: { a: 1200 } 
 assert.strictEqual(P.negotiatedPurchase(FLAT, 'a', PALADIN), null, 'an un-keyed agreement belongs to nobody');
 assert.strictEqual(P.negotiatedPrice(FLAT, 'a', PALADIN), null, 'on either side');
 assert.strictEqual(
-    P.negotiatedPurchase({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, 'a', PALADIN), 900,
+    P.negotiatedPurchase({ pricing: { purchaseOverrides: { [PAL_KEY]: { a: 900 } } } }, 'a', PALADIN), 900,
     'while the current shape reads');
 assert.strictEqual(P.negotiatedPurchase({ pricing: {} }, 'a', PALADIN), null, 'and nothing means nothing');
 console.log('ok  agreements from before they had a shopper are ignored, not shared out');

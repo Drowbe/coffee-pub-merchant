@@ -476,8 +476,15 @@ Any rate that is zero, negative or unparseable is read as 1. A price of nothing 
 
 #### An agreement is with somebody
 
-Agreements are stored **nested under the shopper's uuid** — `pricing.overrides[shopperUuid][itemId]`, and
-`purchaseOverrides` the same on the selling side. Keyed by item alone, which is what this was until
+Agreements are stored **nested under the shopper** — `pricing.overrides[shopperKey][itemId]`, and
+`purchaseOverrides` the same on the selling side. The key is the shopper's uuid **with its dots taken out**,
+which is not cosmetic: Foundry expands a dotted key at every depth of an update, so `Actor.qk3` as a key
+writes the two-level path `overrides.Actor.qk3` while every reader asks for the one-level key it believes it
+wrote. The agreement is stored and then unfindable, which in play reads as the edit being refused.
+
+Both maps are written through `_writeAgreements`, which drops them with `-=` before rewriting. `setFlag`
+merges, and a merge cannot express a deletion: rewriting a map without a key puts the old key straight back,
+so clearing an agreed price did nothing and settling never released one. Keyed by item alone, which is what this was until
 2026-08-28, a shopkeeper knocking something off for the paladin who saved the town put the row on sale: the
 rogue standing beside her saw the cut price, and so did the shelf. That is not what haggling is.
 
