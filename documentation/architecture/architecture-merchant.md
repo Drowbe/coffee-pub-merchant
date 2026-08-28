@@ -64,7 +64,7 @@ is the one most likely to be got wrong out of habit.
     description: '',             // GM-authored, enriched on display
     illustration: null,          // a picture of the PLACE — see §6
     tint: null,                  // '#rrggbb' or null — a colour wash on the shop card
-    schema: 1,                   // stamp for future migrations — see §12
+    schema: 1,                   // stamp for future migrations — see §13
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
@@ -194,7 +194,7 @@ the failure was invisible: the shop looked stocked and the restock reported succ
 
 A row that has never had a par read falls back to what it currently holds — a shop sitting in a
 world nobody is shopping in is a shop at rest. That is a *fallback in `getStock`*, not a
-migration pass: there are no migrations (§12), and a row acquires a real par the first time
+migration pass: there are no migrations (§13), and a row acquires a real par the first time
 anything that is not a sale touches it.
 
 ### A roll brings new products, never more of what is already carried
@@ -854,7 +854,93 @@ Notable behaviours worth knowing before you touch it:
 
 ---
 
-## 10. Blacksmith is not optional
+## 10. Pins, and the shop that outlives its merchant
+
+A pin is a **second door onto the same shop**, and only a **linked** merchant may have one.
+
+That restriction is what makes the rest simple. A pin is durable map furniture — it outlives tokens being
+deleted, scenes being swapped, a session ending — so what it points at has to be durable too. An unlinked
+token is a copy: three placements of one pedlar are three shops that know nothing about each other, and a
+pin naming that pedlar would name the mould rather than a shop. **A dedicated shop on a map is durable, and
+therefore requires a durable Actor.**
+
+The pin stores the Actor's uuid in `config`, and opening from it reaches the same window and the same cart
+a token would — see §9 for why that is not automatic.
+
+### What a pin remembers
+
+| in `config` | why |
+|---|---|
+| `merchantActorUuid` | which shop this is |
+| `shop` | a **snapshot** of the look — name, kind, blurb, tint, illustration, portrait |
+| `taken` | the uuids already carried out of it |
+
+The snapshot is taken when the pin is made, and is deliberately not a live read: it **could not** be one for
+the case it exists for — the Actor is gone — and where the shop still exists it answers for itself. A pin is
+a label on a map, and a label says what was true when somebody wrote it.
+
+### A dead pin opens an abandoned shop
+
+The Actor is deleted; the pin remains, because deleting a GM's map furniture unasked is the same failure as
+a roll table's dead row vanishing. Clicking it opens the shop window **shuttered**: the same card, the same
+*Buying as* row, the category icon in the pin's own colours where the portrait goes, and the snapshot's name,
+kind, blurb, tint and illustration. Replacing the window with a line of apology said the *module* had failed;
+a boarded-up shop says the *place* has, which is a thing that happens in a world.
+
+There is no slate — a slate is a reckoning to settle and there is nobody to settle with — so the footer
+carries **Remove Shop Pin** for a GM instead, and removal stays a decision rather than something that
+happened when the Actor was deleted.
+
+### What is left behind, and taking it
+
+Nobody strips a place completely. A world setting lists what a dead shop leaves — names, semicolon-separated,
+resolved against the compendiums when the shop is opened, for the same reason a query shelf resolves rather
+than storing uuids. Semicolons because dnd5e writes `Rope, Hempen (50 feet)`.
+
+**How many of each is derived, not stored.** One to five, hashed from the pin id and the item uuid: two dead
+shops are stocked differently, the same shop shows the same numbers forever, and the GM handing an item over —
+another client, another process — reaches the same answer the player was shown without anything being written
+down or kept in step. `Torch x5` in the list overrides it.
+
+**Taking is a grant, not a settlement.** It rides the same GM-verified envelope a purchase does, because a
+player cannot create an item on their own sheet and should not be able to; but there is no `exchange`,
+nothing is paid, and no stock lock is taken, because the leavings are a setting rather than an inventory.
+
+Three checks stand between a click and an item:
+
+1. **Who is asking** — `_validateShopper`, as for any purchase.
+2. **What is being taken** — the uuid is matched against the resolved list. This is the one place in the
+   module where a client names an item and something is created from it; without the check, *Take* would
+   grant any uuid in the world to anybody who could open a dead shop.
+3. **Whether it is still there** — a dead shop empties, and the pin records it.
+
+The write-off happens **before** the hand-over and is undone if the grant fails. The other order can hand the
+goods over and then fail to write it down, which is the same hole as granting before charging — and here it
+leaves an item that can be taken again. A take with no pin is refused outright: the pin is the only place the
+emptying can be recorded, and a take that cannot be recorded is an infinite barrel.
+
+### What the pin looks like
+
+World settings under *Shop Aesthetics → The Map Pin*: shape, size, colours, border, drop shadow, and every
+text option Blacksmith's own Configure Pin window offers. Two rules worth knowing:
+
+- **The height of a free-aspect pin is Blacksmith's rule, copied verbatim.** A circle and a square are square;
+  a rectangle or an icon-only pin takes the picture's natural proportions against the chosen width, and a
+  Font Awesome icon has no natural size so it stays square. A pin made by our button and a pin edited in
+  their window have to come out the same shape — two rules for one number is how a setting ends up looking
+  like it did not take.
+- **The picture is ours whatever a saved design says.** *Pin picture* chooses between the category icon, the
+  portrait and the illustration, with fallbacks; Blacksmith's per-user *Default for [type]* design wins on
+  everything else, because somebody took the trouble.
+
+**Placement is ours too.** Blacksmith has no picker, and its `dropCanvasData` path reads only text, image,
+size, style, config and ownership — not tags, text layout or drop shadow — so a dropped pin would silently be
+plainer than a placed one. Pressing the button arms a crosshair with a ghost; the click converts through
+`canvas.stage.worldTransform.applyInverse`, which is Foundry's own conversion and survives panning and zoom.
+
+---
+
+## 11. Blacksmith is not optional
 
 Merchant does not function without it, and this is deliberate — the alternative is forking components, which
 has cost this suite real time twice. What is used:
@@ -881,6 +967,8 @@ An entry whose type has no rarity or price field — a spell, a class — **fail
 than passing unfiltered, so a price range plus a non-physical type returns nothing, deliberately.
 | `dialog.pickActor` | choosing who is shopping |
 | `sockets` | slate mirroring and refreshes, module-prefixed — `utility-sockets.js` |
+| `pins` | a shop's second door: create, click, taxonomy, and the record of what has been taken — §10 |
+| `compendiums.resolveMany` | the leavings of an abandoned shop, by name |
 | `toast` | every message the module shows |
 | `utils.playSound` + `arrSoundChoices` | the sound settings |
 
@@ -910,8 +998,12 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 11. Known seams
+## 12. Known seams
 
+- **Blacksmith has no pin placement picker.** Merchant arms its own crosshair and converts the click itself,
+  which is a dozen lines and works — but Squire and Curator will want the same the moment either drops a pin,
+  and a `pins.pickLocation()` in the hub would be one implementation of the fiddly half (cancel, escape,
+  right-click, the canvas menu that must not open). Worth offering rather than asking for.
 - **An uncurated pack is listed but not yet drawn from.** `compendiums.query` filters a requested source
   against the curated set — `requestedSources.filter(s => s === 'world' || mapping.packIds.includes(s))` —
   so `sources` can only ever *narrow* it. A shelf naming a pack Blacksmith is not configured to search gets
@@ -995,7 +1087,7 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 12. Migration — there isn't any
+## 13. Migration — there isn't any
 
 **Nothing migrates, because nothing has shipped.** No world holds a shape this build cannot read.
 

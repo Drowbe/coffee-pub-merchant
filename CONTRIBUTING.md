@@ -204,4 +204,4 @@ four came back inside a day; where nobody owns that loop, workarounds quietly be
 
 When something in Blacksmith is wrong, say so with the file, the line, and the reasoning, and propose the
 smallest change. Do not fork it and do not build a mitigation that becomes permanent. Two open asks are
-recorded in the architecture doc §11; both resolve to *deletions* on our side when they land.
+recorded in the architecture doc §12; both resolve to *deletions* on our side when they land.

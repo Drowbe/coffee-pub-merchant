@@ -26,6 +26,10 @@ The money comes from the player who is shopping. There is no separate payer and 
 
 **Prices and haggling.** Per-shop markup, overridable per shelf. A **Negotiate** shelf has no listed price at all: items go on the slate at *TBD*, the GM names a figure by double-clicking it, and the transaction will not settle until every line has one. Something agreed for an item that had no price of its own keeps that price when it changes hands — so a curio bought at 200gp can be sold on at 200gp — while a haggled discount on an ordinary item does not follow it, because a longsword bought cheap is still worth what a longsword is worth.
 
+**A shop on the map, with or without a shopkeeper.** A linked merchant can be pinned to a scene: press *Pin This Shop*, click where it goes, and the pin opens the same shop the token does — the same window, the same cart. A shop with a pin needs no token at all, which is what a stall in a market square actually is. The pin wears the shop’s category icon, its portrait or its illustration, in colours set once for the world.
+
+**A shop can close down.** Delete the merchant and its pin stays, because deleting a GM’s map furniture unasked is worse than leaving it. Clicking it opens the place shuttered — the same card, the same picture, under the name the pin remembers — with whatever nobody bothered to carry away still lying in a barrel. No prices, no slate, one *Take* button; and once something is taken it is gone, for everybody.
+
 **Buying and selling in one press.** The slate holds both directions at once, shows the running total in the direction it actually runs, and settles as a single atomic exchange. Goods and coin commit together or nothing does.
 
 ## Requirements
@@ -61,7 +65,7 @@ The money comes from the player who is shopping. There is no separate payer and 
 ## Known gaps
 
 - **The GM cannot hand something over for free** from the shop window; drag it from the merchant's sheet instead. A shop *can* price something at zero — type `0` into a shelf price and the row reads **Free**.
-- **One seam waits on Blacksmith**: the request envelope does not yet forward the verified caller, so Merchant asserts it in its own payload. Documented in `documentation/architecture/architecture-merchant.md` § *Known seams*. The till is no longer among them — it goes through `inventory.setCurrency` and takes the lock.
+- **Two seams wait on Blacksmith**, both cosmetic rather than load-bearing: a shelf cannot yet draw from a compendium outside Blacksmith’s curated set (such packs are listed and marked *Waiting*), and there is no shared pin-placement picker, so Merchant arms its own crosshair. Both are documented in `documentation/architecture/architecture-merchant.md` § *Known seams*, and both resolve to deletions here when they land.
 
 ## Documentation
 
