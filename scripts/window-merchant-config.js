@@ -5,7 +5,8 @@ import {
     STOCK_DEPTH_OPTIONS, DEFAULT_STOCK_DEPTH, typeCaps, rarityCaps, SOURCE, DEFAULT_SOURCE,
     PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
-    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables
+    MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables,
+    SHOP_SOUND_KEYS
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
 import { MerchantManager } from './manager-merchant.js';
@@ -17,6 +18,7 @@ import {
 import { physicalTypes } from './utility-inventory.js';
 import { startProgress } from './utility-progress.js';
 import { notify, playFeedback, SOUND } from './utility-feedback.js';
+import { soundLibrary } from './settings.js';
 
 
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
@@ -288,10 +290,32 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         return this.openFor(actor);
     }
 
+    /**
+     * The same door the shop window uses, because it is the same merchant.
+     *
+     * `fromUuidSync` rather than the async resolver: a lifecycle hook cannot await, and an
+     * Actor this window was opened for is in memory by definition.
+     */
+    _door(which) {
+        let actor = null;
+        try {
+            actor = fromUuidSync(this.actorUuid);
+        } catch (_error) {
+            actor = null;
+        }
+        playFeedback(which, actor ? MerchantManager.soundFor(actor, which === SOUND.WINDOW_OPEN ? 'open' : 'close') : null);
+    }
+
+    _onFirstRender(context, options) {
+        super._onFirstRender?.(context, options);
+        this._door(SOUND.WINDOW_OPEN);
+    }
+
     _onClose(options) {
         // A tick the GM can already see on the pill is a decision they have made. It is
         // written now rather than dropped because a debounce timer had not fired.
         this._flushQueryWrites();
+        this._door(SOUND.WINDOW_CLOSE);
         super._onClose?.(options);
     }
 
@@ -323,6 +347,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 // rather than as an empty string that would read as a name of nothing.
                 const value = String(event.target.value ?? '').trim();
                 void this._setField({ name: value || null }, { redraw: false });
+            });
+        }
+
+        // A merchant's own door, or blank for the world's. Written as null rather than an
+        // empty string so the flag says "no opinion" rather than "a sound called nothing".
+        for (const select of this.element?.querySelectorAll('[data-merchant-sound]') ?? []) {
+            if (select.dataset.merchantBound === 'true') continue;
+            select.dataset.merchantBound = 'true';
+            select.addEventListener('change', (event) => {
+                const which = select.getAttribute('data-merchant-sound');
+                const sounds = { ...(MerchantManager.getConfig(fromUuidSync(this.actorUuid)) ?? {}).sounds };
+                sounds[which] = event.target.value || null;
+                void this._setField({ sounds }, { redraw: false });
             });
         }
 
@@ -1832,6 +1869,20 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             portraitImg: actor?.img ?? 'icons/svg/mystery-man.svg',
             illustration: merchantConfig.illustration ?? '',
             tint: normalizeTint(merchantConfig.tint) ?? '',
+            // **Blank is "whatever the world says", and it is the first option.** A merchant
+            // with no opinion follows the world's door, so changing that setting moves every
+            // shop that never spoke up -- which is what makes it a default rather than a
+            // copy taken at creation.
+            soundOptions: SHOP_SOUND_KEYS.map((entry) => ({
+                key: entry.key,
+                label: game.i18n.localize(entry.nameKey),
+                choices: [
+                    { value: '', label: game.i18n.localize('coffee-pub-merchant.config.soundDefault'), selected: !merchantConfig.sounds?.[entry.key] },
+                    ...Object.entries(soundLibrary()).map(([value, label]) => ({
+                        value, label, selected: merchantConfig.sounds?.[entry.key] === value
+                    }))
+                ]
+            })),
             // `<input type="color">` has no empty state -- it is black or it is a colour
             // -- so an untinted shop opens the picker on the card's own leather rather
             // than on a black nobody chose.

@@ -65,6 +65,7 @@ is the one most likely to be got wrong out of habit.
     kind: 'general',             // SHOP_KINDS — drives the icon and category label
     description: '',             // GM-authored, enriched on display
     illustration: null,          // a picture of the PLACE — see §6
+    sounds: { open, close } | {},// this merchant's own door; absent means the world's
     tint: null,                  // '#rrggbb' or null — a colour wash on the shop card
     schema: 1,                   // stamp for future migrations — see §14
     open: true,                  // only consulted when there is NO schedule

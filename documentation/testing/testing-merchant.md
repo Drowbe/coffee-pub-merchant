@@ -1704,4 +1704,11 @@ level onto every existing row; it logs how many.
     read correctly.
 206. **Restocking a compendium-stocked inventory that draws containers** reports what arrived, and notes
     any packed container it skipped as a warning rather than an error.
+207. **A merchant window has a door.** Opening and closing one plays a sound, on your client only, and
+    the same two play for Merchant Settings. Neither repeats when you click about inside the window.
+208. **Settings → Merchant → Sound** carries both, with a play button each. Set one to *None* and that
+    half falls silent.
+209. **A merchant can override either** under *Sound* in Merchant Settings. Set one merchant to a
+    different opening sound: it uses that, and every other merchant still follows the world setting —
+    including after the world setting is changed.
 

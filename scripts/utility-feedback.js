@@ -145,14 +145,16 @@ function show(kind, title, { subtitle, duration, channel, onClick, stackKey, ico
  * Silent unless a GM has chosen a sound. `playSound` already treats `'none'` as
  * nothing, so the guard here is only to avoid the call.
  */
-export function playFeedback(key) {
-    let sound = null;
-    try {
-        sound = game.settings.get(MODULE.ID, key);
-    } catch (_error) {
-        // Settings not registered yet, or a key that no longer exists. Neither is
-        // worth a console line for something whose entire job is set dressing.
-        return;
+export function playFeedback(key, override = null) {
+    let sound = override ?? null;
+    if (!sound) {
+        try {
+            sound = game.settings.get(MODULE.ID, key);
+        } catch (_error) {
+            // Settings not registered yet, or a key that no longer exists. Neither is
+            // worth a console line for something whose entire job is set dressing.
+            return;
+        }
     }
     if (!sound || sound === 'none' || sound === 'sound-none') return;
 
@@ -185,6 +187,8 @@ export function playSoundPath(path) {
 
 /** The setting keys, so call sites name a sound rather than a string. */
 export const SOUND = Object.freeze({
+    WINDOW_OPEN: 'soundWindowOpen',
+    WINDOW_CLOSE: 'soundWindowClose',
     SLATE_ADD: 'soundSlateAdd',
     SLATE_UPDATE: 'soundSlateUpdate',
     SLATE_CLEAR: 'soundSlateClear',

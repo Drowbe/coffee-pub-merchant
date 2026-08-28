@@ -68,6 +68,21 @@ export const SOUND_SETTINGS = Object.freeze([
         sound: 'sound-interface-button-08'
     },
     {
+        // **The counter opening and shutting**, on both windows: a GM in Merchant Settings
+        // is standing behind the same counter a player stands in front of, and one door
+        // sound for two views of one merchant is one door.
+        key: 'soundWindowOpen',
+        nameKey: 'coffee-pub-merchant.settings.soundWindowOpen',
+        hintKey: 'coffee-pub-merchant.settings.soundWindowOpenHint',
+        sound: 'sound-instrument-bell'
+    },
+    {
+        key: 'soundWindowClose',
+        nameKey: 'coffee-pub-merchant.settings.soundWindowClose',
+        hintKey: 'coffee-pub-merchant.settings.soundWindowCloseHint',
+        sound: 'sound-instrument-gong'
+    },
+    {
         key: 'soundError',
         nameKey: 'coffee-pub-merchant.settings.soundError',
         hintKey: 'coffee-pub-merchant.settings.soundErrorHint',
@@ -362,6 +377,16 @@ function bindLookControls(root) {
         });
         field.after(browse);
     }
+}
+
+/**
+ * Blacksmith's sound library, for anything that offers a choice from it.
+ *
+ * Exported because Merchant Settings offers the same list per merchant that the world
+ * settings offer once: two lists of the same forty files is two chances to drift.
+ */
+export function soundLibrary() {
+    return soundChoices();
 }
 
 function soundChoices() {

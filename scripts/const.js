@@ -168,24 +168,29 @@ export function secondsPerDay() {
 // Deliberately a short list. Anything longer becomes a taxonomy nobody agrees with,
 // and the GM already has a free-text description for "and also a fence".
 
+/**
+ * **Alphabetical, because seventeen is past the point where a reader scans a list.**
+ * There is no natural order to shop kinds — no scale, no frequency anybody agrees on — so
+ * any other arrangement is one somebody has to learn before they can find Jeweller.
+ */
 export const SHOP_KINDS = Object.freeze([
-    { key: 'general', label: 'General Store', icon: 'fa-solid fa-shop' },
-    { key: 'weapons', label: 'Weaponsmith', icon: 'fa-solid fa-gavel' },
-    { key: 'armor', label: 'Armorer', icon: 'fa-solid fa-shield-halved' },
-    { key: 'bowyer', label: 'Bowyer & Fletcher', icon: 'fa-solid fa-bullseye' },
-    { key: 'alchemy', label: 'Apothecary', icon: 'fa-solid fa-mortar-pestle' },
     { key: 'alchemist', label: 'Alchemist', icon: 'fa-solid fa-flask' },
+    { key: 'alchemy', label: 'Apothecary', icon: 'fa-solid fa-mortar-pestle' },
     { key: 'magic', label: 'Arcanist', icon: 'fa-solid fa-wand-sparkles' },
-    { key: 'provisions', label: 'Provisioner', icon: 'fa-solid fa-wheat-awn' },
-    { key: 'outfitter', label: 'Outfitter', icon: 'fa-solid fa-shirt' },
-    { key: 'tools', label: 'Smith & Tools', icon: 'fa-solid fa-screwdriver-wrench' },
-    { key: 'jewelry', label: 'Jeweller', icon: 'fa-solid fa-gem' },
+    { key: 'armor', label: 'Armorer', icon: 'fa-solid fa-shield-halved' },
     { key: 'books', label: 'Bookseller', icon: 'fa-solid fa-book' },
+    { key: 'bowyer', label: 'Bowyer & Fletcher', icon: 'fa-solid fa-bullseye' },
     { key: 'cartographer', label: 'Cartographer', icon: 'fa-solid fa-map' },
+    { key: 'exotic', label: 'Curiosities', icon: 'fa-solid fa-hat-wizard' },
+    { key: 'general', label: 'General Store', icon: 'fa-solid fa-shop' },
+    { key: 'jewelry', label: 'Jeweller', icon: 'fa-solid fa-gem' },
+    { key: 'outfitter', label: 'Outfitter', icon: 'fa-solid fa-shirt' },
+    { key: 'provisions', label: 'Provisioner', icon: 'fa-solid fa-wheat-awn' },
     { key: 'scribe', label: 'Scribe & Messenger', icon: 'fa-solid fa-feather-pointed' },
-    { key: 'tavern', label: 'Tavern', icon: 'fa-solid fa-beer-mug-empty' },
+    { key: 'tools', label: 'Smith & Tools', icon: 'fa-solid fa-screwdriver-wrench' },
     { key: 'stable', label: 'Stables', icon: 'fa-solid fa-horse' },
-    { key: 'exotic', label: 'Curiosities', icon: 'fa-solid fa-hat-wizard' }
+    { key: 'tavern', label: 'Tavern', icon: 'fa-solid fa-beer-mug-empty' },
+    { key: 'weapons', label: 'Weaponsmith', icon: 'fa-solid fa-gavel' }
 ]);
 
 export const DEFAULT_SHOP_KIND = 'general';
@@ -300,6 +305,22 @@ function parseAbandonedEntry(entry) {
 
 /** How many of a thing are lying about when the list does not say. */
 export const ABANDONED_QUANTITY = Object.freeze({ min: 1, max: 5 });
+
+/**
+ * A merchant's own door, if it wants one.
+ *
+ * **The world setting is the default, not the rule.** Most merchants sound like every
+ * other; a tavern that creaks and a vault that clangs are worth the two fields, and a GM
+ * who has set the world's door once should not have to set it again per shop.
+ *
+ * `null` on either means "whatever the world says", which is what makes this a default
+ * rather than a copy: change the world's sound and every merchant that never spoke up
+ * follows it.
+ */
+export const SHOP_SOUND_KEYS = Object.freeze([
+    { key: 'open', setting: 'soundWindowOpen', nameKey: 'coffee-pub-merchant.config.soundOpen' },
+    { key: 'close', setting: 'soundWindowClose', nameKey: 'coffee-pub-merchant.config.soundClose' }
+]);
 
 export const DEFAULT_SHOP_LOOK = Object.freeze({
     shopTint: '',

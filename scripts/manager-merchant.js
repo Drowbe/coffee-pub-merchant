@@ -596,6 +596,21 @@ export class MerchantManager {
         return this.setInventoryConfig(actor, inventoryId, { visible: Boolean(visible) });
     }
 
+    /**
+     * The sound this merchant makes, or null for whatever the world says.
+     *
+     * **One resolver, because two windows ask.** The shop window and Merchant Settings are
+     * two views of one merchant and have to make the same noise; asking the flag in two
+     * places is how a tavern ends up creaking on one and clicking on the other.
+     *
+     * `null` is not "silent" -- it is "no opinion", and `playFeedback` falls through to the
+     * world setting. Silence is `none`, which a GM picks deliberately.
+     */
+    static soundFor(actor, which) {
+        const chosen = this.getConfig(actor)?.sounds?.[which];
+        return typeof chosen === 'string' && chosen ? chosen : null;
+    }
+
     /** Merge changes into an inventory's configuration. GM-only, written directly. */
     static async setInventoryConfig(actor, inventoryId, changes) {
         if (!game.user.isGM) return null;

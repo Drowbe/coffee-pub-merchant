@@ -1937,6 +1937,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     }
 
     /**
+     * The door, once.
+     *
+     * `_onFirstRender` rather than `_onRender`: every gesture in this window ends in a
+     * re-render, so the second would make the counter creak on every click.
+     */
+    _onFirstRender(context, options) {
+        super._onFirstRender?.(context, options);
+        void this._playDoor(SOUND.WINDOW_OPEN);
+    }
+
+    /**
+     * The door, in this merchant's own voice if it has one.
+     *
+     * Resolving the subject is async and a lifecycle hook is not, so this is deliberately
+     * not awaited: a sound that arrives a frame late is a sound, and one that held up a
+     * render would be a bug.
+     */
+    async _playDoor(which) {
+        const { actor } = await this._resolveSubject();
+        playFeedback(which, actor ? MerchantManager.soundFor(actor, which === SOUND.WINDOW_OPEN ? 'open' : 'close') : null);
+    }
+
+    /**
      * Each inventory is a drop target, so a GM can drag stock straight onto the inventory it
      * belongs on — from a compendium, the sidebar, or another sheet.
      */
@@ -2781,6 +2804,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // Leave the room first, or the face stays behind.
             this.clearPresence();
             clearTimeout(this._sellSearchTimer);
+            void this._playDoor(SOUND.WINDOW_CLOSE);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not clean up on close:`, error);
         }

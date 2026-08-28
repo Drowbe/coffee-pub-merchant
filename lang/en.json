@@ -177,7 +177,12 @@
             "sections": "Sections",
             "noLimit": "No limit",
             "byItemType": "By item type",
-            "byRarity": "By rarity"
+            "byRarity": "By rarity",
+            "sound": "Sound",
+            "soundHint": "Leave either as Default and this merchant follows the world setting, so changing that moves every merchant that has not chosen for itself.",
+            "soundOpen": "Opening",
+            "soundClose": "Closing",
+            "soundDefault": "Default"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -360,7 +365,11 @@
             "pinImageIllustration": "Illustration > Category Icon",
             "pinImagePortrait": "Portrait > Category Icon",
             "pinImageIllustrationFirst": "Illustration > Portrait > Category Icon",
-            "pinImagePortraitFirst": "Portrait > Illustration > Category Icon"
+            "pinImagePortraitFirst": "Portrait > Illustration > Category Icon",
+            "soundWindowOpen": "Opening a merchant",
+            "soundWindowOpenHint": "Played when a merchant window opens, on the client that opened it. A merchant can choose its own in Merchant Settings.",
+            "soundWindowClose": "Closing a merchant",
+            "soundWindowCloseHint": "Played when a merchant window closes. A merchant can choose its own in Merchant Settings."
         },
         "progress": {
             "rolling": "Rolling {table}",

@@ -105,6 +105,30 @@
 
         <section class="merchant-config-section">
             <h3>
+                <span><i class="fa-solid fa-volume-high"></i> {{localize "coffee-pub-merchant.config.sound"}}</span>
+            </h3>
+
+            {{!-- **Blank is "whatever the world says", and it is the first option.** Most
+                  merchants sound like every other one; a tavern that creaks and a vault that
+                  clangs are worth two fields. A merchant with no opinion follows the world
+                  setting, so changing that moves every shop that never spoke up. --}}
+            <div class="merchant-config-grid">
+                {{#each soundOptions}}
+                    <label class="merchant-config-row">
+                        <span class="merchant-config-label">{{label}}</span>
+                        <select data-merchant-sound="{{key}}">
+                            {{#each choices}}
+                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                            {{/each}}
+                        </select>
+                    </label>
+                {{/each}}
+            </div>
+            <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.soundHint"}}</small>
+        </section>
+
+        <section class="merchant-config-section">
+            <h3>
                 <span><i class="fa-solid fa-clock"></i> {{localize "coffee-pub-merchant.config.tradingHours"}}</span>
                 <span class="merchant-config-hours-always{{#if alwaysClosed}} is-closed{{/if}}"
                       data-hours-badge {{#unless hoursBadge}}hidden{{/unless}}>{{hoursBadge}}</span>
