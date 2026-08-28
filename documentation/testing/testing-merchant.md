@@ -1687,4 +1687,14 @@ level onto every existing row; it logs how many.
 199. **The leavings show a quantity**, in the same cell a stock row uses. The shipped list has
     Torch x5 and Candle x4; Take hands over all five at once and says so. Add “Rope, Hempen (50 feet) x2”
     to the setting and check the count lands on the right row, not on its neighbour.
+200. **Walk into a region and the shop opens.** Draw a region, add the **Open Shop** behaviour, name a
+    linked merchant, and move a token in: the shop opens — on that player’s client only. Nobody else’s
+    window appears. Tick *Once only* and the behaviour disables itself after the first entry.
+201. Both fields show their labels and hints. Naming an **unlinked** merchant is refused on save with the
+    reason; a region that already names one says so on entry (the GM gets the reason, a player gets
+    “there is nothing open here”).
+202. **Dragging tokens still works** on a scene carrying an Open Shop region — no
+    `_getTerrainEffects` error. Reload and drag again.
+203. A token *created* inside the region, or teleported in, does **not** open a shop; only one that walks
+    in does.
 

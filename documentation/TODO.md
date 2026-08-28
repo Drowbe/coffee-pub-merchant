@@ -21,15 +21,17 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [A canvas region as the shop](#1-a-canvas-region-as-the-shop) | Ways in | M | Design open |
-| 2 | [A full-screen shop](#2-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
-| 3 | [Canvas marker for merchant tokens](#3-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
-| 4 | [Catalogue mode](#4-catalogue-mode) | Ways in | L | Fiction decisions first |
+| 1 | [A full-screen shop](#1-a-full-screen-shop) | Presentation | M | Blacksmith conversation first |
+| 2 | [Canvas marker for merchant tokens](#2-canvas-marker-for-merchant-tokens) | Presentation | M | Blacksmith conversation first |
+| 3 | [Catalogue mode](#3-catalogue-mode) | Ways in | L | Fiction decisions first |
 
-**#1 was asked for at the table** (play session, 2026-08-27). The other two of that set have shipped:
-per-shop compendium picks in 13.1.0, and opening a shop from a pin in 13.1.2 — see the architecture doc
-§10, which is where the pin model lives now. **#2–4 are recorded ideas**, each parked on something that has
-to be settled before code: two on a conversation with Blacksmith, one on a question about the fiction.
+**The play session's three asks have all shipped**: per-shop compendium picks in 13.1.0, opening a shop
+from a pin in 13.1.2, and walking into a region in 13.1.3. The pin and region models live in the
+architecture doc §10 and §11.
+
+**Everything left is a recorded idea**, each parked on something that has to be settled before code: two on
+a conversation with Blacksmith, one on a question about the fiction. Nothing here is waiting on a decision
+somebody has already made.
 
 **Two open asks with Blacksmith**, both from shipped work and both recorded in
 `architecture/architecture-merchant.md` §12 with what to delete when they land:
@@ -46,20 +48,7 @@ to be settled before code: two on a conversation with Blacksmith, one on a quest
 
 ---
 
-## 1. A canvas region as the shop
-
-**Category:** Ways in · **Size:** M · **Design open**
-
-A region should be able to stand as the physical shop — a stall, a market square, a room — not only a
-merchant token. **Opening the shop by being in that place is the point**, which is a different interaction
-from double-clicking a person.
-
-It reopens two things the current design closed deliberately: a shop is a token (§4 of the architecture doc
-is explicit that a shop is what stands in the world), and proximity has never mattered because a shopkeeper
-is somebody you are standing in front of. Settle both before building: what a region-shop *is* when nobody
-is standing in it, and whether entering opens the window or only offers to.
-
-## 2. A full-screen shop
+## 1. A full-screen shop
 
 **Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
@@ -99,7 +88,7 @@ One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 a
 it means "un-minimize"; a subclass overriding it would break Foundry's own minimise. `expand`, or `theatre`
 if the presentation connotation is wanted.
 
-## 3. Canvas marker for merchant tokens
+## 2. Canvas marker for merchant tokens
 
 **Category:** Presentation · **Size:** M · **Blacksmith conversation first**
 
@@ -131,7 +120,7 @@ Things to settle before building it, none of them obvious:
 That last point is the reason this is recorded rather than started: the honest first step is a conversation
 with Blacksmith, not a sprite.
 
-## 4. Catalogue mode
+## 3. Catalogue mode
 
 **Category:** Ways in · **Size:** L · **Fiction decisions first**
 
@@ -141,12 +130,14 @@ to.
 
 Worth recording now because it pulls against two things the current design assumes:
 
-- **Interaction is no longer only token-shaped**, which is half an answer already. A pin opens a shop
-  without one, and a linked merchant is a shop whether or not a token of it is placed — so what a catalogue
-  needs is a *listing*, not a new way of resolving a shop. It overlaps [#1](#1-a-canvas-region-as-the-shop):
-  both are questions about ways in, and whichever lands first should answer for the other.
-- **Proximity is currently a non-issue** because a shopkeeper is someone you are standing in front of. A
-  catalogue makes distance the point, which reopens the gating question that was deliberately closed.
+- **Interaction is no longer token-shaped at all**, which is most of an answer already. A token, a pin and
+  a region all reach the same shop, and a linked merchant is a shop whether or not a token of it is placed.
+  So what a catalogue needs is a **listing** — a way to name a shop that is nowhere in particular — not a
+  fourth way of resolving one.
+- **Proximity has become the open question rather than a closed one.** It was a non-issue while a shopkeeper
+  was somebody you stood in front of; a region is explicitly about standing somewhere, and a catalogue is
+  explicitly about not. Those two want the same question answered in opposite directions, and it should be
+  answered once.
 
 It also raises delivery: does an ordered item arrive immediately, at the next rest, or when the party reaches
 the shop? That is a fiction question before it is a mechanical one, and it should be answered before any of

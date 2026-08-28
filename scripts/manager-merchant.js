@@ -1257,10 +1257,21 @@ export class MerchantManager {
         // them lands as one row of two — see grantItems.
         const result = await grantItems({ targetActorUuid: actor.uuid, items, container: inventoryId });
 
-        // `results` is index-aligned with what was sent and entries fail independently,
-        // so the top-level flag alone says only "something went wrong somewhere". A GM
-        // reading the console needs to know *which* row and *why* -- a bare
-        // `{ ok: false, results: Array(20) }` is not a report, it is a shrug.
+        return items.length - this._reportGrantFailures(result, items, inventory, resolved);
+    }
+
+    /**
+     * Say which rows a grant refused, and why.
+     *
+     * **`{ ok: false, results: Array(75) }` is not a report, it is a shrug.** `results` is
+     * index-aligned with what was sent and entries fail independently, so the top-level flag
+     * says only "something went wrong somewhere" -- and a GM reading the console needs the
+     * row and the reason. The table draw grew this first; the query draw logged the shrug
+     * for a fortnight, which is how a stocking failure stays a mystery.
+     *
+     * @returns {number} How many rows were refused.
+     */
+    static _reportGrantFailures(result, items, inventory, resolved = null) {
         const failures = (result?.results ?? [])
             .map((entry, index) => ({ entry, item: items[index] }))
             .filter(({ entry }) => entry && entry.ok === false);
@@ -1271,7 +1282,7 @@ export class MerchantManager {
                 + `${items.length === 1 ? '' : 's'} did not reach ${inventory.name}:`,
                 failures.map(({ entry, item }) => ({
                     uuid: item?.itemUuid,
-                    name: resolved.get(item?.itemUuid)?.name ?? '(unresolved)',
+                    name: resolved?.get(item?.itemUuid)?.name ?? '(unresolved)',
                     quantity: item?.quantity,
                     reason: entry?.code ?? entry?.error ?? entry?.reason ?? entry
                 }))
@@ -1279,11 +1290,11 @@ export class MerchantManager {
 
             // One cause is worth naming outright, because no amount of looking at this
             // module explains it. Grant paths used to validate a requested quantity
-            // against the source document's own -- 1, for a compendium template -- so a
+            // against the source document's own -- 1, for a compendium template -- so an
             // inventory asking for five of anything was refused wholesale. Fixed upstream;
-            // an install still carrying the old primitive fails here and nowhere else,
-            // and the symptom (every row arrives at one, or not at all) looks exactly
-            // like a Merchant bug.
+            // an install still carrying the old primitive fails here and nowhere else, and
+            // the symptom (every row arrives at one, or not at all) looks exactly like a
+            // Merchant bug.
             if (failures.some(({ entry }) => entry?.code === 'INSUFFICIENT_QUANTITY')) {
                 console.error(
                     `${MODULE.TITLE} | Those refusals mean Blacksmith is out of date. A grant takes nothing `
@@ -1293,10 +1304,11 @@ export class MerchantManager {
                 notify.error(game.i18n.localize('coffee-pub-merchant.notify.blacksmithOutOfDate'));
             }
         } else if (!result?.ok) {
-            console.error(`${MODULE.TITLE} | Could not stock ${inventory.name} from its tables:`, result);
+            // Refused as a whole rather than row by row: nothing to enumerate, so say what
+            // little there is rather than printing an empty list of failures.
+            console.error(`${MODULE.TITLE} | Could not stock ${inventory.name}:`, result);
         }
-
-        return items.length - failures.length;
+        return failures.length;
     }
 
     /**
@@ -1454,11 +1466,13 @@ export class MerchantManager {
 
         step(game.i18n.format('coffee-pub-merchant.progress.stocking', { inventory: inventory.name }));
         const result = await grantItems({ targetActorUuid: actor.uuid, items, container: inventoryId });
-        if (!result?.ok) {
-            console.error(`${MODULE.TITLE} | Some stock did not reach ${inventory.name}:`, result);
-        }
+        const refused = this._reportGrantFailures(result, items, inventory, resolved);
         this.broadcastActorRefresh(actor);
-        return items.length;
+
+        // What actually arrived, not what was asked for. Returning the request meant a
+        // restock that delivered nothing still reported a number, and the progress bar and
+        // the toast both repeated it.
+        return items.length - refused;
     }
 
     /**

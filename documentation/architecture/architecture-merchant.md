@@ -34,7 +34,9 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-market.js` | What goods are worth in a place. A number on the Scene. |
 | `scripts/utility-compendium.js` | A shelf's compendium query: its shape, its defaults, and how it reads. |
 | `scripts/utility-sockets.js` | Cross-client traffic, through `blacksmith.sockets` with a legacy fallback. |
-| `scripts/settings.js` | The six sound settings, and nothing else. |
+| `scripts/utility-pins.js` | A shop's second door: what a pin names, what it remembers, how it looks — §10. |
+| `scripts/region-shop.js` | A shop's third door: the Open Shop region behaviour. Registered at `init` — §11. |
+| `scripts/settings.js` | Every world setting, and the controls Foundry does not render for them. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
 stylesheet `module.json` names, so it is the door; `window-shop.css`, `window-merchant-config.css` and
@@ -64,7 +66,7 @@ is the one most likely to be got wrong out of habit.
     description: '',             // GM-authored, enriched on display
     illustration: null,          // a picture of the PLACE — see §6
     tint: null,                  // '#rrggbb' or null — a colour wash on the shop card
-    schema: 1,                   // stamp for future migrations — see §13
+    schema: 1,                   // stamp for future migrations — see §14
     open: true,                  // only consulted when there is NO schedule
     hours: { open: 9, close: 18 } | null,
     override: { open, against } | null,   // see §5
@@ -194,7 +196,7 @@ the failure was invisible: the shop looked stocked and the restock reported succ
 
 A row that has never had a par read falls back to what it currently holds — a shop sitting in a
 world nobody is shopping in is a shop at rest. That is a *fallback in `getStock`*, not a
-migration pass: there are no migrations (§13), and a row acquires a real par the first time
+migration pass: there are no migrations (§14), and a row acquires a real par the first time
 anything that is not a sale touches it.
 
 ### A roll brings new products, never more of what is already carried
@@ -940,7 +942,60 @@ plainer than a placed one. Pressing the button arms a crosshair with a ghost; th
 
 ---
 
-## 11. Blacksmith is not optional
+## 11. Regions: walk in and the shop opens
+
+A third door. A GM draws a region, adds an **Open Shop** behaviour and names the merchant; a token moving
+into the region opens the counter for whoever moved it.
+
+**Foundry's own extension point, not a patch.** A namespaced sub-type in
+`CONFIG.RegionBehavior.dataModels` plus a `documentTypes` declaration in `module.json` is the whole
+mechanism — nothing in core is wrapped, and the config sheet renders our schema unaided:
+`region-behavior-config.mjs` walks any third-party model and emits every field whose
+`constructor.hasFormSupport` is true, which `DocumentUUIDField` is.
+
+Four things about it are not obvious, and each cost something to find out.
+
+### It must be registered at `init`, and Merchant starts at `ready`
+
+Everything else here waits for `ready` because it needs Blacksmith. This must not: Foundry constructs a
+scene's `RegionBehavior` documents well before `ready`, and one whose sub-type it does not yet know gets a
+`system` that is not the model. The first thing to ask that object for `_getTerrainEffects` is Foundry's
+own movement planner — so **every token drag on that scene throws** until the world is reloaded. Registering
+late is not late, it is broken. It has its own `init` hook and needs no `game`.
+
+### Field labels are named, not inherited
+
+`LOCALIZATION_PREFIXES` is resolved by `Localization.#localizeDataModels`, which walks
+`CONFIG[...].dataModels` and *then* fires `i18nInit` — and `i18nInit` runs **before** `init`. A model a
+module registers has already missed that pass, so its prefixes are never applied and every field renders
+with no label at all. Core's own behaviours can rely on the prefixes; a module's cannot. Each field names
+its key directly, which works whatever the order.
+
+**`typeLabels` is load-bearing for the same reason it is easy to skip:** the sheet uses it as the legend of
+the fieldset it builds for our schema, so leaving it unset gives the GM a nameless box.
+
+### `tokenMoveIn`, not `tokenEnter`
+
+`tokenEnter` also fires for a token *created* inside the region and for one teleported in — a shop opening
+because the GM placed a token. The trigger is fixed rather than offered as a choice; if a GM ever needs the
+choice, `_createEventsField({events: [...]})` restricts what can be picked.
+
+### It opens on one client, and refuses out loud
+
+A region event fires for **every** client. Opening a window for the whole table because one player crossed a
+threshold is the sort of thing that gets a module turned off, so the handler returns immediately unless
+`event.user.isSelf`. The GM is deliberately not excluded: a GM moving a token into a shop is visiting a shop.
+
+Only a **linked** merchant may be named, the same rule a pin follows and for the same reason — an unlinked
+Actor is the mould its tokens are cast from, with no stock of its own. That is refused twice: a `validate`
+on the field, so a GM finds out while looking at the region rather than a session later, and again on the
+way in, for a region configured before the check existed or an Actor unlinked afterwards. Every refusal
+says so to the person standing in the region — the GM gets the reason, everybody else gets *there is nothing
+open here*, because the person who finds out should not be the one who cannot fix it.
+
+---
+
+## 12. Blacksmith is not optional
 
 Merchant does not function without it, and this is deliberate — the alternative is forking components, which
 has cost this suite real time twice. What is used:
@@ -998,7 +1053,7 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 12. Known seams
+## 13. Known seams
 
 - **Blacksmith has no pin placement picker.** Merchant arms its own crosshair and converts the click itself,
   which is a dozen lines and works — but Squire and Curator will want the same the moment either drops a pin,
@@ -1087,7 +1142,7 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ---
 
-## 13. Migration — there isn't any
+## 14. Migration — there isn't any
 
 **Nothing migrates, because nothing has shipped.** No world holds a shape this build cannot read.
 
