@@ -18,7 +18,8 @@
 // differently is how the next person learns it twice.
 
 import {
-    MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP
+    MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP,
+    DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -216,6 +217,40 @@ function bindSoundPreviews(root) {
     }
 }
 
+// ==================================================================
+// ===== PINS =======================================================
+// ==================================================================
+//
+// **What a shop pin looks like is the GM's answer for their world, not a constant.** A
+// map has a visual language and a module dropping its own house style onto it is a module
+// somebody turns off. The icon is deliberately *not* here: it comes from the shop's kind,
+// so an apothecary and a weaponsmith are told apart without anybody configuring anything.
+
+function registerPinSettings() {
+    registerHeader('Pins', 'H2',
+        'coffee-pub-merchant.settings.headingPins',
+        'coffee-pub-merchant.settings.headingPinsHint');
+
+    // No per-setting hints: six of them under a section that already explains the model is
+    // the noise the stock ceilings carried until it was taken out.
+    for (const setting of PIN_DESIGN_SETTINGS) {
+        const definition = {
+            name: game.i18n.localize(setting.nameKey),
+            scope: 'world',
+            config: true,
+            type: setting.range ? Number : String,
+            default: DEFAULT_PIN_DESIGN[setting.key]
+        };
+        if (setting.range) definition.range = setting.range;
+        if (setting.choices) {
+            definition.choices = Object.fromEntries(setting.choices.map(({ value, labelKey }) => [
+                value, game.i18n.localize(labelKey)
+            ]));
+        }
+        game.settings.register(MODULE.ID, setting.key, definition);
+    }
+}
+
 function soundChoices() {
     return window.BlacksmithConstants?.arrSoundChoices
         ?? game.modules.get('coffee-pub-blacksmith')?.api?.BLACKSMITH?.arrSoundChoices
@@ -228,6 +263,7 @@ export function registerSettings() {
         'coffee-pub-merchant.settings.headingMerchantHint');
 
     registerStockingSettings();
+    registerPinSettings();
 
     registerHeader('Sound', 'H2',
         'coffee-pub-merchant.settings.headingSound',

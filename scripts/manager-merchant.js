@@ -25,6 +25,7 @@ import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
 import {
     hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources, matchesFilter
 } from './utility-compendium.js';
+import { hasPins, canPin, createShopPin, pinsForActor, pinActorUuid, registerPinVocabulary } from './utility-pins.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -59,6 +60,7 @@ export class MerchantManager {
     static _interactionId = null;
 
     static initialize() {
+        this._registerPins();
         this._registerTokenInteraction();
         this._registerRequestOp();
         this._registerRefreshListener();
@@ -1743,6 +1745,30 @@ export class MerchantManager {
     // ==============================================================
 
     /**
+     * Shop pins: what they are called, and what a click on one does.
+     *
+     * **Scoped to our own `moduleId`**, so nothing here ever sees another module's pins.
+     * The vocabulary has to wait for `ready` -- it localises, and it writes into a registry
+     * Blacksmith builds at the same moment -- while the click handler does not, and
+     * registering it early means a pin clicked during the first second still opens.
+     */
+    static _registerPins() {
+        const pins = game.modules.get('coffee-pub-blacksmith')?.api?.pins;
+        if (typeof pins?.on !== 'function') return;
+
+        this.hook('ready', 'Tell Blacksmith what a shop pin is', () => registerPinVocabulary());
+
+        try {
+            // Double-click, matching the token: one gesture opens a shop, wherever the
+            // door is. A single click on a pin is how you select and drag one.
+            pins.on('doubleClick', (event) => void this.openFromPin(event?.pin),
+                { moduleId: MODULE.ID });
+        } catch (error) {
+            console.warn(`${MODULE.TITLE} | Could not listen for shop pin clicks:`, error);
+        }
+    }
+
+    /**
      * Claim left double-click on merchant tokens.
      *
      * The rules this has to obey — a synchronous, stable `matches`, and why
@@ -1800,6 +1826,71 @@ export class MerchantManager {
         // gesture must never surface a rejected promise, and a shop that will not
         // build should say so once rather than be retried into the same wall.
         return ShopWindow.openFor(...this.subjectFor(tokenDocument));
+    }
+
+    /**
+     * Put a pin for this shop on a scene, and say why not when it cannot.
+     *
+     * **Only a linked merchant may be pinned.** A pin outlives tokens, scenes and sessions,
+     * so what it names has to outlive them too; an unlinked token is a copy, and a pin
+     * naming one would name the mould rather than a shop.
+     *
+     * One pin per shop per scene. A second would be two doors onto one room with nothing
+     * to tell them apart, and the GM who pressed the button twice wanted the first one.
+     */
+    static async pinShop(actor, { scene = null } = {}) {
+        if (!game.user.isGM) return null;
+        if (!this.isMerchant(actor)) return null;
+
+        if (!hasPins()) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.pin.pinUnavailable'));
+            return null;
+        }
+        if (!canPin(actor)) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.pin.pinNeedsLinked'));
+            return null;
+        }
+        const target = scene ?? canvas?.scene ?? null;
+        if (!target) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.pin.pinNoScene'));
+            return null;
+        }
+        if (pinsForActor(actor.uuid, target.id).length) {
+            notify.info(game.i18n.format('coffee-pub-merchant.pin.alreadyPinned', { name: actor.name }));
+            return null;
+        }
+
+        const pin = await createShopPin(actor, { config: this.getConfig(actor), scene: target });
+        if (pin) notify.info(game.i18n.format('coffee-pub-merchant.pin.pinned', { name: actor.name }));
+        else notify.error(game.i18n.localize('coffee-pub-merchant.pin.pinFailed'));
+        return pin;
+    }
+
+    /**
+     * Open the shop a pin names.
+     *
+     * **A pin whose merchant has gone still opens.** It opens an abandoned shop -- shutters
+     * down, shelves bare -- rather than an error, because a shop closing down is a thing
+     * that happens in a world and a pin is deliberately not deleted out from under a GM.
+     * The name comes from the pin, which is the only thing left that remembers it.
+     */
+    static async openFromPin(pin) {
+        const uuid = pinActorUuid(pin);
+        if (!uuid) return null;
+
+        let actor = null;
+        try {
+            actor = await fromUuid(uuid);
+        } catch (_error) {
+            actor = null;
+        }
+
+        const scene = pin?.sceneId ? game.scenes?.get(pin.sceneId) : canvas?.scene;
+        if (actor && this.isMerchant(actor)) return this.openForActor(actor, { scene });
+
+        // Nothing to be a shop of. The window is opened against the pin's own record so it
+        // has a name to show and a key of its own, rather than being refused.
+        return ShopWindow.openFor(uuid, { sceneUuid: scene?.uuid ?? null, shopName: pin?.text ?? null });
     }
 
     /**

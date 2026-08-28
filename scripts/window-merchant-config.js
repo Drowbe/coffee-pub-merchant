@@ -1954,12 +1954,30 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 onClick: () => void this.render(false)
             },
             {
+                id: 'merchant-config-pin',
+                icon: 'fa-solid fa-map-pin',
+                label: 'Pin This Shop',
+                onClick: () => void this.pinShop()
+            },
+            {
                 id: 'merchant-config-shop',
                 icon: 'fa-solid fa-shop',
                 label: 'Open Shop',
                 onClick: () => void this.openShop()
             }
         ];
+    }
+
+    /**
+     * Pin this shop to the scene being looked at.
+     *
+     * The manager owns every refusal -- unlinked, no scene, already pinned, no pins API --
+     * because the shop window's copy of this button has to give the same answers, and two
+     * buttons with two sets of rules is how they come apart.
+     */
+    async pinShop() {
+        const actor = await this._resolveActor();
+        if (actor) await MerchantManager.pinShop(actor);
     }
 
     /**

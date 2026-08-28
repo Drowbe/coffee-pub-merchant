@@ -185,6 +185,77 @@ export const SHOP_KINDS = Object.freeze([
 
 export const DEFAULT_SHOP_KIND = 'general';
 
+/**
+ * What Blacksmith calls our pins.
+ *
+ * Coarse and technical, as their guidance asks: one category for every shop pin, with the
+ * shop *kind* carried as a tag. "Show me the taverns" is a tag question; "show me
+ * Merchant's pins" is a category one.
+ */
+export const PIN_TYPE = 'shop';
+
+/**
+ * The pin design a GM can set, as one table.
+ *
+ * **Defined here because two files need it and neither owns it.** `settings.js` registers
+ * these; `utility-pins.js` reads them when it makes a pin. A key written out twice is a
+ * key that will disagree with itself eventually.
+ *
+ * Keys are spelled out rather than built from the name, so `tests/test-i18n.mjs` can see
+ * them: a missing string is not a crash, it renders as the key, and the checker is the
+ * only thing that catches one.
+ */
+export const PIN_DESIGN_SETTINGS = Object.freeze([
+    {
+        key: 'pinShape',
+        nameKey: 'coffee-pub-merchant.settings.pinShape',
+        choices: [
+            { value: 'circle', labelKey: 'coffee-pub-merchant.settings.pinCircle' },
+            { value: 'square', labelKey: 'coffee-pub-merchant.settings.pinSquare' },
+            { value: 'rectangle', labelKey: 'coffee-pub-merchant.settings.pinRectangle' },
+            { value: 'none', labelKey: 'coffee-pub-merchant.settings.pinIconOnly' }
+        ]
+    },
+    {
+        key: 'pinSize',
+        nameKey: 'coffee-pub-merchant.settings.pinSize',
+        range: { min: 16, max: 96, step: 2 }
+    },
+    { key: 'pinFill', nameKey: 'coffee-pub-merchant.settings.pinFill' },
+    { key: 'pinStroke', nameKey: 'coffee-pub-merchant.settings.pinStroke' },
+    { key: 'pinIconColor', nameKey: 'coffee-pub-merchant.settings.pinIconColor' },
+    {
+        key: 'pinTextDisplay',
+        nameKey: 'coffee-pub-merchant.settings.pinTextDisplay',
+        choices: [
+            { value: 'always', labelKey: 'coffee-pub-merchant.settings.pinAlways' },
+            { value: 'hover', labelKey: 'coffee-pub-merchant.settings.pinOnHover' },
+            { value: 'gm', labelKey: 'coffee-pub-merchant.settings.pinGmOnly' },
+            { value: 'never', labelKey: 'coffee-pub-merchant.settings.pinNever' }
+        ]
+    }
+]);
+
+/**
+ * What a shop pin looks like before a GM says otherwise.
+ *
+ * A world setting rather than a constant a module decides for everyone -- see
+ * `settings.js` -- but the shipped answer lives here with the rest of the vocabulary. The
+ * icon is not among these: it comes from the shop's *kind*, so an apothecary and a
+ * weaponsmith are told apart on the map without anybody configuring anything.
+ */
+export const DEFAULT_PIN_DESIGN = Object.freeze({
+    pinShape: 'circle',
+    pinSize: 40,
+    pinFill: '#2f241a',
+    pinStroke: '#c8a678',
+    pinIconColor: '#ecd7b2',
+    pinTextDisplay: 'hover',
+    // Not a setting: the name under a pin is either shown or it is not, and where it sits
+    // is a question about the map's typography that nobody has asked.
+    textLayout: 'under'
+});
+
 /** The kind's label and icon, falling back to the default rather than to nothing. */
 export function shopKind(key) {
     return SHOP_KINDS.find((kind) => kind.key === key)

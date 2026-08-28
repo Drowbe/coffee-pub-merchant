@@ -10,7 +10,25 @@
         </div>
     {{/if}}
     {{#if missing}}
-        <div class="merchant-shop-empty">{{localize "coffee-pub-merchant.shop.unavailable"}}</div>
+        {{!-- **A shop that has closed down, not an error.** This is reached when the Actor
+              behind a shop is gone and something still points at it -- a pin on a map
+              outlives the merchant it names, and a pin is deliberately not deleted out
+              from under a GM. A shuttered shop is a thing that happens in a world; a line
+              of apology in an empty window is a thing that happens to software. --}}
+        <div class="merchant-shop-columns">
+            <div class="merchant-shop-main">
+                <section class="merchant-shop-section merchant-shop-subject merchant-shop-abandoned">
+                    <div class="merchant-shop-subject-image merchant-shop-abandoned-mark">
+                        <i class="fa-solid fa-store-slash"></i>
+                    </div>
+                    <div class="merchant-shop-subject-copy">
+                        <div class="merchant-shop-title">{{shopName}}</div>
+                        <div class="merchant-shop-keeper">{{localize "coffee-pub-merchant.shop.abandonedKeeper"}}</div>
+                        <div class="merchant-shop-description">{{localize "coffee-pub-merchant.shop.abandoned"}}</div>
+                    </div>
+                </section>
+            </div>
+        </div>
     {{else}}
         <div class="merchant-shop-columns">
             {{!-- Everything the shop is and everything it sells, in one

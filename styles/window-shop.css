@@ -99,6 +99,21 @@
 .merchant-shop-description { margin-top: 4px; color: var(--blacksmith-tool-text-muted); font-size: .72rem; }
 .merchant-shop-warning { color: #a4432f; }
 
+/* --- A shop that has closed down ------------------------------------------
+ * The same card as a working shop, drained: no tint, no illustration, and the boarded-up
+ * mark where the shopkeeper's face goes. It keeps the card shape on purpose -- this is
+ * still a shop, and reading as a broken window would say the module failed rather than
+ * that the place did.
+ */
+.merchant-shop-abandoned { opacity: .85; }
+.merchant-shop-abandoned .merchant-shop-title { color: var(--blacksmith-tool-text-muted); }
+.merchant-shop-abandoned-mark {
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--blacksmith-tool-divider); border-radius: 5px;
+    background: var(--blacksmith-tool-surface-sunken);
+    color: var(--blacksmith-tool-text-muted); font-size: 1.4rem;
+}
+
 .merchant-shop-item-list { display: flex; flex-direction: column; gap: 4px; }
 .merchant-shop-item { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 8px; align-items: center; min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: 5px; background: var(--blacksmith-tool-surface-sunken); }
 .merchant-shop-item:hover { border-color: var(--blacksmith-tool-divider); background: var(--blacksmith-tool-surface-hover); }

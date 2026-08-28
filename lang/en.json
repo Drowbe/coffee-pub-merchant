@@ -25,7 +25,6 @@
             "removeTooltip": "Take this off the inventory entirely"
         },
         "shop": {
-            "unavailable": "This shop is no longer available.",
             "overriding": "Overriding the schedule until the next opening or closing hour",
             "buyingAs": "Buying as",
             "noCharacter": "No character available",
@@ -61,7 +60,10 @@
             "collapseInventory": "Fold this inventory away",
             "expandInventory": "Open this inventory",
             "sortTooltip": "Sorted by {how} within each category. Click to change.",
-            "mergeTooltip": "Fold duplicate rows together — same name and kind, quantities added up"
+            "mergeTooltip": "Fold duplicate rows together — same name and kind, quantities added up",
+            "abandonedName": "Abandoned shop",
+            "abandonedKeeper": "Nobody behind the counter",
+            "abandoned": "The shutters are down and the shelves are bare. Whoever kept this place has gone, and taken the stock with them."
         },
         "config": {
             "title": "Merchant Settings",
@@ -302,7 +304,23 @@
             "headingStockByRarityHint": "Set stock limits by rarity. Rarer items can be limited even when their type or price would otherwise allow more.",
             "headingSound": "Sound",
             "headingSoundHint": "What a shop sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default.",
-            "previewSound": "Play this sound"
+            "previewSound": "Play this sound",
+            "headingPins": "Shop Pins",
+            "headingPinsHint": "How a shop pin looks on the map. The icon is not here — it comes from the shop’s kind, so an apothecary and a weaponsmith are told apart without configuring anything. These apply to pins made from now on; a pin already on a map keeps the look it was made with.",
+            "pinShape": "Shape",
+            "pinSize": "Size",
+            "pinFill": "Background",
+            "pinStroke": "Border",
+            "pinIconColor": "Icon",
+            "pinTextDisplay": "Show the name",
+            "pinCircle": "Circle",
+            "pinSquare": "Square",
+            "pinRectangle": "Rectangle",
+            "pinIconOnly": "Icon only",
+            "pinAlways": "Always",
+            "pinOnHover": "On hover",
+            "pinGmOnly": "GM only",
+            "pinNever": "Never"
         },
         "progress": {
             "rolling": "Rolling {table}",
@@ -462,6 +480,15 @@
             "manual": "Manual Only — Drag Items to Stock",
             "both": "Roll Tables First, Item Compendiums Second",
             "bothQuery": "Item Compendiums First, Roll Tables Second"
+        },
+        "pin": {
+            "typeName": "Shop",
+            "pinned": "{name} is pinned to this scene.",
+            "pinFailed": "Could not pin that shop.",
+            "pinUnavailable": "Canvas pins need a newer Coffee Pub Blacksmith.",
+            "pinNeedsLinked": "An unlinked merchant is a copy, not a shop. Link its token to the Actor, or pin a linked merchant.",
+            "pinNoScene": "There is no scene to pin this shop to.",
+            "alreadyPinned": "{name} is already pinned to this scene."
         }
     }
 }

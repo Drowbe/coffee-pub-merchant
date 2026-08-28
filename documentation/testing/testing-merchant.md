@@ -1637,4 +1637,17 @@ level onto every existing row; it logs how many.
   unlinked one with no token anywhere it says so.
 61. Buying still settles correctly from a shop opened without a token, and the reputation and market
   lines on the card read against the scene you are looking at.
+180. **Pin a shop.** With a linked merchant, press *Pin This Shop* in the shop window header (or in
+    Merchant Settings). A pin appears at the middle of your view, carrying the shop's name and its
+    kind's icon. Double-click it: the shop opens — the same window and the same cart as its token.
+181. Pressing it again on the same scene says the shop is already pinned rather than making a second.
+    Pinning the same shop on a *different* scene is allowed, and each opens priced against its own
+    scene's market rate.
+182. **An unlinked merchant refuses to be pinned**, naming the reason.
+183. **Delete the merchant Actor.** The pin stays. Double-click it: an abandoned shop opens — shutters
+    down, shelves bare, under the name the pin remembers — rather than an error.
+184. **Shop Pins settings take effect on the next pin made**, and not on pins already placed. Check the
+    shape, size and colours, and that *Show the name* does what it says.
+185. A pin is visible to players only if its pin ownership says so; a player double-clicking one gets
+    the shop with their own permissions, exactly as through the token.
 

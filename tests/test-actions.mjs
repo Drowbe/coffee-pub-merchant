@@ -250,4 +250,25 @@ console.log('ok  a linked merchant is one shop; an unlinked placement is its own
 }
 console.log('ok  a client-claimed scene is verified before it prices anything');
 
+// --- a pin names a merchant -----------------------------------------------
+// A pin outlives the shop it names -- that is what makes it a pin and not a token -- so
+// what it carries has to be readable when the Actor behind it is gone.
+{
+    const P = await import('../scripts/utility-pins.js');
+
+    assert.strictEqual(P.pinActorUuid({ config: { merchantActorUuid: 'Actor.bob' } }), 'Actor.bob');
+    assert.strictEqual(P.pinActorUuid({ config: {} }), null, 'a pin of somebody else is not ours');
+    assert.strictEqual(P.pinActorUuid({}), null);
+    assert.strictEqual(P.pinActorUuid(null), null);
+    assert.strictEqual(P.pinActorUuid({ config: { merchantActorUuid: '' } }), null, 'and blank is not a uuid');
+
+    // **Only a linked merchant may be pinned**, and the test is the same one
+    // `worldMerchants` uses to decide what is a shop in its own right.
+    assert.ok(P.canPin({ prototypeToken: { actorLink: true } }), 'a linked merchant can be pinned');
+    assert.ok(!P.canPin({ prototypeToken: { actorLink: false } }), 'an unlinked one is a copy, not a shop');
+    assert.ok(!P.canPin({}), 'and an Actor with no prototype token answers the same way');
+    assert.ok(!P.canPin(null));
+}
+console.log('ok  a pin names a linked merchant, and only a linked one');
+
 console.log('\nall action checks passed');

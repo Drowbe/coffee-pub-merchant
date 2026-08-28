@@ -302,6 +302,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this.sceneUuid = subject.parent?.documentName === 'Scene'
             ? subject.parent.uuid
             : (options.sceneUuid ?? null);
+        // **What to call a shop whose Actor has gone.** A pin outlives the merchant it
+        // names, and it knows what the place was called; the window has nothing else left
+        // to read a name from. Absent, the abandoned card says so in general terms.
+        this.shopName = options.shopName ?? null;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -1607,7 +1611,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
-            shopName: config?.name || token?.name || 'Shop',
+            shopName: config?.name || token?.name || this.shopName
+                || game.i18n.localize('coffee-pub-merchant.shop.abandonedName'),
             stockSortIcon: this.stockSort.icon,
             stockSortTooltip: game.i18n.format('coffee-pub-merchant.shop.sortTooltip', {
                 how: game.i18n.localize(this.stockSort.labelKey)
@@ -1805,6 +1810,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!game.user.isGM) return actions;
         return [
             ...actions,
+            {
+                // Mirrored in Merchant Settings. A GM standing in the shop is the one who
+                // knows it wants a pin, and sending them to another window to say so is a
+                // trip to answer a question they have already answered.
+                id: 'merchant-pin',
+                icon: 'fa-solid fa-map-pin',
+                label: 'Pin This Shop',
+                onClick: () => void this.pinShop()
+            },
             {
                 id: 'merchant-config',
                 icon: 'fa-solid fa-sliders',
@@ -2553,6 +2567,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.addToInventoryFailed'));
         }
         await this.render(false);
+    }
+
+    /** Put a pin for this shop on the scene being looked at. */
+    async pinShop() {
+        if (!game.user.isGM) return;
+        const { actor } = await this._resolveSubject();
+        if (actor) await MerchantManager.pinShop(actor);
     }
 
     async openConfig() {
