@@ -929,17 +929,27 @@ export class MerchantManager {
      * `null` clears it, and clearing a negotiate-inventory item puts it back to having no
      * price at all — which is the state that inventory exists to express.
      */
-    static async setNegotiatedPrice(merchant, itemId, base, { side = 'buy' } = {}) {
-        if (!game.user.isGM || !merchant || !itemId) return null;
+    static async setNegotiatedPrice(merchant, itemId, base, { side = 'buy', shopper = null } = {}) {
+        if (!game.user.isGM || !merchant || !itemId || !shopper) return null;
 
+        // **Nested by whoever it was agreed with.** A shopkeeper knocking something off for
+        // one customer is not putting the shelf on sale, and this was keyed by item alone --
+        // so one haggle repriced the row for everybody in the room, and for the shelf.
         const key = side === 'sell' ? 'purchaseOverrides' : 'overrides';
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
-        const agreed = { ...(pricing[key] ?? {}) };
+        const byShopper = { ...(pricing[key] ?? {}) };
+        const agreed = { ...(byShopper[shopper] ?? {}) };
 
         if (base === null || base === undefined) delete agreed[itemId];
         else agreed[itemId] = Math.max(0, Math.round(Number(base) || 0));
 
-        pricing[key] = agreed;
+        // An empty agreement is dropped rather than left as a shopper with nothing agreed:
+        // the flag is written on every haggle, and a bag of empty objects is a bag that
+        // grows for ever.
+        if (Object.keys(agreed).length) byShopper[shopper] = agreed;
+        else delete byShopper[shopper];
+
+        pricing[key] = byShopper;
         await this.setConfig(merchant, { pricing });
         this.broadcastActorRefresh(merchant);
         return true;
@@ -2405,7 +2415,7 @@ export class MerchantManager {
      * One update for the whole Actor. A write per item is a write per item to the
      * same Actor, which is the shape that trips dnd5e's encumbrance recompute.
      */
-    static async _recordAgreedPrices(owner, items, { merchant = null } = {}) {
+    static async _recordAgreedPrices(owner, items, { merchant = null, shopper = null } = {}) {
         if (!owner || !items?.length) return;
 
         const config = this.getConfig(merchant ?? owner);
@@ -2415,8 +2425,8 @@ export class MerchantManager {
             if (Number.isFinite(worth) && worth > 0) continue;
 
             const agreed = merchant
-                ? resolvePurchasePrice(config, this.getInventoryConfig(this.getInventoryFor(merchant, item)), item)
-                : resolvePrice(config, this.getInventoryConfig(this.getInventoryFor(owner, item)), item);
+                ? resolvePurchasePrice(config, this.getInventoryConfig(this.getInventoryFor(merchant, item)), item, { shopper })
+                : resolvePrice(config, this.getInventoryConfig(this.getInventoryFor(owner, item)), item, { shopper });
             if (agreed === null || agreed <= 0) continue;
 
             updates.push({
@@ -2434,7 +2444,7 @@ export class MerchantManager {
     }
 
     /** Price the buy side. Every line re-resolved and re-priced on the GM. */
-    static _priceBuying(merchant, requested, user, reputation = 1, market = 1) {
+    static _priceBuying(merchant, requested, user, reputation = 1, market = 1, shopper = null) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -2456,7 +2466,7 @@ export class MerchantManager {
             // No `BARTER_ONLY` refusal any more. A negotiate inventory has no list price,
             // so `resolvePrice` returns null until one is agreed — and refusing an
             // unpriced line is the same refusal either way.
-            const unit = resolvePrice(config, inventoryConfig, item, { reputation, market });
+            const unit = resolvePrice(config, inventoryConfig, item, { reputation, market, shopper });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
@@ -2467,7 +2477,7 @@ export class MerchantManager {
     }
 
     /** Price the sell side, against the buyback inventory's rate. */
-    static _priceSelling(merchant, seller, inventory, requested, reputation = 1, market = 1) {
+    static _priceSelling(merchant, seller, inventory, requested, reputation = 1, market = 1, shopper = null) {
         const config = this.getConfig(merchant);
         const lines = [];
         let total = 0;
@@ -2483,7 +2493,7 @@ export class MerchantManager {
                 return { ok: false, code: 'INSUFFICIENT_QUANTITY', available, itemName: item.name };
             }
 
-            const unit = resolvePurchasePrice(config, inventory.config, item, { reputation, market });
+            const unit = resolvePurchasePrice(config, inventory.config, item, { reputation, market, shopper });
             if (unit === null) return { ok: false, code: 'NOT_NEGOTIATED', itemName: item.name };
 
             total += unit * quantity;
@@ -2530,7 +2540,9 @@ export class MerchantManager {
         // where whoever answers the request happens to be looking.
         const market = marketRate(scene);
 
-        const bought = buying.length ? this._priceBuying(merchant, buying, user, reputation, market) : { ok: true, lines: [], total: 0 };
+        const bought = buying.length
+            ? this._priceBuying(merchant, buying, user, reputation, market, shopper?.uuid ?? null)
+            : { ok: true, lines: [], total: 0 };
         if (!bought.ok) return bought;
 
         let inventory = null;
@@ -2539,7 +2551,7 @@ export class MerchantManager {
             inventory = this.getInventories(merchant, { includeHidden: true })
                 .find(({ config }) => isPurchased(config.type));
             if (!inventory) return { ok: false, code: 'NO_PURCHASED_INVENTORY' };
-            sold = this._priceSelling(merchant, shopper, inventory, selling, reputation, market);
+            sold = this._priceSelling(merchant, shopper, inventory, selling, reputation, market, shopper?.uuid ?? null);
             if (!sold.ok) return sold;
         }
 
@@ -2597,8 +2609,8 @@ export class MerchantManager {
         // worth of its own. Written before the goods move so the copy carries it —
         // and one batched update per Actor rather than a write per item, because a
         // second write to an Actor is what trips dnd5e's encumbrance recompute.
-        await this._recordAgreedPrices(merchant, bought.lines.map((line) => line.item));
-        await this._recordAgreedPrices(shopper, sold.lines.map((line) => line.item), { merchant });
+        await this._recordAgreedPrices(merchant, bought.lines.map((line) => line.item), { shopper: shopper?.uuid ?? null });
+        await this._recordAgreedPrices(shopper, sold.lines.map((line) => line.item), { merchant, shopper: shopper?.uuid ?? null });
 
         const goodsIn = sold.lines.length
             ? [{
@@ -2635,27 +2647,40 @@ export class MerchantManager {
         // and a settled negotiate line would keep a price the inventory exists not to
         // have. Cleared only on success, so a refused trade can be tried again on
         // the same terms.
-        if (result?.ok) await this._clearAgreedPrices(merchant, bought.lines, sold.lines);
+        if (result?.ok) await this._clearAgreedPrices(merchant, bought.lines, sold.lines, shopper?.uuid ?? null);
 
         return result?.ok
             ? { ...result, net, spent: bought.total, earned: sold.total }
             : result;
     }
 
-    /** Drop the agreements a settled trade used up. One write, both sides. */
-    static async _clearAgreedPrices(merchant, boughtLines, soldLines) {
+    /**
+     * Drop the agreements a settled trade used up. One write, both sides.
+     *
+     * **Only this shopper's.** An agreement belongs to the two who made it, so settling with
+     * one buyer must not clear a price agreed with somebody still standing at the counter.
+     */
+    static async _clearAgreedPrices(merchant, boughtLines, soldLines, shopper) {
+        if (!shopper) return;
         const pricing = { ...(this.getConfig(merchant)?.pricing ?? {}) };
         const overrides = { ...(pricing.overrides ?? {}) };
         const buyback = { ...(pricing.purchaseOverrides ?? {}) };
+        const bought = { ...(overrides[shopper] ?? {}) };
+        const sold = { ...(buyback[shopper] ?? {}) };
 
         let touched = false;
         for (const line of boughtLines ?? []) {
-            if (line?.item?.id in overrides) { delete overrides[line.item.id]; touched = true; }
+            if (line?.item?.id in bought) { delete bought[line.item.id]; touched = true; }
         }
         for (const line of soldLines ?? []) {
-            if (line?.itemId in buyback) { delete buyback[line.itemId]; touched = true; }
+            if (line?.itemId in sold) { delete sold[line.itemId]; touched = true; }
         }
         if (!touched) return;
+
+        if (Object.keys(bought).length) overrides[shopper] = bought;
+        else delete overrides[shopper];
+        if (Object.keys(sold).length) buyback[shopper] = sold;
+        else delete buyback[shopper];
 
         pricing.overrides = overrides;
         pricing.purchaseOverrides = buyback;

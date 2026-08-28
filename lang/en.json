@@ -485,7 +485,8 @@
             "notThatMany": "There are not that many left.",
             "notThatManyOf": "There are not that many {item} left.",
             "notThere": "That is not lying about in here.",
-            "grantFailed": "It would not go into their pack."
+            "grantFailed": "It would not go into their pack.",
+            "noOneToAgreeWith": "Choose who is shopping first — a price is agreed with somebody, not posted on the shelf."
         },
         "stock": {
             "unlimited": "Unlimited stock",

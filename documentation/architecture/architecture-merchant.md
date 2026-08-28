@@ -453,10 +453,11 @@ holds it and touches no documents, which is why 5,151 purse/price combinations c
 `api.inventory` will never convert denominations, so this arithmetic is ours permanently and nobody else was
 going to catch it being wrong.
 
-`resolvePrice(merchantConfig, inventoryConfig, item, { reputation })` in order:
+`resolvePrice(merchantConfig, inventoryConfig, item, { reputation, market, shopper })` in order:
 
-1. An **agreed price** for this item id wins outright — that is what makes it agreed. Nothing is applied on
-   top of it, in either direction: a haggled number is the number, not the start of an arithmetic.
+1. An **agreed price with this shopper** for this item wins outright — that is what makes it agreed. Nothing
+   is applied on top of it, in either direction: a haggled number is the number, not the start of an
+   arithmetic.
 2. An **unpriced inventory** returns `null`. It has no list price by definition.
 3. Otherwise:
 
@@ -472,6 +473,26 @@ though the shop were ordinary. Reputation stacks for a related reason: it is a f
 than about the inventory.
 
 Any rate that is zero, negative or unparseable is read as 1. A price of nothing is never what a typo meant.
+
+#### An agreement is with somebody
+
+Agreements are stored **nested under the shopper's uuid** — `pricing.overrides[shopperUuid][itemId]`, and
+`purchaseOverrides` the same on the selling side. Keyed by item alone, which is what this was until
+2026-08-28, a shopkeeper knocking something off for the paladin who saved the town put the row on sale: the
+rogue standing beside her saw the cut price, and so did the shelf. That is not what haggling is.
+
+So a price is only ever resolved *for somebody*. Asked with no shopper — the abstract shelf — the resolvers
+find no agreement and answer with the marked price, which is what a shelf is for. The GM handler prices each
+trade against the shopper it has already verified, so the number a client is shown and the number it is
+charged come out of the same agreement rather than two lookups that can disagree. Editing a price with
+nobody shopping is refused rather than written to the room.
+
+Settling clears **only that shopper's** agreements. A purchase used to wipe the row for everyone, including
+somebody still standing at the counter mid-haggle.
+
+Agreements in the pre-2026-08-28 flat shape are **ignored, not migrated**. Migrating means guessing whose
+they were, and the only guess available — everybody's — is the bug. It costs a re-haggle at worst, since
+agreements are cleared the moment a trade settles and almost none are stored at any one time.
 
 `resolveBuybackPrice` is the mirror. It reads a share of what the item is **worth** — no per-item overrides
 and no *inventory* markup, since what a Premium shelf charges says nothing about what the shop pays for your

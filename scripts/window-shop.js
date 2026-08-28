@@ -1165,7 +1165,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // An unpriced line stays, showing as not yet agreed. Dropping it would
             // make adding something from a negotiate inventory look like nothing
             // happened, which is the opposite of asking about it.
-            const unit = resolvePrice(config, MerchantManager.getInventoryConfig(inventory), item, { reputation: this.reputation, market: this.market });
+            const unit = resolvePrice(config, MerchantManager.getInventoryConfig(inventory), item,
+                { reputation: this.reputation, market: this.market, shopper: this.recipient?.uuid });
 
             // Stock sold out from under a standing cart trims the line rather than
             // failing the whole checkout. A line trimmed to nothing drops out.
@@ -1209,7 +1210,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * point of the inventory is that the number is not published.
      */
     _negotiateHint(merchantConfig, item, agreedPrice) {
-        const agreed = negotiatedPrice(merchantConfig, item?.id);
+        // The agreement with **whoever is shopping right now**, which is the only one this
+        // row is about: switching character switches the hint with it.
+        const agreed = negotiatedPrice(merchantConfig, item?.id, this.recipient?.uuid);
         if (agreed !== null) return game.i18n.format('coffee-pub-merchant.price.agreedGm', { price: formatBase(agreed) });
 
         const price = item?.system?.price;
@@ -1223,7 +1226,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** What the merchant would pay for this, or null if no price has been agreed. */
     _offerFor(merchant, buyback, item) {
         if (!this._wouldTake(item)) return null;
-        return resolvePurchasePrice(MerchantManager.getConfig(merchant), buyback.config, item, { reputation: this.reputation, market: this.market });
+        return resolvePurchasePrice(MerchantManager.getConfig(merchant), buyback.config, item,
+            { reputation: this.reputation, market: this.market, shopper: this.recipient?.uuid });
     }
 
     /**
@@ -1465,7 +1469,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             inventories = MerchantManager.getInventories(merchant, { includeHidden: isGM }).map(({ item: inventory, config }) => {
                 const isUnpricedInventory = isUnpriced(config.type);
                 const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
-                    const price = resolvePrice(config0, config, item, { reputation: this.reputation, market: this.market });
+                    const price = resolvePrice(config0, config, item,
+                        { reputation: this.reputation, market: this.market, shopper: this.recipient?.uuid });
                     const stock = MerchantManager.getStock(merchant, item, config);
                     // What the cart holds is spoken for, so the inventory shows what is
                     // still available to take rather than what is physically there.
@@ -2306,8 +2311,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // different numbers about two different things.
         const side = cell.getAttribute('data-line-side') === 'basket' ? 'sell' : 'buy';
         try {
+            // **An agreement is with somebody.** Without a shopper there is nobody to agree
+            // with, and writing one would be a discount for the room.
+            const shopper = this.recipient?.uuid;
+            if (!shopper) {
+                notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.noOneToAgreeWith'));
+                return;
+            }
             await MerchantManager.setNegotiatedPrice(
-                merchant, itemId, gold === null ? null : toBase(gold, 'gp'), { side }
+                merchant, itemId, gold === null ? null : toBase(gold, 'gp'), { side, shopper }
             );
             playFeedback(SOUND.SLATE_UPDATE);
         } catch (error) {

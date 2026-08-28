@@ -117,30 +117,52 @@ assert.strictEqual(P.resolvePrice({}, NEGOTIATE, item('a', 50)), null,
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', 50)), 5000, 'and an ordinary inventory still does');
 assert.strictEqual(P.resolvePrice({}, SALE, item('a', null)), null, 'nothing to go on is still nothing');
 
-const AGREED = { pricing: { overrides: { a: 1200 } } };
-assert.strictEqual(P.resolvePrice(AGREED, NEGOTIATE, item('a', null)), 1200, 'an agreed price is the price');
-assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50)), 1200, 'and it beats the list price too');
-assert.strictEqual(P.resolvePrice(AGREED, SALE, item('b', 50)), 5000, 'without leaking onto anything else');
-assert.strictEqual(P.negotiatedPrice(AGREED, 'a'), 1200);
-assert.strictEqual(P.negotiatedPrice(AGREED, 'b'), null);
-assert.strictEqual(P.negotiatedPrice({}, 'a'), null);
+// An agreement is with somebody, so it is stored under them. PALADIN haggled; ROGUE,
+// standing at the same counter, did not.
+const PALADIN = 'Actor.pal';
+const ROGUE = 'Actor.rog';
+const AGREED = { pricing: { overrides: { [PALADIN]: { a: 1200 } } } };
+const withPal = { shopper: PALADIN };
+const withRog = { shopper: ROGUE };
+
+assert.strictEqual(P.resolvePrice(AGREED, NEGOTIATE, item('a', null), withPal), 1200, 'an agreed price is the price');
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), withPal), 1200, 'and it beats the list price too');
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('b', 50), withPal), 5000, 'without leaking onto anything else');
+
+// The bug all of this exists to kill: one customer's discount is not a sale. The rogue
+// beside her pays the marked price, and the shelf goes on saying what the shelf says.
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), withRog), 5000, 'nobody else gets the discount');
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50)), 5000, 'and the shelf keeps the marked price');
+assert.strictEqual(P.resolvePrice(AGREED, NEGOTIATE, item('a', null), withRog), null, 'nor does an unpriced row leak');
+
+assert.strictEqual(P.negotiatedPrice(AGREED, 'a', PALADIN), 1200);
+assert.strictEqual(P.negotiatedPrice(AGREED, 'b', PALADIN), null);
+assert.strictEqual(P.negotiatedPrice(AGREED, 'a', ROGUE), null);
+assert.strictEqual(P.negotiatedPrice(AGREED, 'a'), null, 'and asking in the abstract finds no agreement');
+assert.strictEqual(P.negotiatedPrice({}, 'a', PALADIN), null);
 
 // Free is a price a merchant can offer, so zero has to survive the round trip
 // rather than reading as "no agreement yet".
-assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: 0 } } }, 'a'), 0, 'nothing is a price');
+assert.strictEqual(
+    P.negotiatedPrice({ pricing: { overrides: { [PALADIN]: { a: 0 } } } }, 'a', PALADIN), 0, 'nothing is a price');
 
-// The older `{ value, denomination }` override shape still reads, so a shop
-// configured before any of this existed keeps its prices.
-assert.strictEqual(P.negotiatedPrice({ pricing: { overrides: { a: { value: 7, denomination: 'gp' } } } }, 'a'), 700);
+// The older `{ value, denomination }` override shape still reads, so a price agreed as
+// a denominated amount keeps its meaning.
+assert.strictEqual(
+    P.negotiatedPrice({ pricing: { overrides: { [PALADIN]: { a: { value: 7, denomination: 'gp' } } } } }, 'a', PALADIN),
+    700);
 
 const BUYBACK = { type: 'purchased', markup: 1, buyRate: 0.5 };
 assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50)), 2500, 'half the list, as configured');
 assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', null)), null, 'and nothing for the unpriced');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { a: 900 } } }, BUYBACK, item('a', null)), 900,
-    'until the GM says what the merchant will pay');
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', null), withPal),
+    900, 'until the GM says what the merchant will pay');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { overrides: { a: 9999 } } }, BUYBACK, item('a', 50)), 2500,
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', 50), withRog),
+    2500, 'and what it offers one seller is not what it offers the next');
+assert.strictEqual(
+    P.resolvePurchasePrice({ pricing: { overrides: { [PALADIN]: { a: 9999 } } } }, BUYBACK, item('a', 50), withPal), 2500,
     'a buy-side agreement does not decide what the shop pays');
 console.log('ok  agreed prices, both directions');
 
@@ -183,10 +205,11 @@ assert.strictEqual(P.resolvePurchasePrice({}, BUYBACK, item('a', 50), { reputati
 
 // An agreed price is the price. Nothing is applied on top of a number two people
 // settled on, in either direction.
-assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), { reputation: 0.5 }), 1200,
+assert.strictEqual(P.resolvePrice(AGREED, SALE, item('a', 50), { reputation: 0.5, shopper: PALADIN }), 1200,
     'reputation does not re-cut an agreed price');
 assert.strictEqual(
-    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { a: 900 } } }, BUYBACK, item('a', 50), { reputation: 0.5 }),
+    P.resolvePurchasePrice({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, BUYBACK, item('a', 50),
+        { reputation: 0.5, shopper: PALADIN }),
     900, 'nor an agreed buyback');
 
 console.log('ok  reputation, both directions');
@@ -613,19 +636,17 @@ console.log(`ok  ${settled} settlements pay exactly, and none invent money`);
 
 console.log('\nall pricing checks passed');
 
-// --- the renamed key -----------------------------------------------------
-// `buybackOverrides` became `purchaseOverrides` when *buyback* left the vocabulary.
-// A stored key is the expensive half of a rename, so the old one is still read: a
-// player who opens a shop before the GM has logged in to run the migration should
-// not watch an agreed price disappear and come back.
+// --- the shape before agreements had a shopper ---------------------------
+// Agreements used to be keyed by item alone, which is exactly the bug: honouring a
+// stored one now means handing everybody in the room a discount one person haggled
+// for. So the old shape is *ignored* rather than migrated. It costs a re-haggle at
+// worst -- agreements are cleared the moment a trade settles, so almost nothing is
+// stored at any given time -- and it cannot leak a price to the wrong person.
+const FLAT = { pricing: { purchaseOverrides: { a: 900 }, overrides: { a: 1200 } } };
+assert.strictEqual(P.negotiatedPurchase(FLAT, 'a', PALADIN), null, 'an un-keyed agreement belongs to nobody');
+assert.strictEqual(P.negotiatedPrice(FLAT, 'a', PALADIN), null, 'on either side');
 assert.strictEqual(
-    P.negotiatedPurchase({ pricing: { purchaseOverrides: { a: 900 } } }, 'a'), 900,
-    'the current key');
-assert.strictEqual(
-    P.negotiatedPurchase({ pricing: { buybackOverrides: { a: 700 } } }, 'a'), 700,
-    'and the one a world may still be holding');
-assert.strictEqual(
-    P.negotiatedPurchase({ pricing: { purchaseOverrides: { a: 900 }, buybackOverrides: { a: 700 } } }, 'a'),
-    900, 'the migrated key wins when a world somehow has both');
-assert.strictEqual(P.negotiatedPurchase({ pricing: {} }, 'a'), null, 'and nothing means nothing');
-console.log('ok  the renamed sell-side key reads old and new');
+    P.negotiatedPurchase({ pricing: { purchaseOverrides: { [PALADIN]: { a: 900 } } } }, 'a', PALADIN), 900,
+    'while the current shape reads');
+assert.strictEqual(P.negotiatedPurchase({ pricing: {} }, 'a', PALADIN), null, 'and nothing means nothing');
+console.log('ok  agreements from before they had a shopper are ignored, not shared out');

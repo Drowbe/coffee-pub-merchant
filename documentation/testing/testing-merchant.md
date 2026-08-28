@@ -1712,3 +1712,13 @@ level onto every existing row; it logs how many.
     different opening sound: it uses that, and every other merchant still follows the world setting —
     including after the world setting is changed.
 
+210. **A discount is for one customer.** As GM, edit an item's price on one character's slate, then switch
+    *Buying as* to another character: the second sees the marked price, and so does the shelf. Switch back
+    and the agreed price is still there.
+211. **The agreed price is what is charged**, not merely displayed — settle the trade and count the coin.
+212. **Settling does not clear somebody else's agreement.** Agree prices with two characters, buy with one,
+    then switch to the other: their price is untouched.
+213. **Editing a price with nobody shopping is refused** with a notice, rather than writing a price the
+    whole room gets.
+214. **A price agreed before this build is gone** — the row reads at the marked price. Re-agreeing works
+    normally.

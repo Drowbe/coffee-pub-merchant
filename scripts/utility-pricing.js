@@ -372,10 +372,14 @@ function rate(value, fallback = 1) {
  * @returns {number|null} null when the item has no price at all — a configuration gap
  *   on a priced inventory, and deliberate on an unpriced one.
  */
-export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
+export function resolvePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1, shopper = null } = {}) {
     // An agreed price wins outright, which is what makes it agreed. Nothing is applied
     // on top: a haggled number is the number, not the start of an arithmetic.
-    const negotiated = negotiatedPrice(merchantConfig, item?.id);
+    //
+    // **And it wins for one person.** Without a shopper there is no agreement to find, so
+    // a shelf asked in the abstract answers with the marked price -- which is what a shelf
+    // is for.
+    const negotiated = negotiatedPrice(merchantConfig, item?.id, shopper);
     if (negotiated !== null) return negotiated;
 
     // An unpriced inventory has no list price by definition: what a thing costs there
@@ -463,14 +467,24 @@ export function safeBuyRate(inventoryMarkup, bestReputation) {
 }
 
 /**
- * A price the GM has agreed for one item, in base units, or null.
+ * A price the GM has agreed **with one shopper** for one item, in base units, or null.
  *
  * Stored on the merchant rather than carried in the request, because the price is
  * the one number in a transaction a player must not be able to name. A slate is
  * client state; this is a document, and the GM handler reads the document.
+ *
+ * **Keyed by who it was agreed with.** A shopkeeper knocking something off for the paladin
+ * who saved the town is not announcing a sale: the rogue standing beside her pays the
+ * marked price, and the shelf goes on saying what the shelf says. Keyed by item alone —
+ * which it was — one haggle repriced the row for the whole room.
+ *
+ * A stored shape from before that is ignored rather than honoured, because honouring it
+ * means applying somebody's discount to everybody. Agreements are cleared when a trade
+ * settles, so the most this costs is one re-haggle.
  */
-export function negotiatedPrice(merchantConfig, itemId) {
-    const agreed = merchantConfig?.pricing?.overrides?.[itemId];
+export function negotiatedPrice(merchantConfig, itemId, shopperUuid) {
+    if (!shopperUuid) return null;
+    const agreed = merchantConfig?.pricing?.overrides?.[shopperUuid]?.[itemId];
     if (agreed === null || agreed === undefined) return null;
     // A plain number is base units, which is what the negotiate control writes. The
     // `{ value, denomination }` shape is what a per-item override was before it, and
@@ -480,13 +494,16 @@ export function negotiatedPrice(merchantConfig, itemId) {
     return null;
 }
 
-/** What the GM has agreed to pay for one thing the party is selling, or null. */
-export function negotiatedPurchase(merchantConfig, itemId) {
-    // The old key is read as well as the new one, for the window between a world
-    // loading and its GM logging in to run the migration: a player who opens a shop
-    // first should not watch an agreed price vanish and come back.
-    const agreed = merchantConfig?.pricing?.purchaseOverrides?.[itemId]
-        ?? merchantConfig?.pricing?.buybackOverrides?.[itemId];
+/**
+ * What the GM has agreed to pay **one seller** for one thing, or null.
+ *
+ * Keyed by seller for the same reason the buying side is keyed by buyer: what a shopkeeper
+ * offers a regular is not what they offer a stranger, and an offer made to one person is
+ * not a change to what the shop pays.
+ */
+export function negotiatedPurchase(merchantConfig, itemId, shopperUuid) {
+    if (!shopperUuid) return null;
+    const agreed = merchantConfig?.pricing?.purchaseOverrides?.[shopperUuid]?.[itemId];
     return Number.isFinite(Number(agreed)) ? Math.max(0, Math.round(Number(agreed))) : null;
 }
 
@@ -509,8 +526,8 @@ export function negotiatedPurchase(merchantConfig, itemId) {
  * @param {object} [options]
  * @param {number} [options.reputation] The buying-side multiplier. Inverted here.
  */
-export function resolvePurchasePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1 } = {}) {
-    const agreed = negotiatedPurchase(merchantConfig, item?.id);
+export function resolvePurchasePrice(merchantConfig, inventoryConfig, item, { reputation = 1, market = 1, shopper = null } = {}) {
+    const agreed = negotiatedPurchase(merchantConfig, item?.id, shopper);
     if (agreed !== null) return agreed;
 
     // The item's own worth: no overrides, no *inventory* markup, and no market —
