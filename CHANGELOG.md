@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [13.1.2]
 
 ### Added
 - **The world's stocking limits are shown as a table** on the Inventories card (`templates/window-merchant-config.hbs`, `scripts/window-merchant-config.js`). Read-only on purpose — they are world settings, and a control here would be a second place to set one thing. Two tables rather than four columns of one, because a type ceiling and a rarity ceiling are separate rules that happen to share a unit. A limit of 0 reads **No limit**, which is the one thing the numbers alone cannot say.
