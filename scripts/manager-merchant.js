@@ -24,7 +24,7 @@ import { resolveReputation, invalidateReputation } from './utility-reputation.js
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
 import {
-    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources, matchesFilter,
+    hasQuery, queryStock, normalizeQuery, packIdFromDrop, enabledSources, matchesFilter,
     abandonedLeavings
 } from './utility-compendium.js';
 import {
@@ -77,7 +77,7 @@ export class MerchantManager {
         // change to all of them, so this needs no GM gate and no broadcast of ours.
         this.hook('blacksmith.partyReputationChanged', 'Reprice open shops when the party\'s standing changes', (data) => {
             invalidateReputation(data);
-            for (const win of ShopWindow.openWindows()) void win.render(false);
+            for (const win of ShopWindow.allOpen()) void win.render(false);
         });
     }
 
@@ -1481,20 +1481,20 @@ export class MerchantManager {
         if (!config) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
 
-        if (!hasQuery()) {
-            console.warn(`${MODULE.TITLE} | ${inventory.name} stocks by query, but this Blacksmith has none.`);
+        // **Only the curated path needs the hub.** A custom list is scanned by Merchant
+        // itself, out of the pack indexes, so a shelf naming packs draws from them whether
+        // or not Blacksmith is configured to search them -- which is the entire point of a
+        // custom list. See `queryStock`.
+        const wanted = normalizeQuery(config.query).sources;
+        if (!wanted && !hasQuery()) {
+            console.warn(`${MODULE.TITLE} | ${inventory.name} stocks from the curated set, but this Blacksmith has no query.`);
             notify.warn(game.i18n.localize('coffee-pub-merchant.notify.queryUnavailable'));
             return 0;
         }
 
-        // **A shelf that cannot draw says so, rather than reporting an empty query.**
-        // Two states reach here looking identical from the outside: a custom list nobody
-        // has dropped a pack on, and one whose every pack sits outside the curated set --
-        // which the hub filters out of a query, so the scan is real and the answer is
-        // always nothing. "Found nothing matching" would be true and useless; the GM
-        // needs to know it is the list, not the filter.
-        const wanted = normalizeQuery(config.query).sources;
-        if (wanted && !enabledSources(wanted).some((id) => id === 'world' || curatedSources().includes(id))) {
+        // A list nobody has switched anything on in is the one real dead end left, and the
+        // one the GM can act on. "Found nothing matching" would be true and useless.
+        if (wanted && !enabledSources(wanted).length) {
             notify.warn(game.i18n.format('coffee-pub-merchant.notify.querySourcesUnusable', { inventory: inventory.name }));
             return 0;
         }

@@ -1,4 +1,7 @@
-import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
+import {
+    BlacksmithToolWindowBaseV2, BlacksmithFullscreenWindowBaseV2, BLACKSMITH_FULLSCREEN_LAYOUTS,
+    BLACKSMITH_FULLSCREEN_FITS
+} from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG
@@ -6,7 +9,7 @@ import {
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
-import { wasExpanded, rememberExpanded, viewportGeometry } from './utility-expand.js';
+import { wasExpanded, rememberExpanded } from './utility-expand.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -159,7 +162,34 @@ function illustrationUrl(stored) {
 }
 
 /**
- * **The base class comes from the bridge, which is the supported path.**
+ * **Slate state lives at module scope, not on a class.**
+ *
+ * A shop is presented by two classes now -- the ordinary tool window and the fullscreen
+ * surface -- and expanding is a *transition between them mid-shop*. A static declared in
+ * the mixin below would be initialised once per subclass, so the half-filled cart a player
+ * was looking at would vanish the instant they pressed Expand and reappear when they came
+ * back. One map, two doors.
+ */
+const _sharedBaskets = new Map();
+const _sharedCarts = new Map();
+const _sharedPublished = new Map();
+const _sharedPresence = new Map();
+
+/**
+ * Every shop window open on this client, of either kind.
+ *
+ * The tool base keeps a per-subclass registry keyed by uuid, and it is the right one for
+ * "is this shop already open" -- but it cannot see the fullscreen surface, which is not a
+ * tool window at all. Anything that refreshes *all* shops has to walk this instead, or a
+ * player standing in an expanded shop stops being told about price changes.
+ */
+const _liveWindows = new Set();
+
+/** True while a shop is moving between its two shells, so the door stays quiet. */
+let _swapping = false;
+
+/**
+ * **The base classes come from the bridge, which is the supported path.**
  *
  * `api/blacksmith-api.js` re-exports both window bases precisely so a subclass can
  * `extends` one at module scope. It is a real ESM module, so it resolves at
@@ -172,9 +202,9 @@ function illustrationUrl(stored) {
  * recommend exactly that; Merchant broke a live world on it, Blacksmith fixed the doc
  * and added the re-exports on 2026-08-19, and this is the result.
  */
-export class ShopWindow extends BlacksmithToolWindowBaseV2 {
+const ShopBehaviour = (Base) => class extends Base {
     // One window per token, and the registry behind that, are the base class's:
-    // `openFor`, `openWindowFor`, `openWindows`, `closeFor`, keyed by uuid. Ours
+    // `openFor`, `closeFor` and the registry behind them, keyed by uuid. Ours
     // deleted its map entry only in `_onClose`, so a window whose first render threw
     // was never entered and never left — and every later open re-rendered the same
     // broken instance, which is a shop that cannot be reopened until the page is
@@ -187,7 +217,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // The two together are what the window calls the **slate**. Internally they stay
     // `cart` and `basket`: renaming fields to match a label is churn with no reader,
     // and "cart" is still the clearest word for what the code is doing.
-    static _baskets = new Map();
+    static _baskets = _sharedBaskets;
 
     // `shopKey|shopperUuid` -> Map(itemId -> quantity).
     //
@@ -206,12 +236,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // mirror expires by itself. Permission needs no special handling either: the only
     // characters you can switch to are the ones you can act as, so a player sees their
     // own slates and a GM sees everyone's, for free.
-    static _carts = new Map();
+    static _carts = _sharedCarts;
 
     // `shopKey|shopperUuid` -> the last snapshot this client sent or received.
     // Set on both, which is what stops two clients bouncing the same slate back and
     // forth: a slate that arrives is already "published" as far as we are concerned.
-    static _published = new Map();
+    static _published = _sharedPublished;
 
     // shopKey -> Map(userId -> { actorUuid, name, img }). Who is standing in this
     // shop, as seen by everybody.
@@ -224,7 +254,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     //
     // Peer to peer, for Curator's reason: nothing authoritative hangs off it, and
     // routing it through the GM would make an absent GM look like an empty shop.
-    static _presence = new Map();
+    static _presence = _sharedPresence;
 
     static DEFAULT_OPTIONS = foundry.utils.mergeObject(
         foundry.utils.mergeObject({}, super.DEFAULT_OPTIONS ?? {}),
@@ -253,6 +283,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
+        toggleExpand: (_event, _target, win) => void win.toggleExpand(),
         changeRecipient: (_event, _target, win) => win.changeRecipient(),
 
         toggleInventory: (_event, target, win) => void win.toggleInventory(target.dataset.inventoryId),
@@ -299,15 +330,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // registered under the string, addressed as `undefined` by everything after.
         const key = typeof subject === 'string' ? subject : (subject?.uuid ?? null);
         opts.id ||= `merchant-shop-${(typeof subject === 'string' ? subject : subject?.id) ?? 'gone'}-${foundry.utils.randomID()}`;
+        // **`new.target`, not `ShopWindow`.** Naming one shell here means the *other* one is
+        // constructed with the tool window's frame, title and 740x600 as **instance**
+        // options -- which beat its own `DEFAULT_OPTIONS` outright, so the fullscreen
+        // surface rendered as a framed, titled, positioned window with the room painted
+        // inside it. `new.target` is the class actually being built, which is the only
+        // thing either shell should be reading its own defaults from.
+        const defaults = new.target?.DEFAULT_OPTIONS ?? {};
         opts.position = foundry.utils.mergeObject(
-            foundry.utils.mergeObject({}, ShopWindow.DEFAULT_OPTIONS.position ?? {}),
+            foundry.utils.mergeObject({}, defaults.position ?? {}),
             opts.position || {}
         );
         opts.window = foundry.utils.mergeObject(
-            foundry.utils.mergeObject({}, ShopWindow.DEFAULT_OPTIONS.window ?? {}),
+            foundry.utils.mergeObject({}, defaults.window ?? {}),
             opts.window || {}
         );
         super(opts);
+        // **Kept so the shop can be handed to the other shell.** Expanding is not a resize,
+        // it is closing this window and opening the same shop as a fullscreen surface --
+        // which needs the subject and the options it was built from, and a uuid string is
+        // as valid a subject as a document.
+        this._subject = subject;
+        this._openOptions = options;
         this.shopKey = key;
         // A TokenDocument's parent is its Scene. An Actor's is not, so a subject that is
         // an Actor is told where it is standing instead.
@@ -325,22 +369,33 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // this: a shop that still exists answers for itself, and would rather.
         this.remembered = options.remembered ?? null;
         this.busy = false;
-        // Applied on first render rather than here: the frame does not exist yet, and
-        // there is nothing to resize or put a class on.
-        this._expanded = false;
-        // What to put back. Taken at the moment of expanding, because the size a person
-        // chose is the size they want back -- not the default the window opened at.
-        this._beforeExpand = null;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
         // stock would be a puzzle.
         this._search = '';
     }
 
+    /**
+     * Every shop window open on this client, of either shell.
+     *
+     * The tool base's own registry cannot see the fullscreen surface -- it is not a tool
+     * window -- so anything that refreshes *all* shops has to walk this instead. Using the
+     * tool registry here is how a player standing in an expanded shop stops being told
+     * about a price change.
+     */
+    static allOpen() {
+        return [..._liveWindows];
+    }
+
+    /** The open window for a shop, whichever shell it is wearing. */
+    static liveWindowFor(shopKey) {
+        return [..._liveWindows].find((win) => win.shopKey === shopKey) ?? null;
+    }
+
     static refreshForToken(shopKey) {
         // `keyFor` takes a plain string as readily as a document, which is what lets
         // a socket message carrying only a uuid find its window.
-        void this.openWindowFor(shopKey)?.render(false);
+        void this.liveWindowFor(shopKey)?.render(false);
     }
 
     /**
@@ -350,7 +405,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * scenes, so keying the refresh on a single token would miss the others.
      */
     static async refreshForActor(actorUuid) {
-        for (const win of this.openWindows()) {
+        for (const win of this.allOpen()) {
             // A linked shop is keyed by the Actor already; an unlinked one has to be
             // resolved to find out whose it is.
             if (win.shopKey === actorUuid) { void win.render(false); continue; }
@@ -527,7 +582,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         } finally {
             this.busy = false;
             this.element?.classList.remove('merchant-shop-busy');
-            if (this.constructor.openWindowFor(this.shopKey) === this) await this.render(false);
+            // Still the window for this shop, and not one closed or swapped for the other
+            // shell while the action was running.
+            if (_liveWindows.has(this)) await this.render(false);
         }
     }
 
@@ -956,7 +1013,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ShopWindow._presence.get(shopKey)?.delete(userId);
         } else if (state === 'ping') {
             // Somebody just arrived and cannot see the room. Say we are here.
-            for (const window of ShopWindow.openWindows()) {
+            for (const window of ShopWindow.allOpen()) {
                 if (window.shopKey === shopKey) {
                     const self = window._selfPresence();
                     emit(SOCKET_EVENT.PRESENCE, {
@@ -969,7 +1026,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             ShopWindow._setPresence(shopKey, userId, { actorUuid, userName, name, img });
         }
 
-        for (const window of ShopWindow.openWindows()) {
+        for (const window of ShopWindow.allOpen()) {
             if (window.shopKey === shopKey) void window.render(false);
         }
     }
@@ -978,7 +1035,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     static dropUser(userId) {
         for (const [shopKey, room] of ShopWindow._presence) {
             if (!room.delete(userId)) continue;
-            for (const window of ShopWindow.openWindows()) {
+            for (const window of ShopWindow.allOpen()) {
                 if (window.shopKey === shopKey) void window.render(false);
             }
         }
@@ -1002,7 +1059,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     /** Answer a `slateRequest` with every slate this client is actually driving. */
     static publishSlatesFor(shopKey) {
-        for (const window of ShopWindow.openWindows()) {
+        for (const window of ShopWindow.allOpen()) {
             if (window.shopKey === shopKey) window._publishSlate();
         }
     }
@@ -1016,7 +1073,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Recorded as published, so receiving a slate never bounces it back.
         ShopWindow._published.set(key, JSON.stringify([cart, basket]));
 
-        for (const window of ShopWindow.openWindows()) {
+        for (const window of ShopWindow.allOpen()) {
             if (window.slateKey === key) void window.render(false);
         }
     }
@@ -1661,6 +1718,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const basketLines = missing ? [] : await this._basketLines();
         const basketTotal = basketLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
 
+        // **Resolved once, used twice.** The card sets it as a CSS custom property and the
+        // fullscreen shell hands the same path to Blacksmith as its backdrop. Working it
+        // out separately in each place is two answers to "which picture is this shop
+        // wearing", which is one more than the question has.
+        const illustration = illustrationUrl(missing ? this.remembered?.illustration : config?.illustration);
+        this._illustration = illustration || null;
+
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
             shopName: config?.name || token?.name || this.shopName
@@ -1672,7 +1736,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // **The picture of the place, if there is one.** Absent is the ordinary case
             // and the card reads exactly as it always did; present, it sits behind the
             // card as a backdrop rather than replacing anything on it.
-            illustration: illustrationUrl(missing ? this.remembered?.illustration : config?.illustration),
+            illustration,
             // Normalised again here rather than trusted from the flag: this is the value
             // that ends up inside a `style` attribute, and the setter is not the only
             // way a flag gets written.
@@ -1886,8 +1950,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // too, and a GM ticking a box on their ultrawide should not decide it for them.
         const actions = [{
             id: 'merchant-expand',
-            icon: this._expanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand',
-            label: this._expanded ? 'Restore Size' : 'Expand',
+            icon: this.isExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand',
+            label: this.isExpanded ? 'Leave Full Screen' : 'Full Screen',
             onClick: () => void this.toggleExpand()
         }, {
             id: 'merchant-refresh',
@@ -1988,11 +2052,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _onFirstRender(context, options) {
         super._onFirstRender?.(context, options);
+        _liveWindows.add(this);
         void this._playDoor(SOUND.WINDOW_OPEN);
-        // A shop left expanded opens expanded, on this client, for this shop. Deferred a
-        // frame because the geometry is measured off furniture Foundry may still be
-        // laying out on the render that opened us.
-        if (wasExpanded(this.shopKey)) requestAnimationFrame(() => this.setExpanded(true, { remember: false }));
     }
 
     /**
@@ -2003,6 +2064,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * render would be a bug.
      */
     async _playDoor(which) {
+        if (_swapping) return;
         const { actor } = await this._resolveSubject();
         playFeedback(which, actor ? MerchantManager.soundFor(actor, which === SOUND.WINDOW_OPEN ? 'open' : 'close') : null);
     }
@@ -2794,74 +2856,43 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         return subject?.documentName === 'Actor' && canPin(subject);
     }
 
-    /**
-     * Lift the size caps while expanded.
-     *
-     * **This cannot be done in the stylesheet.** The base class writes the caps as *inline*
-     * custom properties on the window element on every render, and an inline property beats
-     * a class selector however specific it is -- so a CSS rule for `.is-expanded` would be
-     * overwritten by the very next render, which `setExpanded` itself performs. Clearing
-     * them here, after `super`, is the only place that is not immediately undone.
-     *
-     * A max-width of 1040 is right for a window and is exactly what expanding asks to
-     * escape.
-     */
-    _applyWindowSizeConstraints() {
-        super._applyWindowSizeConstraints?.();
-        if (!this._expanded) return;
-        const frame = this.element;
-        if (!frame?.style) return;
-        frame.style.setProperty('--blacksmith-window-max-width', 'none');
-        frame.style.setProperty('--blacksmith-window-max-height', 'none');
+    /** Whether this shell is the fullscreen one. Set by the concrete class, not asked. */
+    get isExpanded() {
+        return this.constructor.IS_EXPANDED === true;
     }
 
-    /** Flip between the shop as a window and the shop as the screen. */
+    /**
+     * Move this shop between its two shells.
+     *
+     * **Not a resize.** The ordinary window and the fullscreen surface are two Application
+     * classes with two different frames, so expanding closes one and opens the other on the
+     * same subject. Everything that makes it feel like one shop rather than two survives it
+     * for free: the slate, the basket and the presence maps live at module scope precisely
+     * so a half-filled cart is still there on the other side.
+     *
+     * Remembered *before* the swap, so the shop reopens in the shell it was left in even if
+     * the render throws on the way.
+     */
     async toggleExpand() {
-        await this.setExpanded(!this._expanded);
-    }
+        const next = !this.isExpanded;
+        await rememberExpanded(this.shopKey, next);
+        const subject = this._subject;
+        const options = this._openOptions;
 
-    /**
-     * Expand or restore, and remember which unless told not to.
-     *
-     * **`rememberPosition` is switched off while expanded**, and that is not a detail.
-     * The base class persists geometry 250ms after any `setPosition`, under a key every
-     * shop shares -- so without this, expanding one shop would set the opening size of
-     * every shop, and closing it while expanded would make that permanent. The size a
-     * person dragged a window to is the size worth remembering; a size a button chose
-     * is not.
-     */
-    async setExpanded(expanded, { remember = true } = {}) {
-        const on = Boolean(expanded);
-        if (on === this._expanded) return;
-
-        const frame = this.element;
-        if (!frame) return;
-
-        // **Set before anything is resized**, because lifting the caps reads it. Resizing
-        // first would set an inline width the stylesheet then clamped back to 1040px, which
-        // looks exactly like the button not working.
-        this._expanded = on;
-
-        if (on) {
-            this._beforeExpand = { ...this.position };
-            // Before `setPosition`, so the geometry a button chose is never the geometry a
-            // shop opens at next time.
-            this.options.rememberPosition = false;
-            frame.classList.add('is-expanded');
-            this._applyWindowSizeConstraints();
-            this.setPosition(viewportGeometry());
-        } else {
-            frame.classList.remove('is-expanded');
-            // Back on before the restore, so the size being returned to is the one saved.
-            this.options.rememberPosition = true;
-            this._applyWindowSizeConstraints();
-            if (this._beforeExpand) this.setPosition(this._beforeExpand);
-            this._beforeExpand = null;
+        // **No door slam on the way through.** Closing one shell and opening the other
+        // would play the closing sound and then the opening one, every time somebody
+        // pressed the button -- which is the shop announcing a change of window rather
+        // than a change of room. The flag spans both instances because they are two
+        // objects, and it is cleared in a `finally` so a failed render cannot leave the
+        // module silent.
+        _swapping = true;
+        try {
+            await this.close();
+            const Target = next ? ShopFullscreenWindow : ShopWindow;
+            await Target.openFor(subject, options);
+        } finally {
+            _swapping = false;
         }
-
-        if (remember) await rememberExpanded(this.shopKey, on);
-        // The header action is built during a render and its label has just changed.
-        await this.render(false);
     }
 
     /** Put a pin for this shop on the scene being looked at. */
@@ -2952,6 +2983,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     _onClose(options) {
         try {
             // Leave the room first, or the face stays behind.
+            _liveWindows.delete(this);
             this.clearPresence();
             clearTimeout(this._sellSearchTimer);
             void this._playDoor(SOUND.WINDOW_CLOSE);
@@ -2959,5 +2991,154 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             console.error(`${MODULE.TITLE} | Could not clean up on close:`, error);
         }
         return super._onClose?.(options);
+    }
+};
+
+/**
+ * The shop as an ordinary window: framed, movable, minimisable, one per shop.
+ *
+ * The default, and what a token, a pin, a region or a catalogue opens -- unless this client
+ * left that shop full screen, which `openFor` honours below.
+ */
+export class ShopWindow extends ShopBehaviour(BlacksmithToolWindowBaseV2) {
+    static IS_EXPANDED = false;
+
+    /**
+     * Open a shop in the shell this client last left it in.
+     *
+     * **The routing lives here rather than at four call sites.** A token, a pin, a region
+     * and a catalogue all open a shop through `ShopWindow.openFor`, and every one of them
+     * should land in the same shell -- so the question is asked once, where the answer is
+     * already needed, rather than four times with four chances to forget.
+     */
+    static async openFor(subject, options = {}) {
+        const key = this.keyFor(subject);
+        if (key && wasExpanded(key)) return ShopFullscreenWindow.openFor(subject, options);
+        return super.openFor(subject, options);
+    }
+}
+
+/**
+ * The shop as a surface: edge to edge, no frame, the illustration as the room.
+ *
+ * **Blacksmith's fullscreen base, not a big window of ours.** The first version of Expand
+ * measured the free rectangle between the sidebar and the hotbar and resized the tool
+ * window into it, then imitated a takeover in CSS -- which is *maximise*, something anybody
+ * can already do by dragging a corner, and it looked it. The hub already owns this
+ * presentation: the covering, the blocking, the stacking, escape-to-dismiss, the fade, and
+ * a backdrop layer built for exactly this. Request a Roll's cinematic is the same class.
+ *
+ * `full` of the four layouts, because a shop is not a panel on a surface -- it *is* the
+ * surface. The header is off: the shop card says whose shop this is, better than a title
+ * bar would, and the way back out is the toggle in the action bar.
+ *
+ * **One class body, two bases.** Everything a shop does -- the slate, the drop zones, the
+ * price editors, the search, the presence mirror, twenty-five action handlers -- is in the
+ * mixin above and is not written twice. What differs between the two is here, and it comes
+ * to a few dozen lines.
+ */
+export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWindowBaseV2) {
+    static IS_EXPANDED = true;
+
+    /**
+     * The tool base's registry is a tool base thing, so this shell brings its own.
+     *
+     * Thinner than theirs on purpose: the hub already guarantees one fullscreen surface at
+     * a time across every module, so "is one of ours already open" is the only question
+     * left and `_liveWindows` answers it.
+     */
+    static keyFor(target) {
+        return typeof target === 'string' ? (target || null) : (target?.uuid ?? null);
+    }
+
+    static async openFor(subject, options = {}) {
+        const key = this.keyFor(subject);
+        if (!key) return null;
+
+        const existing = [..._liveWindows].find((win) => win.isExpanded && win.shopKey === key);
+        if (existing) {
+            await existing.render(true);
+            return existing;
+        }
+
+        // Named rather than `new this(...)`: the same thing, and it does not read as a
+        // call to `this` to anything scanning this file.
+        const Shell = this;
+        const created = new Shell(subject, options);
+        await created.render(true);
+        return created;
+    }
+
+    static DEFAULT_OPTIONS = foundry.utils.mergeObject(
+        foundry.utils.mergeObject({}, BlacksmithFullscreenWindowBaseV2.DEFAULT_OPTIONS ?? {}),
+        {
+            // **`blacksmith-window-fullscreen` stays.** `mergeObject` overwrites arrays
+            // rather than concatenating, so listing only ours would drop the class that
+            // makes the surface cover and block at all -- the shop would render as an
+            // unstyled block in the corner of the screen.
+            classes: ['blacksmith-window-fullscreen', 'merchant-shop-window', 'merchant-shop-fullscreen'],
+            fullscreenLayout: BLACKSMITH_FULLSCREEN_LAYOUTS.FULL,
+            // The shop's own card is its title. A header over it would be the frame coming
+            // back on a surface whose whole point is not having one.
+            showCloseButton: false,
+            // **Escape leaves the surface rather than closing the shop.** A player who came
+            // in through a token expects to still be in the shop afterwards, and losing a
+            // half-built slate to a stray keypress is the worst possible reading of it.
+            dismissOnEscape: false,
+            dismissOnBackdrop: false
+        }
+    );
+
+    /**
+     * The room, handed to the hub rather than drawn by us.
+     *
+     * **A getter, not a write to `options`.** The obvious move is to set
+     * `this.options.fullscreenBackdrop` once the illustration is known, and it throws:
+     * ApplicationV2 freezes `options`. The base reads the backdrop through this getter on
+     * every render, which is exactly the hook for a value that is not known until the shop
+     * has been resolved.
+     *
+     * `contain` and not `cover`: shop art is wide and a screen may be tall, so covering
+     * crops a scene to whatever happens to be in the middle. The colour beneath fills the
+     * bands a contained picture leaves, drawn dark rather than blurred-from-the-art because
+     * the hub's `blur` applies to what shows through the surface, not to the image layer.
+     *
+     * A shop with no illustration returns nothing and keeps the hub's default scrim, which
+     * is the glass the window already uses. The undressed case is not special-cased; it
+     * simply has no picture.
+     */
+    get fullscreenBackdrop() {
+        if (!this._illustration) return {};
+        return {
+            image: this._illustration,
+            fit: BLACKSMITH_FULLSCREEN_FITS.CONTAIN,
+            // Darker than the card's own veil, deliberately: this one is carrying a whole
+            // room with parchment furniture standing on it, where the card's seats one
+            // paragraph of light text.
+            color: 'rgba(12, 8, 5, 0.82)',
+            opacity: 0.55
+        };
+    }
+
+    async _prepareContext(options = {}) {
+        const context = await super._prepareContext(options);
+
+        // The footer the tool window draws in its own bar is the action bar here. Same
+        // buttons, same handlers, different zone names -- so `getData` states it once and
+        // this maps it rather than the shop knowing which shell it is in.
+        context.showActionBar = true;
+        context.actionBarRight = context.toolFooterRight ?? '';
+        context.showHeader = false;
+
+        // **The way out, and it has to be here.** The tool shell puts the toggle in its
+        // title bar; this shell has no title bar, and with the hub's close control off --
+        // it would close the shop rather than leave the surface -- the action bar is the
+        // only place left. A takeover you cannot leave is a trap, and losing a half-built
+        // slate to find that out is the worst way to learn it.
+        context.actionBarLeft = `
+            <button type="button" class="blacksmith-window-btn-secondary" data-action="toggleExpand">
+                <i class="fa-solid fa-compress"></i> ${game.i18n.localize('coffee-pub-merchant.shop.leaveFullScreen')}
+            </button>${context.toolFooterLeft ?? ''}`;
+        return context;
     }
 }

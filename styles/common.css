@@ -117,6 +117,10 @@ body.merchant-placing-pin #board { cursor: crosshair !important; }
    row of quiet ones is read as an alarm rather than as an option. */
 .merchant-config-inv-btn.merchant-config-remove:hover { border-color: #a4432f; color: #a4432f; }
 
+/* A shelf that is put away. The same red the shop window's toggle uses, because it is
+   the same fact about the same shelf shown in two windows. */
+.merchant-config-inv-btn.is-put-away { border-color: color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider)); color: #a4432f; }
+
 /* --- Count badges ------------------------------------------------------
    How many things are in the section this heading names. */
 .merchant-shop-count,

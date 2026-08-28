@@ -248,6 +248,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
         openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
+        toggleInventoryVisible: (_event, target, win) => void win.toggleInventoryVisible(target.dataset.inventoryId),
         removeInventory: (_event, target, win) => void win.removeInventory(target.dataset.inventoryId),
         restockInventory: (_event, target, win) => void win.restockInventory(target.dataset.inventoryId),
         clearInventory: (_event, target, win) => void win.clearInventory(target.dataset.inventoryId),
@@ -1595,6 +1596,28 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (redraw) await this.render(false);
     }
 
+    /**
+     * Put a shelf away, or bring it out front.
+     *
+     * **The same one control the shop window carries**, and refusals stay with the
+     * manager for the reason the pin button gives: two buttons with two sets of rules is
+     * how they come apart. Every client with the shop open gains or loses a whole
+     * section, so the broadcast is not optional.
+     */
+    async toggleInventoryVisible(inventoryId) {
+        const actor = await this._resolveActor();
+        const config = MerchantManager.getInventoryConfig(actor?.items?.get(inventoryId));
+        if (!config) return;
+        try {
+            await MerchantManager.setInventoryVisible(actor, inventoryId, config.visible === false);
+            MerchantManager.broadcastActorRefresh(actor);
+            await this.render(false);
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not change that inventory:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryChangeFailed'));
+        }
+    }
+
     /** Opening the inventory is how a GM stocks it — dnd5e's own container sheet. */
     async openInventory(inventoryId) {
         const actor = await this._resolveActor();
@@ -1718,13 +1741,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         const described = describeSource(entry.id);
                         return {
                             ...described,
-                            enabled: entry.enabled,
-                            // Marked, not hidden. Blacksmith's `query` filters a requested
-                            // source against the curated set, so a pack outside it is
-                            // dropped -- and a shelf drawing from four packs when the GM
-                            // listed six, silently, is the exact failure this source was
-                            // chosen to avoid. Delete this the day the hub honours them.
-                            uncurated: !described.missing && !curatedSources().includes(entry.id)
+                            enabled: entry.enabled
                         };
                     }),
                     curatedCount: curatedSources().length,

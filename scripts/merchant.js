@@ -132,7 +132,7 @@ async function openMarketDialog(scene) {
         const value = await setMarketRate(scene, chosen);
         notify.info(`${scene.name}: ${marketLabel(value)}`);
         // Every open shop on that scene is now priced differently.
-        for (const win of ShopWindow.openWindows()) void win.render(false);
+        for (const win of ShopWindow.allOpen()) void win.render(false);
     } catch (error) {
         console.error(`${MODULE.TITLE} | Could not set the market:`, error);
         notify.error(game.i18n.localize('coffee-pub-merchant.notify.marketFailed'));

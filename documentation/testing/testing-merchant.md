@@ -1760,17 +1760,41 @@ level onto every existing row; it logs how many.
     was printed with, wearing the category icon and the remembered look — not an error.
 231. **An unlinked merchant offers no Print button** in either window.
 
-## The expanded shop (13.3.0)
+## The shop full screen (13.3.0)
 
-232. **Expand** in the shop window header fills the viewport, clear of the sidebar, the scene controls, the
-    navigation and the hotbar. **Restore Size** puts it back to the size it was.
-233. **The content is capped and centred** rather than stretched — the rows do not become a monitor wide.
-234. **The illustration gets room** and the veil over it is heavier than in the small window.
-235. **It is per client.** A player expanding their shop does not expand the GM's.
-236. **It is remembered per shop.** Close an expanded shop and reopen it: expanded. Open a *different* shop:
-    normal size.
-237. **It does not poison the remembered size.** Expand a shop, close it while expanded, then open any shop:
-    it opens at the size you last dragged a window to, not at viewport size.
-238. **Minimise still works** while expanded, and restores to the expanded window.
-239. **Everything still reaches you** with the shop expanded: hover tooltips, the character picker, the
-    clear-inventory confirm, the compendium search.
+232. **Full Screen** in the shop window header covers the whole screen — over the sidebar, the scene
+    controls and the hotbar — with the shop's illustration as the room behind it. **Leave Full Screen** in
+    the action bar puts it back to the window it was.
+233. **The slate survives the swap, in both directions.** Put things in the cart *and* the sell basket, go
+    full screen, and they are still there; come back and they are still there.
+234. **Everything still works on the surface**: buy, sell, search, sort, fold a shelf, drag an item in,
+    double-click a price, switch character, settle a transaction.
+235. **The list is capped and centred** rather than stretched a monitor wide, and the shop card is dark
+    glass rather than showing the illustration a second time inside it.
+236. **A shop with no illustration** goes full screen too, on the plain scrim, with nothing broken.
+237. **It is per client.** A player going full screen does not move the GM's window.
+238. **It is remembered per shop.** Close a full-screen shop and reopen it from the token, a pin, a region
+    or a catalogue: full screen. Open a *different* shop: an ordinary window.
+239. **The door does not slam on the toggle.** No open or close sound when swapping shells — only when the
+    shop is actually opened or closed.
+240. **Escape does not close the shop** from the surface, and there is no stray close control that would.
+241. **Presence still works**: with two clients in one shop, one going full screen still shows in the other's
+    "who is here" row, and slate mirroring still updates live.
+242. **Refreshes reach a full-screen shop.** Restock a shelf as GM while a player is full screen; their view
+    updates without them touching anything.
+
+## Manual compendiums and shelf visibility (13.3.0)
+
+243. **A shelf drawing from uncurated packs stocks.** Set an inventory to *Manually Selected Compendiums*,
+    drop packs Blacksmith is **not** configured to search, and restock. Items arrive.
+244. **No row says *Waiting*** any more, and no restock refuses by naming the curated set.
+245. **A nine-pack shelf is drawn from evenly**, not filled out of the first pack in the list. Restock a few
+    times and check the spread.
+246. **An unticked pack contributes nothing**, and a list with everything unticked refuses by saying the list
+    is empty.
+247. **A pack that has been uninstalled is skipped**, and its row still says *Gone*.
+248. **Unpriced compendium items are not stocked**, on either path.
+249. **The curated path is unchanged** — a shelf set to *Curated Blacksmith Compendiums* stocks as before.
+250. **Merchant Settings has an eye toggle on every shelf.** Clicking it puts the shelf away, the icon
+    changes, and a player with the shop open loses the section immediately.
+251. **The two toggles agree.** Hide from the shop window, reopen Settings: it shows hidden, and vice versa.

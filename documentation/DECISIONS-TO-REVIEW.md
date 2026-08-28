@@ -71,32 +71,47 @@ is concerned. One question, one answer.
 
 **Reversing it** is three settings and three lines in `canvas-marker.js`.
 
-## F. The expanded shop was built rather than waited for
+## F. Full screen is Blacksmith's surface, not Merchant's stylesheet
 
-**What was chosen.** Merchant owns the whole of expand for now — the toggle, the geometry, the size caps,
-the position suppression — in `utility-expand.js` plus one method override.
+**What was chosen.** `ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWindowBaseV2)` with
+`fullscreenLayout: 'full'` and the shop's illustration handed over as `fullscreenBackdrop`.
 
-**Why, given Blacksmith is said to be implementing it.** `api-window.md` as of Blacksmith 13.20.0 documents
-only `BlacksmithFullscreenWindowBaseV2`, which is a different thing: a blocking, frameless, one-at-a-time
-takeover for handouts and reveals, where nothing underneath receives a pointer event. A shop is a window
-somebody keeps open while doing other things. There is no expand affordance on the standard base to adopt.
+**This was the second attempt.** The first read `api-window.md` for the class name, decided the fullscreen
+base was "a blocking takeover for handouts", and built a viewport-filling tool window with two hundred lines
+of stylesheet imitating a surface. That was maximise with extra steps, and it looked it. The layouts table on
+the same page says `full` is "edge to edge, no panel chrome, you own the whole surface" and `fullscreenBackdrop`
+takes an image, a fit and a scrim — which is the entire feature, already shipped. **A base class is not one
+thing; its layouts are.**
 
-**The seam was kept clean deliberately.** Everything Merchant should stop owning is in one 130-line file and
-one method override; everything it should keep owning is the `is-expanded` stylesheet. When the hub ships
-the frame, the handover is a deletion. Recorded as TODO 2 and architecture §16.
+**What was rejected.** The browser's fullscreen API, for the reason that has not changed: Foundry renders
+tooltips and dialogs at body level and they would draw behind it.
 
-**If this was the wrong call**, reverting is deleting `utility-expand.js`, the override, the two header
-lines, and the stylesheet block. Nothing else refers to it.
+**Reversing it** is deleting `ShopFullscreenWindow` and the `merchant-shop-fullscreen` stylesheet block; the
+mixin collapses back to a plain class.
 
-## G. Stage one only: no columns
+## G. The shop became a mixin over two bases
 
-**What was chosen.** The expanded shop caps its single column at 1180px and centres it. Three inventories
+**What was chosen.** `ShopBehaviour = (Base) => class extends Base {...}`, instantiated twice. Everything a
+shop does is written once.
+
+**What was rejected.** Copying the prototype onto a second class, which is shorter and broken: `super` inside
+a method is bound to the home object it was written in, so `super._onFirstRender` on a fullscreen instance
+would call the *tool* base's.
+
+**The cost, and it is the part to check.** Three things follow from there being two classes rather than one,
+and each had to be answered rather than discovered: slate state moved to module scope (a static in a mixin is
+per-subclass, so a cart would vanish on the toggle); a registry spanning both shells, since the tool base's
+cannot see the surface; and the open route decided in one place so four callers land in the same shell.
+
+## H. Stage one only: no columns
+
+**What was chosen.** The full-screen shop caps its single column at 1180px and centres it. Three inventories
 abreast is not built.
 
 **Why.** Columns interact with the folds (collapsing one leaves a hole or reflows the others) and with the
 search (`filterShopList` hides rows, then categories, then inventories — in three columns that reads as
-uneven emptying rather than a shortening list). Both are worth building deliberately, and stage one may
-well be enough. Recorded as TODO 1, to be judged by a session at a wide monitor rather than by argument.
+uneven emptying rather than a shortening list). Recorded as TODO 1, to be judged by a session at a wide
+monitor rather than by argument.
 
 ---
 

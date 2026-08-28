@@ -293,13 +293,18 @@
                             <span>
                                 {{typeLabel}}
                                 {{#if hidden}}
-                                    <span class="merchant-config-inv-hidden"
-                                          data-tooltip="{{localize "coffee-pub-merchant.config.hiddenTooltip"}}">
-                                        <i class="fa-solid fa-eye-slash"></i> {{localize "coffee-pub-merchant.config.hiddenBadge"}}
-                                    </span>
                                 {{/if}}
                             </span>
                             <span class="merchant-config-head-actions">
+                                {{!-- **First, because it is the one that changes who can see the
+                                      shelf at all.** It was a read-only badge here and a working
+                                      toggle in the shop window, so the one place a GM builds a
+                                      shop was the one place they could not put a shelf away. --}}
+                                <button type="button" class="merchant-config-inv-btn{{#if hidden}} is-put-away{{/if}}"
+                                        data-action="toggleInventoryVisible" data-inventory-id="{{id}}"
+                                        data-tooltip="{{#if hidden}}{{localize "coffee-pub-merchant.config.showInventoryTooltip"}}{{else}}{{localize "coffee-pub-merchant.config.hideInventoryTooltip"}}{{/if}}">
+                                    <i class="fa-solid {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                                </button>
                                 {{!-- Where an inventory sits is the shop's layout: what is
                                       on the counter and what is in the back room. It was
                                       whatever order the containers happened to be created
@@ -509,15 +514,6 @@
                                                                 <span class="merchant-config-source-flag is-missing"
                                                                       data-tooltip="{{localize "coffee-pub-merchant.config.sourceMissingTooltip"}}">
                                                                     <i class="fa-solid fa-triangle-exclamation"></i> {{localize "coffee-pub-merchant.config.sourceMissing"}}
-                                                                </span>
-                                                            {{else if uncurated}}
-                                                                {{!-- Marked rather than hidden: the hub filters an
-                                                                      uncurated source out of a query, so this pack is
-                                                                      listed and not yet drawn from. A control that
-                                                                      cannot act says why. --}}
-                                                                <span class="merchant-config-source-flag"
-                                                                      data-tooltip="{{localize "coffee-pub-merchant.config.sourceUncuratedTooltip"}}">
-                                                                    <i class="fa-solid fa-hourglass-half"></i> {{localize "coffee-pub-merchant.config.sourceUncurated"}}
                                                                 </span>
                                                             {{/if}}
                                                             <button type="button" class="merchant-config-icon-btn merchant-config-remove"

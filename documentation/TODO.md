@@ -21,22 +21,17 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Columns in an expanded shop](#1-columns-in-an-expanded-shop) | Presentation | M | Built on 13.3.0, judged by use |
-| 2 | [Hand the expand frame to Blacksmith](#2-hand-the-expand-frame-to-blacksmith) | Suite | S | Conversation, then a deletion |
-| 3 | [Deliver what a catalogue orders](#3-deliver-what-a-catalogue-orders) | Ways in | M | Fiction decision first |
+| 1 | [Columns in a full-screen shop](#1-columns-in-a-full-screen-shop) | Presentation | M | Built on 13.3.0, judged by use |
+| 2 | [Deliver what a catalogue orders](#2-deliver-what-a-catalogue-orders) | Ways in | M | Fiction decision first |
 
-**All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the expanded
-shop. What is left of each is written below: one stage-two that should not be built until stage one has
-been lived with, one seam to hand to the hub, and the one question the catalogue raised and did not answer.
+**All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
+screen. What is left of them is written below: one stage-two that should not be built until stage one has
+been lived with, and the one question the catalogue raised and did not answer.
 
-**Three open asks with Blacksmith**, all from shipped work and all recorded in
-`architecture/architecture-merchant.md` §16 with what to delete when they land:
-
-- No **expand affordance on the standard window base**. `BlacksmithFullscreenWindowBaseV2` exists and
-  answers a different question — a blocking, frameless takeover for handouts. See item 2.
-- `compendiums.query` filters a requested source against the curated set, so a shelf naming an uncurated
-  pack has it silently dropped. Merchant marks those rows *Waiting* and refuses the draw rather than
-  reporting an empty query.
+**One open ask with Blacksmith**, recorded in `architecture/architecture-merchant.md` §16 with what to
+delete when it lands. Two others closed on 2026-08-28 — the uncurated-compendium one by Merchant scanning
+pack indexes itself, and the full-screen one because the hub already had it and the doc had been skimmed
+rather than read:
 - The pins API has **no placement picker**. Merchant arms its own crosshair, which is a dozen lines and
   works — but Squire and Curator will want the same the moment either drops a pin, and the fiddly half
   (cancel, escape, right-click, the canvas menu that must not open) is one implementation's worth of work.
@@ -45,11 +40,11 @@ been lived with, one seam to hand to the hub, and the one question the catalogue
 
 ---
 
-## 1. Columns in an expanded shop
+## 1. Columns in a full-screen shop
 
 **Category:** Presentation · **Size:** M · **Built on 13.3.0, judged by use**
 
-Stage two of the expanded shop, and deliberately not built with stage one.
+Stage two of the full-screen shop, and deliberately not built with stage one.
 
 The reasoning, which has not changed: a 2560px window holding one column of shelves is worse than the
 window it replaces — forty-character rows with a metre of picture either side, and an eye that travels the
@@ -69,38 +64,10 @@ What stopped it being stage one is that columns interact with two things that al
 opened expanded on a wide monitor for a session. If the answer is "this is fine", delete this entry.
 
 If it is built: `container-type: inline-size` is already on `.merchant-shop-content`, so the breakpoint is
-a container query rather than a media query and asks about the window rather than the screen — which is
-what it should ask about, since the window is resizable independently of expanding.
+a container query rather than a media query and asks about the content column rather than the screen — which
+is what it should ask about, since the ordinary window is resizable independently of the surface.
 
-## 2. Hand the expand frame to Blacksmith
-
-**Category:** Suite · **Size:** S · **Conversation, then a deletion**
-
-`utility-expand.js` is 130 lines, and roughly none of it is about shops. Measuring the free viewport around
-the sidebar and hotbar, remembering geometry to restore, lifting the size caps the base class writes inline,
-suppressing position persistence for the duration — that is *chrome*, it is identical for Squire and
-Minstrel, and it is where the fiddly bugs live.
-
-Two of those four are only necessary because they fight the base class, which is the clearest possible
-argument for the base class owning them:
-
-- `_applyWindowSizeConstraints` writes `--blacksmith-window-max-width` as an **inline** property on every
-  render, so a stylesheet cannot lift it and a subclass has to override the method.
-- `setPosition` persists geometry 250ms later under a shared key, so expanding has to switch
-  `rememberPosition` off or one expanded shop sets the opening size of every shop.
-
-**What Merchant should keep** is what happens *inside* an expanded shop: the `is-expanded` class is all it
-needs to cap the column, centre it, and strengthen the veil. That division is already how the code is
-written, so the handover is a deletion rather than a rewrite.
-
-The ask is an `expand()` / `restore()` pair on `BlacksmithWindowBaseV2` and `BlacksmithToolWindowBaseV2`,
-with the class applied to the frame. **Not** on the fullscreen base, which is a different thing: blocking,
-frameless, one at a time, for handouts and reveals.
-
-One gotcha for whoever writes it: **do not call it `maximize`.** ApplicationV2 has that method and it means
-"un-minimise"; overriding it breaks Foundry's own minimise button.
-
-## 3. Deliver what a catalogue orders
+## 2. Deliver what a catalogue orders
 
 **Category:** Ways in · **Size:** M · **Fiction decision first**
 

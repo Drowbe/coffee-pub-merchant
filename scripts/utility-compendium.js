@@ -208,13 +208,32 @@ export function normalizeQuery(query) {
  * @returns {Promise<Array<object>>} Rows carrying `uuid`, `name`, `type`, `rarity`, `priceGp`.
  */
 export async function queryStock(query, limit = 200) {
-    if (!hasQuery()) return [];
     const filter = normalizeQuery(query);
-    // A custom list with nothing switched on draws nothing, and says so here rather than
-    // reaching the hub -- `sources: []` there is "no sources configured for type", which
-    // is a warning about Blacksmith's settings for a state that is ours.
-    const chosen = filter.sources && enabledSources(filter.sources);
-    if (chosen && !chosen.length) return [];
+    const cap = Math.max(1, Math.trunc(Number(limit)) || 200);
+
+    // **A custom list is scanned here, not sent to the hub.** `compendiums.query` filters a
+    // requested source against the curated set -- `sources.filter(s => s === 'world' ||
+    // mapping.packIds.includes(s))` -- so it can only ever *narrow* that set. Handing it a
+    // pack the world has installed but Blacksmith is not searching gets that pack silently
+    // dropped, and the scan comes back empty or, worse, full of the wrong content.
+    //
+    // That is precisely backwards for what a custom list is for: reaching a pack the world
+    // deliberately does not search. A shady fence drawing on cursed junk must not have to
+    // make that junk part of the world's item matching to be stocked from.
+    //
+    // So the two paths are split by what was asked for rather than by what is available.
+    // No source list means the curated set, which is the hub's question and the hub's
+    // better answer -- its relevance ordering and its world-item handling. A source list
+    // means *these packs*, and Merchant reads their indexes itself.
+    if (filter.sources) {
+        const chosen = enabledSources(filter.sources);
+        // Nothing switched on draws nothing, and says so here rather than reaching a scan
+        // that would loop over an empty list to the same end.
+        if (!chosen.length) return [];
+        return scanSources(chosen, filter, cap);
+    }
+
+    if (!hasQuery()) return [];
     try {
         return await _api().query({
             type: 'Item',
@@ -229,13 +248,86 @@ export async function queryStock(query, limit = 200) {
             // own giveaways are a flag on an item it owns, not an absent price.
             includeUnpriced: false,
             // null asks for the curated set, which is the hub's own default.
-            sources: chosen,
-            limit: Math.max(1, Math.trunc(Number(limit)) || 200)
+            sources: null,
+            limit: cap
         });
     } catch (error) {
         console.error(`${MODULE.TITLE} | Could not query the compendiums:`, error);
         return [];
     }
+}
+
+/**
+ * Fields an index has to carry for a shelf's filter to be answerable from it.
+ *
+ * dnd5e's own index covers `name`, `type` and `img`; the two the filter needs are asked
+ * for. Requesting a field a pack does not have is not an error -- it comes back undefined,
+ * which the filter reads as "no rarity" and "no price", the same as an item that genuinely
+ * has neither.
+ *
+ * **`flags` is deliberately not among them.** `listPriceBase` reads one to tell a
+ * deliberate giveaway from an unpriced row, and that flag is written by Merchant onto
+ * items Merchant owns -- never onto a compendium entry. Asking for it would be one more
+ * field path for a pack to choke on, to answer a question that cannot arise here.
+ */
+const INDEX_FIELDS = Object.freeze(['type', 'system.price', 'system.rarity']);
+
+/**
+ * Read the packs a shelf names and return what matches, as query-shaped rows.
+ *
+ * **Indexes, not documents.** A pack's index is a flat array already in memory once
+ * `getIndex` has run, and every field the filter needs is on it. Loading each document to
+ * ask its price would be thousands of loads to answer a question the index answers, and
+ * the caller loads only the handful it actually draws.
+ *
+ * **Everything matching is collected before anything is dropped.** Stopping at the limit
+ * inside the loop would fill a shelf from whichever pack happens to be first in the list,
+ * every time -- a nine-pack merchant stocked entirely out of Vol 1. The pool is shuffled
+ * across all of them and *then* cut, so the packs are drawn from evenly.
+ *
+ * **Unpriced is excluded**, matching what the hub does with `includeUnpriced: false` and
+ * for the hub's reason: a shelf sells things, and a thing with no price cannot be sold. It
+ * is the one place this deliberately differs from `matchesFilter`, which lets an unpriced
+ * item through when no bound is set -- that rule is for a GM dropping a trinket on a
+ * shelf by hand, where refusing it would be a refusal nobody asked for.
+ */
+export async function scanSources(ids, filter, limit) {
+    const subtypes = filter.subtypes ?? physicalTypes();
+    const rows = [];
+
+    const consider = (entry, uuid) => {
+        if (!entry || !uuid) return;
+        if (!subtypes.includes(entry.type)) return;
+        if (listPriceBase(entry) === null) return;
+        if (!matchesFilter(entry, filter)) return;
+        rows.push({ uuid, name: entry.name, type: entry.type, img: entry.img });
+    };
+
+    for (const id of ids) {
+        if (id === 'world') {
+            for (const item of game.items ?? []) consider(item, item.uuid);
+            continue;
+        }
+
+        const pack = game.packs?.get(id);
+        // A pack that has been uninstalled, or that holds the wrong kind of thing, is
+        // skipped rather than reported: the row on the card already says *Gone*, and this
+        // runs on every restock.
+        if (!pack || pack.documentName !== 'Item') continue;
+
+        try {
+            const index = await pack.getIndex({ fields: INDEX_FIELDS });
+            for (const entry of index) consider(entry, `Compendium.${id}.Item.${entry._id}`);
+        } catch (error) {
+            console.warn(`${MODULE.TITLE} | Could not read the index of ${id}:`, error);
+        }
+    }
+
+    for (let i = rows.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rows[i], rows[j]] = [rows[j], rows[i]];
+    }
+    return rows.slice(0, limit);
 }
 
 /**

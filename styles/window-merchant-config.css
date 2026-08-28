@@ -493,19 +493,6 @@
     letter-spacing: .07em;
     text-transform: uppercase;
 }
-.merchant-config-inv-hidden {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-    padding: 1px 6px;
-    border: 1px solid color-mix(in srgb, #8c2f22 40%, var(--blacksmith-tool-divider));
-    border-radius: 4px;
-    color: #a4432f;
-    font-size: .58rem;
-    letter-spacing: .03em;
-    text-transform: none;
-}
-
 /* Artwork and name on one line beneath the heading. The name reads as a name —
    sentence case, not the uppercase of the rule above it — and shows the type as its
    placeholder, so clearing it says what it will fall back to. */

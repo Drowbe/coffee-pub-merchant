@@ -38,7 +38,7 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/region-shop.js` | A shop's third door: the Open Shop region behaviour. Registered at `init` — §11. |
 | `scripts/utility-catalogue.js` | A shop's fourth door: the catalogue Item, and what consulting one does — §12. |
 | `scripts/canvas-marker.js` | The badge on a merchant token. The category's own icon, in the pin's colours — §13. |
-| `scripts/utility-expand.js` | Where the expanded shop is remembered, and how big the viewport actually is — §14. |
+| `scripts/utility-expand.js` | Which shops this client last left full screen. The surface itself is the hub's — §14. |
 | `scripts/settings.js` | Every world setting, and the controls Foundry does not render for them. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
@@ -705,6 +705,39 @@ separate write to the same Actor is the shape that trips dnd5e's encumbrance rec
 
 ---
 
+## 6a. Where a shelf's stock comes from
+
+A compendium shelf draws down one of two paths, chosen by **what was asked for** rather than by what is
+available.
+
+**No source list** means the curated set, and that is Blacksmith's question to answer. `compendiums.query`
+knows the world's search order, ranks by relevance, and handles world items; none of that is worth
+rewriting.
+
+**A source list** means *these packs*, and Merchant reads their indexes itself. It has to: the hub filters a
+requested source against the curated set, so handing it a pack the world has installed but Blacksmith is
+not searching gets that pack silently dropped. For a custom list that is exactly backwards — the reason to
+name packs by hand is to reach the ones the world deliberately does not search, so that a shady fence can
+stock cursed junk without that junk becoming part of the world's item matching.
+
+The scan reads **indexes, not documents**. Every field a shelf filters on — type, rarity, price — is on the
+index, and loading each document to ask its price would be thousands of loads to answer a question already
+in memory. Only the handful actually drawn are resolved.
+
+**Everything matching is collected before anything is cut.** Stopping at the limit inside the loop would
+fill a shelf out of whichever pack happens to be first in the list, every time — a nine-pack merchant
+stocked entirely from Vol 1. The pool is shuffled across all of them and then sliced.
+
+**Unpriced items are excluded**, matching `includeUnpriced: false` on the hub path and for its reason: a
+shelf sells things, and a thing with no price cannot be sold. It is the one deliberate difference from
+`matchesFilter`, which lets an unpriced item through when no price bound is set — that rule is for a GM
+dropping a trinket on a shelf by hand, where refusing it would be a refusal nobody asked for.
+
+One dead end is left, and it is the one a GM can act on: a list with nothing switched on. That is refused
+by name rather than reported as "found nothing matching", which would be true and useless.
+
+---
+
 ## 7. The transaction
 
 There is exactly one GM-side operation: `op: 'settle'` → `_processSettle`. Buy and sell are two halves of
@@ -1103,44 +1136,58 @@ as them not working.
 
 ---
 
-## 14. The expanded shop
+## 14. The shop full screen
 
-A per-client, per-shop toggle in the window header that makes the shop fill the Foundry viewport.
+A per-client, per-shop toggle that presents the shop as a viewport-covering surface with its own
+illustration as the room.
 
-**Not the browser's fullscreen API.** `requestFullscreen` puts one element on its own layer, and Foundry
-renders tooltips into a global `#tooltip` and dialogs as separate applications at body level. Both would draw
-*behind* the shop, which is to say invisibly: every hover card, the clear-inventory confirm and the character
-picker would vanish. It means *fills the Foundry viewport* — a positioned window, still a window, still
-framed.
+**It is Blacksmith's `BlacksmithFullscreenWindowBaseV2`**, with the `full` layout and the shop's
+illustration handed over as `fullscreenBackdrop`. The covering, the blocking, the stacking, the fade and the
+backdrop layer are the hub's; Request a Roll's cinematic is the same class. Merchant owns what stands on the
+surface and nothing else.
 
-**Nor Blacksmith's `BlacksmithFullscreenWindowBaseV2`**, which exists and is the wrong tool: it is a
-*blocking takeover* surface for handouts and reveals — frameless, unpositioned, one at a time, and nothing
-underneath receives a pointer event. A shop is a window somebody keeps open while doing other things. What is
-wanted is an expand affordance on the **standard** base; see §15.
+**The first version of this was wrong, and the way it was wrong is worth keeping.** It measured the free
+rectangle between the sidebar, the scene controls and the hotbar, resized the ordinary tool window into it,
+and imitated a takeover in CSS. That is *maximise* — something anybody can already do by dragging a corner —
+and it looked it: a parchment panel with a title bar, the map still showing around it, and the shop's
+furniture marooned in a field of empty background. Two hundred lines of stylesheet reimplementing, worse, a
+component that already shipped.
+
+**One class body, two bases.** `ShopBehaviour` is a mixin, and the two shells are
+`ShopBehaviour(BlacksmithToolWindowBaseV2)` and `ShopBehaviour(BlacksmithFullscreenWindowBaseV2)`. Everything
+a shop does — the slate, the drop zones, the price editors, the search, the presence mirror, twenty-five
+action handlers — is written once. What differs comes to a few dozen lines: the layout, the backdrop, and
+mapping the tool footer's zone names onto the action bar's.
+
+The consequences of there being two classes, each of which had to be answered:
+
+- **Slate state moved to module scope.** A static in the mixin is initialised once *per subclass*, so a
+  half-filled cart would vanish the instant somebody pressed the toggle. One map, two doors.
+- **A registry that spans both shells.** The tool base's is per-subclass and cannot see the surface, so
+  anything refreshing *all* shops walks `_liveWindows` instead — otherwise a player standing in an expanded
+  shop stops being told about price changes.
+- **The route is decided once.** `ShopWindow.openFor` checks whether this client left that shop full screen
+  and hands off. A token, a pin, a region and a catalogue all go through it, so none of them has to know.
+- **The door stays quiet during a swap.** Closing one shell and opening the other would play the closing
+  sound and then the opening one every time the button was pressed — the shop announcing a change of window
+  rather than a change of room.
 
 **A view preference, not a property of the shop.** A GM on an ultrawide ticking a box, and a player's laptop
-getting a shop that swallows the screen, is the bad version. It is a client setting keyed by shop uuid, and a
-player with a big monitor gets it too. The map stores only `true` — "not in the map" already means collapsed,
-and a map of every shop anybody ever collapsed only grows.
+getting a shop that swallows the screen, is the bad version. It is a client setting keyed by shop uuid, and
+a player with a big monitor gets it too. The map stores only `true` — "not in the map" already means the
+ordinary window, and a map of every shop anybody ever collapsed only grows.
 
-**Stage one is the toggle; columns are stage two.** A 2560px window holding one column of shelves is worse
-than the window it replaces: forty-character rows with a metre of picture either side. Width buys *columns*,
-not longer rows — three inventories abreast is genuinely better for a six-shelf shop — but that interacts
-with the folds and the search, and is worth building deliberately rather than discovering. So stage one caps
-the content at 1180px, centres it, and gives the illustration the room to be a place rather than a
-letterbox. The veil gets **stronger** with the extra area, not lighter: more picture and fewer cards sitting
-on it.
+Three decisions inside the surface:
 
-Two things it has to defeat, both in the base class:
+- **`contain`, not `cover`.** Shop art is wide and a screen may be tall, so covering crops a scene to
+  whatever happens to be in the middle. The backdrop's colour fills the bands a contained picture leaves.
+- **The shop card becomes dark glass.** Left alone it would draw the same illustration again, at a different
+  scale and crop, inside a room made of that illustration — guaranteed to read as a mistake.
+- **The list is capped at 1180px though the surface is not.** Width buys picture, not longer rows.
 
-- **The size caps are inline.** `_applyWindowSizeConstraints` writes `--blacksmith-window-max-width` as an
-  inline custom property on every render, and an inline property beats a class selector however specific. So
-  the caps are lifted in the override of that method rather than in the stylesheet — anywhere else and the
-  very next render puts them back.
-- **Position is persisted 250ms after any `setPosition`, under a key every shop shares.** Left alone,
-  expanding one shop would set the opening size of every shop, and closing it while expanded would make that
-  permanent. So `rememberPosition` is switched off for the duration. The size a person dragged a window to is
-  worth remembering; a size a button chose is not.
+The way out is a button in the action bar. The header is off and the hub's close control with it — that one
+closes the shop rather than leaving the surface — so without it this would be a takeover you cannot leave,
+which is a trap, and losing a half-built slate is a bad way to find out. Escape is off for the same reason.
 
 It is deliberately **not** called `maximize`: ApplicationV2 has that method already and it means
 "un-minimise".
@@ -1207,27 +1254,28 @@ is the shortest document here and the one most worth reading before writing anyt
 
 ## 16. Known seams
 
-- **No expand affordance on Blacksmith's standard window base.** `BlacksmithFullscreenWindowBaseV2` exists
-  and answers a different question: a frameless, unpositioned, blocking takeover surface for handouts and
-  reveals, one at a time, with nothing underneath receiving a pointer event. A shop is a window somebody
-  keeps open while doing other things. What is wanted is *this window, bigger* — the header toggle, the
-  saved and restored geometry, staying clear of the sidebar and hotbar, escape to restore, surviving a
-  viewport resize. That is chrome, it is identical for Squire and Minstrel, and it is where the fiddly bugs
-  live. Merchant owns what happens *inside* an expanded shop and should keep owning it; the frame half is
-  worth offering to the hub. **When it lands, `utility-expand.js` and the `_applyWindowSizeConstraints`
-  override go**, and the `is-expanded` stylesheet stays exactly as it is. §14.
+- ~~**No expand affordance on Blacksmith's standard window base**~~ — **closed 2026-08-28: there was one,
+  and it was read wrong.** `BlacksmithFullscreenWindowBaseV2` was written off here as a blocking takeover
+  for handouts, which is what its *default* layout is for. `fullscreenLayout: 'full'` is documented in the
+  same table as "edge to edge, no panel chrome, you own the whole surface", and `fullscreenBackdrop` takes
+  an image, a fit and a scrim. That is the whole feature, already shipped. Merchant reimplemented it,
+  worse, in two hundred lines of stylesheet before reading the page properly. §14.
+
+  **The lesson is why this entry is kept.** The API doc was pointed at explicitly and then skimmed for a
+  class name rather than read for its options. A base class is not one thing; its layouts are.
 - **Blacksmith has no pin placement picker.** Merchant arms its own crosshair and converts the click itself,
   which is a dozen lines and works — but Squire and Curator will want the same the moment either drops a pin,
   and a `pins.pickLocation()` in the hub would be one implementation of the fiddly half (cancel, escape,
   right-click, the canvas menu that must not open). Worth offering rather than asking for.
-- **An uncurated pack is listed but not yet drawn from.** `compendiums.query` filters a requested source
-  against the curated set — `requestedSources.filter(s => s === 'world' || mapping.packIds.includes(s))` —
-  so `sources` can only ever *narrow* it. A shelf naming a pack Blacksmith is not configured to search gets
-  it silently dropped, which is a plausible result set from the wrong content: the exact failure this source
-  was chosen to avoid. Merchant marks such a row **Waiting** on the card and refuses the draw outright when
-  *every* pack on a list is one of them, rather than reporting an empty query. The ask is small and the hub's
-  own comment already argues for it — "the only rejection left is a pack that no longer exists in this
-  world". **When it lands, delete the marker and the refusal**; the storage and the UI need no change.
+- ~~**An uncurated pack is listed but not yet drawn from**~~ — **closed 2026-08-28, by not asking.**
+  `compendiums.query` filters a requested source against the curated set, so `sources` can only ever
+  *narrow* it — which is backwards for the one thing a custom list is for. Rather than wait on the hub,
+  Merchant reads the indexes of a named pack itself; see §6a. The curated path is still the hub's, because
+  its relevance ordering and world-item handling are worth having and a custom list needs neither.
+
+  **The ask is withdrawn rather than outstanding.** It was never quite the hub's question: "search what
+  this world uses" and "read these specific packs" are two different jobs, and the second one is thirty
+  lines of index scan that needs no shared vocabulary at all.
 - ~~**`gm-request.js`** — a bridge, and the caller identity it could not verify~~ — **closed 2026-08-21.**
   The file is deleted and `blacksmith.gmRequest` hands the handler a `User` resolved from the authenticated
   socket. It was described as a deletion rather than a rewrite from the day it was written, and that is how

@@ -71,7 +71,8 @@
             "stealNobody": "Nobody is here to take it — choose a character first.",
             "stealing": "Taking",
             "stolen": "{who} takes {count} × {name}.",
-            "pickedClean": "The shutters are down and the shelves are bare. Somebody has been through what was left, and there is nothing here now."
+            "pickedClean": "The shutters are down and the shelves are bare. Somebody has been through what was left, and there is nothing here now.",
+            "leaveFullScreen": "Leave Full Screen"
         },
         "config": {
             "title": "Merchant Settings",
@@ -92,7 +93,6 @@
             "pricing": "Pricing",
             "reputationToggle": "Reputation impacts prices",
             "addInventory": "Add Inventory Section",
-            "hiddenTooltip": "Players are never sent this inventory",
             "refillTooltip": "Refill this inventory now",
             "openInventoryTooltip": "Open this inventory to stock it",
             "clearInventoryTooltip": "Take everything off this inventory",
@@ -126,7 +126,6 @@
             "globalMarkupHint": "The baseline for everything in this merchant. Each inventory multiplies against it.",
             "inventories": "Inventories",
             "pricingNone": "No price until one is agreed with the party on the slate.",
-            "hiddenBadge": "Hidden",
             "maxStackTooltipInfinite": "The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.",
             "maxStackTooltipFinite": "The most of any one item this inventory will hold — a table roll, and a quantity you type in the merchant window.",
             "missingTable": "Missing table",
@@ -165,8 +164,6 @@
             "removeSourceTooltip": "Take this compendium off the list",
             "sourceMissing": "Gone",
             "sourceMissingTooltip": "This compendium is no longer installed. Nothing is drawn from it.",
-            "sourceUncurated": "Waiting",
-            "sourceUncuratedTooltip": "Not in Blacksmith’s curated set. Blacksmith does not yet draw from an uncurated pack, so this one is listed but not stocked from — add it to Blacksmith’s item compendiums to use it today.",
             "worldItems": "World items",
             "moveUpTooltip": "Move this inventory up",
             "moveDownTooltip": "Move this inventory down",
@@ -182,7 +179,9 @@
             "soundHint": "Leave either as Default and this merchant follows the world setting, so changing that moves every merchant that has not chosen for itself.",
             "soundOpen": "Opening",
             "soundClose": "Closing",
-            "soundDefault": "Default"
+            "soundDefault": "Default",
+            "hideInventoryTooltip": "On display — click to put it away",
+            "showInventoryTooltip": "Hidden from players — click to bring it out front"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

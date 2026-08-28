@@ -876,45 +876,60 @@
 .merchant-shop-search-sort:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-shop-search-sort:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 1px; }
 
-/* --- The expanded shop ----------------------------------------------------- */
+/* --- The shop full screen -------------------------------------------------- */
 /*
- * **Stage one: the toggle, and the column made readable at any width.**
+ * **Blacksmith's fullscreen surface draws the room; this dresses what stands in it.**
  *
- * The temptation is to let the existing layout have the whole 2560px, and that is worse
- * than the window it replaced: forty-character rows with a metre of picture either side,
- * and an eye that has to travel the width of a monitor from an item's name to its price.
- * So the content is capped and centred, and what the extra width buys is *picture* --
- * the illustration finally has room to be a place rather than a letterbox.
+ * The covering, the blocking, the stacking, the fade and the backdrop layer are all the
+ * hub's — `ShopFullscreenWindow` asks for the `full` layout and hands it the shop's
+ * illustration as `fullscreenBackdrop`. What is left for Merchant is the same division the
+ * pins have: they own the presentation, we own what is on it.
  *
- * Columns are stage two. Three inventories abreast is genuinely better for a six-shelf
- * shop, and it interacts with the folds and the search in ways worth building
- * deliberately rather than discovering.
- *
- * The size caps are lifted in JavaScript rather than here: Blacksmith writes them as
- * *inline* custom properties on every render, and an inline property beats a class
- * selector no matter how specific. See `_applyWindowSizeConstraints` in `window-shop.js`.
+ * The hub's own note applies here and is worth restating: an id selector outranks the
+ * shell's classes, so a rule written against the window's id would silently take over the
+ * parts that make it cover and block. Everything below is scoped to our class.
  */
 
-/* Capped and centred. 1180px is about ninety characters of item name at this size, which
-   is the width past which a list stops being a list and becomes a spreadsheet. */
-.merchant-shop-window.is-expanded .merchant-shop-content {
+/* The shop's own content is `height: 100%` and scrolls its inventory column internally, the
+   same as it does in the tool shell. The hub's body zone has to let it: without `min-height:
+   0` a flex child refuses to shrink below its content, and the shelves would run off the
+   bottom of the screen rather than scrolling inside the surface. */
+.merchant-shop-fullscreen .blacksmith-window-fullscreen-panel,
+.merchant-shop-fullscreen .blacksmith-window-fullscreen-body {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* **Capped and centred, because width buys picture rather than longer rows.** A shop list
+   stretched across 2560px puts a metre between an item's name and its price. 1180px is
+   about the width past which a list stops being a list and starts being a spreadsheet. */
+.merchant-shop-fullscreen .merchant-shop-content {
     width: 100%;
     max-width: 1180px;
+    height: 100%;
     margin: 0 auto;
-    padding: 14px;
+    padding: 18px;
     gap: 14px;
 }
 
 /*
- * **The veil gets stronger, not lighter.** There is more picture and fewer cards sitting
- * on it, so the same veil that seated text comfortably in a 740px card leaves it floating
- * over a scene at three times the area. This is the one number that has to move with the
- * size.
+ * **The shop card becomes dark glass, because the picture is already behind it.**
+ *
+ * Left alone it draws the same illustration a second time, at a different scale and crop,
+ * inside a room made of that illustration — the one thing guaranteed to read as a mistake.
+ * Glass instead: the backdrop shows through, the light text the card already uses stays
+ * valid, and the picture is continuous across the furniture standing on it.
  */
-.merchant-shop-window.is-expanded .merchant-shop-subject[data-has-illustration] {
-    --merchant-shop-card-veil: linear-gradient(90deg, rgba(16, 11, 7, .56), rgba(16, 11, 7, .38));
-    /* Room to be a picture. A floor is wrong in the ordinary window — the card sizes to
-       its content in a column with none to spare — and right here, where the column has
-       more height than the content needs and the alternative is a letterboxed strip. */
-    min-height: 220px;
+.merchant-shop-fullscreen .merchant-shop-subject[data-has-illustration],
+.merchant-shop-fullscreen .merchant-shop-subject[data-tint][data-has-illustration] {
+    background-image: linear-gradient(100deg, rgba(14, 9, 6, .62), rgba(14, 9, 6, .44));
+    background-size: cover;
+    backdrop-filter: blur(3px);
+    border-color: rgba(255, 255, 255, .18);
+}
+
+/* Furniture on a floor rather than panels on parchment. The shadow is what tells a reader
+   the cards are in front of the room instead of printed on it. */
+.merchant-shop-fullscreen .merchant-shop-section {
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .38);
 }
