@@ -19,7 +19,8 @@
 
 import {
     MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP,
-    DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS
+    DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS, DEFAULT_SHOP_LOOK, SHOP_LOOK_SETTINGS,
+    DEFAULT_ABANDONED_STOCK
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -226,8 +227,32 @@ function bindSoundPreviews(root) {
 // somebody turns off. The icon is deliberately *not* here: it comes from the shop's kind,
 // so an apothecary and a weaponsmith are told apart without anybody configuring anything.
 
-function registerPinSettings() {
-    registerHeader('Pins', 'H2',
+/**
+ * How a shop looks, in two halves: the card a player opens, and the mark on the map.
+ *
+ * One heading, because they answer one question -- *what does a shop look like in this
+ * world* -- and a GM setting the mood sets both in the same sitting. Two subsections,
+ * because a card and a pin share none of their controls.
+ */
+function registerAestheticSettings() {
+    registerHeader('ShopAesthetics', 'H2',
+        'coffee-pub-merchant.settings.headingAesthetics',
+        'coffee-pub-merchant.settings.headingAestheticsHint');
+
+    registerHeader('ShopLook', 'H3',
+        'coffee-pub-merchant.settings.headingShopLook',
+        'coffee-pub-merchant.settings.headingShopLookHint');
+    for (const setting of SHOP_LOOK_SETTINGS) {
+        game.settings.register(MODULE.ID, setting.key, {
+            name: game.i18n.localize(setting.nameKey),
+            scope: 'world',
+            config: true,
+            type: String,
+            default: DEFAULT_SHOP_LOOK[setting.key]
+        });
+    }
+
+    registerHeader('ShopPins', 'H3',
         'coffee-pub-merchant.settings.headingPins',
         'coffee-pub-merchant.settings.headingPinsHint');
 
@@ -238,7 +263,7 @@ function registerPinSettings() {
             name: game.i18n.localize(setting.nameKey),
             scope: 'world',
             config: true,
-            type: setting.range ? Number : String,
+            type: setting.boolean ? Boolean : (setting.range ? Number : String),
             default: DEFAULT_PIN_DESIGN[setting.key]
         };
         if (setting.range) definition.range = setting.range;
@@ -248,6 +273,94 @@ function registerPinSettings() {
             ]));
         }
         game.settings.register(MODULE.ID, setting.key, definition);
+    }
+}
+
+/**
+ * What a dead shop leaves behind.
+ *
+ * A list of names rather than a picker: they are resolved against the compendiums when a
+ * shop is opened, which is the same thing a query shelf does and for the same reason -- a
+ * stored uuid dangles the day a pack is renamed, and a name does not.
+ */
+function registerAbandonedSettings() {
+    registerHeader('Abandoned', 'H2',
+        'coffee-pub-merchant.settings.headingAbandoned',
+        'coffee-pub-merchant.settings.headingAbandonedHint');
+
+    game.settings.register(MODULE.ID, 'abandonedStock', {
+        name: game.i18n.localize('coffee-pub-merchant.settings.abandonedStock'),
+        hint: game.i18n.localize('coffee-pub-merchant.settings.abandonedStockHint'),
+        scope: 'world',
+        config: true,
+        type: String,
+        default: DEFAULT_ABANDONED_STOCK.join('; ')
+    });
+}
+
+/**
+ * A colour swatch beside every colour setting, and a Browse button beside the image one.
+ *
+ * **Foundry renders a String setting as a text box and nothing else.** A hex code typed
+ * blind is a colour nobody chose -- and an image path typed blind is a 404 -- so the
+ * controls that make those answerable are added here, the same way the sound preview is:
+ * appended into the field cell Foundry already drew rather than rebuilt around it.
+ *
+ * The swatch and the text box are two views of one value, bound both ways: picking a
+ * colour writes the hex, and typing a hex moves the swatch. `change` is dispatched on the
+ * text box so Foundry's own form handling sees the write -- without it the value looks
+ * right and is never saved, which is the worst of the three outcomes.
+ */
+function bindLookControls(root) {
+    if (!root) return;
+    const settings = [...SHOP_LOOK_SETTINGS, ...PIN_DESIGN_SETTINGS];
+
+    for (const setting of settings.filter((entry) => entry.colour)) {
+        const field = root.querySelector(`input[name="${MODULE.ID}.${setting.key}"]`);
+        if (!field || field.dataset.merchantSwatch === 'true') continue;
+        field.dataset.merchantSwatch = 'true';
+
+        const swatch = document.createElement('input');
+        swatch.type = 'color';
+        swatch.className = 'merchant-settings-swatch';
+        swatch.value = /^#[0-9a-f]{6}$/i.test(field.value) ? field.value : '#000000';
+        swatch.setAttribute('aria-label', field.name);
+
+        swatch.addEventListener('input', () => {
+            field.value = swatch.value;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        field.addEventListener('change', () => {
+            if (/^#[0-9a-f]{6}$/i.test(field.value)) swatch.value = field.value;
+        });
+        field.after(swatch);
+    }
+
+    for (const setting of settings.filter((entry) => entry.image)) {
+        const field = root.querySelector(`input[name="${MODULE.ID}.${setting.key}"]`);
+        if (!field || field.dataset.merchantBrowse === 'true') continue;
+        field.dataset.merchantBrowse = 'true';
+
+        const browse = document.createElement('button');
+        browse.type = 'button';
+        browse.className = 'merchant-settings-browse';
+        browse.innerHTML = '<i class="fa-solid fa-file-image"></i>';
+        browse.dataset.tooltip = game.i18n.localize('coffee-pub-merchant.settings.browse');
+
+        browse.addEventListener('click', (event) => {
+            // A bare button inside a form submits it.
+            event.preventDefault();
+            const picker = new foundry.applications.apps.FilePicker.implementation({
+                type: 'image',
+                current: field.value || '',
+                callback: (path) => {
+                    field.value = path;
+                    field.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+            void picker.render(true);
+        });
+        field.after(browse);
     }
 }
 
@@ -263,7 +376,8 @@ export function registerSettings() {
         'coffee-pub-merchant.settings.headingMerchantHint');
 
     registerStockingSettings();
-    registerPinSettings();
+    registerAestheticSettings();
+    registerAbandonedSettings();
 
     registerHeader('Sound', 'H2',
         'coffee-pub-merchant.settings.headingSound',
@@ -293,8 +407,9 @@ export function registerSettings() {
         const root = html instanceof HTMLElement ? html : (html?.[0] ?? html?.element ?? null);
         try {
             bindSoundPreviews(root);
+            bindLookControls(root);
         } catch (error) {
-            console.warn(`${MODULE.TITLE} | Could not add the sound preview buttons:`, error);
+            console.warn(`${MODULE.TITLE} | Could not add the settings controls:`, error);
         }
     });
 

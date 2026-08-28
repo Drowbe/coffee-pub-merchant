@@ -9,7 +9,7 @@ import {
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
-    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables
+    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -23,9 +23,13 @@ import { resolveReputation, invalidateReputation } from './utility-reputation.js
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
 import {
-    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources, matchesFilter
+    hasQuery, queryStock, normalizeQuery, packIdFromDrop, curatedSources, enabledSources, matchesFilter,
+    abandonedLeavings
 } from './utility-compendium.js';
-import { hasPins, canPin, createShopPin, pinsForActor, pinActorUuid, registerPinVocabulary } from './utility-pins.js';
+import {
+    hasPins, canPin, createShopPin, pickPinLocation, pinsForActor, pinActorUuid, pinShopSnapshot,
+    registerPinVocabulary
+} from './utility-pins.js';
 
 const CONTEXT = 'merchant-interaction';
 
@@ -161,7 +165,12 @@ export class MerchantManager {
             // replacing it. `reputation` opts into the party's standing moving prices
             // at all: off by default, because a shop whose prices move for a reason
             // the GM never chose is a mystery.
-            pricing: { markup: 1.0, reputation: false, overrides: {} }
+            pricing: { markup: 1.0, reputation: false, overrides: {} },
+            // **Copied from the world's settings, once.** A shop owns its own look from the
+            // moment it becomes a shop; changing the world default later never reaches back
+            // into one that already exists, because a GM may have set that one deliberately
+            // and a setting that rewrites finished work is a setting nobody dares touch.
+            ...shopLook()
         };
     }
 
@@ -1860,7 +1869,18 @@ export class MerchantManager {
             return null;
         }
 
-        const pin = await createShopPin(actor, { config: this.getConfig(actor), scene: target });
+        // **Where the GM says, not where the view happens to be.** The button used to drop
+        // the pin at the middle of the screen, which is right about as often as the middle of
+        // the screen is where the shop is.
+        const config = this.getConfig(actor);
+        notify.info(game.i18n.format('coffee-pub-merchant.pin.placing', { name: config?.name || actor.name }));
+        const where = await pickPinLocation({
+            label: config?.name || actor.name,
+            image: shopKind(config?.kind).icon
+        });
+        if (!where) return null;
+
+        const pin = await createShopPin(actor, { config, scene: target, x: where.x, y: where.y });
         if (pin) notify.info(game.i18n.format('coffee-pub-merchant.pin.pinned', { name: actor.name }));
         else notify.error(game.i18n.localize('coffee-pub-merchant.pin.pinFailed'));
         return pin;
@@ -1912,9 +1932,12 @@ export class MerchantManager {
 
         // Nothing to be a shop of. The window is opened against the pin's own record so it
         // has a name to show and a key of its own, rather than being refused.
+        // The shop as the pin remembers it. Without this an abandoned shop is a grey card
+        // with a name on it -- everything the GM wrote about the place went with the Actor.
         return ShopWindow.openFor(uuid, {
             sceneUuid: scene?.uuid ?? null,
-            shopName: pin?.text ?? null,
+            shopName: pinShopSnapshot(pin)?.name ?? pin?.text ?? null,
+            remembered: pinShopSnapshot(pin),
             pinId: pin?.id ?? null
         });
     }
@@ -2157,6 +2180,12 @@ export class MerchantManager {
         // of a payload again; if one appears there, it is a hole.
         if (!user) return { ok: false, code: 'IDENTITY_UNVERIFIED' };
 
+        // **An abandoned shop has no merchant, so it cannot be a settlement.** Nothing is
+        // paid, nothing is exchanged, and there is no Actor on the other side of it -- so
+        // it takes its own path rather than being squeezed through the checks below, every
+        // one of which is about a shop that exists.
+        if (payload?.steal) return this._processSteal(payload, user);
+
         const { actor: merchant, token: tokenDocument } = await this.resolveShopSubject(payload?.shopKey);
         if (!merchant) return { ok: false, code: 'MERCHANT_NOT_FOUND' };
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
@@ -2172,6 +2201,39 @@ export class MerchantManager {
         const result = await this._processSettle(merchant, payload, user, scene);
         if (result?.ok) this._broadcastRefresh(payload?.shopKey);
         return result;
+    }
+
+    /**
+     * Take one thing out of an abandoned shop.
+     *
+     * **The uuid is checked against the list, not trusted.** It is the only place in this
+     * module where a client names an item and something is created from it, and a payload
+     * is a claim: without this, "steal" would grant any uuid in the world to anybody who
+     * could open a dead shop. The list is short, constant and GM-authored, so the check is
+     * an exact match against it.
+     *
+     * There is no shop to verify, no price to settle and no stock to decrement -- the
+     * leavings are set dressing rather than an inventory. What is checked is who is asking
+     * and whether they may act as the character receiving it.
+     */
+    static async _processSteal(payload, user) {
+        const shopper = this._validateShopper(payload?.recipientUuid, user);
+        if (!shopper.ok) return shopper;
+
+        const leavings = await abandonedLeavings();
+        const taking = leavings.find((entry) => entry.uuid === payload?.itemUuid);
+        if (!taking) return { ok: false, code: 'NOT_THERE' };
+
+        const result = await grantItem({
+            targetActorUuid: shopper.actor.uuid,
+            itemUuid: taking.uuid,
+            quantity: 1
+        });
+        if (!result?.ok) {
+            console.error(`${MODULE.TITLE} | Could not hand over ${taking.name}:`, result);
+            return { ok: false, code: result?.code ?? 'GRANT_FAILED' };
+        }
+        return { ok: true, name: taking.name };
     }
 
     /**

@@ -1651,8 +1651,37 @@ level onto every existing row; it logs how many.
     map and closes the window.
 184. **The pin button is absent on an unlinked merchant**, in both the shop window and Merchant
     Settings, rather than present and refusing.
-185. **Shop Pins settings take effect on the next pin made**, and not on pins already placed. Check the
+185. **Settings → Merchant → Shop Aesthetics** reads as two groups: *The Shop Card* and *The Map Pin*.
+    Set a default tint, then mark a *new* Actor as a merchant — it starts with that tint. An existing
+    shop is untouched.
+186. **Shop pin settings take effect on the next pin made**, and not on pins already placed. Check the
     shape, size and colours, and that *Show the name* does what it says.
-186. A pin is visible to players only if its pin ownership says so; a player double-clicking one gets
+187. A pin is visible to players only if its pin ownership says so; a player double-clicking one gets
     the shop with their own permissions, exactly as through the token.
+188. **An abandoned shop has leavings.** Open one: under the shuttered line is a *Left Behind* barrel
+    holding ordinary SRD gear — no prices, no quantities, no slate. Press **Take** on a row: it
+    arrives on the Buying-as character's sheet, and the shop says who took what.
+189. With no character chosen, every Take is greyed and says why. As a **player**, Take still works —
+    it goes through the GM the way a purchase does.
+190. **An abandoned shop keeps the shop.** Pin a dressed shop — name, kind, blurb, tint, illustration —
+    then delete the Actor and open the pin. All of it is still there, drained: the same card, the same
+    picture, the same colour, with the boarded-up mark and the leavings.
+191. **Colour settings have a swatch** in Settings → Merchant, and picking a colour writes the hex into
+    the box beside it. Type a hex instead and the swatch follows. Both survive closing the settings.
+192. **The default illustration has a Browse button** that opens the file picker and writes the path.
+193. Every pin design setting reaches the pin: make one, then change border width, drop shadow, name
+    position, size and colours, and make another.
+194. **Placing a pin is a click on the map.** Press *Pin This Shop*: the cursor becomes a crosshair
+    with a ghost naming the shop. Click where you want it — the pin lands there, not at the middle of
+    the view. Pan and zoom first and it still lands under the cursor.
+195. Right-click during placement cancels without opening the canvas menu; Escape cancels too. Neither
+    leaves a pin, a ghost, or a crosshair behind.
+196. **A rectangle pin takes the picture’s shape when it lands**, without opening Configure Pin. Set
+    Shape to Rectangle and Pin picture to an illustration: the pin is as wide-to-tall as the picture.
+    Open Configure Pin and save without changing anything — the shape must not move.
+197. A rectangle pin wearing the **category icon** is square, since an icon has no natural size. So is
+    every circle and square pin, whatever picture it wears.
+198. **The abandoned card wears the pin.** Where the portrait would be is the shop’s category icon in
+    the pin colours from settings — an abandoned weaponsmith still shows the weaponsmith icon. Change
+    the pin colours and reopen: the card follows.
 

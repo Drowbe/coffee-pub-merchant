@@ -195,6 +195,113 @@ export const DEFAULT_SHOP_KIND = 'general';
 export const PIN_TYPE = 'shop';
 
 /**
+ * What a *new* shop looks like in this world.
+ *
+ * **A default, not a rule.** It is copied onto a shop the moment it becomes one, and from
+ * then on the shop owns it: changing this never reaches back into a shop that already
+ * exists, because the GM may have set that one deliberately and a setting that rewrites
+ * work is a setting nobody dares touch.
+ *
+ * Blank is the honest default for both. A world tint would make every shop the same
+ * colour, which is the opposite of what a tint is for, and an illustration nobody chose
+ * would be a picture of somebody else's tavern behind every counter.
+ */
+export const SHOP_LOOK_SETTINGS = Object.freeze([
+    { key: 'shopTint', nameKey: 'coffee-pub-merchant.settings.shopTint', colour: true },
+    { key: 'shopIllustration', nameKey: 'coffee-pub-merchant.settings.shopIllustration', image: true }
+]);
+
+/**
+ * What is still lying about in an abandoned shop.
+ *
+ * **Nobody strips a place completely.** Whoever left took the stock and the till and left
+ * the things not worth carrying, and a shuttered shop with literally nothing in it is a
+ * locked door rather than a place. These are the leavings: cheap, heavy, or too ordinary
+ * to bother with.
+ *
+ * Resolved **by name** against the world's compendiums rather than stored as uuids, for
+ * the same reason a query shelf is: a uuid written down here would dangle the day somebody
+ * renames a pack, and these names are SRD content every dnd5e world has.
+ *
+ * The list is deliberately short and dull. It is set dressing a party rifles through, not
+ * a reward for finding a dead shop -- anything worth having would make deleting a merchant
+ * the profitable move.
+ *
+ * **This is the default, not the answer.** What a dead shop leaves is the GM's to say --
+ * a scavenged world leaves less, a wealthy one leaves a broken lantern and half a cask --
+ * so it is a world setting, and this is what it starts as.
+ */
+export const DEFAULT_ABANDONED_STOCK = Object.freeze([
+    'Rations',
+    'Waterskin',
+    'Torch',
+    'Candle',
+    'Rope, Hempen (50 feet)',
+    'Sack',
+    'Tinderbox',
+    'Bedroll',
+    'Pot, Iron',
+    'Shovel'
+]);
+
+/** The container the leavings sit in: an old barrel nobody emptied. */
+export const ABANDONED_IMG = 'icons/containers/barrels/barrel-oak-banded-tan.webp';
+
+/**
+ * What this world's dead shops leave behind.
+ *
+ * Names separated by **semicolons**, resolved against the compendiums when a shop is
+ * opened. Semicolons and not commas because dnd5e writes `Rope, Hempen (50 feet)` and
+ * `Pot, Iron`: a comma-separated list turns each of those into two names that resolve to
+ * nothing, and the failure is silent -- the row simply is not there.
+ *
+ * Read through a try like the other settings readers here, and falling back to the shipped
+ * list rather than to nothing: a world that has not registered yet still furnishes its
+ * abandoned shops.
+ *
+ * **Blank means blank.** A GM who empties the field is saying dead shops are stripped bare,
+ * which is a real answer about a world and not a mistake to correct back to the default.
+ */
+export function abandonedStockNames() {
+    let stored = null;
+    try {
+        stored = game.settings.get(MODULE.ID, 'abandonedStock');
+    } catch (_error) {
+        return [...DEFAULT_ABANDONED_STOCK];
+    }
+    if (typeof stored !== 'string') return [...DEFAULT_ABANDONED_STOCK];
+    return stored
+        .split(/[\n;]/)
+        .map((name) => name.trim())
+        .filter(Boolean);
+}
+
+export const DEFAULT_SHOP_LOOK = Object.freeze({
+    shopTint: '',
+    shopIllustration: ''
+});
+
+/**
+ * What a new shop's card looks like, before the GM opens it.
+ *
+ * Read here rather than in `settings.js` for the same reason `typeCaps` is: `settings.js`
+ * imports the manager, and the manager wants this -- reading it there would be a cycle for
+ * two strings. Through a try, because it is asked for during a render and a world that has
+ * not registered yet must fall back rather than take the window down.
+ */
+export function shopLook() {
+    const read = (key) => {
+        try {
+            const stored = game.settings.get(MODULE.ID, key);
+            return typeof stored === 'string' && stored.trim() ? stored.trim() : null;
+        } catch (_error) {
+            return null;
+        }
+    };
+    return { tint: read('shopTint'), illustration: read('shopIllustration') };
+}
+
+/**
  * The pin design a GM can set, as one table.
  *
  * **Defined here because two files need it and neither owns it.** `settings.js` registers
@@ -216,14 +323,53 @@ export const PIN_DESIGN_SETTINGS = Object.freeze([
             { value: 'none', labelKey: 'coffee-pub-merchant.settings.pinIconOnly' }
         ]
     },
+    { key: 'pinSize', nameKey: 'coffee-pub-merchant.settings.pinSize', range: { min: 16, max: 300, step: 2 } },
+    { key: 'pinFill', nameKey: 'coffee-pub-merchant.settings.pinFill', colour: true },
+    { key: 'pinStroke', nameKey: 'coffee-pub-merchant.settings.pinStroke', colour: true },
+    { key: 'pinStrokeWidth', nameKey: 'coffee-pub-merchant.settings.pinStrokeWidth', range: { min: 0, max: 12, step: 1 } },
+    { key: 'pinIconColor', nameKey: 'coffee-pub-merchant.settings.pinIconColor', colour: true },
+    { key: 'pinDropShadow', nameKey: 'coffee-pub-merchant.settings.pinDropShadow', boolean: true },
+
+    /**
+     * **What a pin shows: the place, the person, or the trade.**
+     *
+     * Each is a different claim about what a shop is on a map. The **category icon** says *what
+     * this shop sells* — an apothecary and a weaponsmith are told apart at a glance, and
+     * every shop of a kind looks alike. A portrait says *who keeps it*, which is what a
+     * party remembers. An illustration says *what the place looks like*, which is the most
+     * evocative and the worst behaved: it is a wide scene, and a circular pin crops it to
+     * whatever happens to be in the middle.
+     *
+     * The orders are fallbacks, not preferences: a shop with no illustration under
+     * *Illustration first* gets the next thing that exists rather than a blank pin. The
+     * icon is last in every one because it is the only one that always exists.
+     */
     {
-        key: 'pinSize',
-        nameKey: 'coffee-pub-merchant.settings.pinSize',
-        range: { min: 16, max: 96, step: 2 }
+        key: 'pinImage',
+        nameKey: 'coffee-pub-merchant.settings.pinImage',
+        choices: [
+            { value: 'icon', labelKey: 'coffee-pub-merchant.settings.pinImageIcon' },
+            { value: 'illustration', labelKey: 'coffee-pub-merchant.settings.pinImageIllustration' },
+            { value: 'portrait', labelKey: 'coffee-pub-merchant.settings.pinImagePortrait' },
+            { value: 'illustration-portrait', labelKey: 'coffee-pub-merchant.settings.pinImageIllustrationFirst' },
+            { value: 'portrait-illustration', labelKey: 'coffee-pub-merchant.settings.pinImagePortraitFirst' }
+        ]
     },
-    { key: 'pinFill', nameKey: 'coffee-pub-merchant.settings.pinFill' },
-    { key: 'pinStroke', nameKey: 'coffee-pub-merchant.settings.pinStroke' },
-    { key: 'pinIconColor', nameKey: 'coffee-pub-merchant.settings.pinIconColor' },
+
+    // --- the name under it ---
+    {
+        key: 'pinTextLayout',
+        nameKey: 'coffee-pub-merchant.settings.pinTextLayout',
+        choices: [
+            { value: 'under', labelKey: 'coffee-pub-merchant.settings.pinTextUnder' },
+            { value: 'over', labelKey: 'coffee-pub-merchant.settings.pinTextOver' },
+            { value: 'above', labelKey: 'coffee-pub-merchant.settings.pinTextAbove' },
+            { value: 'right', labelKey: 'coffee-pub-merchant.settings.pinTextRight' },
+            { value: 'left', labelKey: 'coffee-pub-merchant.settings.pinTextLeft' },
+            { value: 'arc-above', labelKey: 'coffee-pub-merchant.settings.pinTextArcAbove' },
+            { value: 'arc-below', labelKey: 'coffee-pub-merchant.settings.pinTextArcBelow' }
+        ]
+    },
     {
         key: 'pinTextDisplay',
         nameKey: 'coffee-pub-merchant.settings.pinTextDisplay',
@@ -233,7 +379,13 @@ export const PIN_DESIGN_SETTINGS = Object.freeze([
             { value: 'gm', labelKey: 'coffee-pub-merchant.settings.pinGmOnly' },
             { value: 'never', labelKey: 'coffee-pub-merchant.settings.pinNever' }
         ]
-    }
+    },
+    { key: 'pinTextColor', nameKey: 'coffee-pub-merchant.settings.pinTextColor', colour: true },
+    { key: 'pinTextSize', nameKey: 'coffee-pub-merchant.settings.pinTextSize', range: { min: 8, max: 48, step: 1 } },
+    // 0 means no limit in both, which is Blacksmith's own reading of them.
+    { key: 'pinTextMaxLength', nameKey: 'coffee-pub-merchant.settings.pinTextMaxLength', range: { min: 0, max: 60, step: 1 } },
+    { key: 'pinTextMaxWidth', nameKey: 'coffee-pub-merchant.settings.pinTextMaxWidth', range: { min: 0, max: 60, step: 1 } },
+    { key: 'pinTextScale', nameKey: 'coffee-pub-merchant.settings.pinTextScale', boolean: true }
 ]);
 
 /**
@@ -249,11 +401,18 @@ export const DEFAULT_PIN_DESIGN = Object.freeze({
     pinSize: 40,
     pinFill: '#2f241a',
     pinStroke: '#c8a678',
+    pinStrokeWidth: 2,
     pinIconColor: '#ecd7b2',
+    pinDropShadow: true,
+    // The kind's icon: every shop of a kind alike, and the only source that always exists.
+    pinImage: 'icon',
+    pinTextLayout: 'under',
     pinTextDisplay: 'hover',
-    // Not a setting: the name under a pin is either shown or it is not, and where it sits
-    // is a question about the map's typography that nobody has asked.
-    textLayout: 'under'
+    pinTextColor: '#ecd7b2',
+    pinTextSize: 12,
+    pinTextMaxLength: 0,
+    pinTextMaxWidth: 0,
+    pinTextScale: true
 });
 
 /** The kind's label and icon, falling back to the default rather than to nothing. */

@@ -26,7 +26,7 @@
 // stop-scan, which draws every shop's stock from the first configured pack and never opens
 // the sixth — a result set indistinguishable from a correct one.
 
-import { MODULE, itemRarity } from './const.js';
+import { MODULE, itemRarity, abandonedStockNames } from './const.js';
 import { physicalTypes } from './utility-inventory.js';
 import { listPriceBase, baseDenomination } from './utility-pricing.js';
 
@@ -270,6 +270,70 @@ export function matchesFilter(item, query) {
     const gp = base / perGp;
     if (gp < filter.priceGp.min) return false;
     return filter.priceGp.max === null || gp <= filter.priceGp.max;
+}
+
+/**
+ * The leavings of an abandoned shop, resolved to real items.
+ *
+ * **Resolved once per session and held.** The list is a constant, every abandoned shop
+ * shows the same one, and a window that re-scans the compendiums on every render is a
+ * window that stutters -- this is drawn during `_prepareContext`.
+ *
+ * Names in, documents out, through Blacksmith's `resolveMany`: it searches the GM's
+ * configured sources in their own priority order, which is the same answer the rest of the
+ * module gets and not a second opinion about where SRD content lives. A name that resolves
+ * to nothing is dropped rather than shown as a row that cannot be taken.
+ *
+ * **The document is then loaded, because a match is not an item.** `resolveMany` answers
+ * with uuid, name and how confident it is -- what a picker needs. It carries no artwork, so
+ * a row built from the match alone is a broken image beside a name, which is what the first
+ * version of this shipped as.
+ *
+ * Keyed by the list, so editing the setting re-resolves rather than serving the old shop's
+ * leavings for the rest of the session.
+ */
+let _leavings = null;
+let _leavingsKey = null;
+export function abandonedLeavings() {
+    const names = abandonedStockNames();
+    const key = names.join('|');
+    if (_leavings && _leavingsKey === key) return _leavings;
+    if (!names.length) return Promise.resolve([]);
+
+    const api = _api();
+    if (typeof api?.resolveMany !== 'function') return Promise.resolve([]);
+
+    _leavingsKey = key;
+    _leavings = (async () => {
+        try {
+            const resolved = await api.resolveMany([...names], 'Item');
+            const matches = (Array.isArray(resolved) ? resolved : Object.values(resolved ?? {}))
+                .filter((entry) => entry?.uuid);
+
+            const rows = [];
+            for (const match of matches) {
+                let document = null;
+                try {
+                    document = await fromUuid(match.uuid);
+                } catch (_error) {
+                    document = null;
+                }
+                // A name that resolved to something unloadable is dropped rather than
+                // shown: a row that cannot be picked up is worse than one that is not there.
+                if (!document) continue;
+                rows.push({ uuid: match.uuid, name: document.name, img: document.img ?? null });
+            }
+            return rows;
+        } catch (error) {
+            console.warn(`${MODULE.TITLE} | Could not resolve what an abandoned shop leaves behind:`, error);
+            // Nulled rather than cached: a failed lookup should be retried on the next
+            // shop, not remembered as "there is nothing".
+            _leavings = null;
+            _leavingsKey = null;
+            return [];
+        }
+    })();
+    return _leavings;
 }
 
 /** A one-line summary of what a query asks for, for the card that carries it. */

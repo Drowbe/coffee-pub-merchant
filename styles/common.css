@@ -40,6 +40,45 @@
 }
 .merchant-settings-preview:hover:not([disabled]) { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
 .merchant-settings-preview[disabled] { opacity: .35; cursor: default; }
+/* A colour setting is a hex code typed blind without one of these, and an image setting is
+   a 404. Sized to the field they sit beside, in the row Foundry already drew. */
+.merchant-settings-swatch {
+    flex: 0 0 auto; width: 34px; height: var(--input-height, 28px); margin: 0 0 0 4px; padding: 2px;
+    border: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, .3)); border-radius: 4px;
+    background: rgba(0, 0, 0, .05); cursor: pointer;
+}
+.merchant-settings-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.merchant-settings-swatch::-webkit-color-swatch { border: none; border-radius: 2px; }
+.merchant-settings-swatch::-moz-color-swatch { border: none; border-radius: 2px; }
+.merchant-settings-browse {
+    flex: 0 0 auto; width: 30px; height: var(--input-height, 28px); margin: 0 0 0 4px; padding: 0;
+    border: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, .3)); border-radius: 4px;
+    background: rgba(0, 0, 0, .05); cursor: pointer; line-height: 1;
+}
+.merchant-settings-browse:hover { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
+
+/* --- Placing a shop pin -------------------------------------------------
+ * A crosshair and a ghost of what is being placed, because "click the map" with no other
+ * change of state is indistinguishable from nothing having happened. The ghost follows the
+ * cursor and is inert: pointer events pass through it to the board underneath, or the
+ * click that places the pin would land on the preview instead.
+ */
+body.merchant-placing-pin,
+body.merchant-placing-pin #board { cursor: crosshair !important; }
+
+.merchant-pin-ghost {
+    position: fixed; z-index: 10000; transform: translate(12px, 12px);
+    display: flex; gap: 6px; align-items: center;
+    padding: 4px 9px 4px 6px;
+    border: 1px solid var(--merchant-interactive);
+    border-radius: 999px;
+    background: rgba(20, 14, 9, .92);
+    color: #ecd7b2; font-size: .74rem; white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+    pointer-events: none;
+}
+.merchant-pin-ghost > i { color: var(--merchant-interactive); }
+.merchant-pin-ghost > img { width: 18px; height: 18px; border-radius: 3px; object-fit: cover; }
 
 /* --- Header action rows ------------------------------------------------
    The strip of controls at the right-hand end of a section heading. */

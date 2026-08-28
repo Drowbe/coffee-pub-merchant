@@ -64,7 +64,13 @@
             "abandonedName": "Abandoned shop",
             "abandonedKeeper": "Nobody behind the counter",
             "abandoned": "The shutters are down and the shelves are bare. Whoever kept this place has gone, and taken the stock with them.",
-            "abandonedBadge": "Abandoned"
+            "abandonedBadge": "Abandoned",
+            "leavings": "Left Behind",
+            "steal": "Take",
+            "stealTooltip": "Take it. There is nobody to pay.",
+            "stealNobody": "Nobody is here to take it — choose a character first.",
+            "stealing": "Taking",
+            "stolen": "{who} takes the {name}."
         },
         "config": {
             "title": "Merchant Settings",
@@ -306,8 +312,8 @@
             "headingSound": "Sound",
             "headingSoundHint": "What a shop sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default.",
             "previewSound": "Play this sound",
-            "headingPins": "Shop Pins",
-            "headingPinsHint": "How a shop pin looks on the map. The icon is not here — it comes from the shop’s kind, so an apothecary and a weaponsmith are told apart without configuring anything. These apply to pins made from now on; a pin already on a map keeps the look it was made with.",
+            "headingPins": "The Map Pin",
+            "headingPinsHint": "How a shop pin looks on the map. The icon is not here — it comes from the shop’s kind, so an apothecary and a weaponsmith are told apart without configuring anything. These apply to pins made from now on; a pin already placed keeps the look it was made with.",
             "pinShape": "Shape",
             "pinSize": "Size",
             "pinFill": "Background",
@@ -321,7 +327,39 @@
             "pinAlways": "Always",
             "pinOnHover": "On hover",
             "pinGmOnly": "GM only",
-            "pinNever": "Never"
+            "pinNever": "Never",
+            "headingAesthetics": "Shop Aesthetics",
+            "headingAestheticsHint": "What a shop looks like in this world: the card a player opens, and the mark on the map. The shop settings are copied onto a merchant when it becomes one, so changing them later never rewrites a shop somebody has already dressed.",
+            "headingShopLook": "The Shop Card",
+            "headingShopLookHint": "Defaults for a new shop. Both are blank on purpose — a world-wide tint would make every shop the same colour, and a world-wide illustration would put the same tavern behind every counter. Set either and new shops start there; each shop can still be changed.",
+            "shopTint": "Default tint",
+            "shopIllustration": "Default illustration",
+            "headingAbandoned": "Abandoned Shops",
+            "headingAbandonedHint": "What a party finds when the merchant behind a shop is gone but its pin is still on the map. Nobody strips a place completely — whoever left took the stock and the till and left what was not worth carrying.",
+            "abandonedStock": "Left behind",
+            "abandonedStockHint": "Item names separated by semicolons — semicolons, because names like “Rope, Hempen (50 feet)” contain commas. They are looked up in your compendiums when the shop is opened, so renaming a pack never breaks them. Leave it empty for shops that are stripped bare.",
+            "pinStrokeWidth": "Border width",
+            "pinDropShadow": "Drop shadow",
+            "pinTextLayout": "Name position",
+            "pinTextUnder": "Under the pin",
+            "pinTextOver": "Over the pin",
+            "pinTextAbove": "Above the pin",
+            "pinTextRight": "To the right",
+            "pinTextLeft": "To the left",
+            "pinTextArcAbove": "Curved above",
+            "pinTextArcBelow": "Curved below",
+            "pinTextColor": "Name colour",
+            "pinTextSize": "Name size",
+            "pinTextMaxLength": "Longest name (0 for no limit)",
+            "pinTextMaxWidth": "Characters per line (0 for one line)",
+            "pinTextScale": "Name scales with the pin",
+            "browse": "Browse for an image",
+            "pinImage": "Pin picture",
+            "pinImageIcon": "Category Icon",
+            "pinImageIllustration": "Illustration > Category Icon",
+            "pinImagePortrait": "Portrait > Category Icon",
+            "pinImageIllustrationFirst": "Illustration > Portrait > Category Icon",
+            "pinImagePortraitFirst": "Portrait > Illustration > Category Icon"
         },
         "progress": {
             "rolling": "Rolling {table}",
@@ -435,7 +473,9 @@
             "cannotAfford": "You cannot afford that — {needed} needed, {held} held.",
             "merchantCannotCover": "The merchant cannot cover that — {needed} needed, {held} in the till.",
             "notThatMany": "There are not that many left.",
-            "notThatManyOf": "There are not that many {item} left."
+            "notThatManyOf": "There are not that many {item} left.",
+            "notThere": "That is not lying about in here.",
+            "grantFailed": "It would not go into their pack."
         },
         "stock": {
             "unlimited": "Unlimited stock",
@@ -493,7 +533,8 @@
             "remove": "Remove Shop Pin",
             "removeTooltip": "Take this pin off the map. The shop it named is already gone.",
             "removed": "The shop pin is gone.",
-            "removeFailed": "Could not remove that shop pin."
+            "removeFailed": "Could not remove that shop pin.",
+            "placing": "Click the map to place {name}. Right-click or Escape to cancel."
         }
     }
 }

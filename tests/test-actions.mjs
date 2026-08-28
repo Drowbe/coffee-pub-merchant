@@ -271,4 +271,90 @@ console.log('ok  a client-claimed scene is verified before it prices anything');
 }
 console.log('ok  a pin names a linked merchant, and only a linked one');
 
-console.log('\nall action checks passed');
+// --- taking from an abandoned shop ----------------------------------------
+// **The uuid is checked against the list, never trusted.** This is the one place a client
+// names an item and something is created from it, so without the check "steal" would grant
+// any uuid in the world to anybody who could open a dead shop.
+{
+    const leavings = [
+        { uuid: 'Compendium.dnd5e.items.Item.rations', name: 'Rations' },
+        { uuid: 'Compendium.dnd5e.items.Item.torch', name: 'Torch' }
+    ];
+    // The shape of the check in `_processSteal`.
+    const taking = (claimed) => leavings.find((entry) => entry.uuid === claimed) ?? null;
+
+    assert.ok(taking('Compendium.dnd5e.items.Item.torch'), 'something on the floor can be taken');
+    assert.strictEqual(taking('Compendium.dnd5e.items.Item.holy-avenger'), null,
+        'and a uuid nobody left behind cannot, however it is asked for');
+    assert.strictEqual(taking(undefined), null);
+    assert.strictEqual(taking(''), null);
+}
+console.log('ok  an abandoned shop hands over only what is lying in it');
+
+// --- what a dead shop leaves is the GM's to say ---------------------------
+// A list of names rather than uuids, for the reason a query shelf is: a stored uuid
+// dangles the day a pack is renamed, and a name does not.
+{
+    // The shape of `abandonedStockNames`, minus the settings read.
+    const parse = (stored) => (typeof stored !== 'string' ? null
+        : stored.split(/[\n;]/).map((name) => name.trim()).filter(Boolean));
+
+    assert.deepStrictEqual(parse('Rations; Torch'), ['Rations', 'Torch']);
+    assert.deepStrictEqual(parse('Rations;Torch;  Sack '), ['Rations', 'Torch', 'Sack'], 'spacing is forgiven');
+    assert.deepStrictEqual(parse('Rations\nTorch'), ['Rations', 'Torch'], 'a line break separates too');
+
+    // **Semicolons, because dnd5e names contain commas.** "Rope, Hempen (50 feet)" and
+    // "Pot, Iron" are real SRD names, and a comma-separated list would turn each into two
+    // names that resolve to nothing -- silently, since a name that resolves to nothing is
+    // simply not a row.
+    assert.deepStrictEqual(parse('Rope, Hempen (50 feet); Pot, Iron'),
+        ['Rope, Hempen (50 feet)', 'Pot, Iron'], 'a name may contain commas');
+
+    // **Blank means blank.** A GM emptying the field is saying dead shops are stripped
+    // bare, which is an answer about a world rather than a mistake to correct.
+    assert.deepStrictEqual(parse(''), [], 'empty is empty, not the default');
+    assert.deepStrictEqual(parse('   '), []);
+    assert.strictEqual(parse(undefined), null, 'and an unregistered setting falls back instead');
+}
+console.log('ok  a world says what its dead shops leave behind');
+
+console.log('\nall action checks passed');// --- which picture a pin wears --------------------------------------------
+// The orders are fallbacks, not preferences: a shop with no illustration under
+// "illustration first" gets the next thing that exists rather than a blank pin, and the
+// icon is last in every one because it is the only source that always exists.
+{
+    const pick = (mode, have) => {
+        const order = {
+            icon: [],
+            illustration: ['illustration'],
+            portrait: ['portrait'],
+            'illustration-portrait': ['illustration', 'portrait'],
+            'portrait-illustration': ['portrait', 'illustration']
+        }[mode] ?? [];
+        for (const source of order) if (have[source]) return have[source];
+        return have.icon;
+    };
+
+    const dressed = { illustration: 'scene.webp', portrait: 'face.webp', icon: 'fa-shop' };
+    const noPicture = { illustration: null, portrait: null, icon: 'fa-shop' };
+    const portraitOnly = { illustration: null, portrait: 'face.webp', icon: 'fa-shop' };
+
+    assert.strictEqual(pick('icon', dressed), 'fa-shop', 'the kind, whatever else the shop has');
+    assert.strictEqual(pick('illustration-portrait', dressed), 'scene.webp');
+    assert.strictEqual(pick('portrait-illustration', dressed), 'face.webp');
+    assert.strictEqual(pick('illustration', dressed), 'scene.webp');
+    assert.strictEqual(pick('portrait', dressed), 'face.webp');
+
+    // The fallbacks, which are the whole reason the orders are orders.
+    assert.strictEqual(pick('illustration-portrait', portraitOnly), 'face.webp',
+        'no illustration falls to the portrait, not to nothing');
+    assert.strictEqual(pick('illustration', portraitOnly), 'fa-shop',
+        'and with no portrait in the order it falls straight to the icon');
+    for (const mode of ['icon', 'illustration', 'portrait', 'illustration-portrait', 'portrait-illustration']) {
+        assert.strictEqual(pick(mode, noPicture), 'fa-shop', mode + ': an undressed shop still gets a pin');
+    }
+    assert.strictEqual(pick('nonsense', dressed), 'fa-shop', 'and a mode nobody registered falls back too');
+}
+console.log('ok  a pin wears the place, the person, or the trade');
+
+

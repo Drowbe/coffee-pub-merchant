@@ -106,12 +106,22 @@
  * that the place did.
  */
 .merchant-shop-abandoned { opacity: .85; }
+/* A leaving is a name and a way to take it, so the row is two columns and not the five a
+   priced one needs. Without saying so it inherits whichever of those the window is wearing,
+   and the button lands in the price column with empty space beyond it. */
+.merchant-shop-leaving { grid-template-columns: 38px minmax(0,1fr) auto !important; }
+.merchant-shop-leaving .merchant-shop-row-actions { justify-self: end; }
 .merchant-shop-abandoned .merchant-shop-title { color: var(--blacksmith-tool-text-muted); }
+/* The pin, standing in for the portrait: same fill, same border, same icon colour, so the
+   card and the mark on the map are recognisably the same shop. Solid rather than dashed --
+   the pin is still there, and it is the one thing here that has not gone. */
 .merchant-shop-abandoned-mark {
     display: flex; align-items: center; justify-content: center;
-    border: 1px dashed var(--blacksmith-tool-divider); border-radius: 5px;
-    background: var(--blacksmith-tool-surface-sunken);
-    color: var(--blacksmith-tool-text-muted); font-size: 1.4rem;
+    border: 2px solid var(--merchant-pin-stroke, var(--blacksmith-tool-divider));
+    border-radius: 5px;
+    background: var(--merchant-pin-fill, var(--blacksmith-tool-surface-sunken));
+    color: var(--merchant-pin-icon, var(--blacksmith-tool-text-muted));
+    font-size: 1.5rem;
 }
 
 .merchant-shop-item-list { display: flex; flex-direction: column; gap: 4px; }

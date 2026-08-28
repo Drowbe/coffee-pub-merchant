@@ -1,9 +1,10 @@
 import { BlacksmithToolWindowBaseV2 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
-    normalizeTint, itemRarity, rarityLabel
+    normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG
 } from './const.js';
-import { hasPins, canPin } from './utility-pins.js';
+import { hasPins, canPin, pinPalette } from './utility-pins.js';
+import { abandonedLeavings } from './utility-compendium.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -264,6 +265,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         removeFromCart: (_event, target, win) => void win.removeFromCart(target.dataset.itemId),
         clearAll: (_event, _target, win) => void win.clearAll(),
         removePin: (_event, _target, win) => void win.removePin(),
+        steal: (_event, target, win) => void win.steal(target.dataset.itemUuid),
         settle: (_event, _target, win) => win.run(() => win.settle()),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
@@ -311,6 +313,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // The pin this was opened from, when it was. Only an abandoned shop uses it: it is
         // the one window with nothing else to act on, and the pin is the only thing left.
         this.pinId = options.pinId ?? null;
+        // What the shop looked like, as the pin remembers it. Only an abandoned shop reads
+        // this: a shop that still exists answers for itself, and would rather.
+        this.remembered = options.remembered ?? null;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -1362,6 +1367,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             case 'NOT_PRICED': return result?.itemName
                 ? game.i18n.format('coffee-pub-merchant.refuse.itemNoPrice', { item: result.itemName })
                 : game.i18n.localize('coffee-pub-merchant.refuse.noPriceSet');
+            case 'NOT_THERE': return game.i18n.localize('coffee-pub-merchant.refuse.notThere');
+            case 'GRANT_FAILED': return game.i18n.localize('coffee-pub-merchant.refuse.grantFailed');
             case 'NOTHING_TO_SETTLE': return game.i18n.localize('coffee-pub-merchant.refuse.nothingToSettle');
             case 'OUT_OF_STOCK': return result?.itemName
                 ? game.i18n.format('coffee-pub-merchant.refuse.itemOutOfStock', { item: result.itemName })
@@ -1608,7 +1615,14 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
-        const descriptionHtml = missing ? '' : await _enrich(config?.description);
+        // What is still lying about. Only an abandoned shop has any: a working shop's
+        // stock is its inventories, and these are what nobody bothered to carry away.
+        const leavings = missing ? await abandonedLeavings() : [];
+        // The blurb survives too, and is enriched the same way: it was GM-written when the
+        // shop existed, which is the only thing that made the triple-stache safe.
+        const descriptionHtml = missing
+            ? await _enrich(this.remembered?.description)
+            : await _enrich(config?.description);
         const cartLines = missing ? [] : await this._cartLines();
         const cartTotal = cartLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
         const basketLines = missing ? [] : await this._basketLines();
@@ -1625,11 +1639,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // **The picture of the place, if there is one.** Absent is the ordinary case
             // and the card reads exactly as it always did; present, it sits behind the
             // card as a backdrop rather than replacing anything on it.
-            illustration: illustrationUrl(config?.illustration),
+            illustration: illustrationUrl(missing ? this.remembered?.illustration : config?.illustration),
             // Normalised again here rather than trusted from the flag: this is the value
             // that ends up inside a `style` attribute, and the setter is not the only
             // way a flag gets written.
-            tint: normalizeTint(config?.tint),
+            tint: normalizeTint(missing ? this.remembered?.tint : config?.tint),
+            leavings,
+            hasLeavings: leavings.length > 0,
+            abandonedImg: ABANDONED_IMG,
+            // Nothing can be taken without somebody to take it, and the row says so rather
+            // than failing on the press.
+            canSteal: Boolean(this.recipient),
             // **The token's name, not the Actor's.** The Actor is the mould -- "General
             // Merchant" -- and the name given when the token was dropped is the person
             // standing behind this counter. An unlinked merchant placed three times is
@@ -1650,11 +1670,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 && String(config.name).trim() !== String(token?.name || token?.actor?.name || '').trim()),
             // The kind replaces the word "Merchant" above the name, which was telling
             // the player something they could already see.
-            kindLabel: shopKind(config?.kind).label,
-            kindIcon: shopKind(config?.kind).icon,
+            kindLabel: shopKind(missing ? this.remembered?.kind : config?.kind).label,
+            kindIcon: shopKind(missing ? this.remembered?.kind : config?.kind).icon,
             description: descriptionHtml,
             hasDescription: Boolean(descriptionHtml),
-            portraitImg: merchant?.img ?? 'icons/svg/mystery-man.svg',
+            portraitImg: merchant?.img ?? this.remembered?.portrait ?? 'icons/svg/mystery-man.svg',
+            // **What is left of a shop is the mark on the map that outlived it.** So the
+            // abandoned card wears the category icon in the pin's own colours where the
+            // portrait would be, rather than a generic crossed-out shop: it is still a
+            // weaponsmith, and it still looks like the pin the party is standing on.
+            palette: missing ? pinPalette() : null,
             inventories,
             hasInventories: inventories.length > 0,
             isGM: game.user.isGM,
@@ -2588,6 +2613,36 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that to the inventory:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.addToInventoryFailed'));
+        }
+        await this.render(false);
+    }
+
+    /**
+     * Take one thing out of an abandoned shop.
+     *
+     * **Straight to the character, with no slate.** A slate is a reckoning to settle, and
+     * there is nobody to settle with -- putting a free thing from a dead shop through a
+     * cart would be a ceremony around a decision already made.
+     *
+     * It goes through the same GM-verified envelope every purchase does, because a player
+     * cannot create an item on their own sheet and should not be able to: the GM checks
+     * what is being taken against the list of what is there.
+     */
+    async steal(itemUuid) {
+        const recipient = this.recipient;
+        if (!itemUuid || !recipient) return;
+
+        const result = await this._send(
+            { steal: true, itemUuid, recipientUuid: recipient.uuid },
+            { row: itemUuid, label: game.i18n.localize('coffee-pub-merchant.shop.stealing') }
+        );
+        if (result?.ok) {
+            playFeedback(SOUND.TRANSACTION);
+            notify.info(game.i18n.format('coffee-pub-merchant.shop.stolen', {
+                name: result.name, who: recipient.name
+            }));
+        } else {
+            notify.error(this._explain(result?.code, result));
         }
         await this.render(false);
     }

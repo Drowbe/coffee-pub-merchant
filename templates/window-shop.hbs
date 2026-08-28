@@ -26,8 +26,12 @@
                           rather than a column squeezed beside a portrait. --}}
                     <div class="merchant-shop-subject-head">
                         {{#if missing}}
-                            <div class="merchant-shop-subject-image merchant-shop-abandoned-mark">
-                                <i class="fa-solid fa-store-slash"></i>
+                            {{!-- The category icon in the pin's own colours: it is still a
+                                  weaponsmith, and what is left of the shop is the mark on
+                                  the map that outlived it. --}}
+                            <div class="merchant-shop-subject-image merchant-shop-abandoned-mark"
+                                 style="--merchant-pin-fill: {{palette.fill}}; --merchant-pin-stroke: {{palette.stroke}}; --merchant-pin-icon: {{palette.icon}}">
+                                <i class="{{kindIcon}}"></i>
                             </div>
                         {{else}}
                             <div class="merchant-shop-subject-image"><img src="{{portraitImg}}" alt="{{shopName}}"></div>
@@ -172,6 +176,41 @@
                     <i class="fa-solid fa-wind"></i>
                     <span>{{localize "coffee-pub-merchant.shop.abandoned"}}</span>
                 </div>
+                {{#if hasLeavings}}
+                    {{!-- **What nobody bothered to carry away.** No price, no quantity and
+                          no slate: there is nobody to settle with, and putting a free thing
+                          from a dead shop through a cart would be a ceremony around a
+                          decision already made. One button, and it is called what it is. --}}
+                    <section class="merchant-shop-section merchant-shop-inventory">
+                        <h3>
+                            <span class="merchant-shop-inventory-name">
+                                <img class="merchant-shop-inventory-icon" src="{{abandonedImg}}" alt="">
+                                {{localize "coffee-pub-merchant.shop.leavings"}}
+                            </span>
+                        </h3>
+                        <div class="merchant-shop-inventory-body">
+                            <div class="merchant-shop-item-list">
+                                {{#each leavings}}
+                                    <div class="merchant-shop-item merchant-shop-leaving">
+                                        <img src="{{img}}" alt="">
+                                        <div class="merchant-shop-item-copy">
+                                            <strong>{{name}}</strong>
+                                        </div>
+                                        <div class="merchant-shop-row-actions">
+                                            <button type="button" class="blacksmith-window-btn-secondary"
+                                                    data-action="steal" data-item-uuid="{{uuid}}"
+                                                    {{#unless ../canSteal}}disabled{{/unless}}
+                                                    data-tooltip="{{#if ../canSteal}}{{localize "coffee-pub-merchant.shop.stealTooltip"}}{{else}}{{localize "coffee-pub-merchant.shop.stealNobody"}}{{/if}}">
+                                                <i class="fa-solid fa-hand"></i>
+                                                {{localize "coffee-pub-merchant.shop.steal"}}
+                                            </button>
+                                        </div>
+                                    </div>
+                                {{/each}}
+                            </div>
+                        </div>
+                    </section>
+                {{/if}}
         {{else if hasInventories}}
                 {{!-- Which side of the counter you are on. It was a Sell button inside
                       the slate header, which put a control that changes what the *stock*
