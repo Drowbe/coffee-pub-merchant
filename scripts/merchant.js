@@ -13,6 +13,7 @@ import { registerSettings } from './settings.js';
 const REQUIRED_BLACKSMITH = '13.19.2';
 import { registerToastChannels, notify } from './utility-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
+import { registerRegionBehavior } from './region-shop.js';
 
 /**
  * Add the way in to the Actor sheet header.
@@ -200,6 +201,10 @@ Hooks.once('ready', async function () {
     MerchantManager.initialize();
     registerSheetControls();
     registerSceneControls();
+
+    // A third door: a region a token can walk into. Foundry's own extension point, so this
+    // is a registration rather than a patch -- see `region-shop.js`.
+    registerRegionBehavior();
 
     // Exposed for the same reason Curator exposes its loot manager — the permission
     // bypass can only be verified from a non-GM client.

@@ -537,5 +537,28 @@
             "removeFailed": "Could not remove that shop pin.",
             "placing": "Click the map to place {name}. Right-click or Escape to cancel."
         }
+    },
+    "TYPES": {
+        "RegionBehavior": {
+            "coffee-pub-merchant": {
+                "openShop": "Open Shop"
+            }
+        }
+    },
+    "BEHAVIOR": {
+        "TYPES": {
+            "openShop": {
+                "FIELDS": {
+                    "merchant": {
+                        "label": "Shop",
+                        "hint": "The merchant this place belongs to. Only a linked merchant can be named — an unlinked one is a copy per placement, and a region cannot say which copy it meant."
+                    },
+                    "once": {
+                        "label": "Once only",
+                        "hint": "Switch the behaviour off after the first token walks in. Right for a one-time discovery, wrong for a market stall the party passes every day."
+                    }
+                }
+            }
+        }
     }
 }

@@ -84,14 +84,28 @@ assert.deepStrictEqual(missing, [],
     `these keys are asked for but not in lang/en.json:\n  ${missing.map((k) => `${k}  (${used.get(k).join(', ')})`).join('\n  ')}`);
 console.log(`ok  ${used.size} keys asked for, all present`);
 
+// **Foundry's own namespaces**, which it looks up by its own keys rather than ours: a
+// region behaviour's type label under `TYPES.RegionBehavior.<module>.<type>`, and its field
+// labels under the prefix the behaviour class declares. Nothing in our source asks for
+// them by name and nothing can — Foundry does the asking — so they are exempt from the
+// dead-key sweep and from the one-namespace rule, and from nothing else. The prefixes are
+// listed rather than pattern-matched, so a stray key does not smuggle itself in as one.
+const FOUNDRY_OWNED = [
+    'TYPES.RegionBehavior.',
+    'BEHAVIOR.TYPES.openShop.'
+];
+
 // ---------------------------------------------------------------- 2. no dead keys
-const unused = [...defined].filter((key) => !used.has(key) && !DYNAMIC.some((p) => key.startsWith(p)));
+const unused = [...defined].filter((key) => !used.has(key)
+    && !DYNAMIC.some((p) => key.startsWith(p))
+    && !FOUNDRY_OWNED.some((p) => key.startsWith(p)));
 assert.deepStrictEqual(unused, [],
     `these keys are in lang/en.json but nothing asks for them:\n  ${unused.join('\n  ')}`);
 console.log(`ok  ${defined.size} keys defined, none dead`);
 
 // ---------------------------------------------------------------- 3. one namespace
-const stray = [...defined].filter((key) => !key.startsWith(`${MODULE}.`));
+const stray = [...defined].filter((key) => !key.startsWith(`${MODULE}.`)
+    && !FOUNDRY_OWNED.some((p) => key.startsWith(p)));
 assert.deepStrictEqual(stray, [],
     `every key belongs under "${MODULE}." so two modules cannot collide:\n  ${stray.join('\n  ')}`);
 
