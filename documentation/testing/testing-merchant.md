@@ -1347,4 +1347,9 @@ level onto every existing row; it logs how many.
     styled the same as Blacksmith's and Squire's, with the header rows carrying no control.
 172. Every stock ceiling is a slider from 0 to 20, and the value it shows is the one that takes effect:
     set one, restock a shelf, and the deepest row of that kind matches.
+173. **Each sound setting has a play button.** Pick a sound from the dropdown — without saving — and
+    press it: that sound plays, on your client only. Set the dropdown to *None* and the button greys.
+    Closing and reopening the settings window leaves exactly one button per row.
+174. **A fresh world has sounds already set** — slate, transaction, restock and error all speak without
+    anyone configuring them, and only on the client that acted. Setting one to *None* silences that one.
 

@@ -296,7 +296,8 @@
             "headingStockByRarity": "By Rarity",
             "headingStockByRarityHint": "Set stock limits by rarity. Rarer items can be limited even when their type or price would otherwise allow more.",
             "headingSound": "Sound",
-            "headingSoundHint": "What a shop sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default."
+            "headingSoundHint": "What a shop sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default.",
+            "previewSound": "Play this sound"
         },
         "progress": {
             "rolling": "Rolling {table}",

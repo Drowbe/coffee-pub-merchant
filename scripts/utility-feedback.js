@@ -165,6 +165,24 @@ export function playFeedback(key) {
     }
 }
 
+/**
+ * Play a sound by path, without going through a setting.
+ *
+ * For auditioning one in the settings window: what a GM wants to hear is the sound in the
+ * **dropdown in front of them**, not the one currently saved, so this takes the path the
+ * caller is looking at rather than a key it would have to write first.
+ */
+export function playSoundPath(path) {
+    if (!path || path === 'none' || path === 'sound-none') return;
+    const utils = game.modules.get('coffee-pub-blacksmith')?.api?.utils;
+    if (typeof utils?.playSound !== 'function') return;
+    try {
+        utils.playSound(path, 0.7, false, false);
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not play ${path}:`, error);
+    }
+}
+
 /** The setting keys, so call sites name a sound rather than a string. */
 export const SOUND = Object.freeze({
     SLATE_ADD: 'soundSlateAdd',

@@ -29,6 +29,18 @@
     --merchant-interactive: var(--blacksmith-color-brand-accent, #c15701);
 }
 
+/* --- The settings tab --------------------------------------------------
+   One control Foundry does not render for us: a play button beside each sound dropdown,
+   appended into the field cell rather than in a rebuilt row. Sized to the select beside
+   it and using the module's own interactive colour, so it reads as part of the row. */
+.merchant-settings-preview {
+    flex: 0 0 auto; width: 30px; height: var(--input-height, 28px); margin: 0 0 0 4px; padding: 0;
+    border: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, .3)); border-radius: 4px;
+    background: rgba(0, 0, 0, .05); cursor: pointer; line-height: 1;
+}
+.merchant-settings-preview:hover:not([disabled]) { border-color: var(--merchant-interactive); color: var(--merchant-interactive); }
+.merchant-settings-preview[disabled] { opacity: .35; cursor: default; }
+
 /* --- Header action rows ------------------------------------------------
    The strip of controls at the right-hand end of a section heading. */
 .merchant-shop-head-actions,
