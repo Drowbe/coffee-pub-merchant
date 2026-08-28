@@ -176,7 +176,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // broken instance, which is a shop that cannot be reopened until the page is
     // reloaded. Theirs deletes the entry when a render throws.
 
-    // tokenUuid -> Map(itemId -> quantity), for things being sold TO the merchant.
+    // shopKey -> Map(itemId -> quantity), for things being sold TO the merchant.
     // Same shape and same reasoning as the buying side; kept apart because this holds
     // the seller's own possessions and that holds the shop's.
     //
@@ -185,7 +185,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // and "cart" is still the clearest word for what the code is doing.
     static _baskets = new Map();
 
-    // `tokenUuid|shopperUuid` -> Map(itemId -> quantity).
+    // `shopKey|shopperUuid` -> Map(itemId -> quantity).
     //
     // **Keyed by the character, not by the client**, and mirrored to every client that
     // can act as that character. A slate belongs to whoever is shopping: switching
@@ -204,12 +204,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     // own slates and a GM sees everyone's, for free.
     static _carts = new Map();
 
-    // `tokenUuid|shopperUuid` -> the last snapshot this client sent or received.
+    // `shopKey|shopperUuid` -> the last snapshot this client sent or received.
     // Set on both, which is what stops two clients bouncing the same slate back and
     // forth: a slate that arrives is already "published" as far as we are concerned.
     static _published = new Map();
 
-    // tokenUuid -> Map(userId -> { actorUuid, name, img }). Who is standing in this
+    // shopKey -> Map(userId -> { actorUuid, name, img }). Who is standing in this
     // shop, as seen by everybody.
     //
     // **Separate from the slates, and it has to be.** A slate is keyed by character and
@@ -272,9 +272,21 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         removeStock: (_event, target, win) => void win.removeStock(target.dataset.itemId)
     };
 
-    constructor(tokenDocument, options = {}) {
+    /**
+     * **A shop is opened for a *subject*, and a subject is not always a token.**
+     *
+     * A linked merchant is keyed by its **Actor**; an unlinked one by its **token**. The
+     * base class keys the registry on `target.uuid`, so passing one or the other is the
+     * whole mechanism -- and it is what makes a pin, a linked token, and a second linked
+     * token of the same Actor one window with one cart rather than three of each.
+     *
+     * The scene is carried separately because it cannot be derived from an Actor, and two
+     * things that set the final price are scene-scoped: the market rate on the Scene flag
+     * and the party's standing here. A token knows its own scene; a pin passes one.
+     */
+    constructor(subject, options = {}) {
         const opts = foundry.utils.mergeObject({}, options);
-        opts.id ||= `merchant-shop-${tokenDocument.id}-${foundry.utils.randomID()}`;
+        opts.id ||= `merchant-shop-${subject.id}-${foundry.utils.randomID()}`;
         opts.position = foundry.utils.mergeObject(
             foundry.utils.mergeObject({}, ShopWindow.DEFAULT_OPTIONS.position ?? {}),
             opts.position || {}
@@ -284,7 +296,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             opts.window || {}
         );
         super(opts);
-        this.tokenUuid = tokenDocument.uuid;
+        this.shopKey = subject.uuid;
+        // A TokenDocument's parent is its Scene. An Actor's is not, so a subject that is
+        // an Actor is told where it is standing instead.
+        this.sceneUuid = subject.parent?.documentName === 'Scene'
+            ? subject.parent.uuid
+            : (options.sceneUuid ?? null);
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -292,14 +309,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this._search = '';
     }
 
-    static closeForToken(tokenUuid) {
-        void this.closeFor(tokenUuid);
-    }
-
-    static refreshForToken(tokenUuid) {
+    static refreshForToken(shopKey) {
         // `keyFor` takes a plain string as readily as a document, which is what lets
         // a socket message carrying only a uuid find its window.
-        void this.openWindowFor(tokenUuid)?.render(false);
+        void this.openWindowFor(shopKey)?.render(false);
     }
 
     /**
@@ -310,13 +323,35 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     static async refreshForActor(actorUuid) {
         for (const win of this.openWindows()) {
-            const token = await fromUuid(win.tokenUuid);
-            if (token?.actor?.uuid === actorUuid) void win.render(false);
+            // A linked shop is keyed by the Actor already; an unlinked one has to be
+            // resolved to find out whose it is.
+            if (win.shopKey === actorUuid) { void win.render(false); continue; }
+            const { actor } = await win._resolveSubject();
+            if (actor?.uuid === actorUuid) void win.render(false);
         }
     }
 
-    async _resolveToken() {
-        return fromUuid(this.tokenUuid);
+    /**
+     * Who this window is a shop for: the Actor, the token if there is one, and the scene.
+     *
+     * **The token may be null and the Actor may not.** A shop opened from a pin has no
+     * token at all -- a stall in a market square is nobody's token -- so everything that
+     * used to read `token.actor` reads `actor`, and everything that used to read
+     * `token.parent` reads `scene`.
+     *
+     * The scene falls back to the one being looked at. That is only reached by a subject
+     * with no stored scene, and answering "the market you are standing in" beats answering
+     * "no market" for a shop that is plainly on a map.
+     */
+    async _resolveSubject() {
+        const subject = await fromUuid(this.shopKey);
+        const token = subject?.documentName === 'Token' ? subject : null;
+        const actor = token ? token.actor : (subject?.documentName === 'Actor' ? subject : null);
+        const scene = token?.parent
+            ?? (this.sceneUuid ? await fromUuid(this.sceneUuid) : null)
+            ?? canvas?.scene
+            ?? null;
+        return { actor, token, scene };
     }
 
     /**
@@ -332,19 +367,19 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * shop.
      */
     async _refreshReputation() {
-        const token = await this._resolveToken();
-        const config = MerchantManager.getConfig(token?.actor);
-        this._reputation = await resolveReputation(token?.parent, config?.pricing?.reputation);
+        const { actor, scene } = await this._resolveSubject();
+        const config = MerchantManager.getConfig(actor);
+        this._reputation = await resolveReputation(scene, config?.pricing?.reputation);
         // Synchronous — a market is a number on the Scene, with no scale to fetch —
         // but resolved here so both place-multipliers are settled in one step and
         // every price in the render sees the same pair.
-        this._market = marketRate(token?.parent);
+        this._market = marketRate(scene);
 
         // Said in the shop, in the party's own terms: the band they stand in, and what
         // it is doing to the bill. A neutral standing says nothing rather than "0%",
         // which would be a line that never changes and never matters.
         const enabled = Boolean(config?.pricing?.reputation);
-        const band = enabled ? await reputationLabel(token?.parent, true) : null;
+        const band = enabled ? await reputationLabel(scene, true) : null;
         if (!enabled || this._reputation === 1) {
             this._reputationLine = null;
             this._reputationTooltip = null;
@@ -464,7 +499,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         } finally {
             this.busy = false;
             this.element?.classList.remove('merchant-shop-busy');
-            if (this.constructor.openWindowFor(this.tokenUuid) === this) await this.render(false);
+            if (this.constructor.openWindowFor(this.shopKey) === this) await this.render(false);
         }
     }
 
@@ -479,20 +514,29 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this._busy = { row: busy.row ?? null, label: busy.label ?? 'Working' };
         await this.render(false);
         try {
-            return await MerchantManager.request({ tokenUuid: this.tokenUuid, ...payload });
+            return await MerchantManager.request({
+                shopKey: this.shopKey,
+                // **A claim the GM verifies, not a fact.** The market rate is a Scene flag
+                // and it moves prices, so a client naming its own scene could name a
+                // profitable one. A token subject needs none of this -- its scene is
+                // whichever one it stands on -- and for an Actor subject the handler
+                // accepts this only if the merchant is actually there.
+                sceneUuid: this.sceneUuid,
+                ...payload
+            });
         } finally {
             this._busy = null;
         }
     }
 
     async _itemContext(itemId) {
-        const token = await this._resolveToken();
-        const item = token?.actor?.items?.get(itemId);
+        const { actor } = await this._resolveSubject();
+        const item = actor?.items?.get(itemId);
         if (!item) {
             notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.outOfStockNow'));
             return null;
         }
-        return { item, token };
+        return { item, actor };
     }
 
     /**
@@ -731,7 +775,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * slate over. For everybody else it is a portrait saying who else is here.
      */
     _otherShoppers() {
-        const room = ShopWindow._presence.get(this.tokenUuid);
+        const room = ShopWindow._presence.get(this.shopKey);
         if (!room?.size) return [];
 
         const faces = [];
@@ -768,13 +812,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     /** How many lines that character has on the slate in *this* shop, mine or theirs. */
     _slateSizeFor(shopperUuid) {
-        const key = `${this.tokenUuid}|${shopperUuid}`;
+        const key = `${this.shopKey}|${shopperUuid}`;
         return (ShopWindow._carts.get(key)?.size ?? 0) + (ShopWindow._baskets.get(key)?.size ?? 0);
     }
 
     /** One shop, one character. Switching who you are shopping as switches slate. */
     get slateKey() {
-        return `${this.tokenUuid}|${this.recipient?.uuid ?? 'nobody'}`;
+        return `${this.shopKey}|${this.recipient?.uuid ?? 'nobody'}`;
     }
 
     get cart() {
@@ -817,9 +861,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * conversation to have at the table, not a conflict to resolve in code.
      */
     _publishSlate() {
-        const [tokenUuid, shopperUuid] = this.slateKey.split('|');
+        const [shopKey, shopperUuid] = this.slateKey.split('|');
         emit(SOCKET_EVENT.SLATE, {
-            tokenUuid,
+            shopKey,
             shopperUuid,
             cart: [...this.cart],
             basket: [...this.basket]
@@ -843,9 +887,9 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** Say who we are and who we are shopping as. Sent again whenever either changes. */
     publishPresence() {
         const self = this._selfPresence();
-        ShopWindow._setPresence(this.tokenUuid, game.user.id, self);
+        ShopWindow._setPresence(this.shopKey, game.user.id, self);
         emit(SOCKET_EVENT.PRESENCE, {
-            state: 'open', tokenUuid: this.tokenUuid, userId: game.user.id, ...self
+            state: 'open', shopKey: this.shopKey, userId: game.user.id, ...self
         });
     }
 
@@ -860,54 +904,54 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     announcePresence() {
         this.publishPresence();
         emit(SOCKET_EVENT.PRESENCE, {
-            state: 'ping', tokenUuid: this.tokenUuid, userId: game.user.id
+            state: 'ping', shopKey: this.shopKey, userId: game.user.id
         });
     }
 
     clearPresence() {
-        ShopWindow._presence.get(this.tokenUuid)?.delete(game.user.id);
+        ShopWindow._presence.get(this.shopKey)?.delete(game.user.id);
         emit(SOCKET_EVENT.PRESENCE, {
-            state: 'close', tokenUuid: this.tokenUuid, userId: game.user.id
+            state: 'close', shopKey: this.shopKey, userId: game.user.id
         });
     }
 
-    static _setPresence(tokenUuid, userId, entry) {
-        if (!ShopWindow._presence.has(tokenUuid)) ShopWindow._presence.set(tokenUuid, new Map());
-        ShopWindow._presence.get(tokenUuid).set(userId, entry);
+    static _setPresence(shopKey, userId, entry) {
+        if (!ShopWindow._presence.has(shopKey)) ShopWindow._presence.set(shopKey, new Map());
+        ShopWindow._presence.get(shopKey).set(userId, entry);
     }
 
     /** Apply a presence message and redraw anyone looking at that shop. */
-    static receivePresence({ state, tokenUuid, userId, actorUuid, userName, name, img } = {}) {
-        if (!tokenUuid || !userId || userId === game.user.id) return;
+    static receivePresence({ state, shopKey, userId, actorUuid, userName, name, img } = {}) {
+        if (!shopKey || !userId || userId === game.user.id) return;
 
         if (state === 'close') {
-            ShopWindow._presence.get(tokenUuid)?.delete(userId);
+            ShopWindow._presence.get(shopKey)?.delete(userId);
         } else if (state === 'ping') {
             // Somebody just arrived and cannot see the room. Say we are here.
             for (const window of ShopWindow.openWindows()) {
-                if (window.tokenUuid === tokenUuid) {
+                if (window.shopKey === shopKey) {
                     const self = window._selfPresence();
                     emit(SOCKET_EVENT.PRESENCE, {
-                        state: 'open', tokenUuid, userId: game.user.id, ...self
+                        state: 'open', shopKey, userId: game.user.id, ...self
                     });
                 }
             }
             return;
         } else {
-            ShopWindow._setPresence(tokenUuid, userId, { actorUuid, userName, name, img });
+            ShopWindow._setPresence(shopKey, userId, { actorUuid, userName, name, img });
         }
 
         for (const window of ShopWindow.openWindows()) {
-            if (window.tokenUuid === tokenUuid) void window.render(false);
+            if (window.shopKey === shopKey) void window.render(false);
         }
     }
 
     /** Drop a departing user's face rather than leaving a ghost in the room. */
     static dropUser(userId) {
-        for (const [tokenUuid, room] of ShopWindow._presence) {
+        for (const [shopKey, room] of ShopWindow._presence) {
             if (!room.delete(userId)) continue;
             for (const window of ShopWindow.openWindows()) {
-                if (window.tokenUuid === tokenUuid) void window.render(false);
+                if (window.shopKey === shopKey) void window.render(false);
             }
         }
     }
@@ -923,22 +967,22 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     _requestSlates() {
         emit(SOCKET_EVENT.SLATE_REQUEST, {
-            tokenUuid: this.tokenUuid,
+            shopKey: this.shopKey,
             userId: game.user.id
         });
     }
 
     /** Answer a `slateRequest` with every slate this client is actually driving. */
-    static publishSlatesFor(tokenUuid) {
+    static publishSlatesFor(shopKey) {
         for (const window of ShopWindow.openWindows()) {
-            if (window.tokenUuid === tokenUuid) window._publishSlate();
+            if (window.shopKey === shopKey) window._publishSlate();
         }
     }
 
     /** Apply a slate published elsewhere, and redraw anyone looking at it. */
-    static receiveSlate({ tokenUuid, shopperUuid, cart = [], basket = [] } = {}) {
-        if (!tokenUuid || !shopperUuid) return;
-        const key = `${tokenUuid}|${shopperUuid}`;
+    static receiveSlate({ shopKey, shopperUuid, cart = [], basket = [] } = {}) {
+        if (!shopKey || !shopperUuid) return;
+        const key = `${shopKey}|${shopperUuid}`;
         ShopWindow._carts.set(key, new Map(cart));
         ShopWindow._baskets.set(key, new Map(basket));
         // Recorded as published, so receiving a slate never bounces it back.
@@ -964,7 +1008,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!context) return;
 
         const inCart = this.cart.get(itemId) ?? 0;
-        if (this._maxFor(context.token?.actor, context.item) < 1) {
+        if (this._maxFor(context.actor, context.item) < 1) {
             notify.warn(inCart
                 ? game.i18n.format('coffee-pub-merchant.cart.allInStock', { item: context.item.name })
                 : game.i18n.format('coffee-pub-merchant.cart.itemOutOfStock', { item: context.item.name }));
@@ -1070,7 +1114,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             //
             // The shop is re-resolved rather than captured: `settle` never held one, and
             // reaching for a name is not a reason to start assuming it did.
-            const shop = (await this._resolveToken())?.actor;
+            const { actor: shop } = await this._resolveSubject();
             const shopName = MerchantManager.getConfig(shop)?.name || shop?.name || 'the shop';
             const moved = [
                 cart.length ? `${cart.length} bought` : null,
@@ -1091,8 +1135,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     /** Cart lines resolved against current stock and prices. */
     async _cartLines() {
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return [];
         const config = MerchantManager.getConfig(merchant);
 
@@ -1189,8 +1232,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     async addToBasket(item) {
         playFeedback(SOUND.SLATE_ADD);
         const seller = this.recipient;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         const buyback = merchant ? this._purchasedInventory(merchant) : null;
         if (!item || !seller || !buyback) return;
 
@@ -1232,8 +1274,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** Basket lines resolved against what the seller still has, and current offers. */
     async _basketLines() {
         const seller = this.recipient;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         const buyback = merchant ? this._purchasedInventory(merchant) : null;
         if (!seller || !buyback) return [];
 
@@ -1380,9 +1421,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Before anything is priced, and before the slate lines are built from it.
         await this._refreshReputation();
 
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
-        const missing = !token || !merchant;
+        const { actor: merchant, token } = await this._resolveSubject();
+        // **A shop with no token is not a missing shop.** One opened from a pin never has
+        // one; what would make it missing is having no Actor to be a shop of.
+        const missing = !merchant;
 
         const party = MerchantManager.getPartyActor();
         const options = this.recipients;
@@ -1546,7 +1588,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                     img: inventory.img,
                     hidden: config.visible === false,
                     canToggle: isGM,
-                    collapsed: (_collapsed.get(this.tokenUuid) ?? new Set()).has(inventory.id),
+                    collapsed: (_collapsed.get(this.shopKey) ?? new Set()).has(inventory.id),
                     canStock: isGM,
                     canRestock: isGM && MerchantManager.canRestock(merchant, inventory),
                     isUnpricedInventory,
@@ -1799,10 +1841,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     collapseInventory(inventoryId) {
         if (!inventoryId) return;
-        const folded = _collapsed.get(this.tokenUuid) ?? new Set();
+        const folded = _collapsed.get(this.shopKey) ?? new Set();
         if (folded.has(inventoryId)) folded.delete(inventoryId);
         else folded.add(inventoryId);
-        _collapsed.set(this.tokenUuid, folded);
+        _collapsed.set(this.shopKey, folded);
         void this.render(false);
     }
 
@@ -1813,14 +1855,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async toggleInventory(inventoryId) {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         const config = MerchantManager.getInventoryConfig(merchant?.items?.get(inventoryId));
         if (!config) return;
         try {
             await MerchantManager.setInventoryVisible(merchant, inventoryId, config.visible === false);
             // Players with the shop open gain or lose a whole section, so tell them.
-            MerchantManager._broadcastRefresh(this.tokenUuid);
+            MerchantManager._broadcastRefresh(this.shopKey);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change that inventory:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.inventoryChangeFailed'));
@@ -1914,8 +1955,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const root = this.element;
         if (!root) return;
 
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         const shopper = this.recipient;
 
         const decorate = (targets, item, fallback) => {
@@ -1977,10 +2017,10 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!root) return;
 
         const open = async (itemId, fromBasket) => {
-            const token = await this._resolveToken();
+            const { actor } = await this._resolveSubject();
             // Re-read after the await. A row can be sold, cleared or restocked out from
             // under a click, and a stale reference would open the wrong sheet or throw.
-            const owner = fromBasket ? this.recipient : token?.actor;
+            const owner = fromBasket ? this.recipient : actor;
             owner?.items?.get(itemId)?.sheet?.render(true);
         };
 
@@ -2151,8 +2191,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         const listId = cell.getAttribute('data-edit-list-price');
         const itemId = listId ?? cell.getAttribute('data-edit-price');
         if (!itemId) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return;
 
         // **Two different questions, told apart by which cell was double-clicked.** On
@@ -2204,8 +2243,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         const stockId = cell.getAttribute('data-edit-stock');
         if (!stockId) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return;
         try {
             const result = await MerchantManager.setStockQuantity(merchant, stockId, next);
@@ -2371,15 +2409,15 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         this._removing.add(itemId);
 
         try {
-            const token = await this._resolveToken();
+            const { actor } = await this._resolveSubject();
             // Re-read after the await rather than trusting anything captured before it.
             // The document may have gone in the meantime -- by another click, another
             // GM, or the sheet -- and gone is the outcome we wanted anyway.
-            const item = token?.actor?.items?.get(itemId);
+            const item = actor?.items?.get(itemId);
             if (!item) return;
 
             const packed = item.type === 'container'
-                && (token.actor.items.filter((child) => child.system?.container === item.id).length > 0);
+                && (actor.items.filter((child) => child.system?.container === item.id).length > 0);
 
             try {
                 if (packed) await item.deleteDialog();
@@ -2405,8 +2443,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      * rolls — the reroll flag governs the clock, not the button.
      */
     async restockInventory(inventoryId) {
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return;
 
         const inventoryName = merchant.items.get(inventoryId)?.name ?? 'the inventory';
@@ -2438,8 +2475,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async mergeInventory(inventoryId) {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant || !inventoryId) return;
 
         try {
@@ -2462,8 +2498,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
      */
     async clearInventory(inventoryId) {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         const inventory = merchant?.items?.get(inventoryId);
         if (!inventory) return;
 
@@ -2506,13 +2541,12 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         // Only Items, and only ones carrying a UUID — grantItem resolves from that.
         if (data?.type !== 'Item' || !data.uuid) return;
 
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return;
 
         try {
             const result = await MerchantManager.addToInventory(merchant, inventoryId, data.uuid);
-            if (result?.ok) MerchantManager._broadcastRefresh(this.tokenUuid);
+            if (result?.ok) MerchantManager._broadcastRefresh(this.shopKey);
             else notify.error(this._explain(result?.code, result));
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not add that to the inventory:`, error);
@@ -2523,8 +2557,8 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     async openConfig() {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        if (token?.actor) await MerchantConfigWindow.open(token.actor);
+        const { actor } = await this._resolveSubject();
+        if (actor) await MerchantConfigWindow.open(actor);
     }
 
     /**
@@ -2549,12 +2583,11 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
     /** Open or close for business. A closed shop still opens for browsing. */
     async toggleOpen() {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const merchant = token?.actor;
+        const { actor: merchant } = await this._resolveSubject();
         if (!merchant) return;
         try {
             await MerchantManager.setOpen(merchant, !MerchantManager.isOpen(merchant));
-            MerchantManager._broadcastRefresh(this.tokenUuid);
+            MerchantManager._broadcastRefresh(this.shopKey);
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not change the shop state:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.shopStateFailed'));
@@ -2563,14 +2596,17 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
     async openSheet() {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        token?.actor?.sheet?.render(true, { token });
+        // The token is passed when there is one so the sheet opens in that token's
+        // context; a shop with no token opens the Actor's own sheet, which is the only
+        // sheet a linked merchant has anyway.
+        const { actor, token } = await this._resolveSubject();
+        actor?.sheet?.render(true, token ? { token } : {});
     }
 
     async openPrototypeToken() {
         if (!game.user.isGM) return;
-        const token = await this._resolveToken();
-        const prototype = token?.actor?.prototypeToken;
+        const { actor } = await this._resolveSubject();
+        const prototype = actor?.prototypeToken;
         const sheetClass = CONFIG.Token?.prototypeSheetClass;
         // PrototypeToken is a DataModel with no `sheet` getter, so `prototype.sheet`
         // optional-chains into silence. This is how core opens it.

@@ -186,4 +186,68 @@ console.log('ok  a shop tint is a hex colour or nothing at all');
 }
 console.log('ok  rarity reads off an item, and blank is not common');
 
+// --- one shop, one window, one cart ---------------------------------------
+// **Identity is the Actor for a linked merchant and the token for an unlinked one.** The
+// window registry keys on the uuid it is handed, so this choice is the whole mechanism: a
+// pin, a linked token, and a second linked token of the same Actor have to arrive at one
+// window with one cart, while three placements of an unlinked pedlar must stay three shops.
+{
+    // The shape of `MerchantManager.subjectFor`.
+    const subjectFor = (token) => (token.actorLink && token.actor
+        ? [token.actor, { sceneUuid: token.parent?.uuid ?? null }]
+        : [token, {}]);
+
+    const actor = { uuid: 'Actor.bob' };
+    const sceneA = { uuid: 'Scene.phlan' };
+    const sceneB = { uuid: 'Scene.city' };
+    const linkedA = { uuid: 'Scene.phlan.Token.1', actorLink: true, actor, parent: sceneA };
+    const linkedB = { uuid: 'Scene.city.Token.2', actorLink: true, actor, parent: sceneB };
+    const unlinked1 = { uuid: 'Scene.phlan.Token.3', actorLink: false, actor: { uuid: 'Actor.delta1' }, parent: sceneA };
+    const unlinked2 = { uuid: 'Scene.phlan.Token.4', actorLink: false, actor: { uuid: 'Actor.delta2' }, parent: sceneA };
+
+    assert.strictEqual(subjectFor(linkedA)[0].uuid, subjectFor(linkedB)[0].uuid,
+        'two linked tokens of one Actor are one shop');
+    assert.strictEqual(subjectFor(linkedA)[0].uuid, 'Actor.bob', 'and that shop is the Actor');
+    assert.notStrictEqual(subjectFor(unlinked1)[0].uuid, subjectFor(unlinked2)[0].uuid,
+        'two unlinked placements are two shops');
+    assert.strictEqual(subjectFor(unlinked1)[0].uuid, 'Scene.phlan.Token.3', 'each being its own token');
+
+    // **The scene rides along, and differs between the two doors.** It cannot come off the
+    // Actor, and it is what the trade-route market rate is read from.
+    assert.strictEqual(subjectFor(linkedA)[1].sceneUuid, 'Scene.phlan');
+    assert.strictEqual(subjectFor(linkedB)[1].sceneUuid, 'Scene.city',
+        'the same shop, priced where you met it');
+
+    // The slate is keyed by the shop key, so one shop is one cart however it was opened.
+    const slateKey = (subject, shopper) => `${subject[0].uuid}|${shopper}`;
+    assert.strictEqual(slateKey(subjectFor(linkedA), 'Actor.pc'), slateKey(subjectFor(linkedB), 'Actor.pc'),
+        'one cart, whichever door you came in by');
+}
+console.log('ok  a linked merchant is one shop; an unlinked placement is its own');
+
+// --- a claimed scene is checked, not believed ------------------------------
+// The market rate is a Scene flag and it moves prices both ways, so a client naming its
+// own scene could name a profitable one. A token subject never reaches this -- the GM
+// reads its scene for itself -- and an Actor subject is honoured only where the merchant
+// actually is. Same shape of hole as reading an identity out of a payload.
+{
+    const scene = (uuid, actorIds) => ({ documentName: 'Scene', uuid, tokens: actorIds.map((id) => ({ actorId: id })) });
+    // The shape of `MerchantManager.verifiedScene`.
+    const verified = (actor, claimed) => {
+        if (!actor || !claimed) return null;
+        if (claimed.documentName !== 'Scene') return null;
+        return claimed.tokens.some((token) => token.actorId === actor.id) ? claimed : null;
+    };
+
+    const bob = { id: 'bob' };
+    assert.ok(verified(bob, scene('Scene.market', ['bob', 'guard'])), 'a scene the merchant stands on is honoured');
+    assert.strictEqual(verified(bob, scene('Scene.elsewhere', ['guard'])), null,
+        'a scene the merchant is not on is refused, whatever the client says');
+    assert.strictEqual(verified(bob, null), null, 'and no claim is no scene');
+    assert.strictEqual(verified(null, scene('Scene.market', ['bob'])), null, 'and no merchant is no scene');
+    assert.strictEqual(verified(bob, { documentName: 'Actor', uuid: 'Actor.bob' }), null,
+        'a uuid that is not a scene at all is refused');
+}
+console.log('ok  a client-claimed scene is verified before it prices anything');
+
 console.log('\nall action checks passed');

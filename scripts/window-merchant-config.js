@@ -1965,22 +1965,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     /**
      * Open this merchant's shop from its settings.
      *
-     * A shop belongs to a token, so this needs one: the active scene first, since
-     * that is where the GM is looking, then anywhere else the merchant stands.
+     * A linked merchant needs no token: it is a shop in its own right, priced against the
+     * scene being looked at. An unlinked one is found on the active scene first, since that
+     * is where the GM is looking, then anywhere else it stands.
      */
     async openShop() {
         const actor = await this._resolveActor();
         if (!actor) return;
 
-        const here = canvas?.scene?.tokens?.find((token) => token.actor?.uuid === actor.uuid);
-        const anywhere = here ?? game.scenes
-            ?.map((scene) => scene.tokens.find((token) => token.actor?.uuid === actor.uuid))
-            ?.find(Boolean);
-
-        if (!anywhere) {
-            notify.warn(`${actor.name} has no token on any scene, so there is no shop to open.`);
-            return;
+        // A linked merchant opens with no token placed at all -- it is a shop in its own
+        // right, and the scene it is priced against is the one being looked at. An
+        // unlinked one still needs its token, because there the token *is* the shop.
+        if (!MerchantManager.openForActor(actor)) {
+            notify.warn(game.i18n.format('coffee-pub-merchant.notify.noShopToOpen', { name: actor.name }));
         }
-        MerchantManager.openSafely(anywhere);
     }
 }

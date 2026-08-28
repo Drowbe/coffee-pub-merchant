@@ -754,6 +754,35 @@ declines rather than answering from a claim. Report it; do not work around it.
 
 ## 9. The shop window
 
+### What a shop window is opened *for*
+
+**A linked merchant is keyed by its Actor; an unlinked one by its token.** The base class keys its
+registry on the uuid it is handed, so which document `openFor` receives *is* the identity decision —
+`subjectFor(token)` makes it in one place and returns the argument pair, so a caller cannot get the key
+and the scene out of step.
+
+| merchant | keyed by | why |
+|---|---|---|
+| linked Actor | the **Actor** uuid | one shop wherever you meet it — a pin, a token, or a second token of the same Actor |
+| unlinked token | the **token** uuid | each placement is its own shop, with its own ActorDelta |
+
+That is what makes a pin and a token one window with one cart. It also fixed something latent: two
+placed linked tokens of one Actor used to open two windows with two carts for what is, by every other
+measure, one shop.
+
+**The scene is carried beside the key, because it cannot be derived from an Actor.** Two things that set
+the final price are scene-scoped — the market rate on the Scene flag, and the party's standing here — so
+one linked Bob with a token in Phlan and a pin in the besieged city is one shop with one set of goods at
+two prices. `_resolveSubject()` returns `{ actor, token, scene }`; **the token may be null and the Actor
+may not**, because a shop opened from a pin has no token at all.
+
+**A client-claimed scene is verified before it prices anything.** A token subject never needs this — the
+GM reads the token's scene itself. An Actor subject sends a `sceneUuid`, and `verifiedScene` honours it
+only where a token of that merchant actually stands. The market rate moves prices in both directions, so
+an unchecked claim is the same shape of hole as reading an identity out of a payload, which §8 closed.
+
+
+
 `window-shop.js` extends `BlacksmithToolWindowBaseV2`, which supplies the titlebar, footer, position memory
 and micro-titlebar folding. **One window per token, and the registry behind it, are the base class's** —
 `openFor` / `openWindowFor` / `openWindows` / `closeFor`, keyed by uuid and per subclass, so double-clicking

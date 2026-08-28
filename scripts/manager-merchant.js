@@ -1799,7 +1799,98 @@ export class MerchantManager {
         // `openFor` rethrows a failed render, which is what `openSafely` is for: the
         // gesture must never surface a rejected promise, and a shop that will not
         // build should say so once rather than be retried into the same wall.
-        return ShopWindow.openFor(tokenDocument);
+        return ShopWindow.openFor(...this.subjectFor(tokenDocument));
+    }
+
+    /**
+     * Open a shop for an Actor, with or without a token of it anywhere.
+     *
+     * **A linked merchant is a shop whether or not one of its tokens is placed.** It used
+     * to need a token on some scene to be openable at all -- the shop was found by hunting
+     * the current scene and then every other one -- which was true when a token was the
+     * only door. A pin is a door too, and a shop with a pin and no token is a stall in a
+     * market square.
+     *
+     * An unlinked merchant still needs its token, because for that one the token *is* the
+     * shop: the Actor in the sidebar is the mould it was cast from and has no stock of its
+     * own to sell.
+     */
+    static openForActor(actor, { scene = null } = {}) {
+        if (!this.isMerchant(actor)) return null;
+
+        if (actor.prototypeToken?.actorLink === true) {
+            const here = scene ?? canvas?.scene ?? null;
+            return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null });
+        }
+
+        const placed = (scene ?? canvas?.scene)?.tokens?.find((token) => token.actor?.uuid === actor.uuid)
+            ?? game.scenes?.map((each) => each.tokens.find((token) => token.actor?.uuid === actor.uuid))
+                ?.find(Boolean);
+        if (!placed) return null;
+        return ShopWindow.openFor(...this.subjectFor(placed));
+    }
+
+    /**
+     * What a shop window should be opened *for*, given a token.
+     *
+     * **A linked merchant is one shop wherever you meet it; an unlinked one is a shop per
+     * placement.** The base class keys its registry on the uuid it is handed, so handing it
+     * the Actor or the token *is* the identity decision -- and it is what makes a pin, a
+     * linked token, and a second linked token of the same Actor open one window with one
+     * cart instead of three of each.
+     *
+     * The scene rides alongside because it cannot be derived from an Actor, and two things
+     * that set the final price are scene-scoped: the market rate on the Scene flag and the
+     * party's standing here.
+     *
+     * Returns the argument pair `openFor` takes, so callers cannot get the two out of step.
+     */
+    static subjectFor(tokenDocument) {
+        const actor = tokenDocument?.actor;
+        const linked = tokenDocument?.actorLink === true;
+        return linked && actor
+            ? [actor, { sceneUuid: tokenDocument.parent?.uuid ?? null }]
+            : [tokenDocument, {}];
+    }
+
+    /**
+     * The Actor a shop key names, whether it names an Actor or a token.
+     *
+     * One place, because "resolve the thing and work out which kind it is" appearing in
+     * three handlers is three chances to handle one kind and forget the other.
+     */
+    static async resolveShopSubject(shopKey) {
+        const subject = shopKey ? await fromUuid(shopKey) : null;
+        const token = subject?.documentName === 'Token' ? subject : null;
+        const actor = token ? token.actor : (subject?.documentName === 'Actor' ? subject : null);
+        return { actor, token };
+    }
+
+    /**
+     * The scene a request may be priced against.
+     *
+     * **A client-supplied scene is a claim, and this is where it is checked.** The market
+     * rate is a Scene flag and it moves prices in both directions, so a client naming its
+     * own scene could name a profitable one -- the same shape of hole as reading an
+     * identity out of a payload, which this module has closed once already.
+     *
+     * A token subject never reaches here: its scene is whichever one it stands on, which
+     * the GM reads for itself. For an Actor subject the claim is honoured only where the
+     * merchant actually is -- a placed token of that Actor on that scene. Anything else
+     * falls back to no scene, which prices at the default market and the party's standing
+     * with no place attached.
+     */
+    static async verifiedScene(actor, sceneUuid) {
+        if (!actor || !sceneUuid) return null;
+        let scene = null;
+        try {
+            scene = await fromUuid(sceneUuid);
+        } catch (_error) {
+            return null;
+        }
+        if (scene?.documentName !== 'Scene') return null;
+        const present = scene.tokens.some((token) => token.actorId === actor.id);
+        return present ? scene : null;
     }
 
     // ==============================================================
@@ -1949,8 +2040,7 @@ export class MerchantManager {
         // of a payload again; if one appears there, it is a hole.
         if (!user) return { ok: false, code: 'IDENTITY_UNVERIFIED' };
 
-        const tokenDocument = payload?.tokenUuid ? await fromUuid(payload.tokenUuid) : null;
-        const merchant = tokenDocument?.actor;
+        const { actor: merchant, token: tokenDocument } = await this.resolveShopSubject(payload?.shopKey);
         if (!merchant) return { ok: false, code: 'MERCHANT_NOT_FOUND' };
         if (!this.isMerchant(merchant)) return { ok: false, code: 'NOT_A_MERCHANT' };
         if (!this.isOpen(merchant) && !user.isGM) return { ok: false, code: 'SHOP_CLOSED' };
@@ -1958,8 +2048,12 @@ export class MerchantManager {
         // Resolved from the **token's** scene, not the GM's view. Reputation is per
         // scene, and the GM answering a request may be looking at another map
         // entirely — the shop is priced where it stands.
-        const result = await this._processSettle(merchant, payload, user, tokenDocument.parent);
-        if (result?.ok) this._broadcastRefresh(tokenDocument.uuid);
+        // A token knows its own scene. A shop reached by its Actor -- from a pin, or from
+        // a linked token -- carries a claim instead, honoured only where the merchant
+        // actually is. See `verifiedScene`.
+        const scene = tokenDocument?.parent ?? await this.verifiedScene(merchant, payload?.sceneUuid);
+        const result = await this._processSettle(merchant, payload, user, scene);
+        if (result?.ok) this._broadcastRefresh(payload?.shopKey);
         return result;
     }
 
@@ -2328,9 +2422,9 @@ export class MerchantManager {
 
     // Not only for the GM changing what is on offer: since stock became a count, a
     // settlement moves the number every other client is looking at.
-    static _broadcastRefresh(tokenUuid) {
-        emit(SOCKET_EVENT.REFRESH, { tokenUuid });
-        ShopWindow.refreshForToken(tokenUuid);
+    static _broadcastRefresh(shopKey) {
+        emit(SOCKET_EVENT.REFRESH, { shopKey });
+        ShopWindow.refreshForToken(shopKey);
     }
 
     /** Pending refreshes, keyed by Actor uuid. Per client and purely a scheduling aid. */
@@ -2432,12 +2526,12 @@ export class MerchantManager {
             // Still checked, though `emit` does not echo to the sender: a ping answered
             // by its own sender would publish a slate to nobody and redraw for no reason.
             if (data?.userId === game.user.id) return;
-            ShopWindow.publishSlatesFor(data?.tokenUuid);
+            ShopWindow.publishSlatesFor(data?.shopKey);
         });
 
         on(SOCKET_EVENT.REFRESH, (data) => {
             if (data?.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
-            else ShopWindow.refreshForToken(data?.tokenUuid);
+            else ShopWindow.refreshForToken(data?.shopKey);
         });
     }
 }
