@@ -1770,20 +1770,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                         .find((option) => option.value === (config.depth ?? DEFAULT_STOCK_DEPTH))?.value
                         ? depthHint(config.depth ?? DEFAULT_STOCK_DEPTH) : '',
                     maxProducts: limits.maxProducts,
-                    // The summary, rather than the tables themselves. A GM needs to see
-                    // what is governing the shelf without twelve controls on it
-                    // restating the same world in every shop on the map.
-                    depthByType: Object.entries(typeCaps())
-                        .map(([type, cap]) => `${type.charAt(0).toUpperCase()}${type.slice(1)} ${cap || '—'}`)
-                        .join(' · '),
-                    depthByRarity: Object.entries(rarityCaps())
-                        .map(([rarity, cap]) => {
-                            const spaced = rarity.replace(/([a-z])([A-Z])/g, '$1 $2');
-                            const label = spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
-                            return `${label} ${cap || '—'}`;
-                        })
-                        .join(' · '),
-
                     showMaxStack: policy !== STOCK.INFINITE || tables.length > 0,
                     maxStackTooltip: policy === STOCK.INFINITE
                         ? game.i18n.localize('coffee-pub-merchant.config.maxStackTooltipInfinite')
@@ -1901,6 +1887,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             overridden: enabled && MerchantManager.isOverridden(actor),
             inventories,
             inventoryCount: inventories.length,
+            // **The world's stocking rules, as a table, once.** These used to render as
+            // two prose rows inside the note -- and rendered as nothing at all after that
+            // note moved above the shelves, because the values are built per inventory and
+            // the note is not inside one. Read-only on purpose: they are world settings,
+            // and a copy of the control here would be a second place to set one thing.
+            depthTypeRows: Object.entries(typeCaps()).map(([type, cap]) => ({
+                label: `${type.charAt(0).toUpperCase()}${type.slice(1)}`,
+                cap: cap || game.i18n.localize('coffee-pub-merchant.config.noLimit')
+            })),
+            depthRarityRows: Object.entries(rarityCaps()).map(([rarity, cap]) => ({
+                label: rarityLabel(rarity),
+                cap: cap || game.i18n.localize('coffee-pub-merchant.config.noLimit')
+            })),
             hasInventories: inventories.length > 0
         });
 

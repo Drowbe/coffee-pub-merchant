@@ -81,7 +81,7 @@
             "tillHint": "What this shop can pay out when the party sells to it.",
             "pricing": "Pricing",
             "reputationToggle": "Reputation impacts prices",
-            "addInventory": "Add Inventory",
+            "addInventory": "Add Inventory Section",
             "hiddenTooltip": "Players are never sent this inventory",
             "refillTooltip": "Refill this inventory now",
             "openInventoryTooltip": "Open this inventory to stock it",
@@ -163,7 +163,11 @@
             "curatedHintNone": "Blacksmith has no item compendiums configured, so this shelf has nothing to draw from. Configure them there, or switch to a list of this shelf’s own.",
             "useCompendium": "Draw from this compendium",
             "dropTable": "Drop a roll table here to stock this inventory by rolling",
-            "drawNote": "Existing items are restocked first. Draws then add new items the merchant doesn’t already carry."
+            "drawNote": "Existing items are restocked first. Draws then add new items the merchant doesn’t already carry.",
+            "sections": "Sections",
+            "noLimit": "No limit",
+            "byItemType": "By item type",
+            "byRarity": "By rarity"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

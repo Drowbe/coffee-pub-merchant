@@ -1352,4 +1352,7 @@ level onto every existing row; it logs how many.
     Closing and reopening the settings window leaves exactly one button per row.
 174. **A fresh world has sounds already set** — slate, transaction, restock and error all speak without
     anyone configuring them, and only on the client that acted. Setting one to *None* silences that one.
+175. **The Inventories card shows the world's limits as two tables** — by item type and by rarity — with
+    the actual numbers, and **No limit** where a setting is 0. Change one in module settings and reopen:
+    the table shows the new value. The button reads *Add Inventory Section* and the badge *N Sections*.
 

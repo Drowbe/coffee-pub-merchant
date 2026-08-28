@@ -210,7 +210,7 @@
                         <i class="fa-solid fa-plus"></i>
                         <span>{{localize "coffee-pub-merchant.config.addInventory"}}</span>
                     </button>
-                    <span class="merchant-config-count">{{inventoryCount}}</span>
+                    <span class="merchant-config-count">{{inventoryCount}} {{localize "coffee-pub-merchant.config.sections"}}</span>
                 </span>
             </h3>
 
@@ -221,9 +221,31 @@
             {{#if hasInventories}}
                 <div class="merchant-config-note merchant-config-depth-summary">
                     <span>{{localize "coffee-pub-merchant.config.depthSummary"}}</span>
-                    <span class="merchant-config-depth-row">{{depthByType}}</span>
-                    <span class="merchant-config-depth-row">{{depthByRarity}}</span>
                     <span>{{localize "coffee-pub-merchant.config.depthWorldNote"}}</span>
+                </div>
+
+                {{!-- The numbers themselves, as a table. Read-only: they are world
+                      settings, and a control here would be a second place to set one
+                      thing. Two tables rather than one of four columns, because a type
+                      and a rarity are two separate ceilings that happen to be measured
+                      in the same units. --}}
+                <div class="merchant-config-depth-tables">
+                    <table class="merchant-config-depth-table">
+                        <caption>{{localize "coffee-pub-merchant.config.byItemType"}}</caption>
+                        <tbody>
+                            {{#each depthTypeRows}}
+                                <tr><th scope="row">{{label}}</th><td>{{cap}}</td></tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                    <table class="merchant-config-depth-table">
+                        <caption>{{localize "coffee-pub-merchant.config.byRarity"}}</caption>
+                        <tbody>
+                            {{#each depthRarityRows}}
+                                <tr><th scope="row">{{label}}</th><td>{{cap}}</td></tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
                 </div>
             {{else}}
                 <div class="merchant-config-empty">{{localize "coffee-pub-merchant.config.noInventories"}}</div>

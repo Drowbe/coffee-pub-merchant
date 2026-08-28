@@ -555,7 +555,32 @@
  * only the stacking and the tabular rows, so the two cannot drift apart.
  */
 .merchant-config-depth-summary { display: flex; flex-direction: column; gap: 3px; }
-.merchant-config-depth-row { font-variant-numeric: tabular-nums; opacity: .85; }
+
+/* --- The world's stocking limits, read-only -------------------------------
+   Two tables side by side, wrapping to one column when the window is narrow. A type
+   ceiling and a rarity ceiling are separate rules that happen to share a unit, so they
+   are two tables rather than four columns of one. */
+.merchant-config-depth-tables { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.merchant-config-depth-table {
+    flex: 1 1 190px; min-width: 0; border-collapse: collapse;
+    border: 1px solid var(--blacksmith-tool-divider); border-radius: 5px;
+    background: var(--blacksmith-tool-surface-sunken); font-size: .68rem;
+}
+.merchant-config-depth-table > caption {
+    padding: 5px 8px 4px; border-bottom: 1px solid var(--blacksmith-tool-divider);
+    color: var(--blacksmith-tool-text-muted); font-weight: 700; letter-spacing: .04em;
+    text-align: left; text-transform: uppercase; font-size: .6rem;
+}
+.merchant-config-depth-table th,
+.merchant-config-depth-table td { padding: 3px 8px; font-weight: 500; text-align: left; }
+.merchant-config-depth-table th { color: var(--blacksmith-tool-text); }
+/* The figure column: right-aligned and tabular, so a column of numbers reads as one. */
+.merchant-config-depth-table td {
+    width: 1%; color: var(--blacksmith-tool-text-muted); font-variant-numeric: tabular-nums;
+    text-align: right; white-space: nowrap;
+}
+.merchant-config-depth-table tr + tr th,
+.merchant-config-depth-table tr + tr td { border-top: 1px solid color-mix(in srgb, var(--blacksmith-tool-divider) 45%, transparent); }
 
 /* --- A rate past the point where it still means what it says ------------- */
 /*
