@@ -488,8 +488,12 @@ so clearing an agreed price did nothing and settling never released one. Keyed b
 2026-08-28, a shopkeeper knocking something off for the paladin who saved the town put the row on sale: the
 rogue standing beside her saw the cut price, and so did the shelf. That is not what haggling is.
 
-So a price is only ever resolved *for somebody*. Asked with no shopper — the abstract shelf — the resolvers
-find no agreement and answer with the marked price, which is what a shelf is for. The GM handler prices each
+So a price is only ever resolved *for somebody*, and **the shelf is nobody**. Shelf rows are resolved with no
+shopper: what is written on a shelf is what the shop asks, and an agreement is a thing two people reach at
+the counter. Slate lines, the sell offer and the GM's negotiate hint all carry the shopper. Pricing the shelf
+for whoever was selected put one customer's discount on the row for the room to read, and masked the list
+price besides — an agreement wins outright, so a shelf price edited on something already haggled looked like
+it had been refused. The GM handler prices each
 trade against the shopper it has already verified, so the number a client is shown and the number it is
 charged come out of the same agreement rather than two lookups that can disagree. Editing a price with
 nobody shopping is refused rather than written to the room.

@@ -1469,8 +1469,16 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             inventories = MerchantManager.getInventories(merchant, { includeHidden: isGM }).map(({ item: inventory, config }) => {
                 const isUnpricedInventory = isUnpriced(config.type);
                 const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
+                    // **No shopper: this is the shelf.** What is written on a shelf is what
+                    // the shop asks, and an agreement is a thing two people reach at the
+                    // counter -- it belongs on the slate, and the slate is where it shows.
+                    // Pricing the shelf for whoever happens to be selected put one
+                    // customer's discount back on the row for the room to read, and worse,
+                    // masked the list price: an agreement wins outright, so a GM editing
+                    // the shelf price of something already haggled watched the number
+                    // refuse to change.
                     const price = resolvePrice(config0, config, item,
-                        { reputation: this.reputation, market: this.market, shopper: this.recipient?.uuid });
+                        { reputation: this.reputation, market: this.market });
                     const stock = MerchantManager.getStock(merchant, item, config);
                     // What the cart holds is spoken for, so the inventory shows what is
                     // still available to take rather than what is physically there.

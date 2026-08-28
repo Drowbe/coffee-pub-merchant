@@ -1724,3 +1724,6 @@ level onto every existing row; it logs how many.
     normally.
 215. **An agreed price survives a re-render and a reload.** Set one, close the window, reopen: it is still
     there. Clear it and it is gone — and stays gone after a reload.
+216. **The shelf never moves.** Agreeing a price on the slate leaves the shelf row reading what the shop
+    asks — and the shelf price is still editable afterwards, showing the new figure straight away, even on
+    an item that has been haggled over.
