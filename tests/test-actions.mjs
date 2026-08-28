@@ -296,19 +296,58 @@ console.log('ok  an abandoned shop hands over only what is lying in it');
 // dangles the day a pack is renamed, and a name does not.
 {
     // The shape of `abandonedStockNames`, minus the settings read.
+    const entry = (text) => {
+        const match = /^(.*?)\s*[x*]\s*(\d+)$/i.exec(text);
+        if (!match || !match[1]) return { name: text, quantity: null };
+        return { name: match[1].trim(), quantity: Math.max(1, Math.trunc(Number(match[2])) || 1) };
+    };
     const parse = (stored) => (typeof stored !== 'string' ? null
-        : stored.split(/[\n;]/).map((name) => name.trim()).filter(Boolean));
+        : stored.split(/[\n;]/).map((text) => text.trim()).filter(Boolean).map(entry));
+    const named = (stored) => parse(stored).map((row) => row.name);
 
-    assert.deepStrictEqual(parse('Rations; Torch'), ['Rations', 'Torch']);
-    assert.deepStrictEqual(parse('Rations;Torch;  Sack '), ['Rations', 'Torch', 'Sack'], 'spacing is forgiven');
-    assert.deepStrictEqual(parse('Rations\nTorch'), ['Rations', 'Torch'], 'a line break separates too');
+    assert.deepStrictEqual(named('Rations; Torch'), ['Rations', 'Torch']);
+    assert.deepStrictEqual(named('Rations;Torch;  Sack '), ['Rations', 'Torch', 'Sack'], 'spacing is forgiven');
+    assert.deepStrictEqual(named('Rations\nTorch'), ['Rations', 'Torch'], 'a line break separates too');
 
     // **Semicolons, because dnd5e names contain commas.** "Rope, Hempen (50 feet)" and
     // "Pot, Iron" are real SRD names, and a comma-separated list would turn each into two
     // names that resolve to nothing -- silently, since a name that resolves to nothing is
     // simply not a row.
-    assert.deepStrictEqual(parse('Rope, Hempen (50 feet); Pot, Iron'),
+    assert.deepStrictEqual(named('Rope, Hempen (50 feet); Pot, Iron'),
         ['Rope, Hempen (50 feet)', 'Pot, Iron'], 'a name may contain commas');
+
+    // **A count comes after an x**, and defaults to one so a plain list stays a plain list.
+    assert.deepStrictEqual(parse('Torch x5'), [{ name: 'Torch', quantity: 5 }]);
+    assert.deepStrictEqual(parse('Torch'), [{ name: 'Torch', quantity: null }],
+        'no count is left for the shop to roll');
+    assert.deepStrictEqual(parse('Rope, Hempen (50 feet) x2'),
+        [{ name: 'Rope, Hempen (50 feet)', quantity: 2 }], 'a name with commas still takes a count');
+    assert.deepStrictEqual(parse('Torch x0'), [{ name: 'Torch', quantity: 1 }],
+        'nought of a thing is not a leaving');
+
+    // **Rolled, but not random.** A number drawn afresh on every render would change while
+    // somebody was looking at it, and the GM handing it over -- another client, another
+    // process -- has to reach the same answer the player was shown. So it is derived.
+    const rolled = (pinId, uuid, listed = null) => {
+        if (Number.isFinite(listed) && listed > 0) return Math.trunc(listed);
+        let hash = 0x811c9dc5;
+        for (const character of `${pinId}|${uuid}`) {
+            hash ^= character.charCodeAt(0);
+            hash = Math.imul(hash, 0x01000193) >>> 0;
+        }
+        return 1 + (hash % 5);
+    };
+
+    assert.strictEqual(rolled('pin-a', 'Item.torch'), rolled('pin-a', 'Item.torch'),
+        'the same shop shows the same number, every render and on every client');
+    assert.notStrictEqual(
+        ['pin-a', 'pin-b', 'pin-c', 'pin-d'].map((pin) => rolled(pin, 'Item.torch')).join(''),
+        '5555', 'and two dead shops are not stocked identically');
+    for (const pin of ['pin-a', 'pin-b', 'pin-c', 'pin-d', 'pin-e', 'pin-f']) {
+        const count = rolled(pin, 'Item.rations');
+        assert.ok(count >= 1 && count <= 5, pin + ': a handful is one to five, never nought');
+    }
+    assert.strictEqual(rolled('pin-a', 'Item.torch', 5), 5, 'a count the GM wrote wins outright');
 
     // **Blank means blank.** A GM emptying the field is saying dead shops are stripped
     // bare, which is an answer about a world rather than a mistake to correct.

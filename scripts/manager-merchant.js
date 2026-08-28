@@ -28,7 +28,7 @@ import {
 } from './utility-compendium.js';
 import {
     hasPins, canPin, createShopPin, pickPinLocation, pinsForActor, pinActorUuid, pinShopSnapshot,
-    registerPinVocabulary
+    pinTaken, markPinTaken, leavingQuantity, registerPinVocabulary
 } from './utility-pins.js';
 
 const CONTEXT = 'merchant-interaction';
@@ -1886,6 +1886,21 @@ export class MerchantManager {
         return pin;
     }
 
+    /** Undo a write-off when the hand-over that followed it failed. */
+    static async _returnToFloor(pinId, uuid) {
+        const pins = game.modules.get('coffee-pub-blacksmith')?.api?.pins;
+        if (!game.user.isGM || !pins?.get) return;
+        try {
+            const pin = await pins.get(pinId);
+            if (!pin) return;
+            await pins.update(pinId, {
+                config: { ...pin.config, taken: pinTaken(pin).filter((each) => each !== uuid) }
+            });
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not put ${uuid} back on the floor:`, error);
+        }
+    }
+
     /**
      * Take a shop pin off the map.
      *
@@ -2212,28 +2227,50 @@ export class MerchantManager {
      * could open a dead shop. The list is short, constant and GM-authored, so the check is
      * an exact match against it.
      *
-     * There is no shop to verify, no price to settle and no stock to decrement -- the
-     * leavings are set dressing rather than an inventory. What is checked is who is asking
-     * and whether they may act as the character receiving it.
+     * There is no shop to verify and no price to settle. What is checked is who is asking,
+     * whether they may act as the character receiving it, and whether the thing is still
+     * lying there -- **a dead shop empties**, and the pin is what remembers that it has.
+     *
+     * **The pin is required.** It is the only place the emptying can be recorded, and a
+     * take that cannot be recorded is an infinite barrel; refusing is the safe half.
      */
     static async _processSteal(payload, user) {
         const shopper = this._validateShopper(payload?.recipientUuid, user);
         if (!shopper.ok) return shopper;
 
+        const pin = payload?.pinId && hasPins()
+            ? await game.modules.get('coffee-pub-blacksmith')?.api?.pins?.get(payload.pinId)
+            : null;
+        if (!pin) return { ok: false, code: 'NOT_THERE' };
+
         const leavings = await abandonedLeavings();
-        const taking = leavings.find((entry) => entry.uuid === payload?.itemUuid);
+        const gone = pinTaken(pin);
+        const taking = leavings.find((entry) => entry.uuid === payload?.itemUuid && !gone.includes(entry.uuid));
         if (!taking) return { ok: false, code: 'NOT_THERE' };
 
+        // **Recorded before it is handed over.** The other order can hand the goods over and
+        // then fail to write it down, which is the same shape of hole as granting before
+        // charging -- and here it leaves an item that can be taken again.
+        if (!await markPinTaken(payload.pinId, taking.uuid)) return { ok: false, code: 'NOT_THERE' };
+
+        // The whole lot, not one at a time: a barrel of five torches is one thing a party
+        // takes, and making them press the button five times is ceremony around a decision
+        // already made. The count is the list's, never the payload's.
         const result = await grantItem({
             targetActorUuid: shopper.actor.uuid,
             itemUuid: taking.uuid,
-            quantity: 1
+            // The same number the player was shown, reached the same way rather than read
+            // off the payload -- see `leavingQuantity`.
+            quantity: leavingQuantity(payload.pinId, taking.uuid, taking.quantity)
         });
         if (!result?.ok) {
             console.error(`${MODULE.TITLE} | Could not hand over ${taking.name}:`, result);
+            // Put it back on the floor: it was written off before the hand-over, and a
+            // grant that failed did not happen.
+            await this._returnToFloor(payload.pinId, taking.uuid);
             return { ok: false, code: result?.code ?? 'GRANT_FAILED' };
         }
-        return { ok: true, name: taking.name };
+        return { ok: true, name: taking.name, quantity: leavingQuantity(payload.pinId, taking.uuid, taking.quantity) };
     }
 
     /**

@@ -3,7 +3,7 @@ import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG
 } from './const.js';
-import { hasPins, canPin, pinPalette } from './utility-pins.js';
+import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
 import { startProgress } from './utility-progress.js';
 import {
@@ -1617,7 +1617,13 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
 
         // What is still lying about. Only an abandoned shop has any: a working shop's
         // stock is its inventories, and these are what nobody bothered to carry away.
-        const leavings = missing ? await abandonedLeavings() : [];
+        // What is left of what was left: a dead shop empties, and the pin remembers what
+        // has already been carried out of it.
+        const gone = missing ? await this._takenHere() : [];
+        const leavings = (missing ? await abandonedLeavings() : [])
+            .filter((entry) => !gone.includes(entry.uuid))
+            // How many of each is the pin's answer, not this render's: see `leavingQuantity`.
+            .map((entry) => ({ ...entry, quantity: leavingQuantity(this.pinId, entry.uuid, entry.quantity) }));
         // The blurb survives too, and is enriched the same way: it was GM-written when the
         // shop existed, which is the only thing that made the triple-stache safe.
         const descriptionHtml = missing
@@ -2633,18 +2639,28 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
         if (!itemUuid || !recipient) return;
 
         const result = await this._send(
-            { steal: true, itemUuid, recipientUuid: recipient.uuid },
+            { steal: true, itemUuid, recipientUuid: recipient.uuid, pinId: this.pinId },
             { row: itemUuid, label: game.i18n.localize('coffee-pub-merchant.shop.stealing') }
         );
         if (result?.ok) {
             playFeedback(SOUND.TRANSACTION);
             notify.info(game.i18n.format('coffee-pub-merchant.shop.stolen', {
-                name: result.name, who: recipient.name
+                name: result.name, who: recipient.name, count: result.quantity ?? 1
             }));
         } else {
             notify.error(this._explain(result?.code, result));
         }
         await this.render(false);
+    }
+
+    /** What has already been taken out of this shop, as its pin remembers it. */
+    async _takenHere() {
+        if (!this.pinId || !hasPins()) return [];
+        try {
+            return pinTaken(await game.modules.get('coffee-pub-blacksmith')?.api?.pins?.get(this.pinId));
+        } catch (_error) {
+            return [];
+        }
     }
 
     /**

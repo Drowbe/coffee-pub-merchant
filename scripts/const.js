@@ -233,11 +233,9 @@ export const SHOP_LOOK_SETTINGS = Object.freeze([
  */
 export const DEFAULT_ABANDONED_STOCK = Object.freeze([
     'Rations',
-    'Waterskin',
     'Torch',
     'Candle',
     'Rope, Hempen (50 feet)',
-    'Sack',
     'Tinderbox',
     'Bedroll',
     'Pot, Iron',
@@ -267,14 +265,36 @@ export function abandonedStockNames() {
     try {
         stored = game.settings.get(MODULE.ID, 'abandonedStock');
     } catch (_error) {
-        return [...DEFAULT_ABANDONED_STOCK];
+        stored = null;
     }
-    if (typeof stored !== 'string') return [...DEFAULT_ABANDONED_STOCK];
-    return stored
+    const list = typeof stored === 'string' ? stored : DEFAULT_ABANDONED_STOCK.join('; ');
+    return list
         .split(/[\n;]/)
-        .map((name) => name.trim())
-        .filter(Boolean);
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map(parseAbandonedEntry);
 }
+
+/**
+ * One entry of the leavings list: a name, and how many of it are lying there.
+ *
+ * **A name on its own is a handful of that thing**, between one and five — rolled per shop
+ * and stable for it, so two dead shops are not stocked identically and neither changes
+ * while somebody is looking at it. See `leavingQuantity`.
+ *
+ * **`Torch x5` is for when a GM means five.** The suffix is only taken when it is
+ * unambiguously one: a trailing `x` and digits. An item genuinely called something ending
+ * in `x3` is not a thing dnd5e ships, and a GM who hits that can put the count on the other
+ * side of a rename.
+ */
+function parseAbandonedEntry(entry) {
+    const match = /^(.*?)\s*[x*]\s*(\d+)$/i.exec(entry);
+    if (!match || !match[1]) return { name: entry, quantity: null };
+    return { name: match[1].trim(), quantity: Math.max(1, Math.trunc(Number(match[2])) || 1) };
+}
+
+/** How many of a thing are lying about when the list does not say. */
+export const ABANDONED_QUANTITY = Object.freeze({ min: 1, max: 5 });
 
 export const DEFAULT_SHOP_LOOK = Object.freeze({
     shopTint: '',

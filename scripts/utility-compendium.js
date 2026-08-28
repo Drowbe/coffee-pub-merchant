@@ -295,10 +295,10 @@ export function matchesFilter(item, query) {
 let _leavings = null;
 let _leavingsKey = null;
 export function abandonedLeavings() {
-    const names = abandonedStockNames();
-    const key = names.join('|');
+    const entries = abandonedStockNames();
+    const key = entries.map((entry) => `${entry.name}x${entry.quantity}`).join('|');
     if (_leavings && _leavingsKey === key) return _leavings;
-    if (!names.length) return Promise.resolve([]);
+    if (!entries.length) return Promise.resolve([]);
 
     const api = _api();
     if (typeof api?.resolveMany !== 'function') return Promise.resolve([]);
@@ -306,7 +306,7 @@ export function abandonedLeavings() {
     _leavingsKey = key;
     _leavings = (async () => {
         try {
-            const resolved = await api.resolveMany([...names], 'Item');
+            const resolved = await api.resolveMany(entries.map((entry) => entry.name), 'Item');
             const matches = (Array.isArray(resolved) ? resolved : Object.values(resolved ?? {}))
                 .filter((entry) => entry?.uuid);
 
@@ -321,7 +321,19 @@ export function abandonedLeavings() {
                 // A name that resolved to something unloadable is dropped rather than
                 // shown: a row that cannot be picked up is worse than one that is not there.
                 if (!document) continue;
-                rows.push({ uuid: match.uuid, name: document.name, img: document.img ?? null });
+
+                // Matched back to the line that asked for it, by the name the GM typed --
+                // `resolveMany` answers in its own order and drops what it cannot find, so
+                // the two lists are not index-aligned and pairing them by position would
+                // hand out somebody else's count.
+                const asked = entries.find((entry) => entry.name === match.name)
+                    ?? entries.find((entry) => document.name.toLowerCase().startsWith(entry.name.toLowerCase()));
+                rows.push({
+                    uuid: match.uuid,
+                    name: document.name,
+                    img: document.img ?? null,
+                    quantity: asked?.quantity ?? 1
+                });
             }
             return rows;
         } catch (error) {

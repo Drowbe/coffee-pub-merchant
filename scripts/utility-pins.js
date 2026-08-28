@@ -21,7 +21,9 @@
 // and the layer. What is ours is which Actor a pin names and what happens when it is
 // clicked.
 
-import { MODULE, PIN_TYPE, SHOP_KINDS, shopKind, DEFAULT_PIN_DESIGN, normalizeTint } from './const.js';
+import {
+    MODULE, PIN_TYPE, SHOP_KINDS, shopKind, DEFAULT_PIN_DESIGN, normalizeTint, ABANDONED_QUANTITY
+} from './const.js';
 
 function _api() {
     return game.modules.get('coffee-pub-blacksmith')?.api?.pins ?? null;
@@ -204,6 +206,73 @@ function shopKindTags() {
 /** A kind's label as a tag: lowercase kebab-case, which is the form Blacksmith stores. */
 function kindTag(label) {
     return String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/**
+ * What has already been taken out of this abandoned shop.
+ *
+ * **A dead shop is a place, and a place empties.** Without this the leavings are a world
+ * setting rendered as a list, so the same rations could be taken again by the same person
+ * and again by everyone else -- an infinite barrel behind every deleted merchant.
+ *
+ * Kept on the **pin**, because the pin is the shop: it is the only thing that outlived the
+ * Actor, it is per scene, and two pins for two dead shops empty independently. Deleting the
+ * pin forgets it, which is right — that is the GM saying the place is gone.
+ */
+export const PIN_TAKEN = 'taken';
+
+/**
+ * How many of a thing are lying in this particular dead shop.
+ *
+ * **Rolled, but not random.** A number drawn afresh on every render would change while a
+ * player was looking at it, and the GM handing it over has to reach the same answer the
+ * player was shown -- on another client, in another process. So it is derived rather than
+ * stored: a hash of the pin and the item, which gives one shop three torches and the next
+ * one five, forever, with nothing written down and nothing to keep in step.
+ *
+ * A count the GM wrote in the list wins outright. `Torch x5` means five.
+ */
+export function leavingQuantity(pinId, uuid, listed = null) {
+    if (Number.isFinite(listed) && listed > 0) return Math.trunc(listed);
+
+    // FNV-1a over the pair. Any stable hash would do; this one is four lines and has no
+    // clustering worth worrying about across a handful of items.
+    let hash = 0x811c9dc5;
+    for (const character of `${pinId}|${uuid}`) {
+        hash ^= character.charCodeAt(0);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    const span = ABANDONED_QUANTITY.max - ABANDONED_QUANTITY.min + 1;
+    return ABANDONED_QUANTITY.min + (hash % span);
+}
+
+/** The uuids already carried out of this shop. */
+export function pinTaken(pin) {
+    const taken = pin?.config?.[PIN_TAKEN];
+    return Array.isArray(taken) ? taken.filter((uuid) => typeof uuid === 'string') : [];
+}
+
+/**
+ * Write one more thing off the shop's floor.
+ *
+ * **The whole config is passed back.** `update` changes what it is given, and `config` is
+ * one field: sending `{ taken }` alone would drop the merchant uuid and the snapshot with
+ * it, which is how a shop stops being able to say what it was.
+ */
+export async function markPinTaken(pinId, uuid) {
+    if (!game.user.isGM || !pinId || !uuid || !hasPins()) return false;
+    const pins = _api();
+    try {
+        const pin = await pins.get(pinId);
+        if (!pin) return false;
+        const already = pinTaken(pin);
+        if (already.includes(uuid)) return false;
+        await pins.update(pinId, { config: { ...pin.config, [PIN_TAKEN]: [...already, uuid] } });
+        return true;
+    } catch (error) {
+        console.error(`${MODULE.TITLE} | Could not record what was taken:`, error);
+        return false;
+    }
 }
 
 /** What the shop looked like when the pin was made, or null. */

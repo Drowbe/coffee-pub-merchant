@@ -174,13 +174,20 @@
         {{#if missing}}
                 <div class="merchant-shop-empty merchant-shop-abandoned-note">
                     <i class="fa-solid fa-wind"></i>
-                    <span>{{localize "coffee-pub-merchant.shop.abandoned"}}</span>
+                    {{!-- Once the floor is bare it says so, rather than leaving the shuttered
+                          line to stand for both "nobody has been here" and "somebody has". --}}
+                    <span>{{#if hasLeavings}}{{localize "coffee-pub-merchant.shop.abandoned"}}{{else}}{{localize "coffee-pub-merchant.shop.pickedClean"}}{{/if}}</span>
                 </div>
                 {{#if hasLeavings}}
-                    {{!-- **What nobody bothered to carry away.** No price, no quantity and
-                          no slate: there is nobody to settle with, and putting a free thing
-                          from a dead shop through a cart would be a ceremony around a
-                          decision already made. One button, and it is called what it is. --}}
+                    {{!-- **What nobody bothered to carry away.** No slate: there is nobody
+                          to settle with, and putting a free thing from a dead shop through
+                          a cart would be a ceremony around a decision already made. One
+                          button, and it is called what it is.
+
+                          Inside `merchant-shop-inventories` like any other shelf, because
+                          that is the element that scrolls -- a section dropped straight into
+                          the stock column runs off the bottom of the window instead. --}}
+                    <div class="merchant-shop-inventories">
                     <section class="merchant-shop-section merchant-shop-inventory">
                         <h3>
                             <span class="merchant-shop-inventory-name">
@@ -196,6 +203,13 @@
                                         <div class="merchant-shop-item-copy">
                                             <strong>{{name}}</strong>
                                         </div>
+                                        {{!-- The same quantity cell a stock row has, and in
+                                              the same place, so the two lists read alike.
+                                              Not editable: what is lying in a dead shop is
+                                              a world setting, not this shop's stock. --}}
+                                        <div class="merchant-shop-item-qty">
+                                            <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{quantity}}</strong>
+                                        </div>
                                         <div class="merchant-shop-row-actions">
                                             <button type="button" class="blacksmith-window-btn-secondary"
                                                     data-action="steal" data-item-uuid="{{uuid}}"
@@ -210,6 +224,7 @@
                             </div>
                         </div>
                     </section>
+                    </div>
                 {{/if}}
         {{else if hasInventories}}
                 {{!-- Which side of the counter you are on. It was a Sell button inside

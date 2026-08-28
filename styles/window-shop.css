@@ -109,7 +109,7 @@
 /* A leaving is a name and a way to take it, so the row is two columns and not the five a
    priced one needs. Without saying so it inherits whichever of those the window is wearing,
    and the button lands in the price column with empty space beyond it. */
-.merchant-shop-leaving { grid-template-columns: 38px minmax(0,1fr) auto !important; }
+.merchant-shop-leaving { grid-template-columns: 38px minmax(0,1fr) 42px auto !important; }
 .merchant-shop-leaving .merchant-shop-row-actions { justify-self: end; }
 .merchant-shop-abandoned .merchant-shop-title { color: var(--blacksmith-tool-text-muted); }
 /* The pin, standing in for the portrait: same fill, same border, same icon colour, so the

@@ -1684,4 +1684,7 @@ level onto every existing row; it logs how many.
 198. **The abandoned card wears the pin.** Where the portrait would be is the shop’s category icon in
     the pin colours from settings — an abandoned weaponsmith still shows the weaponsmith icon. Change
     the pin colours and reopen: the card follows.
+199. **The leavings show a quantity**, in the same cell a stock row uses. The shipped list has
+    Torch x5 and Candle x4; Take hands over all five at once and says so. Add “Rope, Hempen (50 feet) x2”
+    to the setting and check the count lands on the right row, not on its neighbour.
 
