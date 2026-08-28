@@ -1957,13 +1957,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             ...(this.canBePinned ? [{
                 id: 'merchant-config-pin',
                 icon: 'fa-solid fa-map-pin',
-                label: 'Pin This Shop',
+                label: 'Pin This Merchant',
                 onClick: () => void this.pinShop()
             }] : []),
             {
                 id: 'merchant-config-shop',
                 icon: 'fa-solid fa-shop',
-                label: 'Open Shop',
+                label: 'Open Merchant',
                 onClick: () => void this.openShop()
             }
         ];

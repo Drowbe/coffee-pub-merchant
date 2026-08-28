@@ -1697,4 +1697,11 @@ level onto every existing row; it logs how many.
     `_getTerrainEffects` error. Reload and drag again.
 203. A token *created* inside the region, or teleported in, does **not** open a shop; only one that walks
     in does.
+204. **Seventeen categories**, in the order listed, each with its own icon — and the icon is what a new
+    map pin wears. A merchant set to a category before this still shows that category.
+205. **Nothing user-facing says “shop” as a noun** — window title, buttons, settings, toasts, the region
+    behaviour in Foundry’s own list. A character still *shops*, so the two strings that use it as a verb
+    read correctly.
+206. **Restocking a compendium-stocked inventory that draws containers** reports what arrived, and notes
+    any packed container it skipped as a warning rather than an error.
 

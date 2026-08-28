@@ -32,8 +32,8 @@
             "closed": "Closed — you can look through the window, but nothing is changing hands.",
             "buyTab": "Buy",
             "sellTab": "Sell",
-            "browseTooltip": "Browse what this shop sells",
-            "searchStock": "Search this shop",
+            "browseTooltip": "Browse what this merchant sells",
+            "searchStock": "Search this merchant",
             "searchStockLabel": "Search stock",
             "searchPack": "Search your pack",
             "searchPackLabel": "Search your pack",
@@ -61,7 +61,7 @@
             "expandInventory": "Open this inventory",
             "sortTooltip": "Sorted by {how} within each category. Click to change.",
             "mergeTooltip": "Fold duplicate rows together — same name and kind, quantities added up",
-            "abandonedName": "Abandoned shop",
+            "abandonedName": "Abandoned merchant",
             "abandonedKeeper": "Nobody behind the counter",
             "abandoned": "The shutters are down and the shelves are bare. Whoever kept this place has gone, and taken the stock with them.",
             "abandonedBadge": "Abandoned",
@@ -76,19 +76,19 @@
         "config": {
             "title": "Merchant Settings",
             "isMerchant": "Is a merchant",
-            "isMerchantTooltip": "Players can double-click this token to open its shop.",
-            "shopName": "Shop name",
-            "shopNameHint": "Blank names the shop after whoever runs it.",
-            "kind": "Kind",
-            "kindHint": "Flavour only. Shown above the name in the shop.",
+            "isMerchantTooltip": "Players can double-click this token to open its merchant.",
+            "shopName": "Merchant name",
+            "shopNameHint": "Blank names the merchant after whoever runs it.",
+            "kind": "Category",
+            "kindHint": "Flavour only. Shown beside the name in the merchant window, and it is what a map pin wears as its icon.",
             "description": "Description",
             "descriptionHint": "Shown to players. Links and inline rolls work.",
-            "descriptionPlaceholder": "A cramped shop that smells of oil and iron filings.",
+            "descriptionPlaceholder": "A cramped merchant that smells of oil and iron filings.",
             "open": "Open",
             "openingHour": "Opening hour",
             "closingHour": "Closing hour",
             "tillTooltip": "Everything in the till, converted to the coins prices are quoted in",
-            "tillHint": "What this shop can pay out when the party sells to it.",
+            "tillHint": "What this merchant can pay out when the party sells to it.",
             "pricing": "Pricing",
             "reputationToggle": "Reputation impacts prices",
             "addInventory": "Add Inventory Section",
@@ -111,24 +111,24 @@
             "restock": "Inventory restocking",
             "method": "Method",
             "frequency": "Frequency",
-            "purchasedNote": "Items bought from this inventory are removed and never restocked. Its stock is whatever the party has sold to the shop.",
+            "purchasedNote": "Items bought from this inventory are removed and never restocked. Its stock is whatever the party has sold to the merchant.",
             "rollTables": "Roll tables",
             "useTable": "Use this table",
             "draw": "Draw",
             "drawLabel": "How many items to draw from this table",
             "removeTableTooltip": "Take this table off the inventory",
             "noInventories": "No inventories yet. Add one to start stocking this merchant.",
-            "theShop": "The Shop",
+            "theShop": "The Merchant",
             "tradingHours": "Trading Hours",
             "overriding": "Currently overriding the schedule. The next opening or closing hour will set it straight.",
             "theTill": "The Till",
             "tillEmpty": "An empty till cannot buy anything — the party will be refused when they try to sell.",
-            "globalMarkupHint": "The baseline for everything in this shop. Each inventory multiplies against it.",
+            "globalMarkupHint": "The baseline for everything in this merchant. Each inventory multiplies against it.",
             "inventories": "Inventories",
             "pricingNone": "No price until one is agreed with the party on the slate.",
             "hiddenBadge": "Hidden",
             "maxStackTooltipInfinite": "The most of any one item a table roll will leave here. This inventory never runs out, so nothing else is capped by it.",
-            "maxStackTooltipFinite": "The most of any one item this inventory will hold — a table roll, and a quantity you type in the shop window.",
+            "maxStackTooltipFinite": "The most of any one item this inventory will hold — a table roll, and a quantity you type in the merchant window.",
             "missingTable": "Missing table",
             "tableAuto": "Drawn again every time this inventory restocks.",
             "tableManual": "Drawn only when you press Restock.",
@@ -148,11 +148,11 @@
             "addInventoryHint": "Add a container to this merchant — a shelf, a back room, a case of curios.",
             "depthTooltip": "How deep this shelf stacks a thing it carries — one lantern or eight. Scales the world limits below; Products is how many different things it carries, and Max stack is the ceiling on any one of them.",
             "portraitTooltip": "Click to change the portrait. The token art changes with it.",
-            "illustration": "Shop illustration & tint",
+            "illustration": "Merchant illustration & tint",
             "illustrationPlaceholder": "No illustration",
             "illustrationBrowse": "Browse for an illustration",
-            "illustrationHint": "A picture of the place itself, shown behind the shop card, and a tint washed over it. Clear either to remove it.",
-            "tint": "Shop tint — a colour for this shop’s card",
+            "illustrationHint": "A picture of the place itself, shown behind the merchant card, and a tint washed over it. Clear either to remove it.",
+            "tint": "Merchant tint — a colour for this merchant’s card",
             "tintPlaceholder": "No tint",
             "tintClear": "Remove the tint",
             "whichCompendiums": "Compendiums",
@@ -195,7 +195,7 @@
             "dialogUnavailable": "The Blacksmith dialog API is unavailable.",
             "marketFailed": "Could not set the market.",
             "blacksmithOutOfDate": "Stock could not be delivered because Coffee Pub Blacksmith is out of date. Update it and restock.",
-            "cannotOpenShop": "Could not open that shop.",
+            "cannotOpenShop": "Could not open that merchant.",
             "merchantFailed": "Could not update this merchant.",
             "tillFailed": "Could not set the till.",
             "notARollTable": "Drop a roll table here, not a {what}.",
@@ -221,7 +221,7 @@
             "quantityFailed": "Could not set that quantity.",
             "addToInventoryFailed": "Could not add that to the inventory.",
             "compendiumUnavailable": "Blacksmith compendium search is unavailable.",
-            "shopStateFailed": "Could not change the shop state.",
+            "shopStateFailed": "Could not change the merchant state.",
             "noPrototypeToken": "This merchant has no prototype token.",
             "nothingToRestock": "{inventory} had nothing to restock.",
             "alreadyEmpty": "{inventory} is already empty.",
@@ -241,11 +241,11 @@
             "notAnItemPack": "That compendium does not hold items, so a shelf cannot stock from it.",
             "dropTableOnTables": "That is a roll table — drop it on the Roll tables list above.",
             "filteredTableRows": "{count} rolled item(s) were outside what {inventory} carries and were left out.",
-            "noShopToOpen": "{name} is an unlinked merchant with no token on any scene, so there is no shop to open."
+            "noShopToOpen": "{name} is an unlinked merchant with no token on any scene, so there is no merchant to open."
         },
         "feedback": {
             "transaction": "Purchases and sales completing at a merchant.",
-            "gmActivity": "Restocking, stocking and other GM shop activity."
+            "gmActivity": "Restocking, stocking and other GM merchant activity."
         },
         "inventoryType": {
             "general": {
@@ -276,7 +276,7 @@
         "depth": {
             "sparse": {
                 "label": "Sparse",
-                "hint": "A thin shop. Half of what the world would keep."
+                "hint": "A thin merchant. Half of what the world would keep."
             },
             "normal": {
                 "label": "Normal",
@@ -284,7 +284,7 @@
             },
             "deep": {
                 "label": "Deep",
-                "hint": "A well-supplied shop. Twice what the world would keep."
+                "hint": "A well-supplied merchant. Twice what the world would keep."
             }
         },
         "settings": {
@@ -297,24 +297,24 @@
             "soundTransaction": "Completing a transaction",
             "soundTransactionHint": "Played when goods and coin change hands.",
             "soundRestock": "Restocking",
-            "soundRestockHint": "Played to the GM when an inventory or a whole shop finishes restocking.",
+            "soundRestockHint": "Played to the GM when an inventory or a whole merchant finishes restocking.",
             "soundError": "Something went wrong",
             "soundErrorHint": "Played when an action is refused or fails.",
             "stockCapType": "{what}",
             "stockCapRarity": "{what}",
             "headingMerchant": "Merchant",
-            "headingMerchantHint": "Shops and merchants: a token marked as a merchant opens a shop window players can buy from and sell to. What a shop stocks, what it charges and when it is open are set on the merchant itself — these are the world-wide rules every shop plays by.",
+            "headingMerchantHint": "Merchants and merchants: a token marked as a merchant opens a merchant window players can buy from and sell to. What a merchant stocks, what it charges and when it is open are set on the merchant itself — these are the world-wide rules every merchant plays by.",
             "headingStockDepth": "Stock Depth",
-            "headingStockDepthHint": "Controls how many copies of a single item a shop can stock at once. Type, rarity, and price each set a limit; the lowest applicable limit wins. An inventory’s Depth setting scales these limits up or down. 0 means no limit.",
+            "headingStockDepthHint": "Controls how many copies of a single item a merchant can stock at once. Type, rarity, and price each set a limit; the lowest applicable limit wins. An inventory’s Depth setting scales these limits up or down. 0 means no limit.",
             "headingStockByType": "By Item Type",
-            "headingStockByTypeHint": "Set stock limits by item type. A shop might carry ten healing potions, but only one or two of the same weapon.",
+            "headingStockByTypeHint": "Set stock limits by item type. A merchant might carry ten healing potions, but only one or two of the same weapon.",
             "headingStockByRarity": "By Rarity",
             "headingStockByRarityHint": "Set stock limits by rarity. Rarer items can be limited even when their type or price would otherwise allow more.",
             "headingSound": "Sound",
-            "headingSoundHint": "What a shop sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default.",
+            "headingSoundHint": "What a merchant sounds like. Chosen by the GM for the table, but played only on the client that did the thing — nobody else hears you drop a rope onto your slate. Silent by default.",
             "previewSound": "Play this sound",
             "headingPins": "The Map Pin",
-            "headingPinsHint": "How a shop pin looks on the map. The icon is not here — it comes from the shop’s kind, so an apothecary and a weaponsmith are told apart without configuring anything. These apply to pins made from now on; a pin already placed keeps the look it was made with.",
+            "headingPinsHint": "How a merchant pin looks on the map. The icon is not here — it comes from the merchant’s kind, so an apothecary and a weaponsmith are told apart without configuring anything. These apply to pins made from now on; a pin already placed keeps the look it was made with.",
             "pinShape": "Shape",
             "pinSize": "Size",
             "pinFill": "Background",
@@ -329,16 +329,16 @@
             "pinOnHover": "On hover",
             "pinGmOnly": "GM only",
             "pinNever": "Never",
-            "headingAesthetics": "Shop Aesthetics",
-            "headingAestheticsHint": "What a shop looks like in this world: the card a player opens, and the mark on the map. The shop settings are copied onto a merchant when it becomes one, so changing them later never rewrites a shop somebody has already dressed.",
-            "headingShopLook": "The Shop Card",
-            "headingShopLookHint": "Defaults for a new shop. Both are blank on purpose — a world-wide tint would make every shop the same colour, and a world-wide illustration would put the same tavern behind every counter. Set either and new shops start there; each shop can still be changed.",
+            "headingAesthetics": "Merchant Aesthetics",
+            "headingAestheticsHint": "What a merchant looks like in this world: the card a player opens, and the mark on the map. The merchant settings are copied onto a merchant when it becomes one, so changing them later never rewrites a merchant somebody has already dressed.",
+            "headingShopLook": "The Merchant Card",
+            "headingShopLookHint": "Defaults for a new merchant. Both are blank on purpose — a world-wide tint would make every merchant the same colour, and a world-wide illustration would put the same tavern behind every counter. Set either and new merchants start there; each merchant can still be changed.",
             "shopTint": "Default tint",
             "shopIllustration": "Default illustration",
-            "headingAbandoned": "Abandoned Shops",
-            "headingAbandonedHint": "What a party finds when the merchant behind a shop is gone but its pin is still on the map. Nobody strips a place completely — whoever left took the stock and the till and left what was not worth carrying.",
+            "headingAbandoned": "Abandoned Merchants",
+            "headingAbandonedHint": "What a party finds when the merchant behind a merchant is gone but its pin is still on the map. Nobody strips a place completely — whoever left took the stock and the till and left what was not worth carrying.",
             "abandonedStock": "Left behind",
-            "abandonedStockHint": "Item names separated by semicolons — semicolons, because names like “Rope, Hempen (50 feet)” contain commas. Each shop gets a handful of every one, between one and five; add “x” and a number to fix it: Torch x5. Looked up in your compendiums when the shop is opened, so renaming a pack never breaks them. Leave it empty for shops that are stripped bare.",
+            "abandonedStockHint": "Item names separated by semicolons — semicolons, because names like “Rope, Hempen (50 feet)” contain commas. Each merchant gets a handful of every one, between one and five; add “x” and a number to fix it: Torch x5. Looked up in your compendiums when the merchant is opened, so renaming a pack never breaks them. Leave it empty for merchants that are stripped bare.",
             "pinStrokeWidth": "Border width",
             "pinDropShadow": "Drop shadow",
             "pinTextLayout": "Name position",
@@ -386,10 +386,10 @@
             "listShort": "list",
             "pays": "Pays {percent}% of value",
             "paysCapped": "{typed} — capped near {capped}%",
-            "farmWarning": "Above {safe}% this inventory pays more than it charges, so the shop can be sold to and bought from at a profit. Offers are capped instead, and a party the town likes is paid less than a neutral one. Raise Sell, or lower this.",
-            "purchaseHint": "What the shop pays the party for their goods.",
+            "farmWarning": "Above {safe}% this inventory pays more than it charges, so the merchant can be sold to and bought from at a profit. Offers are capped instead, and a party the town likes is paid less than a neutral one. Raise Sell, or lower this.",
+            "purchaseHint": "What the merchant pays the party for their goods.",
             "sellHint": "What it then charges for them, on top of the Global Markup.",
-            "markupHint": "Multiplied against the shop's Global Markup.",
+            "markupHint": "Multiplied against the merchant's Global Markup.",
             "discount": "{percent}% discount"
         },
         "hours": {
@@ -397,8 +397,8 @@
             "alwaysOpen": "Always open"
         },
         "reputation": {
-            "good": "You are thought well of here, so this shop treats you better — on what you buy and on what it pays you.",
-            "bad": "You are poorly thought of here, so this shop charges you more and pays you less."
+            "good": "You are thought well of here, so this merchant treats you better — on what you buy and on what it pays you.",
+            "bad": "You are poorly thought of here, so this merchant charges you more and pays you less."
         },
         "sort": {
             "value": "Most valuable first",
@@ -428,11 +428,11 @@
             "inventoryUnavailable": "The Blacksmith inventory API is not available.",
             "noGm": "No GM is connected, so nothing can change hands.",
             "gmSilent": "The GM did not respond. If this keeps happening, the world may need a restart.",
-            "notAShop": "This is no longer a shop.",
-            "shopGone": "That shop is no longer on the scene.",
+            "notAShop": "This is no longer a merchant.",
+            "shopGone": "That merchant is no longer on the scene.",
             "notCarryable": "That is not something you can carry off.",
             "notForSale": "That is not for sale.",
-            "closed": "The shop is closed. You can look, but nothing is changing hands.",
+            "closed": "The merchant is closed. You can look, but nothing is changing hands.",
             "needsBlacksmith": "Buying and selling are waiting on a Blacksmith update.",
             "noPriceSet": "That has no price set.",
             "nothingToSettle": "There is nothing to settle.",
@@ -452,11 +452,11 @@
             "noPriceAgreedOne": "No price has been agreed for one of those.",
             "ownPossessions": "You can only sell your own possessions.",
             "noPermission": "You do not have permission to send requests to the GM.",
-            "gmNotAnswering": "The GM’s client is not answering shop requests. It may need a reload.",
-            "requestsUnavailable": "Shop requests are unavailable — Blacksmith may need updating.",
+            "gmNotAnswering": "The GM’s client is not answering merchant requests. It may need a reload.",
+            "requestsUnavailable": "Merchant requests are unavailable — Blacksmith may need updating.",
             "identityUnverified": "The GM could not confirm who was asking, so nothing was done. Tell your GM.",
             "packedContainer": "That container cannot be sold while it holds anything.",
-            "notThatCharacter": "You cannot shop as that character.",
+            "notThatCharacter": "You cannot merchant as that character.",
             "characterGone": "That character could not be found.",
             "badAmount": "That is not a valid amount.",
             "characterBusy": "That character is busy. Try again.",
@@ -494,7 +494,7 @@
         },
         "cart": {
             "allOnSlate": "Every one of these is already on your slate",
-            "shopClosed": "The shop is closed",
+            "shopClosed": "The merchant is closed",
             "noBuyer": "You have no character able to buy",
             "agreeAPrice": "Add to the slate and agree a price",
             "noPriceGm": "This has no price set — double-click the price to name one",
@@ -511,7 +511,7 @@
             "unknownTable": "a roll table"
         },
         "query": {
-            "anyKind": "anything a shop can carry",
+            "anyKind": "anything a merchant can carry",
             "summary": "{kinds} · {rarity} · {min}–{max} gp",
             "anyPrice": "Any",
             "priceRange": "{min} to {max} gp"
@@ -524,21 +524,21 @@
             "bothQuery": "Item Compendiums First, Roll Tables Second"
         },
         "pin": {
-            "typeName": "Shop",
+            "typeName": "Merchant",
             "pinned": "{name} is pinned to this scene.",
-            "pinFailed": "Could not pin that shop.",
+            "pinFailed": "Could not pin that merchant.",
             "pinUnavailable": "Canvas pins need a newer Coffee Pub Blacksmith.",
-            "pinNeedsLinked": "An unlinked merchant is a copy, not a shop. Link its token to the Actor, or pin a linked merchant.",
-            "pinNoScene": "There is no scene to pin this shop to.",
+            "pinNeedsLinked": "An unlinked merchant is a copy, not a merchant. Link its token to the Actor, or pin a linked merchant.",
+            "pinNoScene": "There is no scene to pin this merchant to.",
             "alreadyPinned": "{name} is already pinned to this scene.",
-            "remove": "Remove Shop Pin",
-            "removeTooltip": "Take this pin off the map. The shop it named is already gone.",
-            "removed": "The shop pin is gone.",
-            "removeFailed": "Could not remove that shop pin.",
+            "remove": "Remove Merchant Pin",
+            "removeTooltip": "Take this pin off the map. The merchant it named is already gone.",
+            "removed": "The merchant pin is gone.",
+            "removeFailed": "Could not remove that merchant pin.",
             "placing": "Click the map to place {name}. Right-click or Escape to cancel."
         },
         "region": {
-            "notLinked": "{name} is an unlinked merchant. Only a linked one can be a shop on a map — an unlinked Actor is the mould its tokens are cast from, and has no stock of its own to sell.",
+            "notLinked": "{name} is an unlinked merchant. Only a linked one can be a merchant on a map — an unlinked Actor is the mould its tokens are cast from, and has no stock of its own to sell.",
             "noMerchant": "This region names a merchant that no longer exists.",
             "nothingHere": "There is nothing open here."
         }
@@ -546,7 +546,7 @@
     "TYPES": {
         "RegionBehavior": {
             "coffee-pub-merchant": {
-                "openShop": "Open Shop"
+                "openShop": "Open Merchant"
             }
         }
     },
@@ -555,7 +555,7 @@
             "openShop": {
                 "FIELDS": {
                     "merchant": {
-                        "label": "Shop",
+                        "label": "Merchant",
                         "hint": "The merchant this place belongs to. Only a linked merchant can be named — an unlinked one is a copy per placement, and a region cannot say which copy it meant."
                     },
                     "once": {

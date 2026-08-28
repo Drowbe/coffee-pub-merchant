@@ -233,7 +233,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
             // and the slate wraps underneath, which is correct but is not the layout
             // the shop should open in.
             position: { width: 740, height: 600 },
-            window: { title: 'Shop', resizable: true, minimizable: true },
+            window: { title: 'Merchant', resizable: true, minimizable: true },
             windowSizeConstraints: { minWidth: 380, minHeight: 320, maxWidth: 1040, maxHeight: 'calc(100vh - 40px)' },
             toolTitlebar: 'full',
             // On, with a key shared by every shop. A shop is a shop wherever it is
@@ -1870,7 +1870,7 @@ export class ShopWindow extends BlacksmithToolWindowBaseV2 {
                 // trip to answer a question they have already answered.
                 id: 'merchant-pin',
                 icon: 'fa-solid fa-map-pin',
-                label: 'Pin This Shop',
+                label: 'Pin This Merchant',
                 onClick: () => void this.pinShop()
             }] : []),
             {

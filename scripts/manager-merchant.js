@@ -1276,11 +1276,30 @@ export class MerchantManager {
             .map((entry, index) => ({ entry, item: items[index] }))
             .filter(({ entry }) => entry && entry.ok === false);
 
-        if (failures.length) {
+        // **A container that came with contents is a refusal we expect, not a fault.**
+        // Several SRD containers ship packed — a backpack of gear, a quiver of arrows — and
+        // `grantItem` will not copy one, because the copy would have to invent the contents
+        // or drop them. A merchant simply does not stock those, which is a fact about the
+        // SRD rather than anything a GM can fix, so it is noted quietly and not counted as
+        // a failure: three skipped containers out of seventy-five rows is a successful
+        // restock, and reporting it as an error sends somebody looking for a bug.
+        const packed = failures.filter(({ entry }) => entry?.code === 'CONTAINER_HAS_CONTENTS');
+        const faults = failures.filter(({ entry }) => entry?.code !== 'CONTAINER_HAS_CONTENTS');
+
+        if (packed.length) {
+            console.warn(
+                `${MODULE.TITLE} | ${packed.length} container${packed.length === 1 ? '' : 's'} `
+                + `came packed and cannot be copied, so ${inventory.name} skipped `
+                + `${packed.length === 1 ? 'it' : 'them'}:`,
+                packed.map(({ item }) => resolved?.get(item?.itemUuid)?.name ?? item?.itemUuid)
+            );
+        }
+
+        if (faults.length) {
             console.error(
-                `${MODULE.TITLE} | ${failures.length} of ${items.length} item`
+                `${MODULE.TITLE} | ${faults.length} of ${items.length} item`
                 + `${items.length === 1 ? '' : 's'} did not reach ${inventory.name}:`,
-                failures.map(({ entry, item }) => ({
+                faults.map(({ entry, item }) => ({
                     uuid: item?.itemUuid,
                     name: resolved?.get(item?.itemUuid)?.name ?? '(unresolved)',
                     quantity: item?.quantity,
@@ -1295,7 +1314,7 @@ export class MerchantManager {
             // an install still carrying the old primitive fails here and nowhere else, and
             // the symptom (every row arrives at one, or not at all) looks exactly like a
             // Merchant bug.
-            if (failures.some(({ entry }) => entry?.code === 'INSUFFICIENT_QUANTITY')) {
+            if (faults.some(({ entry }) => entry?.code === 'INSUFFICIENT_QUANTITY')) {
                 console.error(
                     `${MODULE.TITLE} | Those refusals mean Blacksmith is out of date. A grant takes nothing `
                     + 'from its source, so a compendium entry\'s own quantity is not a ceiling — update '
@@ -1303,12 +1322,15 @@ export class MerchantManager {
                 );
                 notify.error(game.i18n.localize('coffee-pub-merchant.notify.blacksmithOutOfDate'));
             }
-        } else if (!result?.ok) {
+        } else if (!result?.ok && !packed.length) {
             // Refused as a whole rather than row by row: nothing to enumerate, so say what
             // little there is rather than printing an empty list of failures.
             console.error(`${MODULE.TITLE} | Could not stock ${inventory.name}:`, result);
         }
-        return failures.length;
+
+        // Both count against what arrived — a skipped container is still a row that is not
+        // on the shelf — but only one of them is a fault worth a GM's attention.
+        return faults.length + packed.length;
     }
 
     /**
