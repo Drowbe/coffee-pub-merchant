@@ -74,7 +74,9 @@
             "pickedClean": "The shutters are down and the shelves are bare. Somebody has been through what was left, and there is nothing here now.",
             "leaveFullScreen": "Leave Full Screen",
             "warehouse": "By order",
-            "warehouseTooltip": "A warehouse elsewhere. Shown so you can stock it — nothing on it changes hands at the counter, and the party orders it from the catalogue."
+            "warehouseTooltip": "A warehouse elsewhere. Shown so you can stock it — nothing on it changes hands at the counter, and the party orders it from the catalogue.",
+            "pagePrev": "Previous page",
+            "pageNext": "Next page"
         },
         "config": {
             "title": "Merchant Settings",
@@ -189,7 +191,15 @@
             "doorRegion": "Walked in",
             "doorToken": "Token",
             "doorPin": "Map pin",
-            "doorCatalogue": "Catalogue"
+            "doorCatalogue": "Catalogue",
+            "deliveryPhysical": "Takes parcels for collection",
+            "deliveryPhysicalHint": "This shop will hold a Ground delivery until somebody comes for it, so it appears on the list of places a parcel can be sent.",
+            "deliveryPortal": "On the portal network",
+            "deliveryPortalHint": "This shop has a ring in the back room. Parcel Portal can send to it and from it.",
+            "portalLocations": "Portal delivery locations",
+            "portalLocationsHint": "One per line. Places on the portal network that are not merchants — a guild hall, a tower, a name the party made up. Offered alongside every shop flagged as being on the network.",
+            "physicalLocations": "Physical delivery locations",
+            "physicalLocationsHint": "One per line. Places a Ground parcel can be collected from that are not merchants. Offered alongside every shop flagged as taking parcels."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -612,7 +622,15 @@
                 "headingDeliveryHint": "What each delivery service costs and how long it takes. A catalogue shelf is a warehouse — nothing on one is carried out of the shop, so everything ordered from one arrives by post, on these terms.",
                 "days": "{service}: days in transit",
                 "fee": "{service}: delivery fee (gp)"
-            }
+            },
+            "where": "Deliver to",
+            "beastNote": "The beast triangulates on the receipt. It will find whoever is carrying it.",
+            "noPhysical": "No shop in this world takes parcels for collection yet.",
+            "noPortal": "No shop in this world is on the portal network yet.",
+            "instructions": "Special instructions",
+            "instructionsPlaceholder": "Leave it with the innkeeper. Do not knock. Tell them who sent it.",
+            "manifestWhere": "To: {where}",
+            "manifestInstructions": "Instructions: {note}"
         }
     },
     "TYPES": {

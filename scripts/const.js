@@ -818,6 +818,244 @@ export function daysUntil(arrivesAt, now) {
     return Math.ceil(left / secondsPerDay());
 }
 
+/**
+ * **Which merchants are delivery points, and it is not all of them.**
+ *
+ * A shop that will hold a parcel for collection is making an offer, and a shop with a
+ * portal ring in the back room has paid a guild for it. Neither is true of a pedlar on a
+ * road, so both are flags a GM sets deliberately rather than something inferred from being
+ * a merchant at all.
+ *
+ * Two rather than one because they are two different arrangements: a depot takes carts, a
+ * ring takes rings, and a shop may well have one and not the other.
+ */
+export const DELIVERY_POINT = Object.freeze({
+    PHYSICAL: 'deliveryPhysical',
+    PORTAL: 'deliveryPortal'
+});
+
+/**
+ * Which delivery point a service arrives at, or `null` for one that comes to you.
+ *
+ * The beast asks nowhere: it goes looking for whoever is holding the receipt, which is the
+ * whole of its premium and the reason it costs what it does.
+ */
+export function deliveryPointFor(service) {
+    if (service === 'ground') return DELIVERY_POINT.PHYSICAL;
+    if (service === 'portal') return DELIVERY_POINT.PORTAL;
+    return null;
+}
+
+/**
+ * A GM's own list of places, one per line, as a list.
+ *
+ * **Free text rather than a picker, and deliberately.** Not every place a parcel can go is
+ * a merchant somebody has built: a safehouse, a poste restante, a name a party made up.
+ * The merchants carrying the flag are offered alongside these, so the list is what the
+ * world has plus what the GM has said.
+ */
+export function customDestinations(raw) {
+    return String(raw ?? '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+}
+
+/**
+ * How much room an item is given on a card wall, as a size token.
+ *
+ * **Masonry needs something to pack.** A wall of identical cards is two plain columns
+ * wearing a fancier name; what makes the layout read is that the stones are different
+ * sizes. Foundry item art is square, so there is no natural aspect to vary by — the size
+ * has to be *decided*, and if it is being decided it may as well mean something.
+ *
+ * So it is worth: a Dancing Sword takes a big card and a torch takes a small one, which is
+ * how a real catalogue is laid out. Rarity first because it is the sharper signal and most
+ * of a shop has none, then price for the ordinary things, which is what tells a lamp from
+ * a suit of plate.
+ *
+ * Thresholds in gold, and deliberately wide apart: a scale with many steps would make
+ * almost every card the same middle size and put the packing back where it started.
+ */
+export function cardSize(rarityToken, priceGp) {
+    if (rarityToken && rarityToken !== 'mundane' && rarityToken !== 'common') {
+        return rarityToken === 'rare' || rarityToken === 'veryRare' || rarityToken === 'legendary'
+            || rarityToken === 'artifact'
+            ? 'large'
+            : 'medium';
+    }
+    const gp = Number(priceGp);
+    if (!Number.isFinite(gp)) return 'small';
+    if (gp >= 250) return 'large';
+    if (gp >= 25) return 'medium';
+    return 'small';
+}
+
+/**
+ * An item's own description, as plain text a card can hold.
+ *
+ * **Stripped rather than enriched.** A shop description is GM-authored and goes through
+ * Foundry's enricher; an item's comes out of a compendium somebody else wrote, arrives as
+ * arbitrary HTML, and is being dropped into a grid cell forty characters wide. Tags out,
+ * entities folded, whitespace collapsed, and cut at a length that still reads as a
+ * sentence.
+ *
+ * Cut on a word boundary where there is one nearby, because a hard slice mid-word reads as
+ * a bug rather than as an abridgement.
+ */
+export function cardBlurb(html, limit = 160) {
+    const text = String(html ?? '')
+        // **Foundry's own enricher syntax first, before the tags.** An item description out
+        // of a compendium is full of `@UUID[Compendium.dnd5e...]{Battleaxe}` and inline
+        // rolls, and none of it is HTML -- so stripping tags left the raw reference sitting
+        // in the card, which is exactly what a reader must never see. A labelled reference
+        // keeps its label, because that is the word the sentence was built around.
+        .replace(/@[A-Za-z]+\[[^\]]*\]\{([^}]*)\}/g, '$1')
+        .replace(/@[A-Za-z]+\[[^\]]*\]/g, '')
+        .replace(/&[A-Za-z]+\[[^\]]*\]\{([^}]*)\}/g, '$1')
+        .replace(/&[A-Za-z]+\[[^\]]*\]/g, '')
+        .replace(/\[\[[^\]]*\]\]/g, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (text.length <= limit) return text;
+    const cut = text.slice(0, limit);
+    const space = cut.lastIndexOf(' ');
+    return `${(space > limit - 24 ? cut.slice(0, space) : cut).trimEnd()}\u2026`;
+}
+
+/**
+ * How many grid cells a tile occupies.
+ *
+ * **These are the spans, not an approximation of them.** The page is a three-column grid
+ * with `grid-auto-flow: dense`, and a tile is one cell, one column by two rows, or two by
+ * two — so the cost of a tile is exactly the area it covers, and a page's budget is exactly
+ * its cells. Pagination has to happen before anything is laid out, and this is what lets it
+ * be arithmetic rather than measurement.
+ */
+export const CARD_SLOTS = Object.freeze({ small: 1, medium: 2, large: 4 });
+
+/** Columns across a page. The tiles span one or two of them. */
+export const PAGE_COLUMNS = 3;
+
+/**
+ * Cells on a page: three columns by four rows.
+ *
+ * **A page does not scroll, so this is a real limit rather than a hint.** Whatever does not
+ * fit is the next page — which is the entire difference between a page and a list, and the
+ * reason the number is fixed rather than measured. `dense` packing means a page rarely ends
+ * with a hole, and the ones it does end with are what the advertising is for.
+ */
+export const SPREAD_SLOTS = 12;
+
+/**
+ * **The copy that fills an awkward gap at the end of a page.**
+ *
+ * A real catalogue does this — the last third of a page is never goods, it is the shop
+ * telling you what you have forgotten. It is the thing that makes a ragged page read as
+ * deliberate rather than as a layout that ran out, and it is free characterisation: a shop
+ * that nags you about rations is a shop with a voice.
+ *
+ * Deliberately generic, so any merchant can say any of them. A weaponsmith reminding you
+ * about arrows is in character; a weaponsmith reminding you about *its own* stock would
+ * need copy per shop, which is a content problem rather than a layout one.
+ */
+export const CATALOGUE_FILLERS = Object.freeze([
+    {
+        title: 'Did you pack enough rations?',
+        body: 'Do not go hungry on your next adventure. Order early, order plenty.'
+    },
+    {
+        title: 'Have enough arrows?',
+        body: 'Do not spend your next adventure dead. Stock up.'
+    },
+    {
+        title: 'Get the best deals in person',
+        body: 'Some things never make the catalogue. Come to the counter and ask.'
+    },
+    {
+        title: 'Rope. Always rope.',
+        body: 'Fifty feet solves more problems than a sword does. Ask anyone who lived.'
+    },
+    {
+        title: 'A word on delivery',
+        body: 'The beast finds you wherever you are. Everything else waits where you left it.'
+    },
+    {
+        title: 'Torches by the dozen',
+        body: 'The dark is free. Seeing in it is not.'
+    },
+    {
+        title: 'Ask about bulk',
+        body: 'Parties who order together pay one delivery, not four.'
+    },
+    {
+        title: 'Nothing here you wanted?',
+        body: 'What is printed is what we send. What we keep is another matter — call in.'
+    }
+]);
+
+/**
+ * Deal the stream out into spreads, filling the ragged end of each with catalogue copy.
+ *
+ * **Greedy, and it has to be.** A page is filled until the next entry would overflow it,
+ * then closed — there is no reflowing to balance the pages, because a catalogue is printed
+ * in order and a reader turning to page three expects what came after page two.
+ *
+ * A heading that would land at the very end of a page is pushed to the next one instead: a
+ * heading with nothing under it is a heading on the wrong page, and that is the one case
+ * worth special-casing.
+ *
+ * Fillers are drawn in order and cycle, so a long catalogue does not print the same
+ * advertisement on every page. Pure, so the whole of the arithmetic is testable.
+ */
+export function paginateCards(entries, {
+    budget = SPREAD_SLOTS, fillers = CATALOGUE_FILLERS, fillCost = 2, maxFill = 2
+} = {}) {
+    const pages = [];
+    let page = [];
+    let used = 0;
+    let filler = 0;
+
+    const closePage = () => {
+        if (!page.length) return;
+
+        // The gap at the end, filled with copy rather than left as white space -- but
+        // **capped**, because a last page holding three items and nine advertisements is
+        // not a catalogue, it is a pamphlet. Two is a column of them at most; past that the
+        // page is honestly short and looks better short.
+        let left = budget - used;
+        let printed = 0;
+        while (left >= fillCost && printed < maxFill && fillers.length) {
+            page.push({ kind: 'filler', ...fillers[filler % fillers.length] });
+            filler++;
+            printed++;
+            left -= fillCost;
+        }
+
+        pages.push(page);
+        page = [];
+        used = 0;
+    };
+
+    for (const entry of entries) {
+        const cost = CARD_SLOTS[entry.size] ?? CARD_SLOTS.small;
+        if (used + cost > budget && page.length) closePage();
+        page.push(entry);
+        used += cost;
+    }
+    closePage();
+
+    return pages;
+}
+
 /** Where a receipt keeps its consignment. */
 export const RECEIPT_FLAG = 'consignment';
 

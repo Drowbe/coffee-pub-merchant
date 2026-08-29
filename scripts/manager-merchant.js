@@ -11,7 +11,8 @@ import {
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
     DEFAULT_FULLSCREEN_DOORS,
-    isCatalogue
+    isCatalogue,
+    DELIVERY_POINT
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -24,7 +25,7 @@ import { notify } from './utility-feedback.js';
 import { printCatalogue, canPrint, registerCatalogue } from './utility-catalogue.js';
 import {
     serviceFor, feeBase, buildConsignment, receiptData, consignmentOf, isDelivered,
-    deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries
+    deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries, destinationsFor
 } from './utility-mail.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
@@ -161,6 +162,14 @@ export class MerchantManager {
             kind: DEFAULT_SHOP_KIND,
             // Which doors open this shop full screen, by door key. See `opensFullScreen`.
             fullscreen: { ...DEFAULT_FULLSCREEN_DOORS },
+            // **Not every merchant is a delivery point.** A shop that will hold a parcel is
+            // making an offer, and one with a portal ring has paid a guild for it; a pedlar
+            // on a road is neither. Both off until a GM says otherwise.
+            [DELIVERY_POINT.PHYSICAL]: false,
+            [DELIVERY_POINT.PORTAL]: false,
+            // A GM's own places, one per line, for everywhere that is not a merchant.
+            physicalLocations: '',
+            portalLocations: '',
             // Free text, GM-authored, optional. Enriched when shown, so a GM can put
             // a journal link or an inline roll in it.
             description: '',
@@ -2663,7 +2672,14 @@ export class MerchantManager {
             lines,
             feeBase: fee,
             goodsBase: bought.total,
-            now: game.time?.worldTime ?? 0
+            now: game.time?.worldTime ?? 0,
+            // **Both are text a person reads, not instructions the module follows.** They
+            // are clamped and escaped where they are shown, and nothing branches on them --
+            // which is what makes a note to a courier safe to allow and interesting to
+            // write. The destination is checked against what this merchant actually offers,
+            // because a client naming its own is a client naming anywhere.
+            destination: this._verifiedDestination(merchant, service.key, payload.destination),
+            instructions: payload.instructions
         });
 
         const [receipt] = await shopper.createEmbeddedDocuments('Item', [receiptData(record)]);
@@ -2671,6 +2687,23 @@ export class MerchantManager {
 
         this.broadcastActorRefresh(merchant);
         return { ok: true, total, fee, arrivesAt: record.arrivesAt, shop: record.shopName, service: service.name };
+    }
+
+    /**
+     * The place an order says it is going, if this merchant actually sends there.
+     *
+     * **A client-supplied destination is a claim**, the same shape as the scene a shop is
+     * priced in, and it is checked for the same reason: without this, an order could name
+     * anywhere at all — including a place the GM has not listed and a shop that has not
+     * offered to take parcels. Anything unrecognised falls back to nothing rather than being
+     * honoured, so the worst a bad payload does is produce a parcel with no address on it.
+     */
+    static _verifiedDestination(merchant, service, claimed) {
+        const offered = destinationsFor(service, this.getConfig(merchant));
+        // A service that asks nowhere has nowhere to verify. The beast finds the receipt.
+        if (offered === null) return null;
+        const named = String(claimed ?? '').trim();
+        return offered.includes(named) ? named : null;
     }
 
     /**

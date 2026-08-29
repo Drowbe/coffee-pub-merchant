@@ -1,4 +1,4 @@
-<div class="merchant-shop-content">
+<div class="merchant-shop-content{{#if catalogue}} merchant-shop-catalogue{{/if}}">
     {{#if busyLabel}}
         {{!-- Zero-height sticky rail: the panel floats over the dimmed list and does
               not scroll away, without competing for top: 0 with the pinned header. --}}
@@ -263,6 +263,11 @@
                 {{!-- Pinned to the top of the stock column: it belongs to the list it
                       filters, not to the window, and stays put while that list scrolls
                       under it. --}}
+                {{!-- **No search in a catalogue.** It is a bound book somebody printed, and
+                      you find things in one by turning the pages. A filter box is the
+                      affordance of a database, and putting one here would quietly say this
+                      is a list of records rather than an object in a character's hands. --}}
+                {{#unless catalogue}}
                 <section class="merchant-shop-section merchant-shop-search{{#if sell.open}} is-hidden{{/if}}">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="search" placeholder="{{localize "coffee-pub-merchant.shop.searchStock"}}" aria-label="{{localize "coffee-pub-merchant.shop.searchStockLabel"}}"
@@ -276,6 +281,7 @@
                         <i class="{{stockSortIcon}}"></i>
                     </button>
                 </section>
+                {{/unless}}
 
                 {{!-- The scrolling region starts here, below the search, so the
                       scrollbar does not run up behind a box that never moves. --}}
@@ -388,6 +394,25 @@
                           it belongs on. --}}
                     <div class="merchant-shop-inventory-body"{{#if canStock}} data-drop-inventory="{{id}}"{{/if}}>
                         {{#if hasItems}}
+                            {{#if spread}}
+                                {{!-- **A printed spread, not a scroll.** The entries are one
+                                      flat stream -- headings, cards and the shop's own
+                                      advertising in the order they were dealt -- because on
+                                      a page a heading is a thing that appears rather than a
+                                      box things live inside. --}}
+                                <div class="merchant-shop-item-list">
+                                    {{#each spread.entries}}
+                                        {{#if isFiller}}
+                                            <div class="merchant-shop-item merchant-shop-filler">
+                                                <strong>{{title}}</strong>
+                                                <p>{{body}}</p>
+                                            </div>
+                                        {{else}}
+                                            {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" item}}
+                                        {{/if}}
+                                    {{/each}}
+                                </div>
+                            {{else}}
                             {{#each categories}}
                                 <div class="merchant-shop-category">
                                     <h4><i class="{{icon}}"></i> {{label}}</h4>
@@ -398,10 +423,32 @@
                                     </div>
                                 </div>
                             {{/each}}
+                            {{/if}}
                         {{else}}
                             <div class="merchant-shop-empty">
                                 {{#if canStock}}Nothing on this inventory. Drag items here, or use the + above.{{else}}Nothing on this inventory.{{/if}}
                             </div>
+                        {{/if}}
+                        {{#if spread.paged}}
+                            {{!-- Where you are in the book, and the two ways out of it. A
+                                  count as well as arrows, because "page 2 of 5" is the fact
+                                  a reader actually wants and an arrow alone never says it. --}}
+                            {{!-- **Over the page, not under it.** A control below the goods is
+                                  a control you scroll to, and a page that has to be scrolled
+                                  to is not a page. These are edge strips, the way a reader
+                                  turns a page on a tablet: the whole left side goes back and
+                                  the whole right side goes on. --}}
+                            <button type="button" class="merchant-shop-turn is-prev" data-action="turnPage"
+                                    data-page="{{spread.prevPage}}" {{#unless spread.hasPrev}}disabled{{/unless}}
+                                    data-tooltip="{{localize "coffee-pub-merchant.shop.pagePrev"}}">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <button type="button" class="merchant-shop-turn is-next" data-action="turnPage"
+                                    data-page="{{spread.nextPage}}" {{#unless spread.hasNext}}disabled{{/unless}}
+                                    data-tooltip="{{localize "coffee-pub-merchant.shop.pageNext"}}">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <span class="merchant-shop-folio">{{spread.page}} / {{spread.pageCount}}</span>
                         {{/if}}
                     </div>
                 </section>
@@ -506,10 +553,36 @@
                                                     data-tooltip="{{hint}}">
                                                 <i class="{{icon}}"></i>
                                                 <span class="merchant-shop-delivery-name">{{name}}</span>
-                                                <span class="merchant-shop-delivery-terms">{{terms}}</span>
                                             </button>
                                         {{/each}}
                                     </div>
+                                    {{!-- **Where it goes, and the control changes with the
+                                          choice.** Ground collects at a depot and the Portal
+                                          runs between two rings, so both ask where; a beast
+                                          asks nothing, because it goes looking for whoever
+                                          is holding the receipt. One field that meant three
+                                          things would be a field nobody could read. --}}
+                                    {{#if destinations}}
+                                        <select class="merchant-shop-delivery-where" data-delivery-where
+                                                aria-label="{{localize "coffee-pub-merchant.delivery.where"}}">
+                                            {{#each destinations}}
+                                                <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                                            {{/each}}
+                                        </select>
+                                    {{else}}
+                                        <p class="merchant-shop-delivery-note">{{destinationNote}}</p>
+                                    {{/if}}
+                                    {{!-- **Free text on an order, and the point is that it is
+                                          free.** A note to a courier is how a party asks for
+                                          something the interface has no field for -- leave it
+                                          with the innkeeper, do not knock, tell them who sent
+                                          it. It is read by a person, which is what makes it
+                                          useful and what makes it corruptible. --}}
+                                    <textarea class="merchant-shop-delivery-note-input" rows="2"
+                                              data-delivery-instructions
+                                              maxlength="500"
+                                              placeholder="{{localize "coffee-pub-merchant.delivery.instructionsPlaceholder"}}"
+                                              aria-label="{{localize "coffee-pub-merchant.delivery.instructions"}}">{{instructions}}</textarea>
                                 </div>
                             {{/if}}
                         </header>

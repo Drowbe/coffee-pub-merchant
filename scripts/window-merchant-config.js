@@ -7,7 +7,8 @@ import {
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables,
     SHOP_SOUND_KEYS,
-    SHOP_DOORS
+    SHOP_DOORS,
+    DELIVERY_POINT
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
 import { canPrint } from './utility-catalogue.js';
@@ -386,6 +387,34 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     if (box.checked) doors[box.value] = true;
                 }
                 void this._setField({ fullscreen: doors }, { redraw: false });
+            });
+        }
+
+        // The two delivery flags and the two lists beside them. Written the way every other
+        // field in this window is: the checkbox on change, the text on blur, because a
+        // list of places is a paragraph and a write per keystroke is a write per keystroke
+        // to every client.
+        for (const [attribute, field] of [
+            ['data-merchant-delivery-physical', DELIVERY_POINT.PHYSICAL],
+            ['data-merchant-delivery-portal', DELIVERY_POINT.PORTAL]
+        ]) {
+            const box = this.element?.querySelector(`[${attribute}]`);
+            if (!box || box.dataset.merchantBound === 'true') continue;
+            box.dataset.merchantBound = 'true';
+            box.addEventListener('change', (event) => {
+                void this._setField({ [field]: event.target.checked }, { redraw: false });
+            });
+        }
+
+        for (const [attribute, field] of [
+            ['data-merchant-physical-locations', 'physicalLocations'],
+            ['data-merchant-portal-locations', 'portalLocations']
+        ]) {
+            const box = this.element?.querySelector(`[${attribute}]`);
+            if (!box || box.dataset.merchantBound === 'true') continue;
+            box.dataset.merchantBound = 'true';
+            box.addEventListener('change', (event) => {
+                void this._setField({ [field]: event.target.value ?? '' }, { redraw: false });
             });
         }
 
@@ -1950,6 +1979,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             shopName: MerchantManager.getConfig(actor)?.name ?? '',
             tillLabel: enabled ? formatBase(purseValue(actor)) : null,
             tillEmpty: enabled && purseValue(actor) === 0,
+            deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
+            deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
+            physicalLocations: merchantConfig.physicalLocations ?? '',
+            portalLocations: merchantConfig.portalLocations ?? '',
             fullscreenDoors: SHOP_DOORS.map((door) => ({
                 value: door.key,
                 label: game.i18n.localize(door.labelKey),

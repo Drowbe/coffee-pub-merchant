@@ -17,7 +17,7 @@
 {{!-- `data-search` is built in the context rather than read back out of the
       markup: the filter then never depends on what the row happens to render, and
       matching stays a substring test on a string that is already lowercased. --}}
-<div class="merchant-shop-item{{#if outOfStock}} is-out{{/if}}{{#if reserved}} is-reserved{{/if}}" data-item-id="{{id}}" data-owner="{{owner}}"
+<div class="merchant-shop-item{{#if card}} merchant-shop-card is-{{cardSize}}{{/if}}{{#if outOfStock}} is-out{{/if}}{{#if reserved}} is-reserved{{/if}}" data-item-id="{{id}}" data-owner="{{owner}}"
      data-search="{{searchKey}}">
     <img src="{{img}}" alt="">
 
@@ -26,7 +26,11 @@
         {{!-- Kind, then rarity where there is one. Most of a shop is ordinary objects
               with no rarity at all, and printing "Mundane" beside every torch would
               spend the line on the rows that need it least. --}}
-        <span>{{typeLabel}}{{#if rarity}} · <em data-rarity="{{rarityKey}}">{{rarity}}</em>{{/if}}</span>
+        <span>{{typeLabel}}{{#if rarity}} · <em data-rarity="{{rarityKey}}">{{rarity}}</em>{{/if}}{{#if weightLabel}} · {{weightLabel}}{{/if}}</span>
+        {{!-- **Only on a card.** A counter row is one line per thing and a paragraph in it
+              would make the list unreadable; a card is a page entry and the description is
+              most of what makes it one. Capped in the context, not here. --}}
+        {{#if blurb}}<p class="merchant-shop-card-blurb">{{blurb}}</p>{{/if}}
     </div>
 
     {{!-- Unlimited reads as a symbol, anything else as a number, so the column does

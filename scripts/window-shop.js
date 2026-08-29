@@ -7,16 +7,20 @@ import {
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
     opensFullScreen,
     DEFAULT_DELIVERY_SERVICE,
-    isCatalogue
+    isCatalogue,
+    cardSize, cardBlurb,
+    paginateCards
 } from './const.js';
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
-import { services, feeBase, arrivalLabel } from './utility-mail.js';
+import {
+    services, feeBase, arrivalLabel, destinationsFor, destinationNote
+} from './utility-mail.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
-    negotiatedPrice, listPriceBase
+    negotiatedPrice, listPriceBase, baseDenomination
 } from './utility-pricing.js';
 import { isPhysical } from './utility-inventory.js';
 import { emit, SOCKET_EVENT } from './utility-sockets.js';
@@ -269,7 +273,12 @@ const ShopBehaviour = (Base) => class extends Base {
             // the shop should open in.
             position: { width: 740, height: 600 },
             window: { title: 'Merchant', resizable: true, minimizable: true },
-            windowSizeConstraints: { minWidth: 380, minHeight: 320, maxWidth: 1040, maxHeight: 'calc(100vh - 40px)' },
+            // **A floor, not a ceiling.** A minimum is a real statement -- below 380 the
+            // slate wraps under the stock and the window stops being usable -- but a
+            // maximum was a number somebody picked, and it made a shop on a wide monitor
+            // stop resizing for no reason the person dragging it could see. The height
+            // bound is not a cap on stretching: it keeps the window on the screen.
+            windowSizeConstraints: { minWidth: 380, minHeight: 320, maxHeight: 'calc(100vh - 40px)' },
             toolTitlebar: 'full',
             // On, with a key shared by every shop. A shop is a shop wherever it is
             // opened, so where you last dragged one is where the next should appear,
@@ -305,6 +314,7 @@ const ShopBehaviour = (Base) => class extends Base {
         settle: (_event, _target, win) => win.run(() => win.settle()),
         order: (_event, _target, win) => win.run(() => win.placeOrder()),
         chooseService: (_event, target, win) => win.setService(target.dataset.service),
+        turnPage: (_event, target, win) => win.turnPage(Number(target.dataset.page)),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
         switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
@@ -379,6 +389,13 @@ const ShopBehaviour = (Base) => class extends Base {
         // fact about how the door was opened.
         this.catalogueMode = options.catalogue === true;
         this.service = DEFAULT_DELIVERY_SERVICE;
+        // Where it goes and anything asked for on the way. Per window, not persisted: an
+        // order is a thing you are filling in, and a half-written note is not worth keeping.
+        this.destination = null;
+        this.instructions = '';
+        // Which spread is open. Per window and not persisted: a page is where you are in a
+        // book you are holding, not a fact about the book.
+        this._page = 0;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -1641,6 +1658,13 @@ const ShopBehaviour = (Base) => class extends Base {
                         // The partial drops the whole column in a catalogue; this keeps a
                         // GM from being offered an editor for a figure that is not shown.
                         catalogue: this.catalogueMode,
+                        // **Everything a card wall shows, and only when one is being drawn.**
+                        // A counter row shows a name, a price and a count; a card shows what
+                        // a page in a catalogue shows -- a picture, what the thing is, what
+                        // it says about itself, what it costs and what it weighs. Built here
+                        // rather than in the partial because reading a description off a
+                        // document is not a thing a template should be doing.
+                        ...(this.catalogueMode ? this._cardFields(item, price) : {}),
                         canEditStock: isGM && !stock.unlimited && !this.catalogueMode,
                         // **A GM names the list price here.** Not on an unpriced
                         // inventory: having no list price is what that inventory is
@@ -1733,6 +1757,12 @@ const ShopBehaviour = (Base) => class extends Base {
                     canRestock: isGM && MerchantManager.canRestock(merchant, inventory),
                     isUnpricedInventory,
                     categories,
+                    // **Printed, in a catalogue.** The same rows, dealt out into spreads with
+                    // the ragged end of each filled with the shop's own advertising -- which
+                    // is what a real catalogue does with the last third of a page, and what
+                    // makes a short page read as deliberate rather than as a layout that ran
+                    // out. See `paginateCards`.
+                    ...(this.catalogueMode ? { spread: this._spreadsFor(categories) } : {}),
                     count: contents.length,
                     hasItems: contents.length > 0
                 };
@@ -1878,15 +1908,21 @@ const ShopBehaviour = (Base) => class extends Base {
             // services to choose between.
             catalogue: this.catalogueMode,
             feeLabel: formatBase(this.catalogueMode ? feeBase(this.service) : 0),
+            destinations: this.catalogueMode ? this._destinationOptions(config) : null,
+            destinationNote: this.catalogueMode
+                ? destinationNote(this.service, destinationsFor(this.service, config))
+                : '',
+            instructions: this.instructions,
             deliveryServices: this.catalogueMode
                 ? services().map((service) => ({
                     key: service.key,
                     name: service.name,
                     icon: service.icon,
-                    hint: game.i18n.localize(service.hintKey),
-                    // Both numbers on the button, because the choice is between them: a
-                    // service is a price *and* a wait, and either alone is half the question.
-                    terms: `${formatBase(toBase(service.feeGp, 'gp'))} · ${service.days}d`,
+                    // **The terms are not on the button.** The fee shows on the ledger the
+                    // moment a service is chosen, which is where every other number in this
+                    // window is read, and a button carrying its own price competes with the
+                    // total rather than adding to it. The tooltip still says what it is.
+                    hint: `${game.i18n.localize(service.hintKey)} — ${formatBase(toBase(service.feeGp, 'gp'))}, ${service.days}d`,
                     on: service.key === this.service
                 }))
                 : [],
@@ -1923,7 +1959,10 @@ const ShopBehaviour = (Base) => class extends Base {
             hasBasket: basketLines.length > 0,
             basketTotalLabel: formatBase(basketTotal),
             // The buyback inventory existing is what "this shop buys things" means.
-            canSell: !missing && Boolean(this._purchasedInventory(merchant)),
+            // **A catalogue never sells.** It is a book of what a shop will send you, and
+            // there is no counter to hand something across — so the Buy/Sell pair goes with
+            // the tab it was switching between.
+            canSell: !this.catalogueMode && !missing && Boolean(this._purchasedInventory(merchant)),
             sellTooltip: !recipient
                 ? game.i18n.localize('coffee-pub-merchant.sell.noSellCharacter')
                 : game.i18n.localize('coffee-pub-merchant.sell.chooseSomething'),
@@ -2183,6 +2222,22 @@ const ShopBehaviour = (Base) => class extends Base {
                 void this._onDropToInventory(event, inventoryId);
             });
         }
+        // The destination and the note, bound where every other field in this window is.
+        const where = this.element?.querySelector('[data-delivery-where]');
+        if (where && where.dataset.merchantBound !== 'true') {
+            where.dataset.merchantBound = 'true';
+            where.addEventListener('change', (event) => { this.destination = event.target.value; });
+        }
+
+        const note = this.element?.querySelector('[data-delivery-instructions]');
+        if (note && note.dataset.merchantBound !== 'true') {
+            note.dataset.merchantBound = 'true';
+            // On input rather than change: this is not written to a document, so there is
+            // nothing to batch, and a note lost because somebody pressed Place Order without
+            // blurring first would be the worst possible way to find that out.
+            note.addEventListener('input', (event) => { this.instructions = event.target.value ?? ''; });
+        }
+
     }
 
     // ==============================================================
@@ -2965,11 +3020,117 @@ const ShopBehaviour = (Base) => class extends Base {
         }
     }
 
+    /**
+     * The extra a card carries over a row.
+     *
+     * **A presentation, not a catalogue feature.** Nothing here knows what a catalogue is:
+     * it is the fields a card wall needs, and the wall is switched on for the catalogue
+     * today because that is the view that wanted one. A shelf setting could turn it on for
+     * any section later without touching this.
+     *
+     * `size` is what gives masonry something to pack. See `cardSize`.
+     */
+    _cardFields(item, price) {
+        const rarityKey = itemRarity(item);
+        const listed = listPriceBase(item);
+        const weight = Number(item?.system?.weight?.value);
+
+        return {
+            card: true,
+            cardSize: cardSize(rarityKey, (price ?? listed ?? 0) / (baseDenomination().conversion || 1)),
+            blurb: cardBlurb(item?.system?.description?.value),
+            // A weightless thing says nothing rather than "0 lb", which is a fact about the
+            // data rather than about the object.
+            weightLabel: Number.isFinite(weight) && weight > 0
+                ? `${weight} ${item?.system?.weight?.units ?? 'lb'}`
+                : ''
+        };
+    }
+
+    /** Turn to a spread. Clamped, so a stale button on a shortened catalogue lands somewhere. */
+    turnPage(page) {
+        this._page = Math.max(0, Number(page) || 0);
+        void this.render(false);
+    }
+
+    /**
+     * Deal a shelf's categories out into printed spreads.
+     *
+     * **Flattened first.** On a counter, categories are containers: a heading with its rows
+     * beneath it, and the next heading starts wherever the last list ended. On a page they
+     * are simply things that appear in order, and a heading is an entry costing room like
+     * anything else -- otherwise a category boundary would force a page break and a
+     * catalogue of eight categories would be eight pages of three items.
+     *
+     * The page is clamped rather than reset when the catalogue shortens under it: somebody
+     * on page four of a shelf a GM has just cleared should land on the last page, not be
+     * thrown to the front.
+     */
+    _spreadsFor(categories) {
+        // **No category headings on a page.** A tiled page has no column for one to sit
+        // above -- a heading spanning three columns would eat a whole row and break the
+        // packing under it -- and a printed catalogue does not have them either: the goods
+        // are laid out to be looked at, and the sorting is what the order of the pages is
+        // for. Categories still group the counter list, which is where they earn their keep.
+        const stream = [];
+        for (const category of categories) {
+            for (const item of category.items) {
+                stream.push({ kind: 'item', size: item.cardSize ?? 'small', item });
+            }
+        }
+
+        const pages = paginateCards(stream);
+        const page = Math.min(this._page, Math.max(0, pages.length - 1));
+        this._page = page;
+
+        return {
+            // **Flags rather than a `kind` string compared in the template.** Handlebars has
+            // no comparison of its own and Merchant registers no helpers, so a branch on a
+            // string would depend on whatever Foundry happens to ship -- which is a thing to
+            // find out from a blank page in a shop rather than from a test.
+            entries: (pages[page] ?? []).map((entry) => ({
+                ...entry,
+                isFiller: entry.kind === 'filler'
+            })),
+            page: page + 1,
+            pageCount: pages.length,
+            prevPage: page - 1,
+            nextPage: page + 1,
+            hasPrev: page > 0,
+            hasNext: page < pages.length - 1,
+            paged: pages.length > 1
+        };
+    }
+
     /** Which service this order goes by. Per window: it is a choice about this order. */
     setService(key) {
         if (!key) return;
         this.service = key;
+        // **The destination does not survive the service.** A depot is not a portal ring, so
+        // a place chosen for one is not a place the other goes; keeping it would leave a
+        // Portal order addressed to a coaching inn.
+        this.destination = null;
         void this.render(false);
+    }
+
+    /**
+     * Everywhere this order could go, with one of them chosen.
+     *
+     * `null` for a service that asks nowhere -- the beast triangulates on the receipt -- so
+     * the template can tell "no destination is needed" from "no destination exists", which
+     * are different sentences and want different words.
+     */
+    _destinationOptions(config) {
+        const places = destinationsFor(this.service, config);
+        if (places === null) return null;
+        // The first is the default rather than a blank row: an order with nowhere to go is
+        // not a state worth being able to reach through the picker.
+        if (!this.destination && places.length) this.destination = places[0];
+        return places.map((place) => ({
+            value: place,
+            label: place,
+            selected: place === this.destination
+        }));
     }
 
     /**
@@ -2998,6 +3159,8 @@ const ShopBehaviour = (Base) => class extends Base {
             sceneUuid: this.sceneUuid,
             shopperUuid: shopper.uuid,
             service: this.service,
+            destination: this.destination,
+            instructions: this.instructions,
             buy: lines
         });
 
@@ -3007,6 +3170,7 @@ const ShopBehaviour = (Base) => class extends Base {
         }
 
         this.cart.clear();
+        this.instructions = '';
         playFeedback(SOUND.TRANSACTION);
         notify.info(game.i18n.format('coffee-pub-merchant.delivery.ordered', {
             shop: result.shop ?? merchant.name,

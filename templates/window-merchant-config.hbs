@@ -111,6 +111,36 @@
                     <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.fullscreenHint"}}</small>
                 </div>
 
+                {{!-- **Not every merchant is a delivery point.** A shop that will hold a
+                      parcel for collection is making an offer, and one with a portal ring in
+                      the back room has paid a guild for it. Both off until a GM says
+                      otherwise, and each brings its own list of places that are not shops. --}}
+                <label class="merchant-config-row merchant-config-row-check">
+                    <input type="checkbox" data-merchant-delivery-physical {{#if deliveryPhysical}}checked{{/if}}>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.deliveryPhysical"}}</span>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.deliveryPhysicalHint"}}</small>
+                </label>
+
+                <label class="merchant-config-row merchant-config-row-tall">
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.physicalLocations"}}</span>
+                    <textarea data-merchant-physical-locations rows="3"
+                              placeholder="Waybridge Coaching Inn&#10;The Anvil, Ironstone">{{physicalLocations}}</textarea>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.physicalLocationsHint"}}</small>
+                </label>
+
+                <label class="merchant-config-row merchant-config-row-check">
+                    <input type="checkbox" data-merchant-delivery-portal {{#if deliveryPortal}}checked{{/if}}>
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.deliveryPortal"}}</span>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.deliveryPortalHint"}}</small>
+                </label>
+
+                <label class="merchant-config-row merchant-config-row-tall">
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.portalLocations"}}</span>
+                    <textarea data-merchant-portal-locations rows="3"
+                              placeholder="The Cerulean Ring&#10;Sartar Guildhall">{{portalLocations}}</textarea>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.portalLocationsHint"}}</small>
+                </label>
+
                 <label class="merchant-config-row merchant-config-row-tall">
                     <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.description"}}</span>
                     <textarea data-merchant-description rows="3"

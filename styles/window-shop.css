@@ -10,8 +10,13 @@
 
 /* `container-type: inline-size` so the columns can ask how wide *this window* is.
    A media query would ask about the viewport, which says nothing useful about a
-   window the user can drag to any size. */
-.merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 8px; color: var(--blacksmith-tool-text); container-type: inline-size; }
+   window the user can drag to any size.
+
+   **Named**, because there is a second container inside it now -- a catalogue shelf asks
+   its own width, which is a different number from the window's. An unnamed query resolves
+   against the *nearest* container, so adding one would silently re-point every rule below
+   at the wrong element. */
+.merchant-shop-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; height: 100%; min-height: 0; padding: 8px; color: var(--blacksmith-tool-text); container: merchant-shop / inline-size; }
 .merchant-shop-section { min-width: 0; padding: 8px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 6px; background: var(--blacksmith-tool-surface-raised); }
 .merchant-shop-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; padding: 0 0 6px; border-bottom: 1px solid var(--blacksmith-tool-divider); color: var(--blacksmith-tool-accent); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 
@@ -369,7 +374,7 @@
    page. The breakpoint is the two flex bases plus the gap — the width at which
    they stop wrapping — so the layout and the scrolling change at the same moment,
    and it moves whenever either basis does. */
-@container (min-width: 610px) {
+@container merchant-shop (min-width: 610px) {
     .merchant-shop-columns { overflow: hidden; align-items: stretch; }
     .merchant-shop-main,
     .merchant-shop-stock,
@@ -493,7 +498,7 @@
 /* Narrow, where the whole columns area is one scroller: these ride along with it,
    so sticky keeps them in view. Wide, they are fixed heads and sticky never
    engages. One rule covers both. */
-@container (max-width: 609.98px) {
+@container merchant-shop (max-width: 609.98px) {
     .merchant-shop-stock > .merchant-shop-search,
     .merchant-shop-cart-head { position: sticky; top: 0; z-index: 2; }
     /* Narrow, the header cards ride the same scroller as everything else. */
@@ -1042,14 +1047,258 @@
     white-space: nowrap;
 }
 
-.merchant-shop-delivery-terms {
-    font-size: .6rem;
-    font-variant-numeric: tabular-nums;
-    opacity: .8;
-}
-
 /* No quantity column, so the row is two columns rather than three. Stated here rather than
    left to the grid it inherits, which would leave a gap where the count used to be. */
 .merchant-shop-window .merchant-shop-item:not(:has(.merchant-shop-item-qty)) {
     grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
+/* --- The catalogue: one tiled page at a time -------------------------------- */
+/*
+ * **A three-column grid with `dense` packing, which is the whole trick.**
+ *
+ * `grid-auto-flow: dense` is what makes this a tile wall rather than a card list: when a
+ * two-wide tile leaves a one-wide hole beside it, the grid reaches *forward* through the
+ * remaining items and drops the next one that fits into it. Nothing is left as white space,
+ * and nothing has to be sorted by size beforehand — the packing is the layout algorithm's
+ * job and it is very good at it.
+ *
+ * That is also why this is Grid and not multi-column, which was the previous attempt.
+ * Multi-column flows one stream down a column and then the next: every item is the same
+ * width and the only variation is height. Tiles need *both*, and they need a later item to
+ * be able to fill an earlier gap, which a column flow cannot do by definition.
+ *
+ * **Rows are a fixed height**, so a span is a predictable amount of page. That is what lets
+ * pagination be arithmetic: three columns by four rows is twelve cells, a tile costs the
+ * cells it covers, and whatever does not fit is the next page.
+ */
+.merchant-shop-catalogue .merchant-shop-item-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 108px;
+    grid-auto-flow: dense;
+    gap: 8px;
+}
+
+/* One cell, one column by two, or two by two. Three sizes, three shapes, and `cardSize`
+   decides which by what the thing is worth. */
+.merchant-shop-catalogue .merchant-shop-card.is-small { grid-column: span 1; grid-row: span 1; }
+.merchant-shop-catalogue .merchant-shop-card.is-medium { grid-column: span 1; grid-row: span 2; }
+.merchant-shop-catalogue .merchant-shop-card.is-large { grid-column: span 2; grid-row: span 2; }
+
+/*
+ * The tile *is* the picture, with the words over the bottom of it — not a card with an
+ * image on top. At one cell there is no room for both, and a wall where every tile is a
+ * picture with a caption is what the reference looks like.
+ */
+.merchant-shop-catalogue .merchant-shop-card {
+    position: relative;
+    display: block;
+    grid-template-areas: none;
+    grid-template-columns: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px;
+    background: var(--blacksmith-tool-surface-sunken);
+}
+
+.merchant-shop-catalogue .merchant-shop-card > img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border: 0;
+    border-radius: 0;
+    object-fit: cover;
+}
+
+/*
+ * The caption sits on the picture under a gradient, which is the one treatment that stays
+ * legible over art nobody chose for the purpose: a flat panel would be a band of colour
+ * across every tile, and a plain text shadow disappears on a pale image.
+ */
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    padding: 16px 7px 5px;
+    background: linear-gradient(to top, rgba(8, 6, 4, .92) 45%, rgba(8, 6, 4, 0));
+    color: #f1e7d6;
+}
+
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy > strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: .72rem;
+    line-height: 1.2;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy > span {
+    color: rgba(241, 231, 214, .62);
+    font-size: .58rem;
+}
+
+/* **Only the big tiles carry a description.** A one-cell tile has room for a name and a
+   price and nothing else, and forcing a blurb into it would clamp every one to a word and
+   a half. The two-by-two has the room — which is another reason for the good things to
+   get it. */
+.merchant-shop-card-blurb { display: none; }
+
+.merchant-shop-catalogue .merchant-shop-card.is-large .merchant-shop-card-blurb {
+    display: -webkit-box;
+    margin: 3px 0 0;
+    overflow: hidden;
+    color: rgba(241, 231, 214, .72);
+    font-size: .62rem;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+/* Price top-left on its own plate: it has to stay readable against the picture, and it is
+   the one number a reader is scanning the wall for. */
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 1;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(8, 6, 4, .78);
+    color: #f1e7d6;
+    font-size: .68rem;
+    text-align: left;
+}
+
+/* And the add button opposite it. */
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-row-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    padding: 0;
+}
+
+/*
+ * The shop's own advertising, filling whatever the packing could not. Deliberately not a
+ * tile: no picture, no button, dashed and italic — it has to read as copy set among the
+ * goods rather than as something that can be bought.
+ */
+.merchant-shop-filler {
+    grid-column: span 1;
+    grid-row: span 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 8px;
+    overflow: hidden;
+    border: 1px dashed color-mix(in srgb, #8a5a2b 40%, var(--blacksmith-tool-divider));
+    border-radius: 5px;
+    background: none;
+    text-align: center;
+}
+
+.merchant-shop-filler > strong {
+    color: var(--blacksmith-tool-accent);
+    font-size: .68rem;
+    font-style: italic;
+    line-height: 1.2;
+}
+
+.merchant-shop-filler > p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .58rem;
+    font-style: italic;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+/*
+ * **Nothing scrolls.** A page that has to be scrolled to the bottom of is a list with page
+ * buttons under it. Whatever does not fit on the grid above is the next page, and the way
+ * to it is the edge of the page rather than a control below the fold.
+ */
+.merchant-shop-catalogue .merchant-shop-inventories,
+.merchant-shop-catalogue .merchant-shop-inventory-body {
+    overflow: hidden;
+}
+
+.merchant-shop-catalogue .merchant-shop-inventory {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/*
+ * **Turning a page is the edge of the page**, the way it is on a tablet: the whole left
+ * side goes back, the whole right side goes on. A strip rather than a button, over the
+ * goods, showing its arrow only under the cursor — always there to be clicked and never in
+ * the way of looking at the wall.
+ */
+.merchant-shop-turn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    padding: 0;
+    border: 0;
+    background: linear-gradient(to right, rgba(8, 6, 4, .18), rgba(8, 6, 4, 0));
+    color: #f1e7d6;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.merchant-shop-turn.is-prev { left: 0; }
+
+.merchant-shop-turn.is-next {
+    right: 0;
+    background: linear-gradient(to left, rgba(8, 6, 4, .18), rgba(8, 6, 4, 0));
+}
+
+.merchant-shop-turn:hover { opacity: 1; }
+
+/* An edge with nowhere to go takes no room and catches no clicks: an invisible strip that
+   swallowed a click on the first tile of page one would be a mystery rather than a
+   control. */
+.merchant-shop-turn[disabled] { display: none; }
+
+/* Which page, in the corner, the way a book prints it. */
+.merchant-shop-folio {
+    position: absolute;
+    right: 8px;
+    bottom: 4px;
+    z-index: 2;
+    padding: 1px 7px;
+    border-radius: 3px;
+    background: rgba(8, 6, 4, .7);
+    color: rgba(241, 231, 214, .8);
+    font-size: .6rem;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
 }

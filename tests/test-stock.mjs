@@ -837,6 +837,103 @@ console.log('ok  a shelf filters what a table brings in, not only what a query d
     console.log('ok  dearer is faster, and a catalogue shelf is its own kind');
 }
 
+// --- the card wall ----------------------------------------------------------
+// **Masonry needs something to pack.** A wall of identical cards is two plain columns
+// wearing a fancier name, and Foundry item art is square -- so the size has to be decided,
+// and if it is being decided it may as well mean something.
+{
+    const { cardSize, cardBlurb } = await import('../scripts/const.js');
+
+    // Rarity first: it is the sharper signal, and most of a shop has none.
+    assert.strictEqual(cardSize('legendary', 1), 'large', 'rarity beats a low price');
+    assert.strictEqual(cardSize('veryRare', 0), 'large');
+    assert.strictEqual(cardSize('uncommon', 0), 'medium', 'uncommon is not a headline');
+    assert.strictEqual(cardSize('artifact', 0), 'large');
+
+    // Then price, which is what tells a lamp from a suit of plate.
+    assert.strictEqual(cardSize('mundane', 500), 'large', 'expensive and ordinary still leads');
+    assert.strictEqual(cardSize(null, 50), 'medium');
+    assert.strictEqual(cardSize('common', 2), 'small', 'a torch is a small stone');
+    assert.strictEqual(cardSize(null, undefined), 'small', 'and nothing to go on is small');
+
+    // All three sizes have to be reachable, or the wall is a column of one size again.
+    const sizes = new Set([cardSize(null, 1), cardSize(null, 50), cardSize('rare', 0)]);
+    assert.strictEqual(sizes.size, 3, 'small, medium and large are all reachable');
+
+    // A description arrives as arbitrary HTML from whoever wrote the compendium and is
+    // going into a grid cell forty characters wide.
+    assert.strictEqual(cardBlurb('<p>A <b>sturdy</b> hammer.</p>'), 'A sturdy hammer.', 'tags out');
+    assert.strictEqual(cardBlurb('a &amp; b &nbsp; c'), 'a & b c', 'entities folded, spaces collapsed');
+    assert.strictEqual(cardBlurb(null), '', 'nothing is nothing');
+    assert.strictEqual(cardBlurb('short', 100), 'short', 'under the cap is untouched');
+
+    // Cut on a word boundary: a hard slice mid-word reads as a bug rather than an
+    // abridgement, and the ellipsis is what says it was cut.
+    const long = cardBlurb('alpha bravo charlie delta echo foxtrot golf hotel', 30);
+    assert.ok(long.endsWith('…'), 'says it was cut');
+    assert.ok(long.length <= 31, 'and stays within the cap');
+    assert.ok(!long.includes('  '), 'with no trailing gap before the ellipsis');
+
+    console.log('ok  cards vary by worth, and a description fits on one');
+}
+
+// --- printed pages ----------------------------------------------------------
+// A catalogue is printed in order: a page fills, then the next one starts. There is no
+// reflowing to balance them, because a reader turning to page three expects what came
+// after page two.
+{
+    const { paginateCards, CARD_SLOTS, SPREAD_SLOTS, CATALOGUE_FILLERS } = await import('../scripts/const.js');
+    const items = (n, size) => Array.from({ length: n }, (_, i) => ({ kind: 'item', size, id: `${size}${i}` }));
+    const only = (page, kind) => page.filter((entry) => entry.kind === kind);
+
+    assert.deepStrictEqual(paginateCards([]), [], 'nothing prints nothing');
+
+    // **A slot is a grid cell**, so a tile costs exactly the area it covers: three columns
+    // by four rows is twelve, however they are made up.
+    const small = paginateCards(items(12, 'small'));
+    assert.strictEqual(small.length, 1, 'twelve one-cell tiles fill a page exactly');
+    assert.strictEqual(only(small[0], 'filler').length, 0, 'and a full page prints no advertising');
+
+    assert.strictEqual(paginateCards(items(3, 'large')).length, 1, 'three two-by-twos is the same page');
+    assert.strictEqual(paginateCards(items(4, 'large')).length, 2, 'and a fourth starts the next');
+    assert.strictEqual(paginateCards(items(6, 'medium')).length, 1, 'six one-by-twos likewise');
+
+    // The ragged end is filled, and capped: a last page of three items and nine
+    // advertisements is a pamphlet, not a catalogue.
+    const ragged = paginateCards(items(13, 'small'));
+    assert.strictEqual(ragged.length, 2, 'the thirteenth starts a page');
+    assert.ok(only(ragged[1], 'filler').length > 0, 'whose gap is filled');
+    assert.ok(only(ragged[1], 'filler').length <= 2, 'but never by more than two');
+
+    // A tile is never split across a page boundary: it goes wholly on this page or wholly
+    // on the next, which is what a fixed cell budget buys.
+    const mixed = paginateCards([...items(5, 'small'), ...items(2, 'large'), ...items(4, 'small')]);
+    for (const page of mixed) {
+        const cells = page.reduce((sum, e) => sum + (e.kind === 'filler' ? 2 : CARD_SLOTS[e.size]), 0);
+        assert.ok(cells <= SPREAD_SLOTS, `a page holds ${cells} cells, never more than ${SPREAD_SLOTS}`);
+    }
+
+    // Advertising cycles rather than repeating, so a long catalogue is not the same page
+    // of copy over and over.
+    const long = paginateCards(items(40, 'small').flatMap((item, i) => (i % 5 === 4 ? [] : [item])));
+    const printed = long.flatMap((page) => only(page, 'filler')).map((entry) => entry.title);
+    if (printed.length > 1) {
+        assert.notStrictEqual(printed[0], printed[1], 'two gaps do not print the same advertisement');
+    }
+
+    // Every entry that goes onto a page comes back off it: nothing is dropped by the
+    // arithmetic, which is the one failure a reader could never diagnose.
+    const source = items(9, 'medium');
+    const dealt = paginateCards(source).flat().filter((entry) => entry.kind !== 'filler');
+    assert.strictEqual(dealt.length, source.length, 'every entry is printed exactly once');
+
+    assert.ok(CATALOGUE_FILLERS.every((f) => f.title && f.body), 'every filler says something');
+    assert.strictEqual(CARD_SLOTS.large, 4, 'two columns by two rows');
+    assert.strictEqual(SPREAD_SLOTS, 12);
+
+    console.log('ok  a catalogue prints in order, and a short page is filled rather than empty');
+}
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------

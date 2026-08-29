@@ -33,7 +33,8 @@
 
 import {
     MODULE, RECEIPT_FLAG, PAR_FLAG, FREE_FLAG, DELIVERY_SERVICES, DEFAULT_DELIVERY_SERVICE, deliveryService,
-    deliveryDaysKey, deliveryFeeKey, arrivalTime, daysUntil
+    deliveryDaysKey, deliveryFeeKey, arrivalTime, daysUntil, deliveryPointFor, customDestinations,
+    DELIVERY_POINT
 } from './const.js';
 import { toBase, formatBase } from './utility-pricing.js';
 
@@ -93,6 +94,50 @@ export function arrivalLabel(arrivesAt, now = null) {
     return game.i18n.format('coffee-pub-merchant.delivery.arrives', { days });
 }
 
+/**
+ * Everywhere a parcel can be sent by this service.
+ *
+ * **The world's shops plus the GM's own list.** A merchant carrying the matching flag is
+ * offering to take parcels, and `worldMerchants` already enumerates every linked merchant
+ * in the world — there is no separate register to keep, and one would only drift from the
+ * Actors it was describing. Alongside them, a free-text list per merchant, because not
+ * every place a parcel can go is a shop somebody has built: a safehouse, a poste restante,
+ * a name a party made up.
+ *
+ * A beast returns nothing, and that is not an empty list — it is the answer. It goes
+ * looking for whoever is holding the receipt, which is what its price buys.
+ */
+export function destinationsFor(service, merchantConfig) {
+    const point = deliveryPointFor(service);
+    if (!point) return null;
+
+    const places = new Set();
+
+    // Late import: this reaches the manager, which reaches this file back. Inside a
+    // function, so the binding resolves at call time rather than at load.
+    const manager = globalThis.game?.modules?.get(MODULE.ID)?.api?.merchant;
+    for (const actor of manager?.worldMerchants?.() ?? []) {
+        const config = manager.getConfig(actor);
+        if (config?.[point] === true) places.add(config.name || actor.name);
+    }
+
+    const custom = point === DELIVERY_POINT.PORTAL
+        ? merchantConfig?.portalLocations
+        : merchantConfig?.physicalLocations;
+    for (const place of customDestinations(custom)) places.add(place);
+
+    return [...places].sort((a, b) => a.localeCompare(b));
+}
+
+/** What to say when a service asks for nowhere, or when nowhere is on offer. */
+export function destinationNote(service, list) {
+    if (list === null) return game.i18n.localize('coffee-pub-merchant.delivery.beastNote');
+    if (list.length) return '';
+    return deliveryPointFor(service) === DELIVERY_POINT.PORTAL
+        ? game.i18n.localize('coffee-pub-merchant.delivery.noPortal')
+        : game.i18n.localize('coffee-pub-merchant.delivery.noPhysical');
+}
+
 // ==================================================================
 // ===== THE CONSIGNMENT ============================================
 // ==================================================================
@@ -131,6 +176,16 @@ export function manifestHtml(record) {
         `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestFee', {
             fee: formatBase(record.feeBase ?? 0)
         })}</p>`,
+        record.destination
+            ? `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestWhere', {
+                where: foundry.utils.escapeHTML(record.destination)
+            })}</p>`
+            : '',
+        record.instructions
+            ? `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestInstructions', {
+                note: foundry.utils.escapeHTML(record.instructions)
+            })}</p>`
+            : '',
         `<p><em>${arrivalLabel(record.arrivesAt)}</em></p>`
     ].join('');
 }
@@ -143,7 +198,8 @@ export function manifestHtml(record) {
  * results taken from the merchant's own rows at order time.
  */
 export function buildConsignment({
-    merchantUuid, shopName, buyerUuid, service, lines, feeBase: fee, goodsBase, now, outbound = false
+    merchantUuid, shopName, buyerUuid, service, lines, feeBase: fee, goodsBase, now,
+    destination = null, instructions = '', outbound = false
 }) {
     const chosen = serviceFor(service);
     const dispatchedAt = Number.isFinite(Number(now)) ? Number(now) : 0;
@@ -157,6 +213,10 @@ export function buildConsignment({
         goodsBase: goodsBase ?? 0,
         dispatchedAt,
         arrivesAt: arrivalTime(dispatchedAt, chosen.days),
+        // Where it is going, and anything the party asked for on the way. Both are read by
+        // a person rather than acted on by the module, which is the point of them.
+        destination: destination || null,
+        instructions: String(instructions ?? '').slice(0, 500),
         // Which way it is going. Buying is the ordinary case; an outbound consignment is the
         // party posting goods to the merchant, already paid for on dispatch.
         outbound: outbound === true,
