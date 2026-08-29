@@ -2889,8 +2889,14 @@ const ShopBehaviour = (Base) => class extends Base {
         _swapping = true;
         try {
             await this.close();
-            const Target = next ? ShopFullscreenWindow : ShopWindow;
-            await Target.openFor(subject, options);
+            // **`openWindowed`, not `openFor`.** `ShopWindow.openFor` is the router, and the
+            // door this shop was opened through has not changed -- so leaving full screen
+            // asked the router the same question it had already answered and was sent
+            // straight back. The toggle is the one caller that has decided which shell it
+            // wants, and it is the one that must not be routed.
+            await (next
+                ? ShopFullscreenWindow.openFor(subject, options)
+                : ShopWindow.openWindowed(subject, options));
         } finally {
             _swapping = false;
         }
@@ -3003,6 +3009,19 @@ const ShopBehaviour = (Base) => class extends Base {
  */
 export class ShopWindow extends ShopBehaviour(BlacksmithToolWindowBaseV2) {
     static IS_EXPANDED = false;
+
+    /**
+     * Open the ordinary window, whatever the merchant says.
+     *
+     * The escape hatch out of the router above, and the only caller is the toggle: somebody
+     * pressing Leave Full Screen has already decided which shell they want, and asking the
+     * merchant again would return them to the one they just left.
+     *
+     * `super.openFor` is the tool base's, which is the registry and nothing else.
+     */
+    static async openWindowed(subject, options = {}) {
+        return super.openFor(subject, options);
+    }
 
     /**
      * Open a shop in the shell the merchant says it opens in.
