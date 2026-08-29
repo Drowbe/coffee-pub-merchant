@@ -3076,20 +3076,16 @@ export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWind
             // rather than concatenating, so listing only ours would drop the class that
             // makes the surface cover and block at all -- the shop would render as an
             // unstyled block in the corner of the screen.
-            // Four classes, and each is load-bearing. `blacksmith-window-fullscreen` is what
-            // makes the surface cover and block; `merchant-shop-window` and
-            // `merchant-shop-fullscreen` are ours. **`blacksmith-window-tool` is borrowed**
-            // for its palette: the shop's stylesheet reads ten `--blacksmith-tool-*` tokens,
-            // which are declared on that class and are undefined anywhere else -- so without
-            // it the whole shop renders with no surfaces, no dividers and no text colour,
-            // which is what "the contents are hard to see" actually was. Copying ten hex
-            // values here instead would put Merchant's parchment out of step with the
-            // suite's the first time anybody retunes it. The three frame properties it also
-            // brings are cleared in `window-shop.css`.
-            classes: [
-                'blacksmith-window-fullscreen', 'blacksmith-window-tool',
-                'merchant-shop-window', 'merchant-shop-fullscreen'
-            ],
+            // **Three classes; a fourth was tried and cannot work.** `blacksmith-window-fullscreen`
+            // is what makes the surface cover and block; the other two are ours.
+            //
+            // `blacksmith-window-tool` was added here to borrow its `--blacksmith-tool-*`
+            // palette, which the shop's stylesheet reads ten of. It does nothing: the tool
+            // shell declares those under `.application.blacksmith-window-tool`, and a
+            // **frameless** application never gets the `application` class -- which is why
+            // the hub's own fullscreen rules are written as a bare `.blacksmith-window-fullscreen`.
+            // The palette is declared for this surface in `window-shop.css` instead.
+            classes: ['blacksmith-window-fullscreen', 'merchant-shop-window', 'merchant-shop-fullscreen'],
             // **A panel on the picture, not the shop painted straight onto it.** `full`
             // hands you the whole surface with no chrome, which read as shop rows floating
             // unreadably over a scene. `centered` is the shape this actually wants: the art

@@ -891,33 +891,42 @@
  */
 
 /*
- * **Undo the frame the borrowed palette brings with it.**
+ * **The shop wears its dark theme on the surface, and the palette is declared here.**
  *
- * `blacksmith-window-tool` is on this window for its ten `--blacksmith-tool-*` tokens,
- * which the shop's stylesheet reads and which are declared nowhere else — without them the
- * shop renders with no surfaces, no dividers and no text colour. The class also paints a
- * parchment box: a background, a 2px border and a drop shadow, meant for a small window
- * and here applied to something the size of the screen. Those three are cleared, and
- * nothing else about the class is unwanted.
+ * The shop's stylesheet reads ten `--blacksmith-tool-*` tokens. The tool shell declares
+ * them under `.application.blacksmith-window-tool` — and a **frameless** application never
+ * receives the `application` class, which is why the hub's own fullscreen rules are a bare
+ * `.blacksmith-window-fullscreen`. Putting the tool class on this window therefore did
+ * nothing at all: the shop rendered with no surfaces, no dividers and no text colour, over
+ * a panel whose background token was equally undefined.
  *
- * `.application` on the front because that is how the tool shell declares them, and a
- * selector of equal weight would be settled by which stylesheet loaded last.
+ * So they are declared, and declared **dark**. A parchment card is right in a window on a
+ * grey canvas and wrong on a lit scene: the picture is the brightest thing on the screen,
+ * and a light panel in front of it competes with the room instead of sitting in it. These
+ * are Blacksmith's own dark-tool values rather than colours picked here, so the shop is
+ * recognisably the same suite in either shell.
  */
-.application.merchant-shop-fullscreen {
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
+.merchant-shop-fullscreen {
+    --blacksmith-tool-border: rgba(0, 0, 0, .72);
+    --blacksmith-tool-divider: rgba(172, 159, 129, .35);
+    --blacksmith-tool-text: rgba(224, 224, 224, .92);
+    --blacksmith-tool-text-muted: rgba(224, 224, 224, .5);
+    --blacksmith-tool-accent: var(--blacksmith-window-accent-color, #ac9f81);
+    --blacksmith-tool-field-background: var(--blacksmith-surface-dark-1, #222);
+    --blacksmith-tool-field-text: rgba(224, 224, 224, .92);
+    --blacksmith-tool-surface-raised: rgba(38, 36, 36, .82);
+    --blacksmith-tool-surface-sunken: rgba(0, 0, 0, .34);
+    --blacksmith-tool-surface-hover: rgba(255, 255, 255, .08);
 }
 
-/*
- * The panel is the shop's ground, in the same parchment every other Merchant window uses.
- * Written as the tool token rather than a colour, so a shop on the surface and a shop in a
- * window are the same shop when somebody retunes the theme.
- */
+/* The panel is the shop's ground: dark, so the lit scene behind reads as the room and the
+   shop reads as the thing you are doing in it. */
 .merchant-shop-fullscreen .blacksmith-window-fullscreen-panel {
-    --blacksmith-fullscreen-panel-background: var(--blacksmith-tool-background);
-    --blacksmith-fullscreen-panel-border: 2px solid var(--blacksmith-tool-border);
+    /* **Much darker than a Merchant window, deliberately.** Near-opaque rather than solid,
+       so the room is still faintly there at the edges of the shop rather than sealed off
+       behind a rectangle. */
+    --blacksmith-fullscreen-panel-background: linear-gradient(180deg, rgba(22, 20, 19, .93), rgba(14, 13, 12, .95));
+    --blacksmith-fullscreen-panel-border: 1px solid rgba(172, 159, 129, .28);
     --blacksmith-fullscreen-panel-shadow: 0 18px 60px rgba(0, 0, 0, .7);
     /* The shop draws its own padding and its inventory column scrolls inside it; the
        panel's own 24px would be a second margin around a card that already has one. */
