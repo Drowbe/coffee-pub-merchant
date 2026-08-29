@@ -3076,15 +3076,28 @@ export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWind
             // rather than concatenating, so listing only ours would drop the class that
             // makes the surface cover and block at all -- the shop would render as an
             // unstyled block in the corner of the screen.
-            classes: ['blacksmith-window-fullscreen', 'merchant-shop-window', 'merchant-shop-fullscreen'],
-            fullscreenLayout: BLACKSMITH_FULLSCREEN_LAYOUTS.FULL,
-            // The shop's own card is its title. A header over it would be the frame coming
-            // back on a surface whose whole point is not having one.
-            showCloseButton: false,
-            // **Escape leaves the surface rather than closing the shop.** A player who came
-            // in through a token expects to still be in the shop afterwards, and losing a
-            // half-built slate to a stray keypress is the worst possible reading of it.
-            dismissOnEscape: false,
+            // Four classes, and each is load-bearing. `blacksmith-window-fullscreen` is what
+            // makes the surface cover and block; `merchant-shop-window` and
+            // `merchant-shop-fullscreen` are ours. **`blacksmith-window-tool` is borrowed**
+            // for its palette: the shop's stylesheet reads ten `--blacksmith-tool-*` tokens,
+            // which are declared on that class and are undefined anywhere else -- so without
+            // it the whole shop renders with no surfaces, no dividers and no text colour,
+            // which is what "the contents are hard to see" actually was. Copying ten hex
+            // values here instead would put Merchant's parchment out of step with the
+            // suite's the first time anybody retunes it. The three frame properties it also
+            // brings are cleared in `window-shop.css`.
+            classes: [
+                'blacksmith-window-fullscreen', 'blacksmith-window-tool',
+                'merchant-shop-window', 'merchant-shop-fullscreen'
+            ],
+            // **A panel on the picture, not the shop painted straight onto it.** `full`
+            // hands you the whole surface with no chrome, which read as shop rows floating
+            // unreadably over a scene. `centered` is the shape this actually wants: the art
+            // edge to edge behind, and the shop on a ground of its own in the middle of it.
+            fullscreenLayout: BLACKSMITH_FULLSCREEN_LAYOUTS.CENTERED,
+            showCloseButton: true,
+            dismissOnEscape: true,
+            // A stray click on the art either side of the panel is not a decision to leave.
             dismissOnBackdrop: false
         }
     );
@@ -3095,13 +3108,14 @@ export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWind
      * **A getter, not a write to `options`.** The obvious move is to set
      * `this.options.fullscreenBackdrop` once the illustration is known, and it throws:
      * ApplicationV2 freezes `options`. The base reads the backdrop through this getter on
-     * every render, which is exactly the hook for a value that is not known until the shop
-     * has been resolved.
+     * every render, which is exactly the hook for a value that arrives late.
      *
-     * `contain` and not `cover`: shop art is wide and a screen may be tall, so covering
-     * crops a scene to whatever happens to be in the middle. The colour beneath fills the
-     * bands a contained picture leaves, drawn dark rather than blurred-from-the-art because
-     * the hub's `blur` applies to what shows through the surface, not to the image layer.
+     * `cover` fills the screen -- the image is cropped rather than letterboxed, which is
+     * what a room should do. The colour is a heavy black wash under the picture, so the
+     * shop's own furniture stays legible over any illustration a GM points at, and `blur`
+     * softens the little of the table that still shows through. Note that `blur` is a
+     * *backdrop* filter on the surface and does not touch the picture; softening the
+     * illustration itself would be `imageBlur`, a separate knob deliberately not used.
      *
      * A shop with no illustration returns nothing and keeps the hub's default scrim, which
      * is the glass the window already uses. The undressed case is not special-cased; it
@@ -3111,13 +3125,31 @@ export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWind
         if (!this._illustration) return {};
         return {
             image: this._illustration,
-            fit: BLACKSMITH_FULLSCREEN_FITS.CONTAIN,
-            // Darker than the card's own veil, deliberately: this one is carrying a whole
-            // room with parchment furniture standing on it, where the card's seats one
-            // paragraph of light text.
-            color: 'rgba(12, 8, 5, 0.82)',
-            opacity: 0.55
+            fit: BLACKSMITH_FULLSCREEN_FITS.COVER,
+            color: 'rgba(0, 0, 0, 0.8)',
+            opacity: 0.5,
+            blur: 5
         };
+    }
+
+    /**
+     * **The ✕ and Escape leave the surface; they do not close the shop.**
+     *
+     * `onDismiss` exists for exactly this and is documented for exactly this reason: it is
+     * the *viewer asked for this to go away* path, distinct from `close()`, which is every
+     * other route -- a socket, a timer, the manager closing a shop whose merchant was
+     * deleted. Hooking `close()` instead would catch all of those too.
+     *
+     * A player who came in through a token expects to still be in the shop after pressing
+     * Escape, so both controls do what the button in the action bar does. Losing a
+     * half-built slate to a keypress would be the worst possible reading of them, which is
+     * why the first version turned both off -- and turning off the way out of a takeover is
+     * a worse answer than pointing it somewhere sensible.
+     *
+     * @param {'escape'|'close-button'|'backdrop'} _reason
+     */
+    async onDismiss(_reason) {
+        await this.toggleExpand();
     }
 
     async _prepareContext(options = {}) {
@@ -3130,11 +3162,13 @@ export class ShopFullscreenWindow extends ShopBehaviour(BlacksmithFullscreenWind
         context.actionBarRight = context.toolFooterRight ?? '';
         context.showHeader = false;
 
-        // **The way out, and it has to be here.** The tool shell puts the toggle in its
-        // title bar; this shell has no title bar, and with the hub's close control off --
-        // it would close the shop rather than leave the surface -- the action bar is the
-        // only place left. A takeover you cannot leave is a trap, and losing a half-built
-        // slate to find that out is the worst way to learn it.
+        // **The way out, spelled out.** The ✕ and Escape do the same thing, but a control
+        // that says what it does beats one a viewer has to guess at -- and this one has to
+        // be distinguishable from Cancel beside it, which leaves the shop entirely.
+        //
+        // The button classes and `data-action` routing are the hub's documented contract for
+        // action-bar content, not a convention of ours: `blacksmith-window-btn-secondary`
+        // with a `data-action` that names an entry in `ACTION_HANDLERS`.
         context.actionBarLeft = `
             <button type="button" class="blacksmith-window-btn-secondary" data-action="toggleExpand">
                 <i class="fa-solid fa-compress"></i> ${game.i18n.localize('coffee-pub-merchant.shop.leaveFullScreen')}

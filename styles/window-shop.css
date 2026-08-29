@@ -878,58 +878,68 @@
 
 /* --- The shop full screen -------------------------------------------------- */
 /*
- * **Blacksmith's fullscreen surface draws the room; this dresses what stands in it.**
+ * **Blacksmith's fullscreen surface draws the room; this seats the shop in it.**
  *
- * The covering, the blocking, the stacking, the fade and the backdrop layer are all the
- * hub's — `ShopFullscreenWindow` asks for the `full` layout and hands it the shop's
- * illustration as `fullscreenBackdrop`. What is left for Merchant is the same division the
- * pins have: they own the presentation, we own what is on it.
+ * The covering, the blocking, the stacking, the fade, the backdrop and the centred panel
+ * are all the hub's — `ShopFullscreenWindow` asks for the `centered` layout and hands it
+ * the shop's illustration as `fullscreenBackdrop`. Everything below either borrows one of
+ * its documented custom properties or cleans up after a class we borrowed.
  *
- * The hub's own note applies here and is worth restating: an id selector outranks the
- * shell's classes, so a rule written against the window's id would silently take over the
- * parts that make it cover and block. Everything below is scoped to our class.
+ * Their own note applies and is worth restating: an id selector outranks the shell's
+ * classes, so a rule written against the window's id would silently take over the parts
+ * that make it cover and block. Everything here is scoped to our class.
  */
 
-/* The shop's own content is `height: 100%` and scrolls its inventory column internally, the
-   same as it does in the tool shell. The hub's body zone has to let it: without `min-height:
-   0` a flex child refuses to shrink below its content, and the shelves would run off the
-   bottom of the screen rather than scrolling inside the surface. */
-.merchant-shop-fullscreen .blacksmith-window-fullscreen-panel,
+/*
+ * **Undo the frame the borrowed palette brings with it.**
+ *
+ * `blacksmith-window-tool` is on this window for its ten `--blacksmith-tool-*` tokens,
+ * which the shop's stylesheet reads and which are declared nowhere else — without them the
+ * shop renders with no surfaces, no dividers and no text colour. The class also paints a
+ * parchment box: a background, a 2px border and a drop shadow, meant for a small window
+ * and here applied to something the size of the screen. Those three are cleared, and
+ * nothing else about the class is unwanted.
+ *
+ * `.application` on the front because that is how the tool shell declares them, and a
+ * selector of equal weight would be settled by which stylesheet loaded last.
+ */
+.application.merchant-shop-fullscreen {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+}
+
+/*
+ * The panel is the shop's ground, in the same parchment every other Merchant window uses.
+ * Written as the tool token rather than a colour, so a shop on the surface and a shop in a
+ * window are the same shop when somebody retunes the theme.
+ */
+.merchant-shop-fullscreen .blacksmith-window-fullscreen-panel {
+    --blacksmith-fullscreen-panel-background: var(--blacksmith-tool-background);
+    --blacksmith-fullscreen-panel-border: 2px solid var(--blacksmith-tool-border);
+    --blacksmith-fullscreen-panel-shadow: 0 18px 60px rgba(0, 0, 0, .7);
+    /* The shop draws its own padding and its inventory column scrolls inside it; the
+       panel's own 24px would be a second margin around a card that already has one. */
+    --blacksmith-fullscreen-panel-padding: 0;
+    /* **Wider than the hub's 1100px default, and capped rather than uncapped.** Width buys
+       picture, not longer rows: a list stretched the width of a monitor puts a metre
+       between an item's name and its price. */
+    --blacksmith-fullscreen-max-width: 1180px;
+    min-height: 0;
+}
+
+/* A flex child refuses to shrink below its content without this, and the shelves would run
+   off the bottom of the panel rather than scrolling inside it. */
 .merchant-shop-fullscreen .blacksmith-window-fullscreen-body {
     min-height: 0;
     overflow: hidden;
 }
 
-/* **Capped and centred, because width buys picture rather than longer rows.** A shop list
-   stretched across 2560px puts a metre between an item's name and its price. 1180px is
-   about the width past which a list stops being a list and starts being a spreadsheet. */
+/* The shop fills the panel it was given, and scrolls internally exactly as it does in the
+   ordinary window. Nothing else about its furniture is restyled: a card that reads one way
+   in a window and another on the surface is two shops to learn. */
 .merchant-shop-fullscreen .merchant-shop-content {
-    width: 100%;
-    max-width: 1180px;
     height: 100%;
-    margin: 0 auto;
-    padding: 18px;
-    gap: 14px;
-}
-
-/*
- * **The shop card becomes dark glass, because the picture is already behind it.**
- *
- * Left alone it draws the same illustration a second time, at a different scale and crop,
- * inside a room made of that illustration — the one thing guaranteed to read as a mistake.
- * Glass instead: the backdrop shows through, the light text the card already uses stays
- * valid, and the picture is continuous across the furniture standing on it.
- */
-.merchant-shop-fullscreen .merchant-shop-subject[data-has-illustration],
-.merchant-shop-fullscreen .merchant-shop-subject[data-tint][data-has-illustration] {
-    background-image: linear-gradient(100deg, rgba(14, 9, 6, .62), rgba(14, 9, 6, .44));
-    background-size: cover;
-    backdrop-filter: blur(3px);
-    border-color: rgba(255, 255, 255, .18);
-}
-
-/* Furniture on a floor rather than panels on parchment. The shadow is what tells a reader
-   the cards are in front of the room instead of printed on it. */
-.merchant-shop-fullscreen .merchant-shop-section {
-    box-shadow: 0 6px 22px rgba(0, 0, 0, .38);
+    min-height: 0;
 }
