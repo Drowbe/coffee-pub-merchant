@@ -21,16 +21,16 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Mail order](#1-mail-order) | Ways in | L | Designed — ready to plan |
+| 1 | [Mail order](#1-mail-order) | Ways in | L | Phase 1 designed — ready to plan |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
 2026-08-28 and reads well, so the stage two that entry held open is not wanted.
 
 What is left is the catalogue, which shipped as *the shop reached from elsewhere* and is becoming something
-larger: **mail order** — a catalogue shelf type whose stock is a warehouse rather than a counter, parcels
-that arrive as objects at places, three delivery types, and a party who will find uses for all of it that
-nobody planned. Designed on 2026-08-29 and written up below; six gaps left, none of them structural.
+larger: **mail order** — a catalogue shelf type whose stock is a warehouse rather than a counter, three
+delivery services, a receipt that becomes the parcel it was promising, and a party who will find uses for
+all of it that nobody planned. Phase 1 designed on 2026-08-29 and written up below.
 
 **One open ask with Blacksmith**, recorded in `architecture/architecture-merchant.md` §16 with what to
 delete when it lands. Two others closed on 2026-08-28 — the uncurated-compendium one by Merchant scanning
@@ -46,7 +46,7 @@ rather than read:
 
 ## 1. Mail order
 
-**Category:** Ways in · **Size:** L · **Designed 2026-08-29. Ready to plan; a handful of gaps below.**
+**Category:** Ways in · **Size:** L · **Phase 1 designed 2026-08-29. Ready to plan.**
 
 The catalogue shipped as *the shop, reachable from anywhere*, which is the wrong thing: a party carrying six
 of them never travels to a market again. What it should be is **mail order** — its own rules, its own costs,
@@ -96,33 +96,67 @@ Arrival is **elapsed world time** since dispatch — a stored timestamp and a co
   delivery later.
 - **Where it is delivered is the party's choice**, and paying more moves that choice closer to them.
 
-### Gaps to close before building
+### Phase 1 — theatre of the mind
 
-1. **What is a depot?** Ground delivery collects at one, and a pin is the obvious answer — but somebody has
-   to say which pins are depots and on which scenes. Per merchant, per world, or a pin type of its own?
-2. **How does a shop join the portal network?** A flag on the merchant, and then Parcel Portal's destination
-   picker is a list of the other merchants carrying it. Worth checking that the *sending* merchant needs it
-   too, which the fiction says it does.
-3. **When does the pickup pin appear** — on dispatch, so the party can watch it not be there yet, or on
-   arrival? And who may see it?
-4. **Where does a pending order live?** It outlives a session, so it is on a document. The buyer, the
-   merchant, or the world — and whichever it is has to survive the merchant being deleted, since a shop that
-   closes down while a crate is in transit is a story rather than an error.
-5. **Selling by post: where do the goods land?** The Buyback shelf is where party goods already end up, so a
-   crate in the post is a thing between two shelves for a few days.
-6. **What does the courier do if nobody is holding the catalogue any more?** It finds the holder — and the
-   holder may have sold it, lost it, or died since.
+**Settled 2026-08-29.** Everything below is deliberately narrative: no pins, no portal network, no map. What
+is built is the *transaction and the waiting*, which is the part with rules; where a parcel physically sits
+is described rather than placed.
+
+- **A receipt, then a parcel, and they are the same Item.** Ordering creates a **receipt** in the party's
+  possession carrying what is coming, from whom, by which service and when. On delivery that same Item
+  **becomes the parcel** — a container holding the goods. The receipt is the tracking number and then it is
+  the box.
+
+  This answers where a pending order lives, and answers it better than a flag somewhere would: it is an
+  object the players can *see*, it survives sessions, it survives the merchant being deleted, and it can be
+  lost, sold, stolen or found — which is the point of the whole feature.
+- **Arrival is a notification**, not a place. *Your delivery is ready.* What happens next is the fiction:
+  - **Ground** and **Parcel Portal** — collect it at the location, whenever they get there.
+  - **Courier Beast** — the GM hands it over.
+- **Lost and stolen parcels are wanted.** A parcel that is an Item somebody is holding can go astray, and a
+  receipt whose parcel never came is a plot. Worth a GM affordance rather than being purely narrative.
+
+### Phase 2 — on the map
+
+Only after phase 1 has been played with:
+
+- Depot **pins** to collect a Ground delivery from, and whatever says which pins are depots.
+- The **portal network flag** on a merchant, and a Parcel Portal destination picker listing the shops that
+  carry it. The fiction says the *sending* shop needs it too.
 
 ### Notes for whoever builds it
 
-- **`grantItem` refuses a packed container** — this is the `CONTAINER_HAS_CONTENTS` refusal Merchant already
-  reports quietly on restocks, because the copy would have to invent the contents or drop them. A parcel is
-  a packed container *by definition*, so it cannot be created through the inventory API and has to be built
-  as documents directly. Worth knowing before an afternoon is spent on it.
+- **`api.worldClock` is the right tool here, and this is the case its decline anticipated.** It was
+  evaluated and declined on 2026-08-21 for trading hours and restocking, correctly: neither is a moment.
+  The note left behind said to revisit *"if a genuine wall-clock event appears — a shop that opens on market
+  day, an auction at dusk. Those are moments, and that is what it is for."* **A delivery arriving is a
+  moment**, and `schedule({ at })` is exactly it.
+
+  Three things from their page that this has to obey: schedules are **not persisted**, so pending deliveries
+  are re-registered on `ready` from the receipts, which is the queue — the API is a notification surface and
+  not a queue, and the receipts already are one. **`gmOnly: true`**, since delivering writes to the world
+  and five connected players would otherwise do it five times. And rewinding time re-arms a one-shot, so a
+  GM correcting the clock backwards past a delivery will see it arrive again — which for a delivery is
+  arguably right, but should be a decision rather than a surprise.
+- **`grantItem` refuses a packed container** — the `CONTAINER_HAS_CONTENTS` refusal Merchant already reports
+  quietly on restocks, because the copy would have to invent the contents or drop them. A parcel is a packed
+  container by definition, so it cannot be created through the inventory API and has to be built as
+  documents directly. Worth knowing before an afternoon is spent on it.
 - The paged catalogue view — a spread of item images rather than a scrolling list, which is what a catalogue
   *is* — is a presentation of the catalogue shell, and the full-screen surface is where it will look best.
 - Delivery types, their costs and their speeds want to be a table in `const.js` like `INVENTORY_TYPES`, so a
   fourth one is a row rather than a branch.
+
+### Still open
+
+1. **Where do posted goods land?** Selling by post pays on dispatch, so the party has its coin — but the
+   merchant takes delivery later, and the Buyback shelf is where party goods already end up. A crate in the
+   post is then a thing between two shelves for a few days.
+2. **What the courier does if nobody holds the catalogue any more.** It finds the holder, and the holder may
+   have sold it, lost it, or died. Probably: it becomes a parcel the GM hands out, which is the Beast case
+   anyway.
+3. **What a receipt looks like on a sheet.** It is an Item a player will open, and "your parcel is three
+   days away" wants to be readable there rather than only in a notification they may have missed.
 
 ---
 
@@ -174,4 +208,5 @@ Declines, kept so they are not re-proposed from scratch. Not a backlog.
   same `lastRestock` the current check reads directly.
 
   Revisit if a genuine wall-clock event appears — a shop that opens on market day, an auction at dusk. Those
-  are moments, and that is what it is for.
+  are moments, and that is what it is for. **Revisited 2026-08-29 and it was right**: a mail-order delivery
+  arriving is a moment, and item 1 uses `schedule({ at })` for exactly that.
