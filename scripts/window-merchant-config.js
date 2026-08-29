@@ -6,7 +6,8 @@ import {
     PRICE_STOPS, priceStopIndex, priceStopLabel,
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables,
-    SHOP_SOUND_KEYS
+    SHOP_SOUND_KEYS,
+    SHOP_DOORS
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
 import { canPrint } from './utility-catalogue.js';
@@ -369,6 +370,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         if (kind && kind.dataset.merchantBound !== 'true') {
             kind.dataset.merchantBound = 'true';
             kind.addEventListener('change', (event) => void this._setField({ kind: event.target.value }));
+        }
+
+        const fullscreen = this.element?.querySelector('[data-merchant-fullscreen]');
+        if (fullscreen && fullscreen.dataset.merchantBound !== 'true') {
+            fullscreen.dataset.merchantBound = 'true';
+            fullscreen.addEventListener('change', (event) => {
+                // The pill answers the click rather than the round trip, as the query chips do.
+                event.target.closest('.merchant-config-chip')?.classList.toggle('is-on', event.target.checked);
+                // **The whole set on every tick, never a delta.** A flag written one door at
+                // a time leaves the others unstated, and `setConfig` merges -- so unticking
+                // one would appear to do nothing until the next reload.
+                const doors = {};
+                for (const box of fullscreen.querySelectorAll('input[type="checkbox"]')) {
+                    if (box.checked) doors[box.value] = true;
+                }
+                void this._setField({ fullscreen: doors }, { redraw: false });
+            });
         }
 
         const description = this.element?.querySelector('[data-merchant-description]');
@@ -1929,6 +1947,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             shopName: MerchantManager.getConfig(actor)?.name ?? '',
             tillLabel: enabled ? formatBase(purseValue(actor)) : null,
             tillEmpty: enabled && purseValue(actor) === 0,
+            fullscreenDoors: SHOP_DOORS.map((door) => ({
+                value: door.key,
+                label: game.i18n.localize(door.labelKey),
+                on: merchantConfig.fullscreen?.[door.key] === true
+            })),
             kindOptions: SHOP_KINDS.map((option) => ({
                 value: option.key,
                 label: option.label,
@@ -2111,7 +2134,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // A linked merchant opens with no token placed at all -- it is a shop in its own
         // right, and the scene it is priced against is the one being looked at. An
         // unlinked one still needs its token, because there the token *is* the shop.
-        if (!MerchantManager.openForActor(actor)) {
+        if (!MerchantManager.openForActor(actor, { door: 'sheet' })) {
             notify.warn(game.i18n.format('coffee-pub-merchant.notify.noShopToOpen', { name: actor.name }));
         }
     }

@@ -53,7 +53,6 @@
     "scripts/canvas-marker.js",
     "scripts/utility-catalogue.js",
     "scripts/utility-pricing.js",
-    "scripts/utility-expand.js",
     "scripts/utility-progress.js",
     "scripts/utility-reputation.js",
     "scripts/utility-sockets.js",

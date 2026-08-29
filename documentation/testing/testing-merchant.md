@@ -1763,38 +1763,47 @@ level onto every existing row; it logs how many.
 ## The shop full screen (13.3.0)
 
 232. **Full Screen** in the shop window header covers the whole screen — over the sidebar, the scene
-    controls and the hotbar — with the shop's illustration as the room behind it. **Leave Full Screen** in
-    the action bar puts it back to the window it was.
-233. **The slate survives the swap, in both directions.** Put things in the cart *and* the sell basket, go
+    controls and the hotbar — with the shop's illustration as the room behind it and the shop itself on a
+    dark panel in the middle of it.
+233. **Three ways out, all of which leave the surface rather than closing the shop**: **Leave Full Screen**
+    in the action bar, the ✕ in the corner, and Escape. **Cancel** beside them still closes the shop.
+234. **The slate survives the swap, in both directions.** Put things in the cart *and* the sell basket, go
     full screen, and they are still there; come back and they are still there.
-234. **Everything still works on the surface**: buy, sell, search, sort, fold a shelf, drag an item in,
+235. **Everything still works on the surface**: buy, sell, search, sort, fold a shelf, drag an item in,
     double-click a price, switch character, settle a transaction.
-235. **The list is capped and centred** rather than stretched a monitor wide, and the shop card is dark
-    glass rather than showing the illustration a second time inside it.
-236. **A shop with no illustration** goes full screen too, on the plain scrim, with nothing broken.
-237. **It is per client.** A player going full screen does not move the GM's window.
-238. **It is remembered per shop.** Close a full-screen shop and reopen it from the token, a pin, a region
-    or a catalogue: full screen. Open a *different* shop: an ordinary window.
-239. **The door does not slam on the toggle.** No open or close sound when swapping shells — only when the
+236. **The panel is capped and centred** rather than stretched a monitor wide, and the shop reads clearly
+    on it — surfaces, dividers, prices and text all legible, not washed out over the picture.
+237. **A shop with no illustration** goes full screen too, on the plain scrim, with nothing broken.
+238. **The toggle is per client.** A player pressing Full Screen does not move the GM's window.
+239. **A shop with no door ticked never opens full screen**, however it is reached.
+240. **The door does not slam on the toggle.** No open or close sound when swapping shells — only when the
     shop is actually opened or closed.
-240. **Escape does not close the shop** from the surface, and there is no stray close control that would.
-241. **Presence still works**: with two clients in one shop, one going full screen still shows in the other's
+241. **The merchant decides per door.** *Opens full screen* has four chips: Walked in, Token, Map pin,
+    Catalogue. Tick **Walked in** only: walking a token into the region opens full screen, while
+    double-clicking the token, its pin, or consulting a catalogue opens a window. Tick Walked in **and**
+    Catalogue and leave Token off — the combination a single dropdown could not express — and check all
+    three behave.
+242. **Nothing is remembered.** With a door ticked, press Leave Full Screen, close the shop, and reopen it
+    through that door: full screen again. The toggle changes the shell you are in, not how the shop opens.
+    Pressing it is "not right now", not "never again".
+243. **A catalogue is named `Catalogue: <shop>`**, so several of them sort together in the Items directory.
+244. **Presence still works**: with two clients in one shop, one going full screen still shows in the other's
     "who is here" row, and slate mirroring still updates live.
-242. **Refreshes reach a full-screen shop.** Restock a shelf as GM while a player is full screen; their view
+245. **Refreshes reach a full-screen shop.** Restock a shelf as GM while a player is full screen; their view
     updates without them touching anything.
 
 ## Manual compendiums and shelf visibility (13.3.0)
 
-243. **A shelf drawing from uncurated packs stocks.** Set an inventory to *Manually Selected Compendiums*,
+246. **A shelf drawing from uncurated packs stocks.** Set an inventory to *Manually Selected Compendiums*,
     drop packs Blacksmith is **not** configured to search, and restock. Items arrive.
-244. **No row says *Waiting*** any more, and no restock refuses by naming the curated set.
-245. **A nine-pack shelf is drawn from evenly**, not filled out of the first pack in the list. Restock a few
+247. **No row says *Waiting*** any more, and no restock refuses by naming the curated set.
+248. **A nine-pack shelf is drawn from evenly**, not filled out of the first pack in the list. Restock a few
     times and check the spread.
-246. **An unticked pack contributes nothing**, and a list with everything unticked refuses by saying the list
+249. **An unticked pack contributes nothing**, and a list with everything unticked refuses by saying the list
     is empty.
-247. **A pack that has been uninstalled is skipped**, and its row still says *Gone*.
-248. **Unpriced compendium items are not stocked**, on either path.
-249. **The curated path is unchanged** — a shelf set to *Curated Blacksmith Compendiums* stocks as before.
-250. **Merchant Settings has an eye toggle on every shelf.** Clicking it puts the shelf away, the icon
+250. **A pack that has been uninstalled is skipped**, and its row still says *Gone*.
+251. **Unpriced compendium items are not stocked**, on either path.
+252. **The curated path is unchanged** — a shelf set to *Curated Blacksmith Compendiums* stocks as before.
+253. **Merchant Settings has an eye toggle on every shelf.** Clicking it puts the shelf away, the icon
     changes, and a player with the shop open loses the section immediately.
-251. **The two toggles agree.** Hide from the shop window, reopen Settings: it shows hidden, and vice versa.
+254. **The two toggles agree.** Hide from the shop window, reopen Settings: it shows hidden, and vice versa.

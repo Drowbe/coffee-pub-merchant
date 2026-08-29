@@ -731,6 +731,38 @@ console.log('ok  inventories move up and down, and the whole shop is renumbered'
 }
 console.log('ok  a shelf filters what a table brings in, not only what a query does');
 
+// --- which door opens a shop full screen -----------------------------------
+// *How you arrived* is part of how a shop should be presented, and the four doors are
+// genuinely different experiences rather than points on a scale -- which is why a merchant
+// answers each of them separately.
+{
+    const { opensFullScreen, SHOP_DOORS, DEFAULT_FULLSCREEN_DOORS } = await import('../scripts/const.js');
+    const keys = SHOP_DOORS.map((door) => door.key);
+
+    assert.deepStrictEqual(keys, ['region', 'token', 'pin', 'catalogue'], 'four doors, region first');
+
+    // One door on says nothing about the others: the case the scale could not express.
+    const onlyRegion = { region: true };
+    assert.strictEqual(opensFullScreen(onlyRegion, 'region'), true, 'the door that is on');
+    for (const door of keys.filter((k) => k !== 'region')) {
+        assert.strictEqual(opensFullScreen(onlyRegion, door), false, `and ${door}, which is not`);
+    }
+
+    // The combination a single scale had no entry for.
+    const mixed = { region: true, catalogue: true };
+    assert.strictEqual(opensFullScreen(mixed, 'catalogue'), true, 'two doors on');
+    assert.strictEqual(opensFullScreen(mixed, 'token'), false, 'with one still off between them');
+
+    // Anything that is not an explicit `true` for that exact door is a window: nothing
+    // stored, a door that is off, a stored shape from a version this build does not know.
+    assert.strictEqual(opensFullScreen(DEFAULT_FULLSCREEN_DOORS, 'region'), false, 'the shipped default');
+    assert.strictEqual(opensFullScreen(undefined, 'region'), false, 'nothing stored');
+    assert.strictEqual(opensFullScreen({ region: 'yes' }, 'region'), false, 'only true is true');
+    assert.strictEqual(opensFullScreen('always', 'region'), false, 'an older shape reads as no doors');
+
+    console.log('ok  each door answers for itself, and anything else is a window');
+}
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------

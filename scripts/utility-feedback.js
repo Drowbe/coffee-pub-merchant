@@ -158,10 +158,31 @@ export function playFeedback(key, override = null) {
     }
     if (!sound || sound === 'none' || sound === 'sound-none') return;
 
+    _play(sound, key);
+}
+
+/**
+ * Hand a sound to Blacksmith, and never let a failed one reach the console as an error.
+ *
+ * **Both halves of the failure, because they arrive differently.** A synchronous throw is
+ * caught here; anything that goes wrong *inside* Foundry's audio pipeline surfaces as a
+ * rejected promise, which the `try` never sees. One was reported and it is Foundry's own,
+ * not ours: `AudioBufferCache.getBuffer` throwing `Cannot set properties of undefined
+ * (setting 'previous')` while shifting its cache. Nothing here can prevent it.
+ *
+ * What we can decide is what it costs. This is set dressing -- a door creaking as a window
+ * opens -- and it must never be the thing that puts a red stack trace in a GM's console or
+ * stops the window it was decorating from rendering. A warning names the sound and the
+ * rest of the module carries on.
+ */
+function _play(sound, key) {
     const utils = game.modules.get('coffee-pub-blacksmith')?.api?.utils;
     if (typeof utils?.playSound !== 'function') return;
     try {
-        utils.playSound(sound, 0.7, false, false);
+        const played = utils.playSound(sound, 0.7, false, false);
+        if (typeof played?.catch === 'function') {
+            played.catch((error) => console.warn(`${MODULE.TITLE} | Could not play ${key}:`, error));
+        }
     } catch (error) {
         console.warn(`${MODULE.TITLE} | Could not play ${key}:`, error);
     }
@@ -176,13 +197,8 @@ export function playFeedback(key, override = null) {
  */
 export function playSoundPath(path) {
     if (!path || path === 'none' || path === 'sound-none') return;
-    const utils = game.modules.get('coffee-pub-blacksmith')?.api?.utils;
-    if (typeof utils?.playSound !== 'function') return;
-    try {
-        utils.playSound(path, 0.7, false, false);
-    } catch (error) {
-        console.warn(`${MODULE.TITLE} | Could not play ${path}:`, error);
-    }
+    // Through the same guard, so an audition cannot throw where a door creak would not.
+    _play(path, path);
 }
 
 /** The setting keys, so call sites name a sound rather than a string. */

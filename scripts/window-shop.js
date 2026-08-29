@@ -4,12 +4,12 @@ import {
 } from '/modules/coffee-pub-blacksmith/api/blacksmith-api.js';
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
-    normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG
+    normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
+    opensFullScreen
 } from './const.js';
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
-import { wasExpanded, rememberExpanded } from './utility-expand.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -2870,12 +2870,13 @@ const ShopBehaviour = (Base) => class extends Base {
      * for free: the slate, the basket and the presence maps live at module scope precisely
      * so a half-filled cart is still there on the other side.
      *
-     * Remembered *before* the swap, so the shop reopens in the shell it was left in even if
-     * the render throws on the way.
+     * **Nothing is written down.** This changes the shell you are in, not how the shop
+     * opens: that is the merchant's answer, per door, and the next time you open this shop
+     * it opens the way the GM said it does. Pressing Leave Full Screen is "not right now",
+     * which is a different sentence from "never show me this shop that way again".
      */
     async toggleExpand() {
         const next = !this.isExpanded;
-        await rememberExpanded(this.shopKey, next);
         const subject = this._subject;
         const options = this._openOptions;
 
@@ -3004,16 +3005,42 @@ export class ShopWindow extends ShopBehaviour(BlacksmithToolWindowBaseV2) {
     static IS_EXPANDED = false;
 
     /**
-     * Open a shop in the shell this client last left it in.
+     * Open a shop in the shell the merchant says it opens in.
      *
-     * **The routing lives here rather than at four call sites.** A token, a pin, a region
-     * and a catalogue all open a shop through `ShopWindow.openFor`, and every one of them
-     * should land in the same shell -- so the question is asked once, where the answer is
-     * already needed, rather than four times with four chances to forget.
+     * **The GM's setting is the setting, every time.** *How you arrived* is part of how a
+     * shop should be presented, and the four doors are genuinely different: walking into a
+     * region is being in the place; clicking a token is a shopkeeper on a map you are still
+     * using; a pin is a mark on that same map; a catalogue is a book in your pack. A
+     * merchant answers each separately, and that answer decides.
+     *
+     * **Nothing is remembered per client, and that is deliberate.** An earlier version
+     * stored what each person last left a shop as, and let it beat the merchant. It was the
+     * wrong model: pressing Leave Full Screen is *"not right now"*, not *"never show me
+     * this shop that way again"* — and a GM who dresses a shop and points a region at it
+     * would find half the table never seeing it, for a reason none of them could see. The
+     * toggle stays: it changes the shell you are in, for as long as you are in it.
+     *
+     * **The routing lives here rather than at five call sites.** A token, a pin, a region, a
+     * catalogue and Merchant Settings all open a shop through this, and none of them has to
+     * know the rule — they only have to say which door they are.
      */
     static async openFor(subject, options = {}) {
         const key = this.keyFor(subject);
-        if (key && wasExpanded(key)) return ShopFullscreenWindow.openFor(subject, options);
+
+        // `fromUuidSync` because this decides which class to construct and cannot await on a
+        // document that is already in memory by the time any door is opened.
+        let config = null;
+        try {
+            const resolved = key ? fromUuidSync(key) : null;
+            const actor = resolved?.documentName === 'Token' ? resolved.actor : resolved;
+            config = MerchantManager.getConfig(actor);
+        } catch (_error) {
+            config = null;
+        }
+
+        if (opensFullScreen(config?.fullscreen, options.door ?? 'token')) {
+            return ShopFullscreenWindow.openFor(subject, options);
+        }
         return super.openFor(subject, options);
     }
 }

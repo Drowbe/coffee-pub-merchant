@@ -77,6 +77,9 @@ export async function printCatalogue(actor) {
     const config = actor.getFlag(MODULE.ID, MERCHANT_FLAG) ?? null;
     const snapshot = shopSnapshot(actor, config);
     const kind = shopKind(snapshot.kind);
+    // **Named "Catalogue: <shop>", so they sort together.** The Items directory is
+    // alphabetical, and a party carrying six of these wants them in one run rather than
+    // scattered between a battleaxe and a bedroll.
     const name = game.i18n.format('coffee-pub-merchant.catalogue.itemName', {
         shop: snapshot.name ?? actor.name
     });
@@ -173,13 +176,14 @@ export async function openCatalogue(item) {
     }
 
     if (actor && MerchantManager.isMerchant(actor)) {
-        return MerchantManager.openForActor(actor, { placeless: true });
+        return MerchantManager.openForActor(actor, { placeless: true, door: 'catalogue' });
     }
 
     // The shop has closed down. The catalogue is a leaflet for somewhere that is not there
     // any more, which is a thing that happens to leaflets — so it opens on the abandoned
     // card under the name it was printed with, rather than refusing and looking broken.
     return ShopWindow.openFor(record.actorUuid, {
+        door: 'catalogue',
         sceneUuid: null,
         shopName: record.shopName ?? null,
         remembered: record.remembered ?? null

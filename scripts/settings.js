@@ -24,7 +24,6 @@ import {
     TOKEN_MARKER_SETTINGS
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
-import { registerExpandSetting } from './utility-expand.js';
 import { playSoundPath } from './utility-feedback.js';
 
 /**
@@ -424,10 +423,6 @@ export function registerSettings() {
     registerHeader('Merchant', 'H1',
         'coffee-pub-merchant.settings.headingMerchant',
         'coffee-pub-merchant.settings.headingMerchantHint');
-
-    // Not a question anybody answers here: it is answered by pressing Expand, and it is
-    // registered so the button has somewhere to write the answer down.
-    registerExpandSetting();
 
     registerStockingSettings();
     registerAestheticSettings();

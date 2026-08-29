@@ -94,6 +94,23 @@
                     <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.kindHint"}}</small>
                 </label>
 
+                {{!-- **A chip per door, not a dropdown of combinations.** The four ways into
+                      a shop are different experiences rather than points on a scale, and a
+                      GM who wants the region and the catalogue but not the token has no
+                      entry on a scale. Named after the doors, so nothing needs explaining. --}}
+                <div class="merchant-config-row merchant-config-chipset">
+                    <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.fullscreen"}}</span>
+                    <div class="merchant-config-chips" data-merchant-fullscreen>
+                        {{#each fullscreenDoors}}
+                            <label class="merchant-config-chip{{#if on}} is-on{{/if}}">
+                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                                <span>{{label}}</span>
+                            </label>
+                        {{/each}}
+                    </div>
+                    <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.fullscreenHint"}}</small>
+                </div>
+
                 <label class="merchant-config-row merchant-config-row-tall">
                     <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.description"}}</span>
                     <textarea data-merchant-description rows="3"

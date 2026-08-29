@@ -9,7 +9,8 @@ import {
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
-    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind
+    DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
+    DEFAULT_FULLSCREEN_DOORS
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -153,6 +154,8 @@ export class MerchantManager {
             enabled: true,
             name: null,
             kind: DEFAULT_SHOP_KIND,
+            // Which doors open this shop full screen, by door key. See `opensFullScreen`.
+            fullscreen: { ...DEFAULT_FULLSCREEN_DOORS },
             // Free text, GM-authored, optional. Enriched when shown, so a GM can put
             // a journal link or an inline roll in it.
             description: '',
@@ -1924,7 +1927,8 @@ export class MerchantManager {
         // `openFor` rethrows a failed render, which is what `openSafely` is for: the
         // gesture must never surface a rejected promise, and a shop that will not
         // build should say so once rather than be retried into the same wall.
-        return ShopWindow.openFor(...this.subjectFor(tokenDocument));
+        const [subject, options] = this.subjectFor(tokenDocument);
+        return ShopWindow.openFor(subject, { ...options, door: 'token' });
     }
 
     /**
@@ -2049,13 +2053,14 @@ export class MerchantManager {
         }
 
         const scene = pin?.sceneId ? game.scenes?.get(pin.sceneId) : canvas?.scene;
-        if (actor && this.isMerchant(actor)) return this.openForActor(actor, { scene });
+        if (actor && this.isMerchant(actor)) return this.openForActor(actor, { scene, door: 'pin' });
 
         // Nothing to be a shop of. The window is opened against the pin's own record so it
         // has a name to show and a key of its own, rather than being refused.
         // The shop as the pin remembers it. Without this an abandoned shop is a grey card
         // with a name on it -- everything the GM wrote about the place went with the Actor.
         return ShopWindow.openFor(uuid, {
+            door: 'pin',
             sceneUuid: scene?.uuid ?? null,
             shopName: pinShopSnapshot(pin)?.name ?? pin?.text ?? null,
             remembered: pinShopSnapshot(pin),
@@ -2076,7 +2081,7 @@ export class MerchantManager {
      * shop: the Actor in the sidebar is the mould it was cast from and has no stock of its
      * own to sell.
      */
-    static openForActor(actor, { scene = null, placeless = false } = {}) {
+    static openForActor(actor, { scene = null, placeless = false, door = 'token' } = {}) {
         if (!this.isMerchant(actor)) return null;
 
         if (actor.prototypeToken?.actorLink === true) {
@@ -2087,14 +2092,15 @@ export class MerchantManager {
             // on. A window showing one figure while the settlement charges another is
             // worse than the plain answer, which is the default market.
             const here = placeless ? null : (scene ?? canvas?.scene ?? null);
-            return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null });
+            return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null, door });
         }
 
         const placed = (scene ?? canvas?.scene)?.tokens?.find((token) => token.actor?.uuid === actor.uuid)
             ?? game.scenes?.map((each) => each.tokens.find((token) => token.actor?.uuid === actor.uuid))
                 ?.find(Boolean);
         if (!placed) return null;
-        return ShopWindow.openFor(...this.subjectFor(placed));
+        const [subject, options] = this.subjectFor(placed);
+        return ShopWindow.openFor(subject, { ...options, door });
     }
 
     /**

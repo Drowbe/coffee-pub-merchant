@@ -147,7 +147,9 @@ export function registerRegionBehavior() {
 
             // The region's own scene, which is where the token that entered is standing --
             // and what the market rate and the party's standing are read from.
-            MerchantManager.openForActor(actor, { scene: this.parent?.parent?.parent ?? null });
+            // **The one door that means you are standing in the place**, which is what makes
+            // it the one a merchant can single out for full screen. See `opensFullScreen`.
+            MerchantManager.openForActor(actor, { scene: this.parent?.parent?.parent ?? null, door: 'region' });
 
             // Disabling is a write, and a write is the GM's. Everybody else has already
             // opened their shop by this point.

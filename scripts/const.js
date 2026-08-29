@@ -498,7 +498,7 @@ export const TOKEN_MARKER_SETTINGS = Object.freeze([
     {
         key: 'markerSize',
         nameKey: 'coffee-pub-merchant.settings.markerSize',
-        default: 22,
+        default: 30,
         range: { min: 10, max: 64, step: 2 }
     },
     {
@@ -533,6 +533,48 @@ export function shopSnapshot(actor, config) {
         illustration: config?.illustration ?? null,
         portrait: actor?.img ?? null
     };
+}
+
+/**
+ * **The four ways into a shop, each of which a merchant answers separately.**
+ *
+ * *How you arrived* is part of how a shop should be presented, and the four doors are
+ * genuinely different experiences rather than points on a scale:
+ *
+ * - **Region** — you walked into the place. The obvious one to fill the screen.
+ * - **Token** — you clicked a shopkeeper standing on a map you are still using.
+ * - **Pin** — you clicked a mark on that same map.
+ * - **Catalogue** — you opened a book in your pack, without going anywhere.
+ *
+ * A first version made this one dropdown of never / regions-only / always, on the reasoning
+ * that the useful answers were an ordered scale. They are not: a GM who wants the region
+ * *and* the catalogue full screen but not the token has no entry on that scale, and the
+ * middle option had to be given a name -- "when walked into" -- that describes a mechanism
+ * rather than a door. Four switches, named after the four doors, need no explaining at all.
+ *
+ * Merchant Settings has a fifth way in, its own *Open Merchant* button. That counts as the
+ * token door: it is the GM opening the shop directly, which is what clicking the token is.
+ */
+export const SHOP_DOORS = Object.freeze([
+    { key: 'region', labelKey: 'coffee-pub-merchant.config.doorRegion' },
+    { key: 'token', labelKey: 'coffee-pub-merchant.config.doorToken' },
+    { key: 'pin', labelKey: 'coffee-pub-merchant.config.doorPin' },
+    { key: 'catalogue', labelKey: 'coffee-pub-merchant.config.doorCatalogue' }
+]);
+
+/** No door, until a GM says otherwise. A shop is a window unless it has earned the screen. */
+export const DEFAULT_FULLSCREEN_DOORS = Object.freeze({});
+
+/**
+ * Should this shop open full screen, coming through this door?
+ *
+ * Pure, so the rule is stated once and can be checked without a Foundry. Anything that is
+ * not an explicit `true` for that exact door is a window -- including a stored value from
+ * an older shape, which reads as no doors rather than as a guess.
+ */
+export function opensFullScreen(doors, door) {
+    if (!doors || typeof doors !== 'object') return false;
+    return doors[door] === true;
 }
 
 /** The kind's label and icon, falling back to the default rather than to nothing. */

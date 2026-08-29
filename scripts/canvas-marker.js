@@ -182,7 +182,7 @@ export function drawMarker(token) {
     if (!glyph) return;
 
     const palette = pinPalette();
-    const size = Math.max(8, Number(setting('markerSize')) || 22);
+    const size = Math.max(8, Number(setting('markerSize')) || 30);
     const radius = size / 2;
 
     const marker = new PIXI.Container();
@@ -205,7 +205,9 @@ export function drawMarker(token) {
     const label = new PIXI.Text(glyph.char, {
         fontFamily: glyph.family,
         fontWeight: glyph.weight,
-        fontSize: Math.round(size * 0.58),
+        // **0.46, not 0.58.** The glyph sat almost edge to edge in the disc, which reads as a
+        // sticker rather than a badge and leaves the outline nothing to be an outline of.
+        fontSize: Math.round(size * 0.46),
         fill: _colour(palette.icon, 0xecd7b2),
         align: 'center'
     });
@@ -235,7 +237,7 @@ export function positionMarker(token) {
     const marker = _existing(token);
     if (!marker) return;
 
-    const size = Math.max(8, Number(setting('markerSize')) || 22);
+    const size = Math.max(8, Number(setting('markerSize')) || 30);
     const inset = size / 2;
     const corner = setting('markerCorner') ?? 'topRight';
     const right = corner === 'topRight' || corner === 'bottomRight';

@@ -929,8 +929,12 @@
     --blacksmith-fullscreen-panel-border: 1px solid rgba(172, 159, 129, .28);
     --blacksmith-fullscreen-panel-shadow: 0 18px 60px rgba(0, 0, 0, .7);
     /* The shop draws its own padding and its inventory column scrolls inside it; the
-       panel's own 24px would be a second margin around a card that already has one. */
+       panel's own 24px would be a second margin around a card that already has one. The
+       action bar below gets its padding back individually, since it has none of its own. */
     --blacksmith-fullscreen-panel-padding: 0;
+    /* No gap between the body and the action bar: the bar's own top border is the
+       separation, and a gap would show a strip of bare panel between the two. */
+    --blacksmith-fullscreen-gap: 0;
     /* **Wider than the hub's 1100px default, and capped rather than uncapped.** Width buys
        picture, not longer rows: a list stretched the width of a monitor puts a metre
        between an item's name and its price. */
@@ -951,4 +955,23 @@
 .merchant-shop-fullscreen .merchant-shop-content {
     height: 100%;
     min-height: 0;
+}
+
+/*
+ * **The action bar has to put back the padding the panel gave up.**
+ *
+ * The panel's own padding is zeroed so the shop can run edge to edge inside it — the shop
+ * draws its own — but the hub's action bar carries only a `padding-top`, so with the panel
+ * at zero the buttons sat hard against the bottom and both sides of the surface.
+ *
+ * It also gets a ground of its own, which the tool window's footer has and this did not: a
+ * row of buttons floating on the same surface as the list above it reads as part of the
+ * list. The bottom corners are rounded to the panel's radius, since it is the last thing
+ * in it.
+ */
+.merchant-shop-fullscreen .blacksmith-window-fullscreen-action-bar {
+    padding: 10px 14px;
+    border-top: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 0 0 7px 7px;
+    background: rgba(0, 0, 0, .28);
 }

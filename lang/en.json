@@ -181,7 +181,13 @@
             "soundClose": "Closing",
             "soundDefault": "Default",
             "hideInventoryTooltip": "On display — click to put it away",
-            "showInventoryTooltip": "Hidden from players — click to bring it out front"
+            "showInventoryTooltip": "Hidden from players — click to bring it out front",
+            "fullscreen": "Opens full screen",
+            "fullscreenHint": "Which ways in take over the screen. Anyone can still press Full Screen or Leave Full Screen on their own window, and that beats this for that shop.",
+            "doorRegion": "Walked in",
+            "doorToken": "Token",
+            "doorPin": "Map pin",
+            "doorCatalogue": "Catalogue"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -567,7 +573,7 @@
             "nothingHere": "There is nothing open here."
         },
         "catalogue": {
-            "itemName": "{shop} — Catalogue",
+            "itemName": "Catalogue: {shop}",
             "activity": "Consult",
             "blurb": "Consult this to browse the merchant’s stock from wherever you are reading it.",
             "open": "Open Merchant",

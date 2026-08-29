@@ -38,7 +38,6 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/region-shop.js` | A shop's third door: the Open Shop region behaviour. Registered at `init` — §11. |
 | `scripts/utility-catalogue.js` | A shop's fourth door: the catalogue Item, and what consulting one does — §12. |
 | `scripts/canvas-marker.js` | The badge on a merchant token. The category's own icon, in the pin's colours — §13. |
-| `scripts/utility-expand.js` | Which shops this client last left full screen. The surface itself is the hub's — §14. |
 | `scripts/settings.js` | Every world setting, and the controls Foundry does not render for them. |
 
 **Styles are one file per window, and `styles/default.css` imports and nothing else.** It is the only
@@ -1141,8 +1140,8 @@ as them not working.
 A per-client, per-shop toggle that presents the shop as a viewport-covering surface with its own
 illustration as the room.
 
-**It is Blacksmith's `BlacksmithFullscreenWindowBaseV2`**, with the `full` layout and the shop's
-illustration handed over as `fullscreenBackdrop`. The covering, the blocking, the stacking, the fade and the
+**It is Blacksmith's `BlacksmithFullscreenWindowBaseV2`**, with the `centered` layout and the shop's
+illustration handed over as `fullscreenBackdrop` — `cover` fit, at half opacity under a heavy black wash. The covering, the blocking, the stacking, the fade and the
 backdrop layer are the hub's; Request a Roll's cinematic is the same class. Merchant owns what stands on the
 surface and nothing else.
 
@@ -1172,22 +1171,60 @@ The consequences of there being two classes, each of which had to be answered:
   sound and then the opening one every time the button was pressed — the shop announcing a change of window
   rather than a change of room.
 
-**A view preference, not a property of the shop.** A GM on an ultrawide ticking a box, and a player's laptop
-getting a shop that swallows the screen, is the bad version. It is a client setting keyed by shop uuid, and
-a player with a big monitor gets it too. The map stores only `true` — "not in the map" already means the
-ordinary window, and a map of every shop anybody ever collapsed only grows.
+### Which shell a shop opens in
 
-Three decisions inside the surface:
+**The merchant's answer, against the door you came through, and nothing else.**
 
-- **`contain`, not `cover`.** Shop art is wide and a screen may be tall, so covering crops a scene to
-  whatever happens to be in the middle. The backdrop's colour fills the bands a contained picture leaves.
-- **The shop card becomes dark glass.** Left alone it would draw the same illustration again, at a different
-  scale and crop, inside a room made of that illustration — guaranteed to read as a mistake.
-- **The list is capped at 1180px though the surface is not.** Width buys picture, not longer rows.
+*How you arrived* is part of how a shop should be presented, and the four doors are genuinely different
+experiences: walking into a region is being in the place; clicking a token is a shopkeeper on a map you are
+still using; a pin is a mark on that same map; a catalogue is a book in your pack, opened without going
+anywhere. A merchant answers **each of them separately** — four switches in Merchant Settings, named after
+the doors. None ticked is a window, which is what a shop is unless it has earned the screen.
 
-The way out is a button in the action bar. The header is off and the hub's close control with it — that one
-closes the shop rather than leaving the surface — so without it this would be a takeover you cannot leave,
-which is a trap, and losing a half-built slate is a bad way to find out. Escape is off for the same reason.
+Two versions of this were wrong before it settled, and both are worth recording.
+
+**A single dropdown of *never* / *regions only* / *always*** treated the useful answers as an ordered scale.
+They are not: a GM who wants the region **and** the catalogue full screen but not the token has no entry on
+that scale, and the middle option had to be given a name — "when walked into" — that describes a mechanism
+rather than a door. Four switches named after four doors need no explaining.
+
+**A per-client memory of what each person last left a shop as**, which beat the merchant. That is the wrong
+model of what the toggle means: pressing Leave Full Screen is *"not right now"*, not *"never show me this
+shop that way again"*. A GM who dresses a shop and points a region at it would have found half the table
+never seeing it, for a reason none of them could see. **The setting is the setting.** The toggle still
+changes the shell you are in, for as long as you are in it; the next time the shop opens, the merchant
+decides again. `utility-expand.js` and its client setting are deleted.
+
+Every door names itself (`door: 'region' | 'token' | 'pin' | 'catalogue' | 'sheet'`) and none of them knows
+the rule. Merchant Settings' own *Open Merchant* button counts as the token door: it is the GM opening the
+shop directly, which is what clicking the token is. `opensFullScreen(doors, door)` is pure, so the rule is
+stated once and checked in `tests/` — including that anything which is not an explicit `true` for that exact
+door is a window, a stored shape from an older version included.
+
+**The `centered` layout, not `full`.** `full` hands you the whole surface with no chrome, and the shop
+painted straight onto a lit scene is unreadable — rows floating over a picture. `centered` is the shape this
+wants: the art edge to edge behind, and the shop on a ground of its own in the middle of it. The panel takes
+`--blacksmith-fullscreen-max-width` at 1180px and no padding, since the shop brings its own.
+
+**The palette has to be declared, and this is the trap worth remembering.** The shop's stylesheet reads ten
+`--blacksmith-tool-*` tokens. The tool shell declares them under `.application.blacksmith-window-tool`, and a
+**frameless application never receives the `application` class** — which is why the hub's own fullscreen rules
+are written as a bare `.blacksmith-window-fullscreen`. Putting the tool class on this window therefore did
+nothing: the shop rendered with no surfaces, no dividers and no text colour, over a panel whose background
+token was equally undefined. They are declared for the surface in `window-shop.css`, in Blacksmith's own
+**dark**-tool values: a parchment card is right in a window on a grey canvas and wrong in front of a lit
+scene, where it competes with the room instead of sitting in it.
+
+**The ✕ and Escape leave the surface; they do not close the shop.** `onDismiss(reason)` is the documented hook
+for exactly this — the *viewer asked for this to go away* path, deliberately separate from `close()`, which is
+every other route: a socket, a timer, the manager closing a shop whose merchant was deleted. The first version
+turned both controls off to protect a half-built slate, which is the worse answer: turning off the way out of
+a takeover is not safety.
+
+**Action-bar content is the hub's contract, not a convention here.** `blacksmith-window-btn-secondary` (also
+`-primary`, `-critical`) with a `data-action` naming an `ACTION_HANDLERS` entry, in the `actionBarLeft` and
+`actionBarRight` zones. The tool shell's footer states the same buttons once in `getData`; the surface maps
+the zone names rather than the shop knowing which shell it is in.
 
 It is deliberately **not** called `maximize`: ApplicationV2 has that method already and it means
 "un-minimise".
