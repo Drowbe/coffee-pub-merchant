@@ -21,12 +21,16 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [What a catalogue is for](#1-what-a-catalogue-is-for) | Ways in | L | In conversation |
+| 1 | [Mail order](#1-mail-order) | Ways in | L | Designed — ready to plan |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
-2026-08-28 and reads well, so the stage two that entry held open is not wanted. What is left is the one
-question the catalogue raised and did not answer.
+2026-08-28 and reads well, so the stage two that entry held open is not wanted.
+
+What is left is the catalogue, which shipped as *the shop reached from elsewhere* and is becoming something
+larger: **mail order** — a catalogue shelf type whose stock is a warehouse rather than a counter, parcels
+that arrive as objects at places, three delivery types, and a party who will find uses for all of it that
+nobody planned. Designed on 2026-08-29 and written up below; six gaps left, none of them structural.
 
 **One open ask with Blacksmith**, recorded in `architecture/architecture-merchant.md` §16 with what to
 delete when it lands. Two others closed on 2026-08-28 — the uncurated-compendium one by Merchant scanning
@@ -40,32 +44,85 @@ rather than read:
 
 ---
 
-## 1. What a catalogue is for
+## 1. Mail order
 
-**Category:** Ways in · **Size:** M · **Fiction decision first**
+**Category:** Ways in · **Size:** L · **Designed 2026-08-29. Ready to plan; a handful of gaps below.**
 
-The catalogue shipped and it works: the shop opens, the slate fills, the settlement runs. What it does not
-answer is the question it raised — **when does an ordered item actually arrive?**
+The catalogue shipped as *the shop, reachable from anywhere*, which is the wrong thing: a party carrying six
+of them never travels to a market again. What it should be is **mail order** — its own rules, its own costs,
+and its own opportunities for mischief.
 
-Right now it arrives immediately, because that is what settling a trade does and a catalogue reuses the
-transaction unchanged. That is the right first answer (it is the one that needed no new machinery, and a
-party ordering rope from three towns away getting rope is not absurd in a world with sending stones) and it
-is not obviously the right final one.
+**The abuse is the point.** Once a party can have a crate sent to a place of their choosing, they will use it
+to move things that are not shopping — contraband to a fence, a message inside a barrel, something heavy
+somewhere it should not be. That is a *feature*, and it is the reason to build this rather than a faster buy
+button. It is also why what arrives is an **object at a place** and not a grant into somebody's backpack.
 
-The options, and what each would cost:
+### The shape
 
-- **Immediately.** What it does now. Nothing to build.
-- **At the next long rest.** Needs a queue on the merchant or the buyer, a hook on the rest, and an answer
-  for what happens if the party never rests.
-- **When the party next reaches the shop.** Needs the queue plus a proximity test — which is the same
-  question §11's regions answer in the opposite direction, and it should be answered once for both.
+- **A `catalogue` shelf type**, beside General, Back Room, Premium, Negotiate and Buyback. A GM stocks it by
+  dragging, by compendium query or off a roll table; it restocks on its own cadence and carries its own
+  markup. "Fewer items" falls out of somebody choosing what goes on it.
+- **Nothing on a catalogue shelf changes hands at the counter.** It is a warehouse somewhere else — which is
+  exactly why ordering takes days and costs a fee, and why *"we can get that in for you"* is a sentence a
+  shopkeeper says. Delivery is intrinsic to the type, not a switch on it.
+- **Catalogue shelves appear only in the catalogue view**, and ordinary shelves do not appear there. The two
+  views show two different kinds of stock, which is what stops this being the shop by post.
+- **What arrives is a parcel**: a container Item, holding the goods, that turns up as a real object. Opening
+  it is dnd5e's own container sheet, so there is no new UI for taking things out of it.
+- **The slate carries the order**, not just a total: the goods, the delivery type, the destination, and the
+  fee. Settling it is placing the order.
+- **No quantity column in the catalogue view.** A warehouse's stock level is not a fact the reader needs;
+  what matters is what it costs and when it comes.
 
-**This is a fiction question before it is a mechanical one**, and it should be answered before any of it is
-built. The queue is the same shape in two of the three, so the cost is in choosing, not in coding.
+### Delivery types
 
-Note what it is no longer pulling against: interaction stopped being token-shaped when pins shipped, so a
-catalogue needed no fourth way of resolving a shop — it names an Actor, like a pin does. That half of the
-old entry is closed.
+Three, and each answers "where does it go" differently — which is the neat part, because the destination
+control changes with the choice rather than being one field that means three things.
+
+| Type | Cost | Speed | Where it goes |
+|---|---|---|---|
+| **Ground** | cheapest | slowest | A **depot** — they collect it. A pin they click to get their package. |
+| **Courier Beast** | middling | middling | **To them.** The beast finds whoever is holding the catalogue, so no address is asked for. |
+| **Parcel Portal** | very expensive | very fast | **A shop on the portal network.** Both ends have to be on it. |
+
+Arrival is **elapsed world time** since dispatch — a stored timestamp and a comparison, the shape
+`restockDays` already has, not a scheduler. Each type is a number of days.
+
+### The rest, settled
+
+- **Orders are automatic. The GM is notified**, and can interfere with what they then know about. No
+  approval step in the way of a party spending money.
+- **Selling by post pays on dispatch.** The party sends goods and the coin arrives; the merchant takes
+  delivery later.
+- **Where it is delivered is the party's choice**, and paying more moves that choice closer to them.
+
+### Gaps to close before building
+
+1. **What is a depot?** Ground delivery collects at one, and a pin is the obvious answer — but somebody has
+   to say which pins are depots and on which scenes. Per merchant, per world, or a pin type of its own?
+2. **How does a shop join the portal network?** A flag on the merchant, and then Parcel Portal's destination
+   picker is a list of the other merchants carrying it. Worth checking that the *sending* merchant needs it
+   too, which the fiction says it does.
+3. **When does the pickup pin appear** — on dispatch, so the party can watch it not be there yet, or on
+   arrival? And who may see it?
+4. **Where does a pending order live?** It outlives a session, so it is on a document. The buyer, the
+   merchant, or the world — and whichever it is has to survive the merchant being deleted, since a shop that
+   closes down while a crate is in transit is a story rather than an error.
+5. **Selling by post: where do the goods land?** The Buyback shelf is where party goods already end up, so a
+   crate in the post is a thing between two shelves for a few days.
+6. **What does the courier do if nobody is holding the catalogue any more?** It finds the holder — and the
+   holder may have sold it, lost it, or died since.
+
+### Notes for whoever builds it
+
+- **`grantItem` refuses a packed container** — this is the `CONTAINER_HAS_CONTENTS` refusal Merchant already
+  reports quietly on restocks, because the copy would have to invent the contents or drop them. A parcel is
+  a packed container *by definition*, so it cannot be created through the inventory API and has to be built
+  as documents directly. Worth knowing before an afternoon is spent on it.
+- The paged catalogue view — a spread of item images rather than a scrolling list, which is what a catalogue
+  *is* — is a presentation of the catalogue shell, and the full-screen surface is where it will look best.
+- Delivery types, their costs and their speeds want to be a table in `const.js` like `INVENTORY_TYPES`, so a
+  fourth one is a row rather than a branch.
 
 ---
 
