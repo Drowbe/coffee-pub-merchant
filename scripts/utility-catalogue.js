@@ -37,6 +37,16 @@ import { MODULE, MERCHANT_FLAG, shopSnapshot, shopKind } from './const.js';
 import { canPin } from './utility-pins.js';
 import { notify } from './utility-feedback.js';
 
+/**
+ * What a catalogue looks like when the shop has given it nothing to wear.
+ *
+ * The last step of a fallback: a catalogue takes the shop's illustration if it has one and
+ * the shopkeeper's portrait if it does not, so this is only reached by a merchant nobody
+ * has dressed. A bound sheaf of drawings is the right thing to be by default -- it reads as
+ * *a list of goods* rather than as a letter, which the previous sealed document did.
+ */
+export const CATALOGUE_IMG = 'icons/sundries/documents/blueprint-magical-brown.webp';
+
 /** Where a catalogue keeps the shop it names. */
 export const CATALOGUE_FLAG = 'catalogue';
 
@@ -93,7 +103,7 @@ export async function printCatalogue(actor) {
             type: 'consumable',
             // A trinket, because it is a thing you carry that does nothing on its own. The
             // subtype has to be one dnd5e knows or the sheet shows a blank type row.
-            img: snapshot.illustration || snapshot.portrait || 'icons/sundries/documents/document-official-capital.webp',
+            img: snapshot.illustration || snapshot.portrait || CATALOGUE_IMG,
             system: {
                 type: { value: 'trinket' },
                 description: { value: catalogueDescription(snapshot, kind) },
@@ -176,7 +186,7 @@ export async function openCatalogue(item) {
     }
 
     if (actor && MerchantManager.isMerchant(actor)) {
-        return MerchantManager.openForActor(actor, { placeless: true, door: 'catalogue' });
+        return MerchantManager.openForActor(actor, { placeless: true, door: 'catalogue', catalogue: true });
     }
 
     // The shop has closed down. The catalogue is a leaflet for somewhere that is not there
@@ -184,6 +194,7 @@ export async function openCatalogue(item) {
     // card under the name it was printed with, rather than refusing and looking broken.
     return ShopWindow.openFor(record.actorUuid, {
         door: 'catalogue',
+        catalogue: true,
         sceneUuid: null,
         shopName: record.shopName ?? null,
         remembered: record.remembered ?? null

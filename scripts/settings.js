@@ -21,7 +21,8 @@ import {
     MODULE, STOCK_TYPE_CAPS, STOCK_RARITY_CAPS, typeCapKey, rarityCapKey, MAX_STOCK_CAP,
     DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS, DEFAULT_SHOP_LOOK, SHOP_LOOK_SETTINGS,
     DEFAULT_ABANDONED_STOCK,
-    TOKEN_MARKER_SETTINGS
+    TOKEN_MARKER_SETTINGS,
+    DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -419,6 +420,42 @@ function soundChoices() {
         ?? { none: 'None' };
 }
 
+/**
+ * What each delivery service costs and how long it takes.
+ *
+ * **Two numbers per service, and no more.** The difference between a cart and a portal is
+ * mostly fiction; what the module has to know is the delay and the price. Everything else
+ * about a service -- its name, its icon, what it means -- is in `DELIVERY_SERVICES`, which
+ * is a table so that a fourth one is a row.
+ *
+ * A world setting rather than a per-merchant one: what a courier charges is a fact about a
+ * world, and a shop that wants to be dearer has its own markup on the shelf.
+ */
+function registerDeliverySettings() {
+    registerHeader('Delivery', 'H2',
+        'coffee-pub-merchant.delivery.settings.headingDelivery',
+        'coffee-pub-merchant.delivery.settings.headingDeliveryHint');
+
+    for (const service of DELIVERY_SERVICES) {
+        game.settings.register(MODULE.ID, deliveryDaysKey(service.key), {
+            name: game.i18n.format('coffee-pub-merchant.delivery.settings.days', { service: service.name }),
+            scope: 'world',
+            config: true,
+            type: Number,
+            range: { min: 0, max: 60, step: 1 },
+            default: service.days
+        });
+        game.settings.register(MODULE.ID, deliveryFeeKey(service.key), {
+            name: game.i18n.format('coffee-pub-merchant.delivery.settings.fee', { service: service.name }),
+            scope: 'world',
+            config: true,
+            type: Number,
+            range: { min: 0, max: 1000, step: 5 },
+            default: service.feeGp
+        });
+    }
+}
+
 export function registerSettings() {
     registerHeader('Merchant', 'H1',
         'coffee-pub-merchant.settings.headingMerchant',
@@ -427,6 +464,8 @@ export function registerSettings() {
     registerStockingSettings();
     registerAestheticSettings();
     registerAbandonedSettings();
+
+    registerDeliverySettings();
 
     registerHeader('Sound', 'H2',
         'coffee-pub-merchant.settings.headingSound',

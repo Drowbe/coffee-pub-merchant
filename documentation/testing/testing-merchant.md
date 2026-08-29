@@ -1807,3 +1807,33 @@ level onto every existing row; it logs how many.
 253. **Merchant Settings has an eye toggle on every shelf.** Clicking it puts the shelf away, the icon
     changes, and a player with the shop open loses the section immediately.
 254. **The two toggles agree.** Hide from the shop window, reopen Settings: it shows hidden, and vice versa.
+
+## Mail order (13.4.0)
+
+253. **A catalogue shelf exists.** Merchant Settings offers **Catalogue** as an inventory type, and a shelf
+    set to it stocks by drag, by compendium query and off a roll table like any other.
+254. **The two views are separate.** Ordinary shelves do **not** appear in the catalogue view, and a
+    **player** at the counter does not see a catalogue shelf. Merchant Settings shows both.
+255. **The GM can stock the warehouse from the shop window.** A catalogue shelf shows there for the GM,
+    tagged *By order*, and every stocking control works on it: drag an item on, the compendium search, the
+    restock button, the tidy button. Its rows have **no Add button**, and a player looking at the same shop
+    sees no such shelf at all.
+256. **No quantity column** in the catalogue view, and no double-click stock editor for the GM there.
+257. **The slate carries the delivery.** Three services with a price and a wait on each; choosing one
+    changes the *Delivery* line on the totals.
+258. **Placing an order takes the coin now.** Purse goes down by goods plus fee, the merchant's till goes
+    up, and a **Receipt** Item appears on the character with the order written inside it.
+259. **A finite catalogue shelf comes down** by what was ordered; an infinite one does not change.
+260. **Advance the world clock past the arrival.** The receipt becomes a **Parcel** — same Item, renamed,
+    now a container holding exactly what was ordered. The GM is told, and so is the player.
+261. **A parcel that came due while the world was shut is delivered on load**, not lost and not stuck.
+262. **Delete the receipt before it arrives, then advance the clock.** The GM is told the parcel was lost.
+    Nothing is refunded.
+263. **Delete the merchant after ordering, then advance the clock.** The parcel still arrives with its
+    contents — the goods left the warehouse when the order was placed.
+264. **An ordinary shelf cannot be ordered by post.** (Requires poking the socket by hand; the UI does not
+    offer it.) The GM side refuses with *that is stock on a shelf*.
+265. **The delivery settings take.** Change a service's days and fee under **Mail Order**; a new order uses
+    the new numbers and an order already in transit keeps the terms it was placed on.
+266. **Two clients.** A player ordering sees their own receipt; the GM sees the notice. A parcel arriving
+    tells only the character it belongs to.

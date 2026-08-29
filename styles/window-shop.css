@@ -975,3 +975,81 @@
     border-radius: 0 0 7px 7px;
     background: rgba(0, 0, 0, .28);
 }
+
+/* --- The catalogue view ---------------------------------------------------- */
+/*
+ * **A catalogue is not the shop with a different list in it.** What is on a catalogue shelf
+ * is in a warehouse somewhere else, so the reader is not choosing what to pick up — they
+ * are choosing what to have sent, and by what. That decision needs room the counter's
+ * slate does not have to give it.
+ */
+
+/* The three services, as a row of cards rather than a dropdown: the choice is between a
+   price and a wait, and both numbers have to be visible while it is made. A dropdown shows
+   one option at a time, which is the wrong shape for a comparison. */
+.merchant-shop-delivery {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 9px;
+    padding-top: 9px;
+    border-top: 1px solid var(--blacksmith-tool-divider);
+}
+
+.merchant-shop-delivery-label {
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .62rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.merchant-shop-delivery-choices { display: flex; gap: 5px; }
+
+.merchant-shop-delivery-choice {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    min-width: 0;
+    padding: 6px 4px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px;
+    background: var(--blacksmith-tool-surface-sunken);
+    color: var(--blacksmith-tool-text-muted);
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.merchant-shop-delivery-choice:hover {
+    border-color: var(--merchant-interactive);
+    color: var(--merchant-interactive);
+}
+
+/* The chosen one is stated rather than merely tinted: this is the single fact that decides
+   what the order costs and when it lands, and a reader coming back to the slate has to be
+   able to see which it is without hovering. */
+.merchant-shop-delivery-choice.is-on {
+    border-color: var(--merchant-interactive);
+    background: color-mix(in srgb, var(--merchant-interactive) 14%, transparent);
+    color: var(--blacksmith-tool-text);
+}
+
+.merchant-shop-delivery-name {
+    overflow: hidden;
+    font-size: .64rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.merchant-shop-delivery-terms {
+    font-size: .6rem;
+    font-variant-numeric: tabular-nums;
+    opacity: .8;
+}
+
+/* No quantity column, so the row is two columns rather than three. Stated here rather than
+   left to the grid it inherits, which would leave a gap where the count used to be. */
+.merchant-shop-window .merchant-shop-item:not(:has(.merchant-shop-item-qty)) {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+}

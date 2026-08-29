@@ -32,16 +32,22 @@
     {{!-- Unlimited reads as a symbol, anything else as a number, so the column does
           not move between stock policies. A GM edits the number in place, which sets
           both what is there and what a restocking inventory refills to. --}}
-    {{#if canEditStock}}
-        <div class="merchant-shop-item-qty merchant-shop-qty-editable" data-edit-stock="{{id}}"
-             data-tooltip="{{qtyTooltip}} — double-click to change">
-            <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
-        </div>
-    {{else}}
-        <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
-            <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
-        </div>
-    {{/if}}
+    {{!-- **No quantity in a catalogue.** A warehouse's stock level is not a fact the
+          reader of a catalogue needs, and a shelf that is infinite by default has no
+          honest number to show anyway. The column goes rather than showing a symbol
+          nobody asked about. --}}
+    {{#unless catalogue}}
+        {{#if canEditStock}}
+            <div class="merchant-shop-item-qty merchant-shop-qty-editable" data-edit-stock="{{id}}"
+                 data-tooltip="{{qtyTooltip}} — double-click to change">
+                <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
+            </div>
+        {{else}}
+            <div class="merchant-shop-item-qty" data-tooltip="{{qtyTooltip}}">
+                <small>{{localize "coffee-pub-merchant.row.quantityAbbr"}}</small><strong>{{qtyLabel}}</strong>
+            </div>
+        {{/if}}
+    {{/unless}}
 
     {{!-- **The cell carries the editor, not the figure in it.** An unpriced row has no
           figure to double-click, and that is precisely the row that most needs one:

@@ -1347,7 +1347,10 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const actor = await this._resolveActor();
         if (!actor) return;
 
-        const inventories = MerchantManager.getInventories(actor, { includeHidden: true });
+        // `catalogue: null` — both kinds. A GM configuring a shop is looking at all of its
+        // shelves at once; the split into counter and warehouse is a fact about the two
+        // *views*, not about the shop.
+        const inventories = MerchantManager.getInventories(actor, { includeHidden: true, catalogue: null });
         if (!inventories.length) return;
 
         const blacksmith = _blacksmith();
@@ -1652,7 +1655,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         // Hidden inventories included: this window is GM-only, and an inventory you cannot see
         // in your own configuration is worse than useless.
         const inventories = enabled
-            ? MerchantManager.getInventories(actor, { includeHidden: true }).map(({ item, config }, index, all) => {
+            ? MerchantManager.getInventories(actor, { includeHidden: true, catalogue: null }).map(({ item, config }, index, all) => {
                 const count = MerchantManager.getInventoryContents(actor, item).length;
                 const policy = MerchantManager.resolveStockPolicy(actor, config);
                 const days = Number(config.restockDays);

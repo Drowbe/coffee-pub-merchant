@@ -607,7 +607,8 @@ export const INVENTORY_TYPE = Object.freeze({
     PREMIUM: 'premium',
     DISCOUNTED: 'discounted',
     UNPRICED: 'unpriced',
-    PURCHASED: 'purchased'
+    PURCHASED: 'purchased',
+    CATALOGUE: 'catalogue'
 });
 
 /**
@@ -681,6 +682,18 @@ export const INVENTORY_TYPES = Object.freeze({
         restocks: true,
         defaults: { order: 40, visible: true, markup: 1, stock: STOCK.INFINITE }
     },
+    catalogue: {
+        key: INVENTORY_TYPE.CATALOGUE,
+        name: 'Catalogue',
+        img: 'icons/containers/boxes/crates-wooden-stacked.webp',
+        hint: 'A warehouse elsewhere. Ordered by post, never carried out.',
+        pricing: 'markup',
+        restocks: true,
+        // **Infinite by default, and the catalogue view shows no quantities at all.** A
+        // warehouse is the one shelf where "we have as many as you like" is the ordinary
+        // answer, and a stock level is not a fact a reader of a catalogue needs.
+        defaults: { order: 50, visible: true, markup: 1, stock: STOCK.INFINITE }
+    },
     purchased: {
         key: INVENTORY_TYPE.PURCHASED,
         name: 'Purchased',
@@ -706,6 +719,107 @@ export const INVENTORY_TYPES = Object.freeze({
         defaults: { order: 50, visible: true, markup: 1.05, buyRate: 0.7, stock: STOCK.FINITE }
     }
 });
+
+/** A warehouse rather than a counter: nothing on it changes hands where you are standing. */
+export function isCatalogue(type) {
+    return type === INVENTORY_TYPE.CATALOGUE;
+}
+
+// ==================================================================
+// ===== MAIL ORDER =================================================
+// ==================================================================
+//
+// **A catalogue shelf is a warehouse, and that is the rule the whole feature turns on.**
+// Nothing on one is picked up and carried out; ordering takes coin now and the goods come
+// later, by a service the buyer chooses and pays for. That is what earns the delay and the
+// fee, rather than bolting them onto a shop that could have handed the thing over.
+
+/**
+ * How a parcel gets there.
+ *
+ * A table rather than three branches, so a fourth service is a row. The shape is
+ * `INVENTORY_TYPES`': what it is called, what it costs, how long it takes, and one line
+ * saying what it means -- because the difference between these is mostly fiction, and the
+ * fiction is what a GM is choosing between.
+ *
+ * **Phase 1 is theatre of the mind.** There are no depot pins and no portal network yet, so
+ * *where it goes* is description; what differs mechanically is `days` and `fee`. Both are
+ * world settings with these as their defaults, since what a courier charges is a fact about
+ * a world rather than about this module.
+ *
+ * **The fee is flat per order.** Per item invites a party to split one order into six, and
+ * by weight is a second arithmetic for a number nobody is checking.
+ */
+export const DELIVERY_SERVICES = Object.freeze([
+    {
+        key: 'ground',
+        name: 'Ground',
+        icon: 'fa-solid fa-cart-flatbed',
+        days: 7,
+        feeGp: 5,
+        hintKey: 'coffee-pub-merchant.delivery.groundHint'
+    },
+    {
+        key: 'beast',
+        name: 'Courier Beast',
+        icon: 'fa-solid fa-crow',
+        days: 3,
+        feeGp: 25,
+        hintKey: 'coffee-pub-merchant.delivery.beastHint'
+    },
+    {
+        key: 'portal',
+        name: 'Parcel Portal',
+        icon: 'fa-solid fa-ring',
+        days: 1,
+        feeGp: 150,
+        hintKey: 'coffee-pub-merchant.delivery.portalHint'
+    }
+]);
+
+export const DEFAULT_DELIVERY_SERVICE = 'ground';
+
+/** One service, falling back to the default rather than to nothing. */
+export function deliveryService(key) {
+    return DELIVERY_SERVICES.find((service) => service.key === key)
+        ?? DELIVERY_SERVICES.find((service) => service.key === DEFAULT_DELIVERY_SERVICE);
+}
+
+/** The world setting keys a service's two numbers live under. */
+export function deliveryDaysKey(key) {
+    return `deliveryDays${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
+export function deliveryFeeKey(key) {
+    return `deliveryFee${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
+/**
+ * When a parcel dispatched now arrives, in world seconds.
+ *
+ * Pure, and separated from everything that reads a clock, because "the arithmetic that
+ * decides when a thing happens" is the half most likely to be quietly wrong and the half a
+ * test can reach. A day is `secondsPerDay()`, which is Foundry's own figure rather than
+ * 86400 -- a world on a different day length still delivers on the right morning.
+ *
+ * A service with no days arrives immediately, which is not a state any shipped service is
+ * in but is what a GM setting the days to zero is asking for.
+ */
+export function arrivalTime(dispatchedAt, days) {
+    const start = Number.isFinite(Number(dispatchedAt)) ? Number(dispatchedAt) : 0;
+    const span = Math.max(0, Number(days) || 0);
+    return start + Math.round(span * secondsPerDay());
+}
+
+/** Whole days left before a parcel lands, rounded up. Never negative. */
+export function daysUntil(arrivesAt, now) {
+    const left = Number(arrivesAt) - Number(now);
+    if (!Number.isFinite(left) || left <= 0) return 0;
+    return Math.ceil(left / secondsPerDay());
+}
+
+/** Where a receipt keeps its consignment. */
+export const RECEIPT_FLAG = 'consignment';
 
 /**
  * A type's display name and hint, translated.

@@ -5,11 +5,14 @@ import {
 import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
-    opensFullScreen
+    opensFullScreen,
+    DEFAULT_DELIVERY_SERVICE,
+    isCatalogue
 } from './const.js';
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
+import { services, feeBase, arrivalLabel } from './utility-mail.js';
 import { startProgress } from './utility-progress.js';
 import {
     resolvePrice, resolvePurchasePrice, formatBase, purseValue, planSettlement, toBase, fromBase,
@@ -300,6 +303,8 @@ const ShopBehaviour = (Base) => class extends Base {
         removePin: (_event, _target, win) => void win.removePin(),
         steal: (_event, target, win) => void win.steal(target.dataset.itemUuid),
         settle: (_event, _target, win) => win.run(() => win.settle()),
+        order: (_event, _target, win) => win.run(() => win.placeOrder()),
+        chooseService: (_event, target, win) => win.setService(target.dataset.service),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
         switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
@@ -368,6 +373,12 @@ const ShopBehaviour = (Base) => class extends Base {
         // What the shop looked like, as the pin remembers it. Only an abandoned shop reads
         // this: a shop that still exists answers for itself, and would rather.
         this.remembered = options.remembered ?? null;
+        // **Which of the two shops this window is.** A catalogue view shows only catalogue
+        // shelves and a shop window shows only the others, which is what stops mail order
+        // being the shop by post. Carried on the window rather than derived, because it is a
+        // fact about how the door was opened.
+        this.catalogueMode = options.catalogue === true;
+        this.service = DEFAULT_DELIVERY_SERVICE;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -1494,6 +1505,8 @@ const ShopBehaviour = (Base) => class extends Base {
             case 'RECIPIENT_NOT_FOUND': return game.i18n.localize('coffee-pub-merchant.refuse.characterGone');
             case 'INVALID_QUANTITY': return game.i18n.localize('coffee-pub-merchant.refuse.badAmount');
             case 'LOCK_TIMEOUT': return game.i18n.localize('coffee-pub-merchant.refuse.characterBusy');
+            case 'NOT_A_CATALOGUE_ITEM': return game.i18n.localize('coffee-pub-merchant.refuse.notOrderable');
+            case 'CATALOGUE_BY_ORDER_ONLY': return game.i18n.localize('coffee-pub-merchant.refuse.byOrderOnly');
             case 'TARGET_CREATE_FAILED': return game.i18n.localize('coffee-pub-merchant.refuse.recipientFailed');
             default: return game.i18n.localize('coffee-pub-merchant.refuse.notCompleted');
         }
@@ -1537,8 +1550,21 @@ const ShopBehaviour = (Base) => class extends Base {
             const trading = MerchantManager.isOpen(merchant) || isGM;
             const config0 = MerchantManager.getConfig(merchant);
 
-            inventories = MerchantManager.getInventories(merchant, { includeHidden: isGM }).map(({ item: inventory, config }) => {
+            // **A warehouse is invisible to a customer and visible to the shopkeeper.** The
+            // catalogue view shows only catalogue shelves and a player at the counter sees
+            // none of them -- but the *GM* has to reach one to stock it, and the shop window
+            // is where stocking happens: the drop zones, the compendium search, the restock
+            // button and the tidy button are all here and none of them are in Settings. A
+            // warehouse the GM could configure but never fill would be a shelf that only
+            // worked by accident.
+            const shelves = this.catalogueMode ? true : (isGM ? null : false);
+
+            inventories = MerchantManager
+                .getInventories(merchant, { includeHidden: isGM, catalogue: shelves })
+                .map(({ item: inventory, config }) => {
                 const isUnpricedInventory = isUnpriced(config.type);
+                // Shown to the GM at the counter, but not *sold* from there. See `canCart`.
+                const isWarehouse = isCatalogue(config.type);
                 const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
                     // **No shopper: this is the shelf.** What is written on a shelf is what
                     // the shop asks, and an agreement is a thing two people reach at the
@@ -1612,7 +1638,10 @@ const ShopBehaviour = (Base) => class extends Base {
                         reserved: allInCart,
                         // A GM sets the count by hand here, and that also sets what a
                         // restocking inventory refills to.
-                        canEditStock: isGM && !stock.unlimited,
+                        // The partial drops the whole column in a catalogue; this keeps a
+                        // GM from being offered an editor for a figure that is not shown.
+                        catalogue: this.catalogueMode,
+                        canEditStock: isGM && !stock.unlimited && !this.catalogueMode,
                         // **A GM names the list price here.** Not on an unpriced
                         // inventory: having no list price is what that inventory is
                         // for, and the figure would be written and then ignored.
@@ -1642,7 +1671,14 @@ const ShopBehaviour = (Base) => class extends Base {
                         // A negotiate row has no price *yet*, which is not the same
                         // as having none. It goes on the slate at TBD and settling
                         // is what waits for the number.
-                        canCart: trading && Boolean(recipient) && inStock && (isUnpricedInventory || price !== null),
+                        // **Never from the counter.** A warehouse row is on screen for the
+                        // GM to stock, not to sell: nothing on a catalogue shelf changes
+                        // hands where you are standing, and that rule does not have an
+                        // exception for the person who owns the shop. In the catalogue view
+                        // the same row carries the order button instead.
+                        canCart: trading && Boolean(recipient) && inStock
+                            && (isUnpricedInventory || price !== null)
+                            && !(isWarehouse && !this.catalogueMode),
                         // Setting a quantity to zero says "sold out"; this says "we do
                         // not carry that". Different statements, so different controls.
                         canRemove: isGM,
@@ -1685,6 +1721,10 @@ const ShopBehaviour = (Base) => class extends Base {
                 return {
                     id: inventory.id,
                     label: inventory.name,
+                    // Marked rather than merely absent from the slate: a GM looking at a
+                    // shelf whose rows have no Add button needs to be told why, once, on the
+                    // shelf rather than on every row.
+                    warehouse: isWarehouse && !this.catalogueMode,
                     img: inventory.img,
                     hidden: config.visible === false,
                     canToggle: isGM,
@@ -1833,6 +1873,23 @@ const ShopBehaviour = (Base) => class extends Base {
             })),
             cartCount: cartLines.length,
             hasCart: cartLines.length > 0,
+            // **Which of the two shops this is**, and everything the catalogue view needs
+            // that the counter does not: the fee for the service chosen, and the three
+            // services to choose between.
+            catalogue: this.catalogueMode,
+            feeLabel: formatBase(this.catalogueMode ? feeBase(this.service) : 0),
+            deliveryServices: this.catalogueMode
+                ? services().map((service) => ({
+                    key: service.key,
+                    name: service.name,
+                    icon: service.icon,
+                    hint: game.i18n.localize(service.hintKey),
+                    // Both numbers on the button, because the choice is between them: a
+                    // service is a price *and* a wait, and either alone is half the question.
+                    terms: `${formatBase(toBase(service.feeGp, 'gp'))} · ${service.days}d`,
+                    on: service.key === this.service
+                }))
+                : [],
             cartTotalLabel: formatBase(cartTotal),
             hasAnything: cartLines.length > 0 || basketLines.length > 0,
             // The running total, in the direction it actually runs. "You pay" and
@@ -1928,10 +1985,16 @@ const ShopBehaviour = (Base) => class extends Base {
                         data-tooltip="${game.i18n.localize('coffee-pub-merchant.slate.clearTooltip')}">
                     <i class="fa-solid fa-trash"></i> Clear Slate
                 </button>
-                <button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
-                        data-action="settle" data-tooltip="${settleTooltip}">
-                    <i class="fa-solid fa-scale-balanced"></i> Complete Transaction
-                </button>`
+                ${this.catalogueMode
+                    ? `<button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
+                            data-action="order"
+                            data-tooltip="${game.i18n.localize('coffee-pub-merchant.delivery.orderTooltip')}">
+                        <i class="fa-solid fa-box-open"></i> ${game.i18n.localize('coffee-pub-merchant.delivery.order')}
+                    </button>`
+                    : `<button type="button" class="blacksmith-window-btn-primary merchant-shop-settle"
+                            data-action="settle" data-tooltip="${settleTooltip}">
+                        <i class="fa-solid fa-scale-balanced"></i> Complete Transaction
+                    </button>`}`
         };
     }
 
@@ -2900,6 +2963,56 @@ const ShopBehaviour = (Base) => class extends Base {
         } finally {
             _swapping = false;
         }
+    }
+
+    /** Which service this order goes by. Per window: it is a choice about this order. */
+    setService(key) {
+        if (!key) return;
+        this.service = key;
+        void this.render(false);
+    }
+
+    /**
+     * Place the order: pay now, and the goods come later.
+     *
+     * The client says what it wants and which service; **the GM prices it, adds the fee from
+     * the world setting, and decides**. Nothing here is trusted on the other side, which is
+     * the same rule every other thing that moves money in this module follows.
+     */
+    async placeOrder() {
+        const merchant = (await this._resolveSubject()).actor;
+        const shopper = this.recipient;
+        if (!merchant || !shopper) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.cart.noBuyer'));
+            return;
+        }
+        const lines = [...this.cart].map(([itemId, quantity]) => ({ itemId, quantity }));
+        if (!lines.length) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.catalogueEmpty'));
+            return;
+        }
+
+        const result = await MerchantManager.request({
+            order: true,
+            shopKey: this.shopKey,
+            sceneUuid: this.sceneUuid,
+            shopperUuid: shopper.uuid,
+            service: this.service,
+            buy: lines
+        });
+
+        if (!result?.ok) {
+            notify.error(this._explain(result?.code, result));
+            return;
+        }
+
+        this.cart.clear();
+        playFeedback(SOUND.TRANSACTION);
+        notify.info(game.i18n.format('coffee-pub-merchant.delivery.ordered', {
+            shop: result.shop ?? merchant.name,
+            arrival: arrivalLabel(result.arrivesAt)
+        }));
+        await this.render(false);
     }
 
     /** Put a pin for this shop on the scene being looked at. */

@@ -10,7 +10,8 @@ import {
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
-    DEFAULT_FULLSCREEN_DOORS
+    DEFAULT_FULLSCREEN_DOORS,
+    isCatalogue
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
@@ -21,6 +22,10 @@ import {
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
 import { printCatalogue, canPrint, registerCatalogue } from './utility-catalogue.js';
+import {
+    serviceFor, feeBase, buildConsignment, receiptData, consignmentOf, isDelivered,
+    deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries
+} from './utility-mail.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
 import { emit, on, SOCKET_EVENT } from './utility-sockets.js';
@@ -474,11 +479,23 @@ export class MerchantManager {
     // ==============================================================
 
 
-    /** Inventories in display order. Hidden ones are omitted unless asked for. */
-    static getInventories(actor, { includeHidden = false } = {}) {
+    /**
+     * Inventories in display order. Hidden ones are omitted unless asked for.
+     *
+     * **`catalogue` decides which of two shops you are looking at.** A catalogue shelf is a
+     * warehouse elsewhere and nothing on it changes hands at the counter, so the shop window
+     * asks for everything *except* those and the catalogue view for *only* those. One
+     * predicate in one place, rather than a rule two windows have to remember.
+     *
+     * `null` means both, which is what Merchant Settings wants: a GM configuring a shop is
+     * looking at all of its shelves at once.
+     */
+    static getInventories(actor, { includeHidden = false, catalogue = false } = {}) {
         if (!actor) return [];
         return actor.items
             .filter((item) => this.isInventory(item))
+            .filter((item) => catalogue === null
+                || isCatalogue(this.getInventoryConfig(item).type) === (catalogue === true))
             .filter((item) => includeHidden || this.getInventoryConfig(item).visible !== false)
             .map((item) => ({ item, config: this.getInventoryConfig(item) }))
             // Preset order first, then by name — which is the container's name,
@@ -508,7 +525,7 @@ export class MerchantManager {
         const step = Math.trunc(Number(delta)) || 0;
         if (!step) return false;
 
-        const ordered = this.getInventories(actor, { includeHidden: true });
+        const ordered = this.getInventories(actor, { includeHidden: true, catalogue: null });
         const from = ordered.findIndex((entry) => entry.item.id === inventoryId);
         if (from < 0) return false;
         const to = from + step;
@@ -740,7 +757,7 @@ export class MerchantManager {
 
         // A merchant with no inventory is an empty window and a puzzle. Give the zero
         // config path something to look at.
-        if (!this.getInventories(actor, { includeHidden: true }).length) {
+        if (!this.getInventories(actor, { includeHidden: true, catalogue: null }).length) {
             await this.addInventory(actor, 'storefront');
         }
 
@@ -1813,7 +1830,8 @@ export class MerchantManager {
      */
     static async _applyRestocks(worldTime) {
         for (const actor of this.worldMerchants()) {
-            for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true })) {
+            // A warehouse restocks like any other shelf, so the clock sees both kinds.
+            for (const { item: inventory, config } of this.getInventories(actor, { includeHidden: true, catalogue: null })) {
                 // A table-stocked inventory restocks on the clock whatever its policy: it
                 // is not refilling to a level, it is receiving a delivery.
                 const rerolls = this.getInventoryTables(inventory).some((entry) => entry.auto);
@@ -2081,7 +2099,7 @@ export class MerchantManager {
      * shop: the Actor in the sidebar is the mould it was cast from and has no stock of its
      * own to sell.
      */
-    static openForActor(actor, { scene = null, placeless = false, door = 'token' } = {}) {
+    static openForActor(actor, { scene = null, placeless = false, door = 'token', catalogue = false } = {}) {
         if (!this.isMerchant(actor)) return null;
 
         if (actor.prototypeToken?.actorLink === true) {
@@ -2092,7 +2110,7 @@ export class MerchantManager {
             // on. A window showing one figure while the settlement charges another is
             // worse than the plain answer, which is the default market.
             const here = placeless ? null : (scene ?? canvas?.scene ?? null);
-            return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null, door });
+            return ShopWindow.openFor(actor, { sceneUuid: here?.uuid ?? null, door, catalogue });
         }
 
         const placed = (scene ?? canvas?.scene)?.tokens?.find((token) => token.actor?.uuid === actor.uuid)
@@ -2100,7 +2118,7 @@ export class MerchantManager {
                 ?.find(Boolean);
         if (!placed) return null;
         const [subject, options] = this.subjectFor(placed);
-        return ShopWindow.openFor(subject, { ...options, door });
+        return ShopWindow.openFor(subject, { ...options, door, catalogue });
     }
 
     /**
@@ -2331,7 +2349,11 @@ export class MerchantManager {
         // a linked token -- carries a claim instead, honoured only where the merchant
         // actually is. See `verifiedScene`.
         const scene = tokenDocument?.parent ?? await this.verifiedScene(merchant, payload?.sceneUuid);
-        const result = await this._processSettle(merchant, payload, user, scene);
+        // A mail order pays for goods that do not move today, so it is its own operation
+        // rather than a settlement with an empty half. See `_processOrder`.
+        const result = payload?.order
+            ? await this._processOrder(merchant, payload, user, scene)
+            : await this._processSettle(merchant, payload, user, scene);
         if (result?.ok) this._broadcastRefresh(payload?.shopKey);
         return result;
     }
@@ -2560,6 +2582,175 @@ export class MerchantManager {
     }
 
     /**
+     * Place a mail order: pay now, receive later.
+     *
+     * **A separate operation, not a flag on the settlement**, because nothing is exchanged.
+     * A shop settlement is goods one way and coin the other in one atomic `exchange`,
+     * precisely so both legs commit together. An order has one leg — the coin — and the
+     * goods do not move at all today. Squeezing it through the same path would mean a
+     * settlement that sometimes moves no goods, a condition every line of that function
+     * would then have to carry.
+     *
+     * What it does share, because these are not negotiable: the caller is the **verified**
+     * `User` the envelope handed over and never a claim in the payload; the goods are priced
+     * **here**, from the merchant's own rows, because a client's arithmetic is an
+     * explanation and never the answer; and the fee is read from the world setting rather
+     * than taken on trust from whoever pressed the button.
+     */
+    static async _processOrder(merchant, payload, user, scene = null) {
+        const buying = Array.isArray(payload.buy) ? payload.buy : [];
+        if (!buying.length) return { ok: false, code: 'NOTHING_TO_SETTLE' };
+
+        const check = this._validateShopper(payload.shopperUuid, user);
+        if (!check.ok) return check;
+        const shopper = check.actor;
+
+        const service = serviceFor(payload.service);
+        const reputation = await resolveReputation(scene, this.getConfig(merchant)?.pricing?.reputation);
+        const market = marketRate(scene);
+
+        const bought = this._priceBuying(merchant, buying, user, reputation, market, shopper.uuid);
+        if (!bought.ok) return bought;
+
+        // **Every line has to come off a catalogue shelf.** The client names the rows it
+        // wants and is not trusted about what kind of shelf they sit on: without this, an
+        // ordinary row could be ordered by post and quietly leave the shop without anybody
+        // carrying it out.
+        for (const line of bought.lines) {
+            const inventory = this.getInventoryFor(merchant, line.item);
+            if (!isCatalogue(this.getInventoryConfig(inventory)?.type)) {
+                return { ok: false, code: 'NOT_A_CATALOGUE_ITEM' };
+            }
+        }
+
+        const fee = feeBase(service.key);
+        const total = bought.total + fee;
+
+        // **The goods as they are now**, taken before any stock comes down: what is in the
+        // parcel is what left the warehouse, and the row it left may be gone by the time it
+        // lands. See the note at the top of `utility-mail.js`.
+        const lines = bought.lines.map((line) => ({
+            name: line.item.name,
+            img: line.item.img,
+            quantity: line.quantity,
+            source: line.item.toObject()
+        }));
+
+        // One leg, and exact: the same arithmetic a purchase uses, so an order cannot be
+        // paid for with money a purchase could not have paid with.
+        if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+        const plan = planSettlement(shopper.system?.currency ?? {}, total);
+        if (!plan.ok) return { ok: false, code: 'INSUFFICIENT_FUNDS' };
+        if (plan.remint) {
+            const reminted = await this._remint(shopper, plan.remint);
+            if (!reminted.ok) return reminted;
+        }
+
+        const paid = total > 0
+            ? await exchange({ transfers: [{ from: shopper.uuid, to: merchant.uuid, currency: plan.pay }] })
+            : { ok: true };
+        if (!paid?.ok) return paid;
+
+        // Stock comes down after the money, and only for a shelf that counts: an infinite
+        // warehouse has nothing to decrement, which is the ordinary case for a catalogue.
+        for (const line of bought.lines) await this._consumeStock(merchant, line);
+
+        const record = buildConsignment({
+            merchantUuid: merchant.uuid,
+            shopName: this.getConfig(merchant)?.name || merchant.name,
+            buyerUuid: shopper.uuid,
+            service: service.key,
+            lines,
+            feeBase: fee,
+            goodsBase: bought.total,
+            now: game.time?.worldTime ?? 0
+        });
+
+        const [receipt] = await shopper.createEmbeddedDocuments('Item', [receiptData(record)]);
+        if (receipt) scheduleDelivery({ actor: shopper, item: receipt, record }, (p) => this.deliver(p));
+
+        this.broadcastActorRefresh(merchant);
+        return { ok: true, total, fee, arrivesAt: record.arrivesAt, shop: record.shopName, service: service.name };
+    }
+
+    /**
+     * Take one ordered line off the warehouse.
+     *
+     * Only a counted shelf has anything to take: an infinite one is a template and is the
+     * ordinary case for a catalogue, where "we have as many as you like" is the honest
+     * answer and the view shows no quantity at all.
+     */
+    static async _consumeStock(merchant, line) {
+        const config = this.getInventoryConfig(this.getInventoryFor(merchant, line.item));
+        if (this.resolveStockPolicy(merchant, config) === STOCK.INFINITE) return;
+        const stock = this.getStock(merchant, line.item, config);
+        if (stock.unlimited) return;
+        await this.setStockQuantity(merchant, line.item.id, Math.max(0, stock.available - line.quantity));
+    }
+
+    /**
+     * Hand over a parcel whose moment has come, or write it off as lost.
+     *
+     * **A receipt nobody is holding is a lost package**, and that is a decision rather than
+     * a failure: the courier looks for whoever has the receipt, and if the Item has gone --
+     * deleted, or moved off an Actor -- there is nobody to give it to. The GM is told what
+     * was in it, because a lost parcel is a plot rather than an error.
+     *
+     * **Nothing is refunded.** Whether the party get their money back is the GM's to decide,
+     * and a system that quietly handed it back would take the decision away from them.
+     *
+     * Everything is **re-read** rather than trusted from when this was scheduled. The world
+     * has moved since, which is the entire subject of the feature.
+     */
+    static async deliver({ actor, item, record }) {
+        if (!game.user.isGM) return null;
+
+        const live = actor?.items?.get(item?.id) ?? null;
+        const current = consignmentOf(live);
+        if (!live || !current) {
+            unscheduleDelivery(item);
+            notify.warn(game.i18n.format('coffee-pub-merchant.delivery.lost', {
+                shop: record?.shopName ?? ''
+            }));
+            return null;
+        }
+        if (isDelivered(current)) {
+            unscheduleDelivery(live);
+            return null;
+        }
+
+        try {
+            await deliverParcel(actor, live, current);
+            unscheduleDelivery(live);
+            notify.info(game.i18n.format('coffee-pub-merchant.delivery.deliveredGm', {
+                shop: current.shopName ?? '', who: actor.name
+            }));
+            // And the person it belongs to, on their own client. The GM's toast tells the
+            // GM; a parcel arriving is news for whoever has been waiting for it.
+            emit(SOCKET_EVENT.DELIVERED, {
+                actorUuid: actor.uuid,
+                shop: current.shopName ?? ''
+            });
+            return live;
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not deliver a parcel:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Re-arm every pending delivery.
+     *
+     * Blacksmith's schedules are **not persisted**, so this runs on `ready` and walks the
+     * receipts, which are the durable queue. Anything already due is delivered on the spot,
+     * since nothing fires retroactively and a parcel whose moment passed while the world was
+     * shut would otherwise sit there for ever.
+     */
+    static registerDeliveries() {
+        registerDeliveries((pending) => this.deliver(pending));
+    }
+
+    /**
      * Settle a whole visit: what is being bought, what is being sold, and the
      * difference, as one `exchange`.
      *
@@ -2601,6 +2792,17 @@ export class MerchantManager {
             ? this._priceBuying(merchant, buying, user, reputation, market, shopper?.uuid ?? null)
             : { ok: true, lines: [], total: 0 };
         if (!bought.ok) return bought;
+
+        // **Nothing on a catalogue shelf changes hands at the counter**, and the rule cannot
+        // rest on the button being hidden. The GM sees warehouse rows in the shop window so
+        // they can stock them, so the one client that could put one on a counter slate is
+        // the one that owns the shop. Refused here, where the answer is not a client's.
+        for (const line of bought.lines) {
+            const inventory = this.getInventoryFor(merchant, line.item);
+            if (isCatalogue(this.getInventoryConfig(inventory)?.type)) {
+                return { ok: false, code: 'CATALOGUE_BY_ORDER_ONLY' };
+            }
+        }
 
         let inventory = null;
         let sold = { ok: true, lines: [], total: 0 };
@@ -2882,6 +3084,24 @@ export class MerchantManager {
         on(SOCKET_EVENT.REFRESH, (data) => {
             if (data?.actorUuid) void ShopWindow.refreshForActor(data.actorUuid);
             else ShopWindow.refreshForToken(data?.shopKey);
+        });
+
+        // **A parcel arriving is news for whoever was waiting for it**, and the delivery
+        // happens on the GM's client. Display only: the goods are already in the world by
+        // the time this is sent, so the worst a bad message can do is congratulate somebody.
+        // Told only to those who can act as the character it was addressed to -- a parcel is
+        // somebody's post, not an announcement.
+        on(SOCKET_EVENT.DELIVERED, (data) => {
+            let owner = null;
+            try {
+                owner = data?.actorUuid ? fromUuidSync(data.actorUuid) : null;
+            } catch (_error) {
+                owner = null;
+            }
+            if (!owner?.isOwner) return;
+            notify.info(game.i18n.format('coffee-pub-merchant.delivery.delivered', {
+                shop: data?.shop ?? ''
+            }));
         });
     }
 }

@@ -52,6 +52,7 @@
     "scripts/utility-pins.js",
     "scripts/canvas-marker.js",
     "scripts/utility-catalogue.js",
+    "scripts/utility-mail.js",
     "scripts/utility-pricing.js",
     "scripts/utility-progress.js",
     "scripts/utility-reputation.js",

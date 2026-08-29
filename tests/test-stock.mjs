@@ -763,6 +763,80 @@ console.log('ok  a shelf filters what a table brings in, not only what a query d
     console.log('ok  each door answers for itself, and anything else is a window');
 }
 
+// --- mail order: when a parcel lands ----------------------------------------
+// The arithmetic that decides when a thing happens is the half most likely to be quietly
+// wrong and the half a test can reach, so it lives in `const.js` away from anything that
+// reads a clock.
+{
+    const { arrivalTime, daysUntil, deliveryService, DELIVERY_SERVICES, DEFAULT_DELIVERY_SERVICE,
+            secondsPerDay, INVENTORY_TYPES, INVENTORY_TYPE, isCatalogue,
+            deliveryDaysKey, deliveryFeeKey } = await import('../scripts/const.js');
+
+    const day = secondsPerDay();
+    assert.strictEqual(arrivalTime(0, 3), day * 3, 'three days out');
+    assert.strictEqual(arrivalTime(1000, 1), 1000 + day, 'from wherever the clock is now');
+    assert.strictEqual(arrivalTime(500, 0), 500, 'no days is no wait');
+
+    // A day is Foundry's own figure, not 86400: a world on a twenty-hour calendar delivers
+    // on its own mornings.
+    assert.strictEqual(arrivalTime(0, 1), secondsPerDay(), 'a day is the calendar\'s day');
+
+    // Nonsense in, no wait: a stored value from a hand-edited flag must not put a parcel
+    // in the past or throw on the way.
+    assert.strictEqual(arrivalTime(undefined, undefined), 0, 'nothing at all');
+    assert.strictEqual(arrivalTime(100, -5), 100, 'and a negative wait is no wait');
+
+    assert.strictEqual(daysUntil(day * 3, 0), 3, 'three days to go');
+    assert.strictEqual(daysUntil(day * 3, day * 2), 1, 'one, later on');
+    assert.strictEqual(daysUntil(day * 3, day * 3), 0, 'none, on the day');
+    assert.strictEqual(daysUntil(day, day * 9), 0, 'and never negative, however late it is read');
+    // Part of a day still counts as a day to wait, because "arrives in 0 days" is a lie
+    // told to somebody who cannot have it yet.
+    assert.strictEqual(daysUntil(day * 1.5, 0), 2, 'a part-day rounds up');
+
+    console.log('ok  a parcel lands when it should, on the calendar the world uses');
+}
+
+// --- mail order: the services and the shelf ---------------------------------
+{
+    const { deliveryService, DELIVERY_SERVICES, DEFAULT_DELIVERY_SERVICE, INVENTORY_TYPES,
+            INVENTORY_TYPE, isCatalogue, deliveryDaysKey, deliveryFeeKey,
+            isPurchased, isUnpriced } = await import('../scripts/const.js');
+
+    // Dearer is faster, all the way along. The table is the whole of the model, so a fourth
+    // service being added out of order is the mistake worth catching here.
+    const ordered = [...DELIVERY_SERVICES];
+    for (let i = 1; i < ordered.length; i++) {
+        assert.ok(ordered[i].feeGp > ordered[i - 1].feeGp,
+            `${ordered[i].key} costs more than ${ordered[i - 1].key}`);
+        assert.ok(ordered[i].days < ordered[i - 1].days,
+            `${ordered[i].key} is faster than ${ordered[i - 1].key}`);
+    }
+
+    assert.ok(DELIVERY_SERVICES.every((s) => s.key && s.name && s.icon && s.hintKey),
+        'every service is named, pictured and explained');
+    assert.ok(deliveryService(DEFAULT_DELIVERY_SERVICE), 'the default is one of them');
+    assert.strictEqual(deliveryService('owlbear express').key, DEFAULT_DELIVERY_SERVICE,
+        'and an unknown one falls back rather than returning nothing');
+
+    // The setting keys are derived, so a service added to the table brings its two
+    // settings with it and cannot be registered under a name nothing reads.
+    assert.strictEqual(deliveryDaysKey('ground'), 'deliveryDaysGround');
+    assert.strictEqual(deliveryFeeKey('beast'), 'deliveryFeeBeast');
+
+    // The shelf type, and the three predicates that must not overlap: a shelf is a
+    // warehouse, or the party's own goods, or unpriced, and never two of them.
+    const catalogue = INVENTORY_TYPES[INVENTORY_TYPE.CATALOGUE];
+    assert.ok(catalogue, 'the catalogue type exists');
+    assert.strictEqual(catalogue.restocks, true, 'a warehouse restocks like anything else');
+    assert.ok(isCatalogue(INVENTORY_TYPE.CATALOGUE), 'and is recognised');
+    assert.ok(!isCatalogue(INVENTORY_TYPE.GENERAL), 'while a counter is not');
+    assert.ok(!isPurchased(INVENTORY_TYPE.CATALOGUE) && !isUnpriced(INVENTORY_TYPE.CATALOGUE),
+        'and is neither of the other two special kinds');
+
+    console.log('ok  dearer is faster, and a catalogue shelf is its own kind');
+}
+
 console.log('\nall stock logic checks passed');
 
 // --- refresh coalescing --------------------------------------------------

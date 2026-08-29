@@ -221,6 +221,10 @@ Hooks.once('ready', async function () {
     // Every client for the same reason: a marker a player cannot see is a marker that
     // does not do the one thing it is for.
     registerMerchantMarkers();
+    // **Blacksmith's schedules are not persisted**, so every parcel still in transit is
+    // re-armed here from the receipts, which are the durable queue. GM only: delivering
+    // writes to the world, and five connected players would deliver it five times.
+    if (game.user.isGM) MerchantManager.registerDeliveries();
 
     // Exposed for the same reason Curator exposes its loot manager — the permission
     // bypass can only be verified from a non-GM client.

@@ -33,7 +33,8 @@ export const SOCKET_EVENT = Object.freeze({
     SLATE: `${MODULE.ID}.slate`,
     PRESENCE: `${MODULE.ID}.presence`,
     SLATE_REQUEST: `${MODULE.ID}.slateRequest`,
-    REFRESH: `${MODULE.ID}.refresh`
+    REFRESH: `${MODULE.ID}.refresh`,
+    DELIVERED: `${MODULE.ID}.delivered`
 });
 
 /** The legacy channel, and the `action` values it carried. Fallback only. */
@@ -42,7 +43,8 @@ const LEGACY_ACTION = Object.freeze({
     [SOCKET_EVENT.SLATE]: 'slate',
     [SOCKET_EVENT.PRESENCE]: 'shopPresence',
     [SOCKET_EVENT.SLATE_REQUEST]: 'slateRequest',
-    [SOCKET_EVENT.REFRESH]: 'shopRefresh'
+    [SOCKET_EVENT.REFRESH]: 'shopRefresh',
+    [SOCKET_EVENT.DELIVERED]: 'parcelDelivered'
 });
 
 function _sockets() {

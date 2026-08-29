@@ -21,7 +21,7 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Mail order](#1-mail-order) | Ways in | L | Phase 1 designed — ready to plan |
+| 1 | [Mail order](#1-mail-order) | Ways in | L | **Phase 1 built 2026-08-29, untested** |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
@@ -46,7 +46,10 @@ rather than read:
 
 ## 1. Mail order
 
-**Category:** Ways in · **Size:** L · **Phase 1 designed 2026-08-29. Ready to plan.**
+**Category:** Ways in · **Size:** L · **Phase 1 built 2026-08-29 and not yet played. Phase 2 below.**
+
+The build is in `plans/plan-mail-order.md` while it is being reviewed, and the durable half is in
+`architecture/architecture-merchant.md` §12a. Testing checks 253–265.
 
 The catalogue shipped as *the shop, reachable from anywhere*, which is the wrong thing: a party carrying six
 of them never travels to a market again. What it should be is **mail order** — its own rules, its own costs,

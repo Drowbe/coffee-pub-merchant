@@ -37,6 +37,7 @@ that either commits entirely or does nothing. There is no client-authoritative p
 | `scripts/utility-pins.js` | A shop's second door: what a pin names, what it remembers, how it looks — §10. |
 | `scripts/region-shop.js` | A shop's third door: the Open Shop region behaviour. Registered at `init` — §11. |
 | `scripts/utility-catalogue.js` | A shop's fourth door: the catalogue Item, and what consulting one does — §12. |
+| `scripts/utility-mail.js` | Mail order: what a service costs, what a receipt carries, and when it lands — §12a. |
 | `scripts/canvas-marker.js` | The badge on a merchant token. The category's own icon, in the pin's colours — §13. |
 | `scripts/settings.js` | Every world setting, and the controls Foundry does not render for them. |
 
@@ -1101,6 +1102,115 @@ that claim anyway: `verifiedScene` honours only a scene the merchant actually ha
 showing one figure while the settlement charges another is worse than a plain answer.
 
 It resolves to `openForActor`, exactly as a pin does. One shop, one window, one cart, whichever door.
+
+---
+
+## 12a. Mail order
+
+A **catalogue shelf** is a warehouse rather than a counter: nothing on one changes hands where you are
+standing. Ordering from one takes the coin now, and the goods come later by a service the buyer chooses and
+pays for. That is what earns the delay and the fee, rather than bolting them onto a shop that could
+perfectly well have handed the thing over.
+
+The catalogue shipped in 13.3.0 as *the shop reached from elsewhere*, which is the wrong thing: a party
+carrying six of them never travels to a market again. **The abuse is the point** — once a party can have a
+crate sent to a place of their choosing they will use it to move things that are not shopping, and that is
+the reason to build this rather than a faster buy button.
+
+### A shelf type, not a flag on an item
+
+`catalogue` sits in `INVENTORY_TYPES` beside General, Back Room, Premium, Negotiate and Buyback, so
+stocking, restocking, markup and visibility all come with it and are not written again. "Fewer items" falls
+out of somebody choosing what goes on the shelf.
+
+A per-item flag was the obvious alternative and is worse for a reason that would not have shown up until
+late: a flag on a stock row counts towards **merge identity**, so it would have needed
+`registerTransientFlag`, and until that write landed two identical potions would stop stacking. That
+surfaces as a shelf growing three of something with nothing in the code saying why.
+
+`getInventories(actor, { catalogue })` is the whole separation: `true` for the catalogue view, `null` for
+Merchant Settings, and — in the shop window — `null` for a GM but `false` for everybody else.
+
+**A warehouse is invisible to a customer and visible to the shopkeeper**, and that asymmetry is not a
+compromise. Stocking happens in the shop window: the drop zones, the compendium search, the restock button
+and the tidy button are all there and none of them are in Settings. A warehouse a GM could configure but
+never fill would be a shelf that only worked by accident. So the GM sees it, marked *By order*, with no Add
+button on its rows.
+
+**The refusal does not rest on the button being hidden.** `_processSettle` turns down any line that came off
+a catalogue shelf, because the one client that can now see a warehouse row at the counter is the one that
+owns the shop. `_processOrder` makes the same check in reverse: every line must have come off a catalogue
+shelf, since a client names the rows and is not trusted about which kind they sit on.
+
+### The receipt is the parcel
+
+**One Item, twice.** Ordering creates a **receipt** in the buyer's possession carrying the whole
+consignment; when the clock reaches the arrival time that same Item is renamed and filled — it becomes the
+parcel it was promising.
+
+It is created as a **container from the outset**, empty, rather than converted on delivery: an Item's `type`
+is not a thing to change under a system with opinions about subtypes, and an empty container is what a
+receipt is.
+
+This is where a pending order lives, and it is a better answer than a queue in a flag somewhere: it is an
+object the players can see, it survives sessions and the merchant being deleted, and it can be lost, sold,
+stolen or found.
+
+**It carries item source data, not uuids.** This is the decision the robustness of the feature turns on. A
+uuid dangles the day the merchant is deleted or the shelf is cleared, and a parcel whose contents
+evaporated because a shop closed down is the worst possible bug for a feature whose entire subject is
+things being in transit. The goods **left the warehouse** when the order was placed.
+
+### Ordering is its own operation
+
+`_processOrder`, not a flag on `_processSettle`, because **nothing is exchanged**. A settlement is goods one
+way and coin the other in one atomic `exchange`, precisely so both legs commit together; an order has one
+leg. Squeezing it through the same path would mean a settlement that sometimes moves no goods, a condition
+every line of that function would then have to carry.
+
+What it shares, because these are not negotiable: the caller is the **verified** `User` the envelope handed
+over; the goods are priced **on the GM** from the merchant's own rows; and the fee is read from the world
+setting rather than taken on trust. It also checks that **every line came off a catalogue shelf** — the
+client names the rows and is not trusted about what kind of shelf they sit on, or an ordinary row could be
+ordered by post and quietly leave the shop without anybody carrying it out.
+
+### Arrival, and `api.worldClock`
+
+`schedule({ at, gmOnly: true })` — and this is the case that API's decline anticipated. It was evaluated and
+declined on 2026-08-21 for trading hours and restocking, correctly, because neither is a moment. The note
+left behind said to revisit *"if a genuine wall-clock event appears"*. A delivery arriving is one.
+
+Three things from their page this obeys:
+
+- **Schedules are not persisted**, so pending deliveries are re-registered on `ready` by walking the
+  receipts, which *are* the queue. The clock is a notification surface and says so.
+- **`gmOnly: true`**, because delivering writes to the world; without it five connected players deliver the
+  same parcel five times.
+- **Nothing fires retroactively**, so anything already due when the world opens is delivered on the spot
+  rather than scheduled into the past.
+
+Also worth knowing: **rewinding time re-arms a one-shot**, so a GM correcting the clock backwards past a
+delivery will see it arrive again.
+
+**`grantItem` cannot build the parcel.** It refuses a packed container — the `CONTAINER_HAS_CONTENTS`
+refusal Merchant already reports quietly on restocks, because a copy would have to invent the contents or
+drop them. A parcel is a packed container by definition, so the contents are created as documents with
+`system.container` pointing at the receipt, which is how dnd5e nests an item anyway.
+
+### Lost packages
+
+**A receipt nobody is holding is a lost package.** The courier looks for whoever has the receipt; if the
+Item has gone — deleted, or moved off an Actor — there is nobody to give it to. The GM is told what was in
+it, because a lost parcel is a plot rather than an error.
+
+**Nothing is refunded.** Whether the party get their money back is the GM's to decide, and a system that
+quietly handed it back would take the decision away from them.
+
+### What phase 1 does not do
+
+Depot pins, the portal-network flag and its destination picker, and selling by post. Where a parcel
+physically sits is described rather than placed: the three services differ in **days** and **fee**, and
+everything else about them is fiction the GM narrates. See `../TODO.md` §1.
 
 ---
 
