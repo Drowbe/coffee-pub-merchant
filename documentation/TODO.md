@@ -21,12 +21,12 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Columns in a full-screen shop](#1-columns-in-a-full-screen-shop) | Presentation | M | Built on 13.3.0, judged by use |
-| 2 | [Deliver what a catalogue orders](#2-deliver-what-a-catalogue-orders) | Ways in | M | Fiction decision first |
+| 1 | [What a catalogue is for](#1-what-a-catalogue-is-for) | Ways in | L | In conversation |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
-screen. What is left of them is written below: one stage-two that should not be built until stage one has
-been lived with, and the one question the catalogue raised and did not answer.
+screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
+2026-08-28 and reads well, so the stage two that entry held open is not wanted. What is left is the one
+question the catalogue raised and did not answer.
 
 **One open ask with Blacksmith**, recorded in `architecture/architecture-merchant.md` §16 with what to
 delete when it lands. Two others closed on 2026-08-28 — the uncurated-compendium one by Merchant scanning
@@ -40,34 +40,7 @@ rather than read:
 
 ---
 
-## 1. Columns in a full-screen shop
-
-**Category:** Presentation · **Size:** M · **Built on 13.3.0, judged by use**
-
-Stage two of the full-screen shop, and deliberately not built with stage one.
-
-The reasoning, which has not changed: a 2560px window holding one column of shelves is worse than the
-window it replaces — forty-character rows with a metre of picture either side, and an eye that travels the
-width of a monitor from an item's name to its price. **Width buys columns, not longer rows**, and three
-inventories abreast is genuinely better for a six-shelf shop.
-
-What stopped it being stage one is that columns interact with two things that already work:
-
-- **The folds.** An inventory can be collapsed. In a column layout, collapsing one either leaves a hole or
-  reflows the other two, and a layout that reflows while you are clicking through it is a layout that loses
-  your place.
-- **The search.** `filterShopList` hides rows, then categories, then whole inventories. In one column that
-  reads as a list getting shorter. In three it reads as columns emptying unevenly, which is the same
-  information presented as a mess.
-
-**Judge it by use before building it.** Stage one may well be enough — the honest test is a six-shelf shop
-opened expanded on a wide monitor for a session. If the answer is "this is fine", delete this entry.
-
-If it is built: `container-type: inline-size` is already on `.merchant-shop-content`, so the breakpoint is
-a container query rather than a media query and asks about the content column rather than the screen — which
-is what it should ask about, since the ordinary window is resizable independently of the surface.
-
-## 2. Deliver what a catalogue orders
+## 1. What a catalogue is for
 
 **Category:** Ways in · **Size:** M · **Fiction decision first**
 
@@ -100,6 +73,14 @@ old entry is closed.
 
 Declines, kept so they are not re-proposed from scratch. Not a backlog.
 
+- **Columns in a full-screen shop, declined by use 2026-08-28.** Stage two of the full-screen shop: three
+  inventories abreast, on the reasoning that width buys columns rather than longer rows. Judged at a wide
+  monitor and the single column capped at 1180px reads well, so the argument for it was theoretical. It
+  would also have had to answer two things that already work: the folds (collapsing one column leaves a hole
+  or reflows the others, and a layout that reflows while you are clicking through it loses your place) and
+  the search (`filterShopList` hides rows, then categories, then inventories — in one column that reads as a
+  list getting shorter, in three as columns emptying unevenly). Revisit only if a shop with a dozen shelves
+  turns up and the column reads long.
 - **Handing a catalogue straight to a character.** *Print a Catalogue* puts the Item in the world directory
   and the GM drags it to whoever should have it. A picker would be a question with no good default in the
   middle of a different task, and dragging is the gesture they already use for every other item that changes
