@@ -38,6 +38,7 @@ import {
     DELIVERY_POINT
 } from './const.js';
 import { toBase, formatBase } from './utility-pricing.js';
+import { notify } from './utility-feedback.js';
 
 /** The image a receipt wears, and the one a parcel wears once it has been filled. */
 const RECEIPT_IMG = 'icons/sundries/documents/document-sealed-brown-red.webp';
@@ -452,6 +453,33 @@ export async function deliverParcel(actor, item, record) {
     return parcel;
 }
 
+/**
+ * Put a receipt in somebody's pack, with the one thing you can do to it.
+ *
+ * The activity is what dnd5e's sheet clicks: without one the item merely expands its
+ * description, and *when does it get here* would be a paragraph to go and read rather than
+ * an answer. Created after the Item because `createActivity` is the system's own path --
+ * hand-writing the activity's data into the creation is guessing at somebody's schema.
+ *
+ * Optional-chained for the same reason the catalogue's is: a system without activities
+ * still leaves a perfectly good receipt, since the manifest is on the item either way.
+ */
+export async function createReceipt(actor, record) {
+    const [item] = await actor.createEmbeddedDocuments('Item', [receiptData(record)]);
+    if (!item) return null;
+
+    if (typeof item.createActivity === 'function') {
+        try {
+            await item.createActivity('utility', {
+                name: game.i18n.localize('coffee-pub-merchant.delivery.checkActivity')
+            }, { renderSheet: false });
+        } catch (error) {
+            console.warn(`${MODULE.TITLE} | Could not give the receipt its activity:`, error);
+        }
+    }
+    return item;
+}
+
 /** What a receipt is called and looks like when it is made. */
 export function receiptData(record) {
     return {
@@ -464,9 +492,15 @@ export function receiptData(record) {
         // section, so a promise of a delivery sat among the party's backpacks looking like a
         // bag you could put things in, days before there was anything in it. The parcel is
         // the container; the receipt is the note that says one is coming.
-        type: 'loot',
+        //
+        // `consumable`/`trinket` for the catalogue's reason: it is the type dnd5e gives
+        // activities to and does not otherwise interfere with, and an activity is what makes
+        // the thing clickable. Nothing is consumed -- checking a receipt a hundred times
+        // leaves the same one receipt.
+        type: 'consumable',
         img: RECEIPT_IMG,
         system: {
+            type: { value: 'trinket' },
             description: { value: manifestHtml(record) },
             quantity: 1,
             weight: { value: 0, units: 'lb' },
@@ -474,6 +508,92 @@ export function receiptData(record) {
         },
         flags: { [MODULE.ID]: { [RECEIPT_FLAG]: record } }
     };
+}
+
+// ==================================================================
+// ===== ASKING A RECEIPT WHERE THE PARCEL IS =======================
+// ==================================================================
+
+/**
+ * **A receipt answers out loud, and answers *now*.**
+ *
+ * The manifest written into the description is fixed at the moment of ordering -- "arrives
+ * in 7 days" and it says that on day six as well, which is worse than saying nothing. This
+ * is computed against the world clock at the moment somebody asks, so the number counts
+ * down as the party travels.
+ *
+ * A toast rather than a chat card, because it is a question one person asked about a thing
+ * in their own pack. A card would put the party's shopping in front of the whole table --
+ * including a delivery address and a note to a courier that somebody may well have chosen
+ * carefully -- and post it again every time they checked.
+ */
+export function receiptToast(item) {
+    const record = consignmentOf(item);
+    if (!record) return null;
+
+    const goods = record.items.map((line) => `${line.name} x${line.quantity}`).join(', ');
+    const service = serviceFor(record.service);
+
+    if (isDelivered(record)) {
+        return notify.info(game.i18n.localize('coffee-pub-merchant.delivery.alreadyHere'), {
+            subtitle: goods,
+            image: item.img
+        });
+    }
+
+    // The address and the note are the buyer's own words about their own parcel: shown
+    // where they asked, and nowhere else. Both are plain text on a toast, so there is
+    // nothing here to escape and nothing that could be made to run.
+    const detail = [
+        game.i18n.format('coffee-pub-merchant.delivery.viaService', { service: service.name }),
+        record.destination
+            ? game.i18n.format('coffee-pub-merchant.delivery.manifestWhere', { where: record.destination })
+            : game.i18n.localize('coffee-pub-merchant.delivery.beastNote'),
+        goods,
+        record.instructions
+            ? game.i18n.format('coffee-pub-merchant.delivery.manifestInstructions', { note: record.instructions })
+            : ''
+    ].filter(Boolean).join(' • ');
+
+    return notify.info(arrivalLabel(record.arrivesAt), {
+        subtitle: detail,
+        image: item.img,
+        // Longer than an ordinary toast: this one is read rather than noticed, and there
+        // are four facts in it. Clicking it away is still the fastest route out.
+        duration: 14,
+        onClick: () => {},
+        // One receipt's answer replaces another's. Checking three parcels in a row should
+        // not build a wall of toasts.
+        stackKey: `${MODULE.ID}-parcel`
+    });
+}
+
+/**
+ * Consulting a receipt says where the parcel is, and does not post a card.
+ *
+ * The catalogue's shape exactly, and for its reasons: `dnd5e.preUseActivity` fires on the
+ * click, returning `false` cancels the roll, and the sheet header carries the same thing
+ * for a GM inspecting one in the sidebar with no character to use it as.
+ */
+export function registerReceipts(hook) {
+    hook('dnd5e.preUseActivity', 'Say where a parcel is when a receipt is consulted', (activity) => {
+        const item = activity?.item;
+        if (!consignmentOf(item)) return;
+        receiptToast(item);
+        return false;
+    }, { canCancel: true });
+
+    hook('getHeaderControlsApplicationV2', 'Check the delivery on a receipt sheet', (app, controls) => {
+        const item = app?.document;
+        if (item?.documentName !== 'Item' || !consignmentOf(item)) return;
+
+        controls.push({
+            icon: 'fa-solid fa-truck-fast',
+            label: game.i18n.localize('coffee-pub-merchant.delivery.check'),
+            action: 'merchantParcel',
+            onClick: () => receiptToast(item)
+        });
+    });
 }
 
 export { RECEIPT_IMG, PARCEL_IMG, DEFAULT_DELIVERY_SERVICE };

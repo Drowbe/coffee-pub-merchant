@@ -263,5 +263,31 @@ export const notify = {
         // A second purchase replaces the first rather than stacking two receipts, which
         // is right for a shopper working through a list.
         stackKey: `${MODULE.ID}-receipt`
+    }),
+
+    /**
+     * A parcel has arrived, and it waits to be acknowledged.
+     *
+     * **The second persistent toast, and the note above says these must stay rare.** This
+     * one earns it for a reason the receipt does not: a purchase happens because somebody
+     * pressed a button and is looking at the screen, while a delivery happens because the
+     * clock moved. It can land mid-combat, mid-conversation, or while its owner is reading
+     * something else entirely — and eight seconds later there would be no evidence at all
+     * that a crate of goods appeared in their pack. A chat message is still posted and is
+     * the durable record; this is the thing that says *look now*.
+     *
+     * Its own `stackKey`, so a parcel does not evict a purchase receipt that has not been
+     * read yet. Two arrivals at once do replace each other, which is right: the second one
+     * is the newer news and the items are in the pack either way.
+     */
+    parcel: (title, subtitle, image) => show('success', title, {
+        subtitle,
+        image,
+        duration: 0,
+        icon: 'fa-solid fa-box-open',
+        sound: configuredSound(SOUND.TRANSACTION),
+        channel: CHANNEL.TRANSACTION,
+        onClick: () => {},
+        stackKey: `${MODULE.ID}-parcel-arrived`
     })
 };

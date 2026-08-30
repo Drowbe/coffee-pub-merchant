@@ -1849,5 +1849,15 @@ level onto every existing row; it logs how many.
     the beast finding whoever holds the receipt.
 271. **A destination the world does not offer is refused.** (Socket by hand.) The parcel arrives with no
     address rather than the claimed one.
-272. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+272. **Consulting a receipt raises a toast**, not a chat card: how long is left, the service, the
+    destination, the goods and the instructions. The sheet header carries *Check Delivery* too.
+273. **The countdown counts down.** Advance the clock two days and check the receipt again: it says
+    fewer days than it did. (The description on the Item is the figure at ordering and does not move —
+    that is the known gap the toast exists to cover.)
+274. **A receipt is an ordinary item** on the sheet, not filed under Containers. After delivery the
+    same Item *is* a container, with the goods inside it.
+275. **An arriving parcel raises a toast that stays** until it is clicked away, naming the shop and
+    what was in it. It appears on the owner's client, not the GM's, and the GM's own notice is
+    unchanged.
+276. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

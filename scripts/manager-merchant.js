@@ -24,8 +24,9 @@ import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
 import { printCatalogue, canPrint, registerCatalogue } from './utility-catalogue.js';
 import {
-    serviceFor, feeBase, buildConsignment, receiptData, consignmentOf, isDelivered,
-    deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries, destinationsFor
+    serviceFor, feeBase, buildConsignment, consignmentOf, isDelivered,
+    deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries, destinationsFor,
+    createReceipt, registerReceipts
 } from './utility-mail.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
@@ -75,6 +76,9 @@ export class MerchantManager {
         this._registerPins();
         // Every client: a player consulting a catalogue is the point of it.
         registerCatalogue((name, description, callback, options) => this.hook(name, description, callback, options));
+        // Likewise every client: a receipt is consulted by whoever is carrying it, and the
+        // answer is a toast on their own screen.
+        registerReceipts((name, description, callback, options) => this.hook(name, description, callback, options));
         this._registerTokenInteraction();
         this._registerRequestOp();
         this._registerRefreshListener();
@@ -2697,7 +2701,7 @@ export class MerchantManager {
         // It cannot refuse at this point -- refusing after payment is a charge for nothing
         // -- so it tells the GM instead, the way a lost parcel does, naming what was in it
         // so they can hand it over by hand.
-        const [receipt] = await shopper.createEmbeddedDocuments('Item', [receiptData(record)]);
+        const receipt = await createReceipt(shopper, record);
         if (receipt) scheduleDelivery({ actor: shopper, item: receipt, record }, (p) => this.deliver(p));
         else {
             console.error(`${MODULE.TITLE} | The receipt for ${shopper.name} could not be created:`, record);
@@ -2785,9 +2789,16 @@ export class MerchantManager {
             }));
             // And the person it belongs to, on their own client. The GM's toast tells the
             // GM; a parcel arriving is news for whoever has been waiting for it.
+            //
+            // What is in it travels with the message. The owner's client could read the
+            // parcel off the Actor instead, but the toast would then have to wait for the
+            // items to have replicated to it -- and a message that says what arrived needs
+            // nothing from the world to say it.
             emit(SOCKET_EVENT.DELIVERED, {
                 actorUuid: actor.uuid,
-                shop: current.shopName ?? ''
+                shop: current.shopName ?? '',
+                goods: current.items.map((line) => `${line.name} x${line.quantity}`).join(', '),
+                img: live.img ?? ''
             });
             return live;
         } catch (error) {
@@ -3157,9 +3168,15 @@ export class MerchantManager {
                 owner = null;
             }
             if (!owner?.isOwner) return;
-            notify.info(game.i18n.format('coffee-pub-merchant.delivery.delivered', {
-                shop: data?.shop ?? ''
-            }));
+            // **Persistent, and dismissed by hand.** A delivery arrives because the clock
+            // moved rather than because anybody pressed anything, so it can land while its
+            // owner is reading something else -- and a toast that clears itself after eight
+            // seconds would leave no evidence that a crate of goods appeared in their pack.
+            notify.parcel(
+                game.i18n.format('coffee-pub-merchant.delivery.delivered', { shop: data?.shop ?? '' }),
+                data?.goods ?? '',
+                data?.img || undefined
+            );
         });
     }
 }

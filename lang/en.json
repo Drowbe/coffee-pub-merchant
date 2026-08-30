@@ -635,7 +635,11 @@
             "instructionsPlaceholder": "Anything the courier should know — where to leave it, who to ask for, care of whom, a name that is not yours. It is written on the parcel and nobody checks it.",
             "manifestWhere": "To: {where}",
             "manifestInstructions": "Instructions: {note}",
-            "noReceipt": "The order was paid for but no receipt could be created for {who}. Nothing will arrive on its own. It was: {goods}"
+            "noReceipt": "The order was paid for but no receipt could be created for {who}. Nothing will arrive on its own. It was: {goods}",
+            "checkActivity": "Check the delivery",
+            "check": "Check Delivery",
+            "alreadyHere": "This one has already arrived.",
+            "viaService": "By {service}"
         }
     },
     "TYPES": {
