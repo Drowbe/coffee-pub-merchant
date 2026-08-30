@@ -146,8 +146,9 @@ through an order path that has not been run once yet. Better after phase 1 has b
 
 - A receipt shows what is coming in its description, written once at order time. **The days remaining do not
   tick down** as the clock advances; it says what it said when it was printed. Re-writing the description on
-  every world-time change is a write per receipt per crossing, which is worse than a slightly stale sentence
-  — but a *Track* button, or the count in the item's name, might be wanted.
+  every world-time change is a write per receipt per crossing, which is worse than a slightly stale sentence.
+  Mostly covered now: *consulting* a receipt computes the remaining days against the clock at that moment,
+  so the number a player is told is always current — only the paragraph on the sheet is stale.
 - **The GM has no view of what is in transit.** Everything is discoverable — the receipts are Items on
   sheets — but there is no one place that lists the world's outstanding orders.
 

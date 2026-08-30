@@ -141,10 +141,11 @@ Only after phase 1 has been played with:
   and five connected players would otherwise do it five times. And rewinding time re-arms a one-shot, so a
   GM correcting the clock backwards past a delivery will see it arrive again — which for a delivery is
   arguably right, but should be a decision rather than a surprise.
-- **`grantItem` refuses a packed container** — the `CONTAINER_HAS_CONTENTS` refusal Merchant already reports
-  quietly on restocks, because the copy would have to invent the contents or drop them. A parcel is a packed
-  container by definition, so it cannot be created through the inventory API and has to be built as
-  documents directly. Worth knowing before an afternoon is spent on it.
+- ~~**`grantItem` refuses a packed container**, so a parcel has to be built as documents directly.~~
+  **Wrong, and it cost a day.** That refusal is about *copying* a container that already has contents; it
+  says nothing about granting things **into** one, which is what the `container` option is for. Building the
+  contents by hand meant hand-stripping shelf flags, writing the containment, and losing merge identity —
+  three behaviours reimplemented worse. The delivery is one `grantItems` with a per-entry `container`.
 - The paged catalogue view — a spread of item images rather than a scrolling list, which is what a catalogue
   *is* — is a presentation of the catalogue shell, and the full-screen surface is where it will look best.
 - Delivery types, their costs and their speeds want to be a table in `const.js` like `INVENTORY_TYPES`, so a
@@ -158,8 +159,9 @@ Only after phase 1 has been played with:
 2. **What the courier does if nobody holds the catalogue any more.** It finds the holder, and the holder may
    have sold it, lost it, or died. Probably: it becomes a parcel the GM hands out, which is the Beast case
    anyway.
-3. **What a receipt looks like on a sheet.** It is an Item a player will open, and "your parcel is three
-   days away" wants to be readable there rather than only in a notification they may have missed.
+3. ~~**What a receipt looks like on a sheet.**~~ Done: consulting one raises a toast computed against the
+   clock at the moment of asking, so the countdown counts down. The description on the Item is still the
+   figure at ordering — see the gap in `plans/plan-mail-order.md`.
 
 ---
 
