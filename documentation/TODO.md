@@ -21,7 +21,8 @@ will expire.**
 
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
-| 1 | [Mail order](#1-mail-order) | Ways in | L | **Phase 1 built 2026-08-29, untested** |
+| 1 | [Mail order](#1-mail-order) | Ways in | L | **Phase 1 played end to end 2026-08-30** |
+| 2 | Selling by post | Ways in | M | Designed, not built — see below |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
@@ -46,7 +47,10 @@ rather than read:
 
 ## 1. Mail order
 
-**Category:** Ways in · **Size:** L · **Phase 1 built 2026-08-29 and not yet played. Phase 2 below.**
+**Category:** Ways in · **Size:** L · **Phase 1 built 2026-08-29, played end to end 2026-08-30.** Order,
+carriage, crate deposit, a parcel that waits at its destination, a GM who says whether the party are there,
+collection, unpacking and the crate going back — all of it exercised. Phase 2 is deferred; what is left is
+selling by post and the advertising system, both below.
 
 The build is in `plans/plan-mail-order.md` while it is being reviewed, and the durable half is in
 `architecture/architecture-merchant.md` §12a. Testing checks 253–265.

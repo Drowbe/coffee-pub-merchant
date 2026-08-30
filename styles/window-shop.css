@@ -1359,9 +1359,9 @@
  * meets it as an interruption whose shape they can see rather than as a row that failed.
  */
 .merchant-shop-item-list > .merchant-shop-filler {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 1px 9px;
     align-items: center;
     padding: 7px 10px;
     border: 1px dashed color-mix(in srgb, #c08a3e 45%, transparent);
@@ -1372,14 +1372,31 @@
     text-align: center;
 }
 
+/* The picture spans both lines of copy, the way a classified sets a cut beside its text.
+   Dimmed a little: it is an illustration to a notice rather than a thing for sale, and at
+   full strength it competes with the item art above and below it. */
+.merchant-shop-item-list > .merchant-shop-filler > img {
+    grid-row: 1 / span 2;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 4px;
+    object-fit: cover;
+    opacity: .8;
+}
+
 .merchant-shop-item-list > .merchant-shop-filler > strong {
+    grid-column: 2;
     color: var(--blacksmith-tool-accent);
     font-size: .7rem;
     font-style: italic;
+    text-align: left;
 }
 
 .merchant-shop-item-list > .merchant-shop-filler > p {
+    grid-column: 2;
     margin: 0;
+    text-align: left;
     color: var(--blacksmith-tool-text-muted);
     font-size: .62rem;
     font-style: italic;
@@ -1435,6 +1452,27 @@
 .merchant-shop-tiles .merchant-shop-filler::before { top: 7px; }
 .merchant-shop-tiles .merchant-shop-filler::after { bottom: 7px; }
 
+/*
+ * **A notice with a picture on it, because every other tile has one.**
+ *
+ * An advertisement of pure text in a wall of pictures reads as a hole — which is exactly
+ * the thing it was cut to fill. Dimmed and small, so it illustrates the copy rather than
+ * competing with the goods: a reader should still be able to tell at a glance that this is
+ * the shop talking and not something they can put on the slate.
+ */
+.merchant-shop-tiles .merchant-shop-filler > img {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 2px;
+    border: 0;
+    border-radius: 5px;
+    object-fit: cover;
+    opacity: .82;
+}
+
+.merchant-shop-tiles .merchant-shop-filler.is-large > img { width: 56px; height: 56px; }
+.merchant-shop-tiles .merchant-shop-filler.is-wide > img { width: 30px; height: 30px; }
+
 .merchant-shop-tiles .merchant-shop-filler > strong {
     color: #e8c98a;
     font-size: .74rem;
@@ -1446,7 +1484,13 @@
 
 /* A notice cut to a wide hole has room for its copy on one or two lines rather than four,
    and a tall one has the opposite problem. Same voice, different measure. */
-.merchant-shop-tiles .merchant-shop-filler.is-wide { padding: 8px 16px; }
+.merchant-shop-tiles .merchant-shop-filler.is-wide {
+    flex-direction: row;
+    gap: 10px;
+    justify-content: flex-start;
+    padding: 8px 16px;
+    text-align: left;
+}
 .merchant-shop-tiles .merchant-shop-filler.is-wide > p { -webkit-line-clamp: 2; }
 .merchant-shop-tiles .merchant-shop-filler.is-large > strong { font-size: .86rem; }
 .merchant-shop-tiles .merchant-shop-filler.is-large > p { font-size: .66rem; -webkit-line-clamp: 5; }

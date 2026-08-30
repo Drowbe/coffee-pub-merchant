@@ -988,40 +988,53 @@ export const AD_SPANS = Object.freeze([
  * deliberate rather than as a layout that ran out, and it is free characterisation: a shop
  * that nags you about rations is a shop with a voice.
  *
+ * **Each carries a picture**, and it is doing the same job the picture on a tile does:
+ * telling you what the notice is about before you have read it. Without one an
+ * advertisement in a wall of goods is the only tile that is purely words, which reads as a
+ * hole rather than as copy — the thing the notice was cut to fill.
+ *
  * Deliberately generic, so any merchant can say any of them. A weaponsmith reminding you
  * about arrows is in character; a weaponsmith reminding you about *its own* stock would
  * need copy per shop, which is a content problem rather than a layout one.
  */
 export const CATALOGUE_FILLERS = Object.freeze([
     {
+        img: 'icons/consumables/food/bowl-stew-brown.webp',
         title: 'Did you pack enough rations?',
         body: 'Do not go hungry on your next adventure. Order early, order plenty.'
     },
     {
+        img: 'icons/weapons/ammunition/arrows-barbed-white.webp',
         title: 'Have enough arrows?',
         body: 'Do not spend your next adventure dead. Stock up.'
     },
     {
+        img: 'icons/sundries/lights/lantern-iron-lit-yellow.webp',
         title: 'Get the best deals in person',
         body: 'Some things never make the catalogue. Come to the counter and ask.'
     },
     {
+        img: 'icons/sundries/survival/rope-wrapped-brown.webp',
         title: 'Rope. Always rope.',
         body: 'Fifty feet solves more problems than a sword does. Ask anyone who lived.'
     },
     {
+        img: 'icons/containers/chest/chest-simple-box-brown.webp',
         title: 'A word on delivery',
         body: 'The beast finds you wherever you are. Everything else waits where you left it.'
     },
     {
+        img: 'icons/sundries/lights/torch-brown-lit.webp',
         title: 'Torches by the dozen',
         body: 'The dark is free. Seeing in it is not.'
     },
     {
+        img: 'icons/containers/barrels/barrel-walnut-steel-brown.webp',
         title: 'Ask about bulk',
         body: 'Parties who order together pay one delivery, not four.'
     },
     {
+        img: 'icons/tools/nautical/diving-helmet.webp',
         title: 'Nothing here you wanted?',
         body: 'What is printed is what we send. What we keep is another matter — call in.'
     }
