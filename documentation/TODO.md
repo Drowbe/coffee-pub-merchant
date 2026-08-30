@@ -22,7 +22,8 @@ will expire.**
 | # | Item | Category | Size | State |
 |---|---|---|---|---|
 | 1 | [Mail order](#1-mail-order) | Ways in | L | **Phase 1 played end to end 2026-08-30** |
-| 2 | Selling by post | Ways in | M | Designed, not built — see below |
+| 2 | Selling by post | Ways in | M | **Phase 2** — designed, not built |
+| 3 | [Advertising](#advertising-as-its-own-system) | Systems | L | **Phase 2** — sketched |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
@@ -123,7 +124,7 @@ is described rather than placed.
 - **Lost and stolen parcels are wanted.** A parcel that is an Item somebody is holding can go astray, and a
   receipt whose parcel never came is a plot. Worth a GM affordance rather than being purely narrative.
 
-### Phase 2 — on the map — DEFERRED
+### Phase 2, also — on the map — DEFERRED
 
 **Deferred on 2026-08-30**: the receipt approach turned out to be the better one. Collection through the
 receipt needs no pin, works in a theatre-of-the-mind session, and travels with the party rather than with
@@ -173,9 +174,16 @@ The flow is already shaped for this: `collect()` is one branch on one question, 
 is verification that stays. Replacing the question with a lookup and falling back to the dialog is a small
 change to one method, which is the point of having put the question in one place.
 
-### Selling by post — where the goods sit
+### Phase 2 — selling by post
 
-Settled in conversation, not yet built:
+**Scheduled as phase 2 on 2026-08-30**, now that phase 1 has been played end to end. The mirror of mail
+order: the party post goods *to* a merchant, are paid on dispatch, and the shopkeeper physically receives
+them days later. `buildConsignment` already stores an `outbound` flag, and the clock, the receipt, the crate
+arithmetic and the collection dialog are all direction-agnostic — what is missing is the shelf, the entry
+point on the sell side, and what the party hold while it is in transit (a receipt, presumably, the same as
+buying).
+
+Settled in conversation:
 
 - A **"Pending Delivery"** section on the merchant, which is **never shoppable**. Goods posted to a shop are
   between two shelves for a few days and that is what the section says.
@@ -185,17 +193,36 @@ Settled in conversation, not yet built:
 
 ### Advertising, as its own system
 
-The catalogue's filler copy is currently eight canned lines in `const.js`. It wants to become a system:
+**Scheduled as phase 2 on 2026-08-30.** The catalogue's filler copy is eight canned lines in `const.js`
+today. What it wants to be:
 
-- **Ad space somebody buys.** A merchant paying to appear in another merchant's catalogue, which is a
-  transaction, a relationship between two shops, and a thing a party can notice.
-- **A secret channel.** An advertisement is a message in public that only its intended reader understands,
-  and a party who work that out have found something no rule of ours had to invent.
-- **The newspaper**, a later phase, is where the same objects are read for their own sake rather than
-  between goods.
+- **"Purchase Ad Space" as a thing on the shelf.** A merchant sells it the way they sell a lantern: it
+  appears in their stock, it is priced, and buying it is an ordinary transaction through the ordinary
+  path. What the buyer receives is not an object but a *placement* — their copy, appearing in that
+  merchant's catalogue and shop for as long as they have paid for.
+- **Deliberately corruptible**, in the same way the courier's instructions box is. An advertisement is a
+  message in public that only its intended reader understands: a party who buy space to run six words at a
+  fence three towns away have invented a dead drop, and nothing in the module had to know. That is the
+  point of it, and it is why the copy is free text.
+- **An Ad Manager**, GM-side: who has bought what, where it runs, when it lapses, and the copy itself —
+  which a GM will want to read, since some of it is a plot. The same shape as **Orders in Transit**, and
+  for the same reason: the state lives on documents and the roll-up is the view nobody can assemble by
+  hand.
+- **The newspaper**, later, is where the same objects are read for their own sake rather than between
+  goods — the placement becomes a column rather than a tile, and everything above already describes what
+  a column is made of.
 
-Until then they are canned copy dealt into gaps, and the list view will want its own shape of them —
-a printed classified rather than a tile.
+Things worth deciding before it is built:
+
+- **Who sees an advertisement.** Every catalogue in the world, one shop's, one scene's? The fiction says a
+  shop sells its own space, so a placement probably names a merchant.
+- **What lapses look like.** A run has a length, and when it ends the copy stops appearing. The world
+  clock already does this for parcels; a placement is the same shape of scheduled fact.
+- **How it is priced.** Per tile, per page, per day? Whatever it is, the *size* of the tile is already a
+  lever the layout understands — a two-by-two costs more than a single cell.
+
+Until then they are canned copy dealt into gaps, and the two shapes — a tile in a wall, a classified in a
+list — are already built and are what a bought placement will render as.
 
 ### Still open
 

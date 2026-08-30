@@ -1410,103 +1410,106 @@
 
 /* The tile shape, which wins inside a wall by being later and more specific. The spans
    below are a fallback: a placed notice carries its own coordinates inline. */
+/*
+ * **A notice is a tile like any other: the picture is the tile.**
+ *
+ * The first version set a small icon above centred copy on a warm printed ground, which was
+ * a poster in a wall of photographs — every neighbour is a picture with words over the
+ * bottom of it, and the one thing that was not read as a gap rather than as a notice. So
+ * the art fills the tile, the copy sits on it under a gradient, and the whole thing is
+ * built exactly the way a card is.
+ *
+ * **What still says "this is not for sale":** the dashed gold edge, the italic, the warm
+ * wash over the picture, and the absence of a price plate or an add button. Those four are
+ * enough — a reader knows at a glance, without the tile having to be visibly poorer than
+ * the goods around it.
+ */
 .merchant-shop-tiles .merchant-shop-filler {
     grid-column: span 1;
     grid-row: span 1;
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     margin: 0;
-    padding: 12px 10px;
+    padding: 8px 9px 9px;
     overflow: hidden;
-    border: 1px dashed color-mix(in srgb, #c08a3e 55%, transparent);
+    border: 1px dashed color-mix(in srgb, #c08a3e 60%, transparent);
     border-radius: 5px;
-    /* **An advertisement is printed, not photographed.** The goods around it are pictures
-       with captions; this is ink on the page between them, so it gets a warm paper ground
-       and a rule at the top and bottom the way a trade notice does. It has to read as copy
-       set among the goods rather than as something that can be bought -- while still being
-       worth looking at, which the flat outlined box it replaced was not. */
-    background:
-        radial-gradient(120% 90% at 50% 0%, rgba(200, 150, 70, .18), transparent 70%),
-        linear-gradient(170deg, #3a3129, #241f1a);
-    box-shadow: inset 0 0 0 1px rgba(255, 232, 190, .04);
+    background: #241f1a;
     text-align: center;
 }
 
-/* The printer's rules: a short line above the headline and below the copy. Drawn rather
-   than bordered, so they sit in from the edge like a page rather than framing the tile. */
-.merchant-shop-tiles .merchant-shop-filler::before,
+/* The picture, filling the tile behind the words. Dimmed and warmed rather than shown at
+   full strength: it is illustrating a sentence, and a reader should not mistake it for the
+   thing being sold two tiles over. */
+.merchant-shop-tiles .merchant-shop-filler > img {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    object-fit: cover;
+    opacity: .5;
+    filter: saturate(.75);
+}
+
+/* The wash: warm at the top, dark where the words are. One element does both jobs — it
+   holds the copy off the picture and gives the notice its colour. */
 .merchant-shop-tiles .merchant-shop-filler::after {
     position: absolute;
-    left: 50%;
-    width: 34px;
-    height: 1px;
-    transform: translateX(-50%);
-    background: linear-gradient(to right, transparent, rgba(224, 178, 96, .6), transparent);
+    inset: 0;
+    z-index: 0;
+    background:
+        linear-gradient(to top, rgba(12, 9, 6, .94) 34%, rgba(12, 9, 6, .34) 72%, rgba(12, 9, 6, .12)),
+        linear-gradient(160deg, rgba(200, 150, 70, .22), transparent 65%);
     content: '';
 }
 
-.merchant-shop-tiles .merchant-shop-filler::before { top: 7px; }
-.merchant-shop-tiles .merchant-shop-filler::after { bottom: 7px; }
-
-/*
- * **A notice with a picture on it, because every other tile has one.**
- *
- * An advertisement of pure text in a wall of pictures reads as a hole — which is exactly
- * the thing it was cut to fill. Dimmed and small, so it illustrates the copy rather than
- * competing with the goods: a reader should still be able to tell at a glance that this is
- * the shop talking and not something they can put on the slate.
- */
-.merchant-shop-tiles .merchant-shop-filler > img {
-    width: 34px;
-    height: 34px;
-    margin-bottom: 2px;
-    border: 0;
-    border-radius: 5px;
-    object-fit: cover;
-    opacity: .82;
+.merchant-shop-tiles .merchant-shop-filler > strong,
+.merchant-shop-tiles .merchant-shop-filler > p {
+    position: relative;
+    z-index: 1;
 }
 
-.merchant-shop-tiles .merchant-shop-filler.is-large > img { width: 56px; height: 56px; }
-.merchant-shop-tiles .merchant-shop-filler.is-wide > img { width: 30px; height: 30px; }
-
 .merchant-shop-tiles .merchant-shop-filler > strong {
-    color: #e8c98a;
+    color: #f0d49a;
     font-size: .74rem;
     font-style: italic;
     line-height: 1.15;
     letter-spacing: .02em;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
 }
-
-/* A notice cut to a wide hole has room for its copy on one or two lines rather than four,
-   and a tall one has the opposite problem. Same voice, different measure. */
-.merchant-shop-tiles .merchant-shop-filler.is-wide {
-    flex-direction: row;
-    gap: 10px;
-    justify-content: flex-start;
-    padding: 8px 16px;
-    text-align: left;
-}
-.merchant-shop-tiles .merchant-shop-filler.is-wide > p { -webkit-line-clamp: 2; }
-.merchant-shop-tiles .merchant-shop-filler.is-large > strong { font-size: .86rem; }
-.merchant-shop-tiles .merchant-shop-filler.is-large > p { font-size: .66rem; -webkit-line-clamp: 5; }
 
 .merchant-shop-tiles .merchant-shop-filler > p {
     display: -webkit-box;
     margin: 0;
     overflow: hidden;
-    color: rgba(233, 216, 190, .72);
+    color: rgba(240, 228, 208, .8);
     font-size: .6rem;
     font-style: italic;
-    line-height: 1.35;
+    line-height: 1.3;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
+    -webkit-line-clamp: 2;
 }
 
+/* **A bigger notice has room to say more, not to say it louder.** One cell shows a
+   headline and a line of copy; the two-by-two has the room for the whole sentence, which
+   is the same rule the goods follow -- only the large card carries a description. */
+.merchant-shop-tiles .merchant-shop-filler.is-large > strong { font-size: .9rem; }
+.merchant-shop-tiles .merchant-shop-filler.is-large > p { font-size: .68rem; -webkit-line-clamp: 4; }
+.merchant-shop-tiles .merchant-shop-filler.is-tall > p { -webkit-line-clamp: 4; }
+
+/* A wide notice is a strip: two lines at most, and the picture reads across behind them. */
+.merchant-shop-tiles .merchant-shop-filler.is-wide { padding: 6px 14px 7px; }
+.merchant-shop-tiles .merchant-shop-filler.is-wide > p { -webkit-line-clamp: 1; }
 
 /*
  * **Nothing scrolls.** A page that has to be scrolled to the bottom of is a list with page
