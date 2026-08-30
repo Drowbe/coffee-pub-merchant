@@ -2895,7 +2895,13 @@ export class MerchantManager {
                 actorUuid: actor.uuid,
                 shop: record.shopName ?? '',
                 goods: record.items.map((line) => `${line.name} x${line.quantity}`).join(', '),
-                img: item.img ?? ''
+                img: item.img ?? '',
+                // **How it got here changes what to say about it.** A beast finds you and
+                // the parcel simply appears; this one is somebody walking into a coaching
+                // inn and asking for it, and "your parcel has arrived" describes neither
+                // the act nor the moment.
+                where: record.destination ?? '',
+                collected: true
             });
             return item;
         } catch (error) {
@@ -3270,8 +3276,13 @@ export class MerchantManager {
             // owner is reading something else -- and a toast that clears itself after eight
             // seconds would leave no evidence that a crate of goods appeared in their pack.
             notify.parcel(
-                game.i18n.format('coffee-pub-merchant.delivery.delivered', { shop: data?.shop ?? '' }),
-                data?.goods ?? '',
+                data?.collected
+                    ? game.i18n.format('coffee-pub-merchant.delivery.collected', {
+                        shop: data?.shop ?? '', where: data?.where ?? ''
+                    })
+                    : game.i18n.format('coffee-pub-merchant.delivery.delivered', { shop: data?.shop ?? '' }),
+                [data?.goods, game.i18n.localize('coffee-pub-merchant.delivery.inPack')]
+                    .filter(Boolean).join(' • '),
                 data?.img || undefined
             );
         });

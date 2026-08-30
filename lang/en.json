@@ -653,8 +653,8 @@
             "openDeposit": "Sending it back returns the {deposit} deposit. Keeping it means you have bought a crate: 5 lb empty, holds 50 lb, and nothing about it is bigger on the inside.",
             "keepBox": "Keep the crate",
             "returnBox": "Send it back",
-            "openedKept": "Unpacked the parcel from {shop} and kept the crate.",
-            "openedReturned": "Unpacked the parcel from {shop}. The crate went back and {deposit} came with it.",
+            "openedKept": "Unpacked the parcel from {shop}. The crate is yours.",
+            "openedReturned": "Unpacked the parcel from {shop}. The crate went back.",
             "verifying": "Asking whether you can collect the parcel at {where}…",
             "waiting": "Your parcel from {shop} is waiting at {where}.",
             "waitingGm": "{who}'s parcel from {shop} has reached {where}.",
@@ -665,7 +665,12 @@
             "collectYes": "They are there",
             "segment": "Delivery",
             "crateNote": "refunded if returned",
-            "waitingHint": "Go to {where} and consult your receipt to collect it."
+            "waitingHint": "Go to {where} and consult your receipt to collect it.",
+            "refundFailed": "The crate went back but the deposit could not be returned. Tell your GM.",
+            "collected": "You collected your parcel from {shop} at {where}.",
+            "inPack": "In your pack — open the crate to unpack it",
+            "crateSpec": "Shipping Crate — {empty} lb empty, holds {holds} lb",
+            "depositBack": "{deposit} deposit returned"
         }
     },
     "TYPES": {

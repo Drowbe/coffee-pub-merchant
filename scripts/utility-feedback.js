@@ -281,11 +281,17 @@ export const notify = {
      * read yet. Two arrivals at once do replace each other, which is right: the second one
      * is the newer news and the items are in the pack either way.
      */
-    parcel: (title, subtitle, image) => show('success', title, {
+    parcel: (title, subtitle, image, { persist = true, icon } = {}) => show('success', title, {
         subtitle,
         image,
-        duration: 0,
-        icon: 'fa-solid fa-box-open',
+        // The glyph says which of the four parcel moments this is -- arrived, waiting,
+        // unpacked and kept, unpacked and sent back -- where the picture only says
+        // "a parcel". Defaults to the open box, which is most of them.
+        icon: icon ?? 'fa-solid fa-box-open',
+        // Persistent when the clock did it and brief when a person did: an arrival lands
+        // while its owner is reading something else, while unpacking is a button they are
+        // watching. Both are still dismissed by a click.
+        duration: persist ? 0 : 12,
         sound: configuredSound(SOUND.TRANSACTION),
         channel: CHANNEL.TRANSACTION,
         onClick: () => {},

@@ -39,6 +39,7 @@ import {
 } from './const.js';
 import { toBase, fromBase, formatBase } from './utility-pricing.js';
 import { notify } from './utility-feedback.js';
+import { grantItems, grantCurrency } from './utility-inventory.js';
 import { emit, SOCKET_EVENT } from './utility-sockets.js';
 
 /** The image a receipt wears, and the one a parcel wears once it has been filled. */
@@ -520,49 +521,54 @@ export async function deliverParcel(actor, item, record) {
         if (extra) boxes.push(extra);
     }
 
-    const contents = [];
+    // **One `grantItems` for the whole delivery, each entry naming its own crate.**
+    //
+    // `container` is per entry in the batch forms, so several boxes do not mean several
+    // calls -- everything creatable goes in one `createEmbeddedDocuments` and every merge
+    // in one update, which is the entire reason the plural form exists.
+    //
+    // This used to build the documents by hand, on the grounds that `grantItem` refuses a
+    // packed container. That refusal is about *copying* a container that has contents; it
+    // says nothing about granting things **into** one, which is what `container` is for.
+    // Doing it by hand meant hand-stripping Merchant's own shelf flags (`omitFlags` does
+    // it), inventing the containment (the API writes it), and losing merge identity --
+    // three behaviours reimplemented worse to avoid a refusal that was never in the way.
+    const entries = [];
     crates.forEach((crate, index) => {
         // A box that could not be created is not a reason to drop its goods on the floor:
         // they go in the last box that exists, over its stated capacity, which a person can
         // see and sort out. Losing them would be silent.
         const box = boxes[index] ?? boxes[boxes.length - 1];
-        for (const line of crate) contents.push(contentData(line, box.id));
+        for (const line of crate) {
+            entries.push({
+                itemData: foundry.utils.deepClone(line.source ?? {}),
+                quantity: line.quantity,
+                container: box.id
+            });
+        }
     });
 
-    await actor.createEmbeddedDocuments('Item', contents, { keepId: false });
-    return parcel;
-}
+    // `par` describes an inventory rather than an item and `free` says a merchant was
+    // giving something away; neither is a fact about the thing once it is in a parcel.
+    // Omitted from the payload and ignored in the comparison, which is what stops a
+    // delivered row refusing to stack with one the party already had.
+    const shelfFlags = [`${MODULE.ID}.${PAR_FLAG}`, `${MODULE.ID}.${FREE_FLAG}`];
+    const result = await grantItems({
+        targetActorUuid: actor.uuid,
+        items: entries,
+        omitFlags: shelfFlags,
+        ignoreFlags: shelfFlags
+    });
 
-/**
- * One line of a consignment, as a document inside a crate.
- *
- * **Merchant's own shelf flags do not travel.** `par` describes an inventory rather than an
- * item, and `free` says a merchant was giving something away -- neither is a fact about the
- * thing once it is in somebody's parcel. A settlement strips them through `exchange`'s
- * `omitFlags`; this path builds documents directly, so it has to do the same by hand or a
- * delivered row arrives carrying a restock target and rides back in if the party sell it.
- */
-function contentData(line, containerId) {
-    const source = foundry.utils.deepClone(line.source ?? {});
-
-    const flags = { ...(source.flags ?? {}) };
-    if (flags[MODULE.ID]) {
-        flags[MODULE.ID] = { ...flags[MODULE.ID] };
-        delete flags[MODULE.ID][PAR_FLAG];
-        delete flags[MODULE.ID][FREE_FLAG];
-        if (!Object.keys(flags[MODULE.ID]).length) delete flags[MODULE.ID];
+    // Entries fail independently, so the top-level flag is not the whole answer: a parcel
+    // that arrived missing one line is worth a line in the log naming which.
+    for (const [index, entry] of (result?.results ?? []).entries()) {
+        if (entry?.ok === false) {
+            console.error(`${MODULE.TITLE} | A parcel line did not arrive:`, entries[index], entry);
+        }
     }
 
-    return {
-        ...source,
-        _id: undefined,
-        flags,
-        system: {
-            ...(source.system ?? {}),
-            quantity: line.quantity,
-            container: containerId
-        }
-    };
+    return parcel;
 }
 
 /**
@@ -743,10 +749,29 @@ export async function openParcel(item) {
         return null;
     }
 
-    notify.success(game.i18n.format(
-        keep ? 'coffee-pub-merchant.delivery.openedKept' : 'coffee-pub-merchant.delivery.openedReturned',
-        { shop: record.shopName ?? '', deposit: formatBase(deposit) }
-    ), { subtitle: names });
+    // **The two endings are different news and are told differently.** Keeping one leaves
+    // the party holding an object with weight and limits they will be carrying from now on,
+    // so the toast says what it is; sending it back is money returning, so the toast says
+    // how much. Both carry the crate's own picture and what came out of it. Not persistent:
+    // unlike an arrival, this happened because somebody clicked a button and is watching.
+    notify.parcel(
+        game.i18n.format(
+            keep ? 'coffee-pub-merchant.delivery.openedKept' : 'coffee-pub-merchant.delivery.openedReturned',
+            { shop: record.shopName ?? '', deposit: formatBase(deposit) }
+        ),
+        [
+            names,
+            keep
+                ? game.i18n.format('coffee-pub-merchant.delivery.crateSpec', {
+                    empty: CRATE.weightLb, holds: CRATE.capacityLb
+                })
+                : game.i18n.format('coffee-pub-merchant.delivery.depositBack', {
+                    deposit: formatBase(deposit)
+                })
+        ].filter(Boolean).join(' • '),
+        PARCEL_IMG,
+        { persist: false, icon: keep ? 'fa-solid fa-box' : 'fa-solid fa-rotate-left' }
+    );
     return inside;
 }
 
@@ -807,8 +832,17 @@ async function askAboutTheBox(record, deposit) {
 async function refundDeposit(actor, deposit) {
     const gp = Math.round(fromBase(deposit, 'gp'));
     if (!gp) return;
-    const held = Math.trunc(Number(actor.system?.currency?.gp) || 0);
-    await actor.update({ 'system.currency.gp': held + gp });
+
+    // **`grantCurrency`, not `actor.update`.** A raw write is a total computed from a read
+    // taken outside any lock: land it between another operation's read and its write and it
+    // is silently discarded, which for a settlement in flight means the refund is simply
+    // gone. The API's currency methods are deltas under a lock for exactly this case, and
+    // the inventory documentation says in as many words not to write `system.currency`.
+    const result = await grantCurrency({ targetActorUuid: actor.uuid, currency: { gp } });
+    if (!result?.ok) {
+        console.error(`${MODULE.TITLE} | Could not refund a crate deposit to ${actor.name}:`, result);
+        notify.warn(game.i18n.localize('coffee-pub-merchant.delivery.refundFailed'));
+    }
 }
 
 /** Whether the moment has passed, which is a question about the clock and nothing else. */

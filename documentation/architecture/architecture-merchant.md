@@ -1270,6 +1270,35 @@ been deleted changes nothing — modelling the shop's half would mean a refund t
 business closed. Keeping a crate strips the consignment flag: it stops being a parcel and becomes an
 ordinary crate with no action of ours on it.
 
+### What goes through the inventory API, and what does not
+
+Audited on 2026-08-30, after the mail-order path was found doing three things by hand that the hub
+does better.
+
+**Through the API, always:**
+
+- **The goods in a parcel** — one `grantItems` for the whole delivery, each entry naming its own crate
+  via the per-entry `container`. The first cut built the documents directly on the grounds that
+  `grantItem` refuses a packed container; that refusal is about *copying* a container that has
+  contents and says nothing about granting **into** one. Doing it by hand meant hand-stripping shelf
+  flags (`omitFlags` does it), writing the containment (the API writes it) and losing merge identity —
+  three behaviours reimplemented worse to dodge a refusal that was never in the way.
+- **The crate deposit coming back** — `grantCurrency`. A raw `actor.update()` is a total computed from
+  a read taken outside the lock; land it between another operation's read and its write and it is
+  silently discarded, which for a settlement in flight means the refund is simply gone.
+
+**Directly, with a reason:**
+
+- **The receipt becoming a crate** — a type change on an existing document. There is no primitive for
+  it and there should not be.
+- **The extra crates** — created directly because their ids are needed before the contents can name
+  them, and an empty container has no merge behaviour worth the round trip.
+- **Emptying a crate** — `system.container` cleared on each row. The API moves things *between actors*;
+  moving between containers on one actor is not something it offers, so this is a direct update rather
+  than a primitive avoided.
+- **Setting a till when Blacksmith has no `setCurrency`** — a documented fallback that predates this
+  audit. The race is real and rare, and refusing to set a till at all would be worse.
+
 ### Lost packages
 
 **A receipt nobody is holding is a lost package.** The courier looks for whoever has the receipt; if the
