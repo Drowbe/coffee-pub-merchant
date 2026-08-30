@@ -1027,17 +1027,26 @@ export function paginateCards(entries, {
     const closePage = () => {
         if (!page.length) return;
 
-        // The gap at the end, filled with copy rather than left as white space -- but
-        // **capped**, because a last page holding three items and nine advertisements is
-        // not a catalogue, it is a pamphlet. Two is a column of them at most; past that the
-        // page is honestly short and looks better short.
+        // How many will fit, **capped**: a page holding three items and nine advertisements
+        // is not a catalogue, it is a pamphlet. Two at most; past that the page is honestly
+        // short and looks better short.
         let left = budget - used;
-        let printed = 0;
-        while (left >= fillCost && printed < maxFill && fillers.length) {
-            page.push({ kind: 'filler', ...fillers[filler % fillers.length] });
+        const printing = [];
+        while (left >= fillCost && printing.length < maxFill && fillers.length) {
+            printing.push({ kind: 'filler', ...fillers[filler % fillers.length] });
             filler++;
-            printed++;
             left -= fillCost;
+        }
+
+        // **Dealt into the page, not stacked on the end of it.** An advertisement appended
+        // after the goods is an appendix, and the whole reason for having them is to fill
+        // the awkward holes a tiled page leaves *in the middle* -- which is where a real
+        // catalogue puts them. Spread evenly through the entries, the grid's dense packing
+        // then drops each one into the first hole that fits it, which is the gap it was
+        // printed for.
+        for (let i = 0; i < printing.length; i++) {
+            const at = Math.round(((i + 1) * page.length) / (printing.length + 1)) + i;
+            page.splice(Math.min(at, page.length), 0, printing[i]);
         }
 
         pages.push(page);

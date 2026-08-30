@@ -926,7 +926,12 @@
 
 /* The panel is the shop's ground: dark, so the lit scene behind reads as the room and the
    shop reads as the thing you are doing in it. */
+/* **The panel is a fixed size, not a content-shaped one.** Every gesture in a shop ends in
+   a re-render, and a panel that sizes to its contents then jumps whenever a page holds
+   fewer tiles or a slate line is removed — which on a surface this large is the window
+   itself moving under the cursor. Full height, and the content fits inside it. */
 .merchant-shop-fullscreen .blacksmith-window-fullscreen-panel {
+    height: 100%;
     /* **Much darker than a Merchant window, deliberately.** Near-opaque rather than solid,
        so the room is still faintly there at the edges of the shop rather than sealed off
        behind a rectangle. */
@@ -1075,9 +1080,16 @@
 .merchant-shop-catalogue .merchant-shop-item-list {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-auto-rows: 108px;
+    /* **Four rows that stretch, not four rows of a fixed height.** `1fr` divides whatever
+       height the page has been given, so the tiles fill the parent exactly however the
+       window is dragged — and a page can never overflow or come up short, because there is
+       no measurement involved. A fixed row height left a tall window with dead space under
+       the wall and a short one with tiles running past the bottom. */
+    grid-template-rows: repeat(4, minmax(0, 1fr));
     grid-auto-flow: dense;
     gap: 8px;
+    height: 100%;
+    min-height: 0;
 }
 
 /* One cell, one column by two, or two by two. Three sizes, three shapes, and `cardSize`
@@ -1242,10 +1254,22 @@
     overflow: hidden;
 }
 
+/* The shelf takes the height it is given and hands all of it to the page below its header,
+   which is what lets the rows stretch to fill. */
+.merchant-shop-catalogue .merchant-shop-inventories,
 .merchant-shop-catalogue .merchant-shop-inventory {
-    position: relative;
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
+    min-height: 0;
+}
+
+/* **The page is the positioning parent, not the shelf.** The turn strips are `top: 0` and
+   the shelf includes its header — so anchored to the section they ran up over the restock
+   and search controls and swallowed clicks meant for them. */
+.merchant-shop-catalogue .merchant-shop-inventory-body {
+    position: relative;
+    flex: 1 1 auto;
     min-height: 0;
 }
 
