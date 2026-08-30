@@ -1000,28 +1000,28 @@ export const AD_SPANS = Object.freeze([
 export const CATALOGUE_FILLERS = Object.freeze([
     {
         img: 'icons/consumables/food/bowl-stew-brown.webp',
-        title: 'Did you pack enough rations?',
-        body: 'Do not go hungry on your next adventure. Order early, order plenty.'
+        title: 'Pack enough rations?',
+        body: 'Do not go hungry on your next adventure. Order plenty.'
     },
     {
         img: 'icons/weapons/ammunition/arrows-barbed-white.webp',
-        title: 'Have enough arrows?',
+        title: 'Have enough pointy things?',
         body: 'Do not spend your next adventure dead. Stock up.'
     },
     {
         img: 'icons/sundries/lights/lantern-iron-lit-yellow.webp',
-        title: 'Get the best deals in person',
-        body: 'Some things never make the catalogue. Come to the counter and ask.'
+        title: 'Best deals are in person',
+        body: 'Some things never make the catalogue. Visit us.'
     },
     {
         img: 'icons/sundries/survival/rope-wrapped-brown.webp',
         title: 'Rope. Always rope.',
-        body: 'Fifty feet solves more problems than a sword does. Ask anyone who lived.'
+        body: 'Fifty feet can solve more problems than a sword.'
     },
     {
         img: 'icons/containers/chest/chest-simple-box-brown.webp',
         title: 'A word on delivery',
-        body: 'The beast finds you wherever you are. Everything else waits where you left it.'
+        body: 'Beasts finds you for delivery. Otherwise, pick it up.'
     },
     {
         img: 'icons/sundries/lights/torch-brown-lit.webp',
@@ -1035,8 +1035,8 @@ export const CATALOGUE_FILLERS = Object.freeze([
     },
     {
         img: 'icons/tools/nautical/diving-helmet.webp',
-        title: 'Nothing here you wanted?',
-        body: 'What is printed is what we send. What we keep is another matter — call in.'
+        title: 'Nothing here you want?',
+        body: 'What is printed is what we ship. Maybe visit us.'
     }
 ]);
 
