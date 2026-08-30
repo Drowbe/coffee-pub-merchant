@@ -15,7 +15,7 @@ import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utilit
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
 import {
-    services, feeBase, arrivalLabel, destinationsFor, destinationNote
+    services, feeBase, arrivalLabel, destinationsFor, destinationNote, crateCount, crateDepositBase
 } from './utility-mail.js';
 import { startProgress } from './utility-progress.js';
 import {
@@ -1429,7 +1429,11 @@ const ShopBehaviour = (Base) => class extends Base {
                 quantity: held,
                 trimmed: held !== quantity,
                 unit,
-                total: unit === null ? null : unit * held
+                total: unit === null ? null : unit * held,
+                // Carried on the line because the crate arithmetic needs it and the row
+                // has the item in hand; looking it up again in the context would mean
+                // resolving every item a second time to ask one number.
+                weight: Number(item.system?.weight?.value) || 0
             });
         }
         return lines;
@@ -1939,7 +1943,18 @@ const ShopBehaviour = (Base) => class extends Base {
         // No goods, no fee: nothing is being sent, and a delivery charge against an empty
         // slate is a number with nothing behind it.
         const deliveryFee = this.catalogueMode && cartLines.length ? feeBase(this.service) : 0;
-        const net = cartTotal + deliveryFee - basketTotal;
+        // **What the boxes cost, before the order rather than after it.** How many crates an
+        // order needs is arithmetic on the weight of the goods -- the same arithmetic the
+        // GM side charges on -- so a slate that has just grown an anvil says so with a
+        // second box on this line rather than with a surprise at the counter.
+        const crates = this.catalogueMode && cartLines.length
+            ? crateCount(cartLines.map((line) => ({
+                quantity: line.quantity,
+                source: { system: { weight: { value: line.weight } } }
+            })))
+            : 0;
+        const deposit = crates * crateDepositBase();
+        const net = cartTotal + deliveryFee + deposit - basketTotal;
 
         // **Resolved once, used twice.** The card sets it as a CSS custom property and the
         // fullscreen shell hands the same path to Blacksmith as its backdrop. Working it
@@ -2061,6 +2076,8 @@ const ShopBehaviour = (Base) => class extends Base {
             // services to choose between.
             catalogue: this.catalogueMode,
             feeLabel: formatBase(deliveryFee),
+            crates,
+            depositLabel: formatBase(deposit),
             destinations: this.catalogueMode ? this._destinationOptions() : null,
             destinationNote: this.catalogueMode
                 ? destinationNote(this.service, destinationsFor(this.service))

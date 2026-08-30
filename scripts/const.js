@@ -1078,6 +1078,89 @@ export function paginateCards(entries, {
     return pages;
 }
 
+/**
+ * **The crate a parcel travels in, as an object with weight and limits.**
+ *
+ * A parcel used to be a weightless, priceless box that appeared with the goods in it,
+ * which quietly made mail order the best bag of holding in the game: order anything, any
+ * amount, and it arrives in a container that costs nothing to carry. A crate a courier
+ * straps to a cart is a real object -- it weighs something empty, it holds only so much,
+ * and the shop wants it back or wants paying for it.
+ *
+ * **No extradimensional storage.** What is in it weighs what it weighs, on top of the box
+ * itself; there is no weight reduction and no bigger-on-the-inside. That is the whole
+ * reason the limit bites, and why a big order arrives as several crates.
+ */
+export const CRATE = Object.freeze({
+    /** The empty box, carried. */
+    weightLb: 5,
+    /** What it will hold. Volume is descriptive; the weight is the one that is enforced. */
+    capacityLb: 50,
+    volumeCubicFeet: 2,
+    /** What the shop charges for it, refunded if it goes back. */
+    depositGp: 5
+});
+
+/** Where the crate deposit lives, so a GM can price their own world's boxes. */
+export const CRATE_DEPOSIT_SETTING = 'deliveryCrateDeposit';
+
+/**
+ * Deal an order's lines into crates, by weight.
+ *
+ * **Greedy, first-fit, in the order the goods were ordered.** A better packing exists --
+ * this is bin packing, and bin packing has a literature -- but every gain from a cleverer
+ * one is a crate saved on an edge case, at the cost of a delivery whose contents are
+ * shuffled into an order nobody chose. Reading a parcel's manifest and finding it in the
+ * order you added things is worth more than a marginal crate.
+ *
+ * A **stack is split** rather than bumped whole: sixty torches are not an indivisible
+ * object, and moving all sixty to the next crate to keep them together would waste most of
+ * this one. A **single item heavier than an empty crate** travels alone rather than being
+ * refused -- an order stopped at the counter because one thing is heavy is a worse answer
+ * than an order that arrives in an over-full box.
+ *
+ * Pure, and the arithmetic that decides what a delivery costs: `tests/test-mail.mjs`.
+ */
+export function packCrates(lines, capacity = CRATE.capacityLb) {
+    const limit = Math.max(1, Number(capacity) || CRATE.capacityLb);
+    const crates = [];
+    let crate = [];
+    let load = 0;
+
+    const close = () => {
+        if (!crate.length) return;
+        crates.push(crate);
+        crate = [];
+        load = 0;
+    };
+
+    for (const line of lines ?? []) {
+        const each = Math.max(0, Number(line?.source?.system?.weight?.value) || 0);
+        let left = Math.max(1, Math.trunc(Number(line?.quantity) || 1));
+
+        while (left > 0) {
+            // Weightless things never fill a crate, so they all go in this one.
+            let fits = each > 0 ? Math.floor((limit - load) / each) : left;
+
+            if (fits <= 0) {
+                // Nothing more fits. Start a fresh crate -- unless this one is already
+                // fresh, in which case a single item is heavier than a crate holds.
+                if (crate.length) { close(); continue; }
+                fits = 1;
+            }
+
+            const take = Math.min(fits, left);
+            crate.push({ ...line, quantity: take });
+            load += take * each;
+            left -= take;
+            if (load >= limit) close();
+        }
+    }
+    close();
+
+    return crates;
+}
+
 /** Where a receipt keeps its consignment. */
 export const RECEIPT_FLAG = 'consignment';
 

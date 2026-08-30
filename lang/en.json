@@ -555,7 +555,8 @@
         },
         "common": {
             "nothing": "nothing",
-            "unknownTable": "a roll table"
+            "unknownTable": "a roll table",
+            "cancel": "Cancel"
         },
         "query": {
             "anyKind": "anything a merchant can carry",
@@ -625,7 +626,9 @@
                 "placesPhysicalPlaceholder": "One place per line — an inn, a guard post, a warehouse the party rent. Whatever you write here is what a buyer picks from when they choose Ground delivery.",
                 "placesPortal": "Places on the portal network",
                 "placesPortalHint": "Somewhere with a ring that is not a shop. Every shop marked as having a portal ring is offered as well.",
-                "placesPortalPlaceholder": "One place per line — a guild hall, a tower, a ring the party found. Whatever you write here is what a buyer picks from when they choose Parcel Portal."
+                "placesPortalPlaceholder": "One place per line — a guild hall, a tower, a ring the party found. Whatever you write here is what a buyer picks from when they choose Parcel Portal.",
+                "crateDeposit": "Crate deposit (gp)",
+                "crateDepositHint": "What a shop charges for the box, refunded when it is sent back. One crate holds 50 lb, so a heavy order needs several."
             },
             "where": "Deliver to",
             "beastNote": "The beast triangulates on the receipt. It will find whoever is carrying it.",
@@ -641,8 +644,27 @@
             "alreadyHere": "This one has already arrived.",
             "viaService": "By {service}",
             "open": "Open Parcel",
-            "opened": "Opened the parcel from {shop}.",
-            "openFailed": "The parcel would not open. Its contents are still inside it."
+            "openFailed": "The parcel would not open. Its contents are still inside it.",
+            "deposit": "Crates",
+            "depositTooltip": "A deposit on the boxes. Send them back when you unpack and you get it returned; keep one and you have bought it.",
+            "manifestDeposit": "Crate deposit: {deposit} for {crates}",
+            "crateOf": "({index} of {of})",
+            "crateName": "Shipping Crate",
+            "openTitle": "Open the parcel",
+            "openPrompt": "Everything comes out of the crate and into your pack. What happens to the crate from {shop}?",
+            "openDeposit": "Sending it back returns the {deposit} deposit. Keeping it means you have bought a crate: 5 lb empty, holds 50 lb, and nothing about it is bigger on the inside.",
+            "keepBox": "Keep the crate",
+            "returnBox": "Send it back",
+            "openedKept": "Unpacked the parcel from {shop} and kept the crate.",
+            "openedReturned": "Unpacked the parcel from {shop}. The crate went back and {deposit} came with it.",
+            "verifying": "Asking whether you can collect the parcel at {where}…",
+            "waiting": "Your parcel from {shop} is waiting at {where}.",
+            "waitingGm": "{who}'s parcel from {shop} has reached {where}.",
+            "goThere": "Make your way to {where} to pick up your parcel, then check the receipt again.",
+            "collectTitle": "Collecting a parcel",
+            "collectAsk": "{who} wants to pick up their parcel from {where}. Are they at that location?",
+            "collectGoods": "In the parcel: {goods}",
+            "collectYes": "They are there"
         }
     },
     "TYPES": {

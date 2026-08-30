@@ -34,6 +34,10 @@ way to find a bug and where a wrong answer is silent:
   `filterShopList`. That makes it the only check here that would catch a selector no longer matching the
   markup — which is the way this particular feature breaks, and which reads as a search that quietly returns
   too little rather than as an error.
+- **`test-mail.mjs`** — how many crates an order needs, which is arithmetic the party are charged for.
+  `packCrates` runs three times on the same goods — pricing the slate, taking the money, filling the
+  boxes — so the property that matters is that it is deterministic and loses nothing: a stack split
+  across crates still adds up, and a statue heavier than a crate travels rather than vanishing.
 - **`test-morph.mjs`** — the shop window patching its rendered page instead of replacing it. Most of the
   assertions are on **node identity**, not on markup: that the same `<img>` object is still in the tree
   after a render, that a row leaving does not rebuild the rows under it, that a bound node keeps the flag

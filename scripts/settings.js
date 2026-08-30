@@ -22,7 +22,8 @@ import {
     DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS, DEFAULT_SHOP_LOOK, SHOP_LOOK_SETTINGS,
     DEFAULT_ABANDONED_STOCK,
     TOKEN_MARKER_SETTINGS,
-    DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey, DELIVERY_POINT, deliveryPlacesKey
+    DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey, DELIVERY_POINT, deliveryPlacesKey,
+    CRATE, CRATE_DEPOSIT_SETTING
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -454,6 +455,18 @@ function registerDeliverySettings() {
             default: service.feeGp
         });
     }
+
+    // What the shop wants for the box it sends things in. A world setting for the reason
+    // the fees are: what a crate costs is a fact about a world rather than about a shop.
+    game.settings.register(MODULE.ID, CRATE_DEPOSIT_SETTING, {
+        name: game.i18n.localize('coffee-pub-merchant.delivery.settings.crateDeposit'),
+        hint: game.i18n.localize('coffee-pub-merchant.delivery.settings.crateDepositHint'),
+        scope: 'world',
+        config: true,
+        type: Number,
+        range: { min: 0, max: 100, step: 1 },
+        default: CRATE.depositGp
+    });
 
     registerDeliveryPlaces();
 }

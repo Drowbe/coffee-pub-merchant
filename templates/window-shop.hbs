@@ -560,6 +560,17 @@
                                     <dt>{{localize "coffee-pub-merchant.delivery.fee"}}</dt>
                                     <dd>&minus;{{feeLabel}}</dd>
                                 </div>
+                                {{!-- **The boxes, and how many.** A deposit rather than a
+                                      price: it comes back if the crates go back, and the
+                                      count is what a party notices when an order grows an
+                                      anvil and needs a second one. --}}
+                                {{#if crates}}
+                                <div class="merchant-shop-cart-sum">
+                                    <dt>{{localize "coffee-pub-merchant.delivery.deposit"}}</dt>
+                                    <dd data-tooltip="{{localize "coffee-pub-merchant.delivery.depositTooltip"}}">&minus;{{depositLabel}}
+                                        <em class="merchant-shop-crates">&times;{{crates}}</em></dd>
+                                </div>
+                                {{/if}}
                                 {{/if}}
                                 <div class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
                                     <dt>{{localize "coffee-pub-merchant.shop.total"}}</dt>

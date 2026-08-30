@@ -1861,5 +1861,21 @@ level onto every existing row; it logs how many.
     unchanged.
 276. **Open the parcel.** *Open Parcel* on its sheet header: the goods land loose in the pack, the
     crate is gone, and a toast says what came out. Nothing is lost — count the items before and after.
-277. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+277. **A parcel to a place waits there.** Order by Ground, advance the clock past the arrival: the
+    owner is told it is waiting at the destination and **nothing appears in their pack**.
+278. **Consulting the receipt asks the GM.** The player sees *asking whether you can collect…*; the
+    GM gets a dialog naming the character, the location and the goods.
+279. **"They are not there"** → the player is told to make their way there and check again, and the
+    receipt is unchanged. **"They are there"** → the crates arrive and the persistent toast fires.
+280. **A courier beast still needs no collection**: it lands in the pack on the clock, with no dialog.
+281. **Crates are charged for.** The slate shows a Crates line with a count. Add an anvil until the
+    count goes to 2 and watch the line and the total follow.
+282. **A heavy order arrives in several crates**, named *(1 of 2)* and *(2 of 2)*, each openable on its
+    own, with the goods split between them and nothing lost.
+283. **Opening asks about the box.** *Send it back* deletes the crate and returns the deposit to the
+    purse; *keep the crate* leaves a Shipping Crate with **no Open Parcel control on it**; *Cancel*
+    leaves everything as it was.
+284. **The crate is a real object**: 5 lb empty, 50 lb capacity, 5 gp, and the character's carried
+    weight goes up by the crate plus its contents.
+285. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

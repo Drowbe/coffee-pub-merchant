@@ -26,7 +26,7 @@ import { printCatalogue, canPrint, registerCatalogue } from './utility-catalogue
 import {
     serviceFor, feeBase, buildConsignment, consignmentOf, isDelivered,
     deliverParcel, scheduleDelivery, unscheduleDelivery, registerDeliveries, destinationsFor,
-    createReceipt, registerReceipts
+    createReceipt, registerReceipts, needsCollection, hasLanded, crateCount, crateDepositBase
 } from './utility-mail.js';
 import { resolveReputation, invalidateReputation } from './utility-reputation.js';
 import { marketRate } from './utility-market.js';
@@ -2634,7 +2634,16 @@ export class MerchantManager {
         }
 
         const fee = feeBase(service.key);
-        const total = bought.total + fee;
+        // **The boxes are part of the bill.** A crate is a real object -- five pounds
+        // empty, fifty pounds of capacity -- and how many the order needs is arithmetic on
+        // what was bought rather than a number anybody chose. Sending them back gets the
+        // deposit returned; keeping them is buying them.
+        const boxes = crateCount(bought.lines.map((line) => ({
+            quantity: line.quantity,
+            source: line.item.toObject()
+        })));
+        const deposit = boxes * crateDepositBase();
+        const total = bought.total + fee + deposit;
 
         // **The goods as they are now**, taken before any stock comes down: what is in the
         // parcel is what left the warehouse, and the row it left may be gone by the time it
@@ -2781,6 +2790,24 @@ export class MerchantManager {
             return null;
         }
 
+        // **Arriving and being handed over are two different events**, and only the beast
+        // collapses them. A parcel sent to a place has reached the place: it is on a shelf
+        // behind a counter three towns away, and it stays there until somebody walks in and
+        // asks for it. The receipt is how they ask -- see `askToCollect` -- and the GM says
+        // whether the party are standing where the parcel is, because nothing else knows.
+        if (needsCollection(current)) {
+            unscheduleDelivery(live);
+            emit(SOCKET_EVENT.WAITING, {
+                actorUuid: actor.uuid,
+                shop: current.shopName ?? '',
+                where: current.destination ?? ''
+            });
+            notify.info(game.i18n.format('coffee-pub-merchant.delivery.waitingGm', {
+                shop: current.shopName ?? '', where: current.destination ?? '', who: actor.name
+            }));
+            return null;
+        }
+
         try {
             await deliverParcel(actor, live, current);
             unscheduleDelivery(live);
@@ -2803,6 +2830,75 @@ export class MerchantManager {
             return live;
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not deliver a parcel:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * **"Are they at that location?"**
+     *
+     * The one question the module cannot answer for itself. A scene is not a location: a
+     * party can be on a world map, in a conversation with no map at all, or standing in a
+     * shop that has no token for the coaching inn three towns over. Guessing would either
+     * hand a parcel over from a hundred miles away or refuse one being collected at the
+     * counter, and both are worse than asking.
+     *
+     * Everything else *is* checked here rather than taken from the payload: that the item
+     * is still there, that it is a consignment, that it has not been collected already, and
+     * that its moment has actually passed. The GM is answering a question about geography,
+     * not vouching for the request.
+     */
+    static async collect(payload) {
+        if (!game.user.isGM) return null;
+
+        let actor = null;
+        try {
+            actor = payload?.actorUuid ? await fromUuid(payload.actorUuid) : null;
+        } catch (_error) {
+            actor = null;
+        }
+        const item = actor?.items?.get(payload?.itemId) ?? null;
+        const record = consignmentOf(item);
+        if (!actor || !item || !record || isDelivered(record)) return null;
+        if (!hasLanded(record) || !needsCollection(record)) return null;
+
+        const where = record.destination ?? '';
+        const blacksmith = game.modules.get('coffee-pub-blacksmith')?.api;
+        let there = true;
+
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
+            there = await blacksmith.dialog.confirm({
+                title: game.i18n.localize('coffee-pub-merchant.delivery.collectTitle'),
+                classes: ['merchant-dialog'],
+                content: `<p>${game.i18n.format('coffee-pub-merchant.delivery.collectAsk', {
+                    who: foundry.utils.escapeHTML(actor.name),
+                    where: foundry.utils.escapeHTML(where)
+                })}</p><p>${game.i18n.format('coffee-pub-merchant.delivery.collectGoods', {
+                    goods: foundry.utils.escapeHTML(
+                        record.items.map((line) => `${line.name} x${line.quantity}`).join(', ')
+                    )
+                })}</p>`,
+                confirmLabel: game.i18n.localize('coffee-pub-merchant.delivery.collectYes'),
+                confirmIcon: 'fa-solid fa-box-open'
+            });
+        }
+
+        if (!there) {
+            emit(SOCKET_EVENT.NOT_THERE, { actorUuid: actor.uuid, where });
+            return null;
+        }
+
+        try {
+            await deliverParcel(actor, item, record);
+            emit(SOCKET_EVENT.DELIVERED, {
+                actorUuid: actor.uuid,
+                shop: record.shopName ?? '',
+                goods: record.items.map((line) => `${line.name} x${line.quantity}`).join(', '),
+                img: item.img ?? ''
+            });
+            return item;
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not hand over a parcel:`, error);
             return null;
         }
     }
@@ -3177,6 +3273,42 @@ export class MerchantManager {
                 data?.goods ?? '',
                 data?.img || undefined
             );
+        });
+
+        // The GM's half of the conversation. Every client hears it; only a GM acts, and
+        // only one dialog is wanted, so it is the *active* GM who asks -- the same rule the
+        // request envelope uses for who answers.
+        on(SOCKET_EVENT.COLLECT, (data) => {
+            if (!game.user.isGM || game.users?.activeGM !== game.user) return;
+            void this.collect(data);
+        });
+
+        on(SOCKET_EVENT.WAITING, (data) => {
+            let owner = null;
+            try {
+                owner = data?.actorUuid ? fromUuidSync(data.actorUuid) : null;
+            } catch (_error) {
+                owner = null;
+            }
+            if (!owner?.isOwner) return;
+            // Not persistent: nothing has changed hands and there is nothing to acknowledge.
+            // What it does is tell them the trip is now worth making.
+            notify.info(game.i18n.format('coffee-pub-merchant.delivery.waiting', {
+                shop: data?.shop ?? '', where: data?.where ?? ''
+            }));
+        });
+
+        on(SOCKET_EVENT.NOT_THERE, (data) => {
+            let owner = null;
+            try {
+                owner = data?.actorUuid ? fromUuidSync(data.actorUuid) : null;
+            } catch (_error) {
+                owner = null;
+            }
+            if (!owner?.isOwner) return;
+            notify.warn(game.i18n.format('coffee-pub-merchant.delivery.goThere', {
+                where: data?.where ?? ''
+            }));
         });
     }
 }

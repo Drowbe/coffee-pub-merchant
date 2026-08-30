@@ -35,10 +35,11 @@ import {
     MODULE, RECEIPT_FLAG, PAR_FLAG, FREE_FLAG, DELIVERY_SERVICES, DEFAULT_DELIVERY_SERVICE, deliveryService,
     deliveryDaysKey, deliveryFeeKey, arrivalTime, daysUntil, deliveryPointFor, customDestinations,
     deliveryPlacesKey,
-    DELIVERY_POINT
+    DELIVERY_POINT, CRATE, CRATE_DEPOSIT_SETTING, packCrates
 } from './const.js';
-import { toBase, formatBase } from './utility-pricing.js';
+import { toBase, fromBase, formatBase } from './utility-pricing.js';
 import { notify } from './utility-feedback.js';
+import { emit, SOCKET_EVENT } from './utility-sockets.js';
 
 /** The image a receipt wears, and the one a parcel wears once it has been filled. */
 const RECEIPT_IMG = 'icons/sundries/documents/document-sealed-brown-red.webp';
@@ -81,6 +82,36 @@ export function services() {
 /** What a service charges, in base units, so it can be added to a total. */
 export function feeBase(key) {
     return toBase(serviceFor(key).feeGp, 'gp');
+}
+
+/**
+ * What one crate costs, in base units.
+ *
+ * **A deposit, not a sale.** The party pay for the box with the goods and get it back if
+ * they send the box back; keeping it is buying it. The merchant's side of that is not
+ * modelled at all -- nothing is credited to a shop, no shop is checked for a refund, and a
+ * merchant that no longer exists changes nothing. It is a fact about the *party's* purse
+ * and a piece of fiction everywhere else, which is the right amount of economy for a box.
+ */
+export function crateDepositBase() {
+    const gp = game.settings?.get?.(MODULE.ID, CRATE_DEPOSIT_SETTING);
+    return toBase(Number.isFinite(Number(gp)) ? Number(gp) : CRATE.depositGp, 'gp');
+}
+
+/** How many crates an order needs, which is what fixes its deposit. See `packCrates`. */
+export function crateCount(lines) {
+    return Math.max(1, packCrates(lines).length);
+}
+
+/**
+ * Whether this parcel has to be collected rather than handed over.
+ *
+ * A service with a **delivery point** takes the goods to a place; somebody has to go there.
+ * The courier beast asks for nowhere and finds the receipt, which is the whole of its
+ * premium -- so a beast delivery lands in the pack the moment it is due.
+ */
+export function needsCollection(record) {
+    return deliveryPointFor(record?.service) !== null;
 }
 
 /**
@@ -181,6 +212,11 @@ export function manifestHtml(record) {
         `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestFee', {
             fee: formatBase(record.feeBase ?? 0)
         })}</p>`,
+        record.depositBase
+            ? `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestDeposit', {
+                deposit: formatBase(record.depositBase), crates: record.crates ?? 1
+            })}</p>`
+            : '',
         record.destination
             ? `<p>${game.i18n.format('coffee-pub-merchant.delivery.manifestWhere', {
                 where: foundry.utils.escapeHTML(record.destination)
@@ -208,6 +244,12 @@ export function buildConsignment({
 }) {
     const chosen = serviceFor(service);
     const dispatchedAt = Number.isFinite(Number(now)) ? Number(now) : 0;
+    // **The packing is not stored, the count is.** `packCrates` is pure and the goods are
+    // frozen into the record at dispatch, so running it again at delivery gives the same
+    // crates it gave at the counter -- which is what makes the boxes the party paid for
+    // and the boxes that turn up the same boxes. Storing the grouping as well would be a
+    // second copy of the manifest, free to disagree with the first.
+    const crates = crateCount(lines);
 
     return {
         merchantUuid: merchantUuid ?? null,
@@ -216,6 +258,12 @@ export function buildConsignment({
         service: chosen.key,
         feeBase: fee ?? 0,
         goodsBase: goodsBase ?? 0,
+        // What the boxes cost, and what each one is worth back. Stored per crate as well
+        // as in total, so a refund years later pays what was actually paid rather than
+        // what a setting happens to say by then.
+        crates,
+        crateDepositBase: crateDepositBase(),
+        depositBase: crates * crateDepositBase(),
         dispatchedAt,
         arrivesAt: arrivalTime(dispatchedAt, chosen.days),
         // Where it is going, and anything the party asked for on the way. Both are read by
@@ -337,6 +385,44 @@ export function unscheduleDelivery(item) {
 // ==================================================================
 
 /**
+ * **The box, as an object with weight and limits.**
+ *
+ * A crate that weighed nothing and held anything made mail order the best bag of holding
+ * in the game: order any amount of anything and it arrives in free carrying capacity. So
+ * it is five pounds empty, holds fifty, and is priced at what the party put down for it.
+ *
+ * `capacity.weight` is what dnd5e enforces; the volume is there because a crate has a size
+ * and a reader should see one. No `weightReduction` and nothing extradimensional: what is
+ * in it weighs what it weighs, which is the reason a big order needs several.
+ */
+function crateSystem(description, record) {
+    return {
+        description,
+        weight: { value: CRATE.weightLb, units: 'lb' },
+        price: {
+            value: fromBase(record?.crateDepositBase ?? 0, 'gp') || CRATE.depositGp,
+            denomination: 'gp'
+        },
+        capacity: {
+            volume: { value: CRATE.volumeCubicFeet, units: 'cubicFoot' },
+            weight: { value: CRATE.capacityLb, units: 'lb' }
+        }
+    };
+}
+
+/** "Parcel: The Anvil", or "Parcel: The Anvil (2 of 3)" when it took more than one box. */
+function parcelName(record, index) {
+    const base = game.i18n.format('coffee-pub-merchant.delivery.parcelName', {
+        shop: record.shopName ?? ''
+    });
+    const crates = Math.max(1, Number(record.crates) || 1);
+    if (crates <= 1) return base;
+    return `${base} ${game.i18n.format('coffee-pub-merchant.delivery.crateOf', {
+        index, of: crates
+    })}`;
+}
+
+/**
  * **A note becomes a crate**: `loot` in, `container` out.
  *
  * Foundry allows a Document's subtype to change on update, and a receipt is the ideal case
@@ -350,9 +436,10 @@ export function unscheduleDelivery(item) {
  */
 async function becomeParcel(actor, item, record) {
     const dressing = {
-        name: game.i18n.format('coffee-pub-merchant.delivery.parcelName', { shop: record.shopName ?? '' }),
+        name: parcelName(record, 1),
         img: PARCEL_IMG,
-        [`flags.${MODULE.ID}.${RECEIPT_FLAG}.delivered`]: true
+        [`flags.${MODULE.ID}.${RECEIPT_FLAG}.delivered`]: true,
+        [`flags.${MODULE.ID}.${RECEIPT_FLAG}.crate`]: 1
     };
 
     try {
@@ -365,11 +452,7 @@ async function becomeParcel(actor, item, record) {
         await item.update({
             type: 'container',
             ...dressing,
-            '==system': {
-                description: item.system?.description ?? {},
-                weight: { value: 0, units: 'lb' },
-                price: { value: 0, denomination: 'gp' }
-            }
+            '==system': crateSystem(item.system?.description ?? {}, record)
         });
         if (item.type === 'container') return item;
     } catch (error) {
@@ -385,14 +468,10 @@ async function becomeParcel(actor, item, record) {
         type: 'container',
         name: dressing.name,
         img: PARCEL_IMG,
-        system: {
-            description: source.system?.description ?? {},
-            weight: { value: 0, units: 'lb' },
-            price: { value: 0, denomination: 'gp' }
-        },
+        system: crateSystem(source.system?.description ?? {}, record),
         flags: foundry.utils.mergeObject(
             source.flags ?? {},
-            { [MODULE.ID]: { [RECEIPT_FLAG]: { ...record, delivered: true } } },
+            { [MODULE.ID]: { [RECEIPT_FLAG]: { ...record, delivered: true, crate: 1 } } },
             { inplace: false }
         )
     }], { keepId: true });
@@ -414,43 +493,76 @@ async function becomeParcel(actor, item, record) {
  * missing rather than an error anybody would see.
  */
 export async function deliverParcel(actor, item, record) {
+    // The same packing the party paid for: `packCrates` is pure and the goods were frozen
+    // into the record at dispatch, so this is the grouping the deposit was charged on.
+    const crates = packCrates(record.items);
+
     const parcel = await becomeParcel(actor, item, record);
     if (!parcel) {
         console.error(`${MODULE.TITLE} | The parcel for ${actor?.name} could not be opened:`, record);
         return null;
     }
+    const boxes = [parcel];
 
-    const contents = record.items.map((line) => {
-        const source = foundry.utils.deepClone(line.source ?? {});
-
-        // **Merchant's own shelf flags do not travel.** `par` describes an inventory rather
-        // than an item, and `free` says a merchant was giving something away -- neither is a
-        // fact about the thing once it is in somebody's parcel. A settlement strips them
-        // through `exchange`'s `omitFlags`; this path builds documents directly, so it has
-        // to do the same by hand or a delivered row arrives carrying a restock target and
-        // rides back in if the party ever sells it.
-        const flags = { ...(source.flags ?? {}) };
-        if (flags[MODULE.ID]) {
-            flags[MODULE.ID] = { ...flags[MODULE.ID] };
-            delete flags[MODULE.ID][PAR_FLAG];
-            delete flags[MODULE.ID][FREE_FLAG];
-            if (!Object.keys(flags[MODULE.ID]).length) delete flags[MODULE.ID];
-        }
-
-        return {
-            ...source,
-            _id: undefined,
-            flags,
-            system: {
-                ...(source.system ?? {}),
-                quantity: line.quantity,
-                container: parcel.id
+    // **The receipt becomes the first crate; the rest are boxes beside it.** Each carries
+    // the whole consignment record so each can be opened, kept or sent back on its own --
+    // a party who want to keep one crate and return two should be able to.
+    for (let index = 1; index < crates.length; index++) {
+        const [extra] = await actor.createEmbeddedDocuments('Item', [{
+            name: parcelName(record, index + 1),
+            type: 'container',
+            img: PARCEL_IMG,
+            system: crateSystem({ value: manifestHtml(record) }, record),
+            flags: {
+                [MODULE.ID]: { [RECEIPT_FLAG]: { ...record, delivered: true, crate: index + 1 } }
             }
-        };
+        }]);
+        if (extra) boxes.push(extra);
+    }
+
+    const contents = [];
+    crates.forEach((crate, index) => {
+        // A box that could not be created is not a reason to drop its goods on the floor:
+        // they go in the last box that exists, over its stated capacity, which a person can
+        // see and sort out. Losing them would be silent.
+        const box = boxes[index] ?? boxes[boxes.length - 1];
+        for (const line of crate) contents.push(contentData(line, box.id));
     });
 
     await actor.createEmbeddedDocuments('Item', contents, { keepId: false });
     return parcel;
+}
+
+/**
+ * One line of a consignment, as a document inside a crate.
+ *
+ * **Merchant's own shelf flags do not travel.** `par` describes an inventory rather than an
+ * item, and `free` says a merchant was giving something away -- neither is a fact about the
+ * thing once it is in somebody's parcel. A settlement strips them through `exchange`'s
+ * `omitFlags`; this path builds documents directly, so it has to do the same by hand or a
+ * delivered row arrives carrying a restock target and rides back in if the party sell it.
+ */
+function contentData(line, containerId) {
+    const source = foundry.utils.deepClone(line.source ?? {});
+
+    const flags = { ...(source.flags ?? {}) };
+    if (flags[MODULE.ID]) {
+        flags[MODULE.ID] = { ...flags[MODULE.ID] };
+        delete flags[MODULE.ID][PAR_FLAG];
+        delete flags[MODULE.ID][FREE_FLAG];
+        if (!Object.keys(flags[MODULE.ID]).length) delete flags[MODULE.ID];
+    }
+
+    return {
+        ...source,
+        _id: undefined,
+        flags,
+        system: {
+            ...(source.system ?? {}),
+            quantity: line.quantity,
+            container: containerId
+        }
+    };
 }
 
 /**
@@ -541,6 +653,11 @@ export function receiptToast(item) {
         });
     }
 
+    // **It has landed, and it landed somewhere.** A parcel sent to a place is not a parcel
+    // in your pack: somebody has to be standing at that place to take it, and only the GM
+    // knows where the party are. So consulting the receipt asks them.
+    if (hasLanded(record) && needsCollection(record)) return askToCollect(item, record);
+
     // The address and the note are the buyer's own words about their own parcel: shown
     // where they asked, and nowhere else. Both are plain text on a toast, so there is
     // nothing here to escape and nothing that could be made to run.
@@ -589,27 +706,136 @@ export async function openParcel(item) {
     const actor = item?.parent;
     if (!record || !actor || !isDelivered(record)) return null;
 
+    const deposit = Number(record.crateDepositBase) || 0;
+    const keep = await askAboutTheBox(record, deposit);
+    if (keep === null) return null;
+
     const inside = actor.items.filter((held) => held.system?.container === item.id);
     const names = inside.map((held) => `${held.name} x${held.system?.quantity ?? 1}`).join(', ');
 
     try {
+        // **Contents out before the box goes anywhere.** dnd5e takes a container's contents
+        // with it when it is deleted, so a delete that ran first would destroy the delivery
+        // in the act of unwrapping it.
         if (inside.length) {
             await actor.updateEmbeddedDocuments('Item', inside.map((held) => ({
                 _id: held.id,
                 'system.container': null
             })));
         }
-        await item.delete();
+
+        if (keep) {
+            // **It stops being ours.** The consignment flag is what puts *Open Parcel* on
+            // the sheet and what the courier looks for; a crate somebody has bought is a
+            // crate, and leaving the flag on it would leave an action that opens an already
+            // open box. `-=` because a merge cannot express a deletion.
+            await item.update({
+                [`flags.${MODULE.ID}.-=${RECEIPT_FLAG}`]: null,
+                name: game.i18n.localize('coffee-pub-merchant.delivery.crateName')
+            });
+        } else {
+            await item.delete();
+            await refundDeposit(actor, deposit);
+        }
     } catch (error) {
         console.error(`${MODULE.TITLE} | Could not open a parcel:`, error);
         notify.error(game.i18n.localize('coffee-pub-merchant.delivery.openFailed'));
         return null;
     }
 
-    notify.success(game.i18n.format('coffee-pub-merchant.delivery.opened', {
-        shop: record.shopName ?? ''
-    }), { subtitle: names });
+    notify.success(game.i18n.format(
+        keep ? 'coffee-pub-merchant.delivery.openedKept' : 'coffee-pub-merchant.delivery.openedReturned',
+        { shop: record.shopName ?? '', deposit: formatBase(deposit) }
+    ), { subtitle: names });
     return inside;
+}
+
+/**
+ * Keep the box or send it back.
+ *
+ * Three buttons rather than two, because **cancel has to be a real answer**: this is the
+ * only gesture in the module that destroys an item, and somebody who clicked the wrong row
+ * needs a way out that is not "open it and hope".
+ *
+ * @returns {Promise<boolean|null>} true to keep it, false to send it back, null for neither.
+ */
+async function askAboutTheBox(record, deposit) {
+    const blacksmith = game.modules.get('coffee-pub-blacksmith')?.api;
+    // No dialog available is not a reason to be unable to open a parcel: the goods come
+    // out and the box goes back, which is the choice that costs nothing and can be undone
+    // by buying a crate.
+    if (typeof blacksmith?.dialog?.wait !== 'function') return false;
+
+    const answer = await blacksmith.dialog.wait({
+        title: game.i18n.localize('coffee-pub-merchant.delivery.openTitle'),
+        classes: ['merchant-dialog'],
+        content: `<p>${game.i18n.format('coffee-pub-merchant.delivery.openPrompt', {
+            shop: foundry.utils.escapeHTML(record.shopName ?? '')
+        })}</p><p>${game.i18n.format('coffee-pub-merchant.delivery.openDeposit', {
+            deposit: formatBase(deposit)
+        })}</p>`,
+        buttons: [
+            { action: 'cancel', label: game.i18n.localize('coffee-pub-merchant.common.cancel'), icon: 'fa-solid fa-xmark' },
+            { action: 'keep', label: game.i18n.localize('coffee-pub-merchant.delivery.keepBox'), icon: 'fa-solid fa-box' },
+            {
+                action: 'return',
+                label: game.i18n.localize('coffee-pub-merchant.delivery.returnBox'),
+                icon: 'fa-solid fa-rotate-left',
+                default: true
+            }
+        ],
+        closeValue: 'cancel'
+    });
+
+    if (answer === 'keep') return true;
+    if (answer === 'return') return false;
+    return null;
+}
+
+/**
+ * Put the deposit back in the party's purse.
+ *
+ * **Nobody is debited for it**, and that is deliberate: the shop's side of a crate deposit
+ * is fiction, and modelling it would mean finding a merchant that may have been deleted,
+ * checking its till, and failing a refund because a shop went out of business. What the
+ * party paid, the party get back.
+ */
+async function refundDeposit(actor, deposit) {
+    const gp = Math.round(fromBase(deposit, 'gp'));
+    if (!gp) return;
+    const held = Math.trunc(Number(actor.system?.currency?.gp) || 0);
+    await actor.update({ 'system.currency.gp': held + gp });
+}
+
+/** Whether the moment has passed, which is a question about the clock and nothing else. */
+export function hasLanded(record) {
+    return daysUntil(record?.arrivesAt, game.time?.worldTime ?? 0) <= 0;
+}
+
+/**
+ * Ask the GM whether the party are standing where the parcel is.
+ *
+ * **Only the GM knows where anybody is.** A scene is not a location -- a party can be on
+ * the world map, in a theatre-of-the-mind conversation, or standing in a shop that has no
+ * token for the coaching inn three towns away. Nothing on the client could work this out,
+ * and guessing would either hand over a parcel a hundred miles away or refuse one being
+ * collected from the counter.
+ *
+ * The toast first, so the player sees that their click did something before the GM has
+ * finished reading the dialog.
+ */
+function askToCollect(item, record) {
+    notify.info(game.i18n.format('coffee-pub-merchant.delivery.verifying', {
+        where: record.destination ?? ''
+    }), { image: item.img });
+
+    emit(SOCKET_EVENT.COLLECT, {
+        actorUuid: item.parent?.uuid ?? null,
+        itemId: item.id,
+        who: item.parent?.name ?? '',
+        where: record.destination ?? ''
+    });
+    return null;
 }
 
 /**

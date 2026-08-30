@@ -698,6 +698,10 @@
    until the line is pointed at, so a list of eight is not a row of warnings. */
 /* **Red at rest, not only under the cursor.** It was at .45 opacity until the line was
    hovered, which made the one destructive control on a slate the quietest thing on it. */
+/* How many boxes, beside what they cost. Muted and small: the money is the figure being
+   read, and the count is the reason it is that figure. */
+.merchant-shop-crates { margin-left: 3px; color: var(--blacksmith-tool-text-muted); font-size: .62rem; font-style: normal; }
+
 .merchant-shop-cart-remove { padding: 0 2px 0 6px; color: #c96a53; font-size: .78rem; line-height: 1; opacity: .8; }
 .merchant-shop-cart-line:hover .merchant-shop-cart-remove { opacity: 1; }
 .merchant-shop-cart-remove:hover { color: #8c2f22; }

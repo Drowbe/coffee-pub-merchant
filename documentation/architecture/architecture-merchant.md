@@ -1243,6 +1243,33 @@ with it when it is deleted. The header rather than an activity: a container has 
 gives activities to consumables and weapons rather than to boxes. The same click on a *receipt*
 answers where the parcel is instead, which is what the object means at that moment.
 
+### The crate, and collecting it
+
+**Arriving and being handed over are two different events, and only the beast collapses them.**
+A parcel sent to a *place* reaches the place and waits on a shelf behind a counter; the owner is
+told it has landed, and consulting the receipt asks the GM whether the party are standing there.
+Only the GM can answer: a scene is not a location, and a party can be on a world map or in a
+conversation with no map at all. Everything else — the item exists, it is a consignment, it has
+not been collected, its moment has passed — is checked on the GM side as always. The GM is
+answering a question about geography, not vouching for the request.
+
+**A crate is a real object**: 5 lb empty, 50 lb of capacity, 2 cubic feet, 5 gp. Before this it was
+weightless, priceless and unlimited, which quietly made mail order the best bag of holding in the
+game. There is no weight reduction and nothing extradimensional, so a heavy order needs several
+crates — `packCrates` is a pure first-fit packer that splits a heavy stack rather than bumping it
+whole, and sends a single item heavier than a crate alone rather than refusing the order.
+
+**The packing is recomputed, never stored.** It runs on the client to price the slate, on the GM to
+take the money, and at delivery to fill the boxes. Storing the grouping would be a second copy of
+the manifest, free to disagree with the first; a pure function on frozen goods gives the same
+answer all three times, which `tests/test-mail.mjs` asserts.
+
+**The deposit is one-sided on purpose.** The party pay for the boxes with the goods and are refunded
+when they send them back. Nothing is credited to a merchant, no till is checked, and a shop that has
+been deleted changes nothing — modelling the shop's half would mean a refund that can fail because a
+business closed. Keeping a crate strips the consignment flag: it stops being a parcel and becomes an
+ordinary crate with no action of ours on it.
+
 ### Lost packages
 
 **A receipt nobody is holding is a lost package.** The courier looks for whoever has the receipt; if the

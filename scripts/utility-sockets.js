@@ -34,7 +34,12 @@ export const SOCKET_EVENT = Object.freeze({
     PRESENCE: `${MODULE.ID}.presence`,
     SLATE_REQUEST: `${MODULE.ID}.slateRequest`,
     REFRESH: `${MODULE.ID}.refresh`,
-    DELIVERED: `${MODULE.ID}.delivered`
+    DELIVERED: `${MODULE.ID}.delivered`,
+    // Collection, which is a conversation rather than an announcement: the player asks,
+    // the GM answers yes or no, and the answer comes back as one of the other two.
+    COLLECT: `${MODULE.ID}.collect`,
+    WAITING: `${MODULE.ID}.waiting`,
+    NOT_THERE: `${MODULE.ID}.notThere`
 });
 
 /** The legacy channel, and the `action` values it carried. Fallback only. */
@@ -44,7 +49,10 @@ const LEGACY_ACTION = Object.freeze({
     [SOCKET_EVENT.PRESENCE]: 'shopPresence',
     [SOCKET_EVENT.SLATE_REQUEST]: 'slateRequest',
     [SOCKET_EVENT.REFRESH]: 'shopRefresh',
-    [SOCKET_EVENT.DELIVERED]: 'parcelDelivered'
+    [SOCKET_EVENT.DELIVERED]: 'parcelDelivered',
+    [SOCKET_EVENT.COLLECT]: 'parcelCollect',
+    [SOCKET_EVENT.WAITING]: 'parcelWaiting',
+    [SOCKET_EVENT.NOT_THERE]: 'parcelNotThere'
 });
 
 function _sockets() {
