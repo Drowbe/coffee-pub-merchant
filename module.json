@@ -59,6 +59,7 @@
     "scripts/utility-sockets.js",
     "scripts/window-shop.js",
     "scripts/window-merchant-config.js",
+    "scripts/window-deliveries.js",
     "scripts/manager-merchant.js",
     "scripts/merchant.js"
   ],

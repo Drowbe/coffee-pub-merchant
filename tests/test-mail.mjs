@@ -7,7 +7,7 @@
 //
 // No dependencies: `const.js` imports nothing and touches no Foundry global at load.
 import assert from 'node:assert';
-import { packCrates, CRATE } from '../scripts/const.js';
+import { packCrates, CRATE, adsIntoList } from '../scripts/const.js';
 
 /** A consignment line, in the shape the record stores. */
 const line = (name, weight, quantity = 1) => ({
@@ -105,5 +105,40 @@ console.log('ok  the same goods pack the same way every time');
     assert.strictEqual(CRATE.weightLb, 5, 'an empty crate is carried, not free');
 }
 console.log('ok  capacity is a parameter, defaulting to the crate itself');
+
+// --- advertising dealt into a list --------------------------------------
+//
+// The wall fills holes it can see; a list has none, so a notice has to interrupt one. What
+// matters is that interrupting never *loses* a row, and that a notice never lands last —
+// the bottom of a shelf is where a reader has already stopped looking.
+{
+    const rows = Array.from({ length: 16 }, (_, i) => ({ name: `item${i}` }));
+    const out = adsIntoList(rows, { every: 7 });
+
+    assert.strictEqual(out.filter((r) => !r.isAd).length, 16, 'every item survives');
+    assert.strictEqual(out.filter((r) => r.isAd).length, 2);
+    assert.strictEqual(out.at(-1).isAd, undefined, 'never last');
+    assert.strictEqual(
+        out.map((r) => (r.isAd ? 'A' : '.')).join(''),
+        '.......A.......A..'
+    );
+}
+console.log('ok  advertising is dealt into a list without displacing goods');
+
+// --- and one shop does not print the same notice on every shelf ---------
+{
+    const rows = Array.from({ length: 8 }, () => ({}));
+    const first = adsIntoList(rows, { every: 7 }).find((r) => r.isAd);
+    const second = adsIntoList(rows, { every: 7, offset: 1 }).find((r) => r.isAd);
+    assert.notStrictEqual(first.title, second.title, 'the offset moves the shop along its copy');
+}
+console.log('ok  a second shelf starts where the first left off');
+
+// --- a list too short for one -------------------------------------------
+{
+    assert.strictEqual(adsIntoList([{}, {}], { every: 7 }).length, 2, 'no room, no notice');
+    assert.strictEqual(adsIntoList([]).length, 0);
+}
+console.log('ok  a short shelf carries no advertising');
 
 console.log('\nall mail checks passed');

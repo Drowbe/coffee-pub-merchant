@@ -1153,33 +1153,51 @@
  * pagination be arithmetic: three columns by four rows is twelve cells, a tile costs the
  * cells it covers, and whatever does not fit is the next page.
  */
-.merchant-shop-catalogue .merchant-shop-item-list {
+/*
+ * **The grid is told where everything goes.** Every tile carries explicit `grid-column` and
+ * `grid-row`, worked out by `layoutTiles`, because the module has to *know* which cells are
+ * free in order to cut advertising to fit them — and `grid-auto-flow: dense` is a placement
+ * the browser does and does not report. `dense` stays as a safety net for a tile that
+ * somehow arrives without coordinates; nothing should.
+ */
+.merchant-shop-tiles .merchant-shop-item-list {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    /* **Four rows that stretch, not four rows of a fixed height.** `1fr` divides whatever
-       height the page has been given, so the tiles fill the parent exactly however the
-       window is dragged — and a page can never overflow or come up short, because there is
-       no measurement involved. A fixed row height left a tall window with dead space under
-       the wall and a short one with tiles running past the bottom. */
-    grid-template-rows: repeat(4, minmax(0, 1fr));
+    /* A shop's wall grows downward, so its rows are a fixed height and the shelf is as tall
+       as its goods. The catalogue overrides this below with four stretching rows, because a
+       page has a height to divide and a shelf does not. */
+    grid-auto-rows: 104px;
     grid-auto-flow: dense;
     gap: 8px;
-    height: 100%;
     min-height: 0;
+}
+
+/*
+ * **A catalogue's page is fixed; a shop's wall is not.**
+ *
+ * A page holds twelve cells and whatever does not fit is the next page, so its rows divide
+ * the height it has been given. A shelf has no pages — hiding stock behind a page control
+ * in the window whose job is showing what is in the shop would be absurd — so its rows are
+ * a fixed height and the section scrolls, exactly as the list it replaces does.
+ */
+.merchant-shop-catalogue .merchant-shop-item-list {
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: auto;
+    height: 100%;
 }
 
 /* One cell, one column by two, or two by two. Three sizes, three shapes, and `cardSize`
    decides which by what the thing is worth. */
-.merchant-shop-catalogue .merchant-shop-card.is-small { grid-column: span 1; grid-row: span 1; }
-.merchant-shop-catalogue .merchant-shop-card.is-medium { grid-column: span 1; grid-row: span 2; }
-.merchant-shop-catalogue .merchant-shop-card.is-large { grid-column: span 2; grid-row: span 2; }
+.merchant-shop-tiles .merchant-shop-card.is-small { grid-column: span 1; grid-row: span 1; }
+.merchant-shop-tiles .merchant-shop-card.is-medium { grid-column: span 1; grid-row: span 2; }
+.merchant-shop-tiles .merchant-shop-card.is-large { grid-column: span 2; grid-row: span 2; }
 
 /*
  * The tile *is* the picture, with the words over the bottom of it — not a card with an
  * image on top. At one cell there is no room for both, and a wall where every tile is a
  * picture with a caption is what the reference looks like.
  */
-.merchant-shop-catalogue .merchant-shop-card {
+.merchant-shop-tiles .merchant-shop-card {
     position: relative;
     display: block;
     grid-template-areas: none;
@@ -1192,7 +1210,7 @@
     background: var(--blacksmith-tool-surface-sunken);
 }
 
-.merchant-shop-catalogue .merchant-shop-card > img {
+.merchant-shop-tiles .merchant-shop-card > img {
     position: absolute;
     inset: 0;
     display: block;
@@ -1209,7 +1227,7 @@
  * legible over art nobody chose for the purpose: a flat panel would be a band of colour
  * across every tile, and a plain text shadow disappears on a pale image.
  */
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-copy {
     position: absolute;
     right: 0;
     bottom: 0;
@@ -1224,7 +1242,7 @@
     color: #f1e7d6;
 }
 
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy > strong {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-copy > strong {
     display: -webkit-box;
     overflow: hidden;
     font-size: .72rem;
@@ -1233,7 +1251,7 @@
     -webkit-line-clamp: 2;
 }
 
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-copy > span {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-copy > span {
     color: rgba(241, 231, 214, .62);
     font-size: .58rem;
 }
@@ -1244,7 +1262,7 @@
    get it. */
 .merchant-shop-card-blurb { display: none; }
 
-.merchant-shop-catalogue .merchant-shop-card.is-large .merchant-shop-card-blurb {
+.merchant-shop-tiles .merchant-shop-card.is-large .merchant-shop-card-blurb {
     display: -webkit-box;
     margin: 3px 0 0;
     overflow: hidden;
@@ -1257,7 +1275,7 @@
 
 /* Price top-left on its own plate: it has to stay readable against the picture, and it is
    the one number a reader is scanning the wall for. */
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-price {
     position: absolute;
     top: 5px;
     left: 5px;
@@ -1279,17 +1297,49 @@
  * whatever picture is behind it -- so a theme colour on it is a coin flip, and in the light
  * theme it comes up dark ink on a dark plate.
  */
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price strong { color: #f2d99b; }
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-price strong { color: #f2d99b; }
 
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price em,
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price .merchant-shop-negotiate {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-price em,
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-price .merchant-shop-negotiate {
     color: rgba(241, 231, 214, .72);
 }
 
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price .merchant-shop-unpriced { color: #f08e78; }
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-price .merchant-shop-unpriced { color: #f08e78; }
+
+/*
+ * **A shop's wall still says how many are left; a catalogue's does not.**
+ *
+ * The count is dropped from a catalogue in the template — a warehouse's stock level is not
+ * a fact a catalogue's reader needs — but at a counter it is half of what a row is for. On
+ * a tile it goes bottom-right, on the same gradient the name sits on, so the picture keeps
+ * its top edge for the price and the add button.
+ */
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-qty {
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    z-index: 2;
+    display: inline-flex;
+    gap: 3px;
+    align-items: baseline;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(8, 6, 4, .72);
+    color: #f1e7d6;
+    font-size: .66rem;
+    text-align: right;
+}
+
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-item-qty > small {
+    color: rgba(241, 231, 214, .55);
+    font-size: .52rem;
+}
+
+/* The GM's editors keep their affordance on a tile: same dotted underline, same cursor. */
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-qty-editable { cursor: pointer; }
 
 /* And the add button opposite it. */
-.merchant-shop-catalogue .merchant-shop-card .merchant-shop-row-actions {
+.merchant-shop-tiles .merchant-shop-card .merchant-shop-row-actions {
     position: absolute;
     top: 4px;
     right: 4px;
@@ -1302,7 +1352,48 @@
  * tile: no picture, no button, dashed and italic — it has to read as copy set among the
  * goods rather than as something that can be bought.
  */
-.merchant-shop-filler {
+/*
+ * **In a list it is a classified; in a wall it is a notice.** The same object in two
+ * shapes: this dresses the row, and the rules below dress the tile. A full-width band with
+ * the same warm ground and the same italic, so a reader running down a column of goods
+ * meets it as an interruption whose shape they can see rather than as a row that failed.
+ */
+.merchant-shop-item-list > .merchant-shop-filler {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+    padding: 7px 10px;
+    border: 1px dashed color-mix(in srgb, #c08a3e 45%, transparent);
+    border-radius: 5px;
+    background:
+        linear-gradient(100deg, rgba(200, 150, 70, .10), transparent 60%),
+        var(--blacksmith-tool-surface-sunken);
+    text-align: center;
+}
+
+.merchant-shop-item-list > .merchant-shop-filler > strong {
+    color: var(--blacksmith-tool-accent);
+    font-size: .7rem;
+    font-style: italic;
+}
+
+.merchant-shop-item-list > .merchant-shop-filler > p {
+    margin: 0;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .62rem;
+    font-style: italic;
+    line-height: 1.3;
+}
+
+/* Sections keep their spacing in either view: a wall is a wall per shelf, not one wall
+   with headings dropped into it. */
+.merchant-shop-tiles .merchant-shop-category + .merchant-shop-category { margin-top: 10px; }
+.merchant-shop-tiles .merchant-shop-category > h4 { margin-bottom: 6px; }
+
+/* The tile shape, which wins inside a wall by being later and more specific. The spans
+   below are a fallback: a placed notice carries its own coordinates inline. */
+.merchant-shop-tiles .merchant-shop-filler {
     grid-column: span 1;
     grid-row: span 1;
     position: relative;
@@ -1330,8 +1421,8 @@
 
 /* The printer's rules: a short line above the headline and below the copy. Drawn rather
    than bordered, so they sit in from the edge like a page rather than framing the tile. */
-.merchant-shop-filler::before,
-.merchant-shop-filler::after {
+.merchant-shop-tiles .merchant-shop-filler::before,
+.merchant-shop-tiles .merchant-shop-filler::after {
     position: absolute;
     left: 50%;
     width: 34px;
@@ -1341,10 +1432,10 @@
     content: '';
 }
 
-.merchant-shop-filler::before { top: 7px; }
-.merchant-shop-filler::after { bottom: 7px; }
+.merchant-shop-tiles .merchant-shop-filler::before { top: 7px; }
+.merchant-shop-tiles .merchant-shop-filler::after { bottom: 7px; }
 
-.merchant-shop-filler > strong {
+.merchant-shop-tiles .merchant-shop-filler > strong {
     color: #e8c98a;
     font-size: .74rem;
     font-style: italic;
@@ -1353,7 +1444,14 @@
     text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
 }
 
-.merchant-shop-filler > p {
+/* A notice cut to a wide hole has room for its copy on one or two lines rather than four,
+   and a tall one has the opposite problem. Same voice, different measure. */
+.merchant-shop-tiles .merchant-shop-filler.is-wide { padding: 8px 16px; }
+.merchant-shop-tiles .merchant-shop-filler.is-wide > p { -webkit-line-clamp: 2; }
+.merchant-shop-tiles .merchant-shop-filler.is-large > strong { font-size: .86rem; }
+.merchant-shop-tiles .merchant-shop-filler.is-large > p { font-size: .66rem; -webkit-line-clamp: 5; }
+
+.merchant-shop-tiles .merchant-shop-filler > p {
     display: -webkit-box;
     margin: 0;
     overflow: hidden;
@@ -1378,7 +1476,15 @@
 
 /* The shelf takes the height it is given and hands all of it to the page below its header,
    which is what lets the rows stretch to fill. */
-.merchant-shop-catalogue .merchant-shop-inventories,
+.merchant-shop-tiles .merchant-shop-inventories,
+/*
+ * **A catalogue is one shelf filling a window; a shop is many shelves in a column.**
+ *
+ * These two rules stretch a shelf to the height it has and let its body take what is left,
+ * which is what makes a page a page. Applied to a *shop* they made every section claim the
+ * window's height while its tiles kept their own — so a wall of goods ran straight over the
+ * heading of the shelf below it. The wall itself is shared; being a page is not.
+ */
 .merchant-shop-catalogue .merchant-shop-inventory {
     display: flex;
     flex: 1 1 auto;

@@ -2797,6 +2797,7 @@ export class MerchantManager {
         // whether the party are standing where the parcel is, because nothing else knows.
         if (needsCollection(current)) {
             unscheduleDelivery(live);
+            void this.refreshDeliveries();
             emit(SOCKET_EVENT.WAITING, {
                 actorUuid: actor.uuid,
                 shop: current.shopName ?? '',
@@ -2889,25 +2890,70 @@ export class MerchantManager {
             return null;
         }
 
+        // **How it got here changes what to say about it**, and `handOver` reads that off
+        // the consignment: a beast finds you and the parcel appears, while this is somebody
+        // walking into a coaching inn and asking for it. One place decides, so the window
+        // and the counter cannot drift apart.
+        return this.handOver(actor.uuid, item.id);
+    }
+
+    /**
+     * Hand a parcel over, wherever the party are.
+     *
+     * **The collection dialog's *yes* branch, reachable without the dialog.** A GM looking
+     * at the world's post has already decided; asking them whether the party are at the
+     * place they just chose to deliver to would be a question with one answer. Everything
+     * else is the same call, deliberately, so a parcel handed over from that window and one
+     * handed over at the counter are the same event -- including the toast the player gets.
+     */
+    static async handOver(actorUuid, itemId) {
+        if (!game.user.isGM) return null;
+
+        let actor = null;
+        try {
+            actor = actorUuid ? await fromUuid(actorUuid) : null;
+        } catch (_error) {
+            actor = null;
+        }
+        const item = actor?.items?.get(itemId) ?? null;
+        const record = consignmentOf(item);
+        if (!actor || !item || !record || isDelivered(record)) return null;
+
         try {
             await deliverParcel(actor, item, record);
+            unscheduleDelivery(item);
             emit(SOCKET_EVENT.DELIVERED, {
                 actorUuid: actor.uuid,
                 shop: record.shopName ?? '',
                 goods: record.items.map((line) => `${line.name} x${line.quantity}`).join(', '),
                 img: item.img ?? '',
-                // **How it got here changes what to say about it.** A beast finds you and
-                // the parcel simply appears; this one is somebody walking into a coaching
-                // inn and asking for it, and "your parcel has arrived" describes neither
-                // the act nor the moment.
                 where: record.destination ?? '',
-                collected: true
+                collected: needsCollection(record)
             });
+            void this.refreshDeliveries();
             return item;
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not hand over a parcel:`, error);
             return null;
         }
+    }
+
+    /** The world's post, in one window. GM only. */
+    static async openDeliveries() {
+        const { DeliveriesWindow } = await import('./window-deliveries.js');
+        return DeliveriesWindow.open();
+    }
+
+    /**
+     * Redraw the transit window, if a GM is looking at one.
+     *
+     * The window is a lens over documents it does not own, so anything that lands, is handed
+     * over or is struck off has to say so. Nothing else watches the receipts.
+     */
+    static async refreshDeliveries() {
+        if (!game.user.isGM) return;
+        const { DeliveriesWindow } = await import('./window-deliveries.js');
+        DeliveriesWindow.refresh();
     }
 
     /**

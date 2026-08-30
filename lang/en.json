@@ -76,7 +76,10 @@
             "warehouse": "By order",
             "warehouseTooltip": "A warehouse elsewhere. Shown so you can stock it — nothing on it changes hands at the counter, and the party orders it from the catalogue.",
             "pagePrev": "Previous page",
-            "pageNext": "Next page"
+            "pageNext": "Next page",
+            "slateClearedForView": "Slate cleared: the counter and the catalogue check out separately.",
+            "viewTiles": "Show the shelves as a wall",
+            "viewList": "Show the shelves as a list"
         },
         "config": {
             "title": "Merchant Settings",
@@ -671,6 +674,24 @@
             "inPack": "In your pack — open the crate to unpack it",
             "crateSpec": "Shipping Crate — {empty} lb empty, holds {holds} lb",
             "depositBack": "{deposit} deposit returned"
+        },
+        "transit": {
+            "heading": "In the post",
+            "empty": "Nothing is in the post. Orders placed from a catalogue appear here until they are collected.",
+            "awaiting": "Waiting to be collected",
+            "due": "Arriving",
+            "receiptTooltip": "Open the receipt",
+            "deliverTooltip": "Hand it over now, wherever they are",
+            "cancelTooltip": "Strike this order off",
+            "cancelTitle": "Strike this order off",
+            "cancelAsk": "Strike {who}'s order from {shop}? The receipt is destroyed and nothing will arrive.",
+            "cancelled": "{who}'s order was struck off. Nothing was refunded.",
+            "cancelFailed": "That order could not be cancelled.",
+            "cancelMoney": "They paid {amount} for the goods, the carriage and the crate. Do they get it back?",
+            "refund": "Refund {amount}",
+            "noRefund": "No refund",
+            "cancelledRefund": "{who}'s order was struck off and {amount} went back to them.",
+            "refundFailed": "The order was struck off but the refund could not be paid."
         }
     },
     "TYPES": {

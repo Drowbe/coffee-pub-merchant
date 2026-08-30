@@ -1882,5 +1882,11 @@ level onto every existing row; it logs how many.
 286. **The slate has a Delivery section** under Buying, listing the courier and the crates with what
     each costs, and the ledger's Delivery row equals the two added together.
 287. **The order toast carries the shop's picture** and the order under it, and waits to be dismissed.
-288. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+288. **Striking an order off asks about the money.** *Refund* returns the full amount paid to the
+    purse and says so; *No refund* strikes it off and takes nothing; *Cancel* leaves the order alone.
+289. **The view and the sorts are remembered.** Switch to the wall, cycle the sort, close the shop and
+    open another one: both come back. Full screen does **not** — that is still the GM's per-door setting.
+290. **The wall keeps its sections.** Each shelf is its own wall with its own heading, and nothing
+    prints over the shelf below it.
+291. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

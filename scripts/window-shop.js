@@ -9,7 +9,7 @@ import {
     DEFAULT_DELIVERY_SERVICE, arrivalTime,
     isCatalogue,
     cardSize, cardBlurb,
-    paginateCards
+    paginateCards, adsIntoList, layoutWall
 } from './const.js';
 import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utility-pins.js';
 import { abandonedLeavings } from './utility-compendium.js';
@@ -146,6 +146,47 @@ export function filterShopList(root, query) {
  * by token, so two shops do not share one answer.
  */
 const _collapsed = new Map();
+
+/**
+ * **How this person likes to read a shop, remembered on their own machine.**
+ *
+ * Three preferences, and they are all the same kind of thing: which way the shelves are
+ * drawn, how the stock is ordered, how the pack is ordered. None is a fact about the shop —
+ * two players at the same counter can want different answers, and neither answer is the
+ * GM's to give.
+ *
+ * Which is why this is `localStorage` and not a setting. A world setting would make one
+ * player's sort order everybody's; a per-user setting would be a document write every time
+ * somebody pressed a sort button, broadcast to every client, to record something no other
+ * client will ever read. The Blacksmith window base keeps its titlebar mode in exactly this
+ * place for exactly this reason.
+ *
+ * **This is not the full-screen toggle**, which is deliberately *not* remembered: how a shop
+ * opens is the GM's decision, per door, and a client that quietly reopened in the other mode
+ * would be overruling them. A sort order overrules nobody.
+ *
+ * Everything is wrapped, because `localStorage` throws rather than returning null in a
+ * browser that has it switched off, and a shop that will not open because somebody hardened
+ * their browser would be a bad trade for remembering a sort order.
+ */
+const PREFS_KEY = `${MODULE.ID}-shop-view`;
+
+function readPrefs() {
+    try {
+        return JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') ?? {};
+    } catch (_error) {
+        return {};
+    }
+}
+
+function writePref(key, value) {
+    try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ ...readPrefs(), [key]: value }));
+    } catch (_error) {
+        // A browser with storage switched off simply does not remember. Nothing else breaks.
+    }
+}
+
 
 /**
  * A stored image path, as a URL a stylesheet can actually fetch.
@@ -355,6 +396,19 @@ function morphChildren(from, to) {
     }
 }
 
+/**
+ * A placed tile's coordinates, as the one inline style this window writes.
+ *
+ * Inline because it is *data*, not styling: where this tile sits is the output of the
+ * layout and belongs to the tile, in the way a row's item id does. A stylesheet cannot
+ * express it -- there is no rule that says "this one is at row three" -- and a class per
+ * coordinate would be twelve classes saying what four numbers say.
+ */
+function gridStyle(entry) {
+    if (!entry?.col || !entry?.row) return '';
+    return `grid-column:${entry.col}/span ${entry.w};grid-row:${entry.row}/span ${entry.h}`;
+}
+
 const ShopBehaviour = (Base) => class extends Base {
     // One window per token, and the registry behind that, are the base class's:
     // `openFor`, `closeFor` and the registry behind them, keyed by uuid. Ours
@@ -461,6 +515,7 @@ const ShopBehaviour = (Base) => class extends Base {
         order: (_event, _target, win) => win.run(() => win.placeOrder()),
         chooseService: (_event, target, win) => win.setService(target.dataset.service),
         turnPage: (_event, target, win) => win.turnPage(Number(target.dataset.page)),
+        toggleView: (_event, _target, win) => win.toggleView(),
         removeFromBasket: (_event, target, win) => void win.removeFromBasket(target.dataset.itemId),
         addToInventory: (_event, _target, win) => void win.openCompendiumSearch(),
         switchTo: (_event, target, win) => win.setRecipient(target.dataset.actorUuid),
@@ -542,6 +597,16 @@ const ShopBehaviour = (Base) => class extends Base {
         // Which spread is open. Per window and not persisted: a page is where you are in a
         // book you are holding, not a fact about the book.
         this._page = 0;
+        // **List or tiles, and the two sort orders, as this person last left them.** A
+        // catalogue is always tiles -- that is what a catalogue is -- so the stored view
+        // says nothing about one.
+        const prefs = readPrefs();
+        this._tiles = prefs.tiles === true;
+        // Not validated here: both getters resolve a key against their own list and fall
+        // back to the first entry, so a stored sort from a build that had another one is
+        // simply not found rather than being an error to handle.
+        this._stockSort = prefs.stockSort;
+        this._sellSort = prefs.sellSort;
         this.busy = false;
         // Per window and not persisted: a search is a thing you are doing right now,
         // and reopening a shop to find yesterday's filter still hiding most of the
@@ -848,6 +913,7 @@ const ShopBehaviour = (Base) => class extends Base {
         const order = ShopWindow.STOCK_SORTS;
         const at = order.findIndex((s) => s.key === this.stockSort.key);
         this._stockSort = order[(at + 1) % order.length].key;
+        writePref('stockSort', this._stockSort);
         void this.render(false);
     }
 
@@ -894,6 +960,7 @@ const ShopBehaviour = (Base) => class extends Base {
         const order = ShopWindow.SELL_SORTS;
         const at = order.findIndex((s) => s.key === this.sellSort.key);
         this._sellSort = order[(at + 1) % order.length].key;
+        writePref('sellSort', this._sellSort);
         void this.render(false);
     }
 
@@ -1726,6 +1793,11 @@ const ShopBehaviour = (Base) => class extends Base {
             // worked by accident.
             const shelves = this.catalogueMode ? true : (isGM ? null : false);
 
+            // Where the advertising has got to across every shelf of this shop, so the
+            // second section starts where the first left off rather than printing the same
+            // notice again.
+            let adOffset = 0;
+
             inventories = MerchantManager
                 .getInventories(merchant, { includeHidden: isGM, catalogue: shelves })
                 .map(({ item: inventory, config }) => {
@@ -1814,7 +1886,7 @@ const ShopBehaviour = (Base) => class extends Base {
                         // it says about itself, what it costs and what it weighs. Built here
                         // rather than in the partial because reading a description off a
                         // document is not a thing a template should be doing.
-                        ...(this.catalogueMode ? this._cardFields(item, price) : {}),
+                        ...(this.isTiled ? this._cardFields(item, price) : {}),
                         canEditStock: isGM && !stock.unlimited && !this.catalogueMode,
                         // **A GM names the list price here.** Not on an unpriced
                         // inventory: having no list price is what that inventory is
@@ -1913,6 +1985,39 @@ const ShopBehaviour = (Base) => class extends Base {
                     // makes a short page read as deliberate rather than as a layout that ran
                     // out. See `paginateCards`.
                     ...(this.catalogueMode ? { spread: this._spreadsFor(categories) } : {}),
+                    // **Advertising in both shapes.** A wall packs and leaves gaps, so a
+                    // notice fills one; a list has no gaps, so a notice interrupts it the
+                    // way a classified interrupts a column of listings. Dealt per section
+                    // and offset by where the last one ended, so a shop with four shelves
+                    // does not print the same two adverts on every one of them.
+                    // **Two shapes, two ways of filling them.** A wall is placed and its
+                    // holes are cut to shape; a list has no holes, so a notice interrupts
+                    // it every so many rows the way a classified interrupts a column of
+                    // listings. Both walk the shop's copy from where the last shelf left
+                    // off, so four shelves do not print the same two adverts on each.
+                    ...(this.catalogueMode ? {} : {
+                        categories: categories.map((category) => {
+                            if (this._tiles) {
+                                const wall = layoutWall(
+                                    category.items.map((row) => ({ ...row, size: row.cardSize ?? 'small' })),
+                                    { from: adOffset }
+                                );
+                                adOffset += wall.length - category.items.length;
+                                return {
+                                    ...category,
+                                    items: wall.map((entry) => ({
+                                        ...entry,
+                                        isAd: entry.kind === 'filler',
+                                        gridStyle: gridStyle(entry)
+                                    }))
+                                };
+                            }
+
+                            const rows = adsIntoList(category.items, { every: 7, offset: adOffset });
+                            adOffset += rows.length - category.items.length;
+                            return { ...category, items: rows };
+                        })
+                    }),
                     count: contents.length,
                     hasItems: contents.length > 0
                 };
@@ -2076,6 +2181,14 @@ const ShopBehaviour = (Base) => class extends Base {
             // that the counter does not: the fee for the service chosen, and the three
             // services to choose between.
             catalogue: this.catalogueMode,
+            // The wall, and the control that asks for it. A catalogue is always a wall and
+            // never offers the choice: a printed catalogue that could be shown as a list
+            // would not be a catalogue.
+            tiled: this.isTiled,
+            viewIcon: this._tiles ? 'fa-solid fa-list' : 'fa-solid fa-grip',
+            viewTooltip: game.i18n.localize(this._tiles
+                ? 'coffee-pub-merchant.shop.viewList'
+                : 'coffee-pub-merchant.shop.viewTiles'),
             feeLabel: formatBase(deliveryFee + deposit),
             crates,
             // **What the delivery is made of, as lines rather than as a subtotal.** The
@@ -2279,6 +2392,23 @@ const ShopBehaviour = (Base) => class extends Base {
                 label: 'Print a Catalogue',
                 onClick: () => void this.printCatalogue()
             }] : []),
+            {
+                // **The GM's own way into the catalogue.** Until now the only door was an
+                // Item in a player's pack, so a GM stocking a catalogue shelf could not see
+                // what they were stocking without borrowing a character. Toggles in place
+                // rather than opening a second window: it is the same shop, and one window
+                // per shop is the rule everywhere else.
+                id: 'merchant-view-catalogue',
+                icon: this.catalogueMode ? 'fa-solid fa-shop' : 'fa-solid fa-book-open',
+                label: this.catalogueMode ? 'View the Counter' : 'View the Catalogue',
+                onClick: () => void this.toggleCatalogueView()
+            },
+            {
+                id: 'merchant-transit',
+                icon: 'fa-solid fa-wagon-covered',
+                label: 'Orders in Transit',
+                onClick: () => void MerchantManager.openDeliveries()
+            },
             {
                 id: 'merchant-config',
                 icon: 'fa-solid fa-sliders',
@@ -3267,6 +3397,30 @@ const ShopBehaviour = (Base) => class extends Base {
         };
     }
 
+    /**
+     * Show the shelves as a wall of tiles, or as a list.
+     *
+     * **The same shelves either way.** Nothing is filtered, nothing is paged, and the
+     * sections keep their headings and their counts -- what changes is the shape of a row.
+     * A list is for finding a named thing among sixty; a wall is for browsing what a shop
+     * has, which is a different question and was previously only answerable by printing a
+     * catalogue of it.
+     *
+     * No pages here, unlike the catalogue. A catalogue is a printed object and a page is
+     * what it is made of; a shelf is a shelf, and paginating one would mean hiding stock
+     * behind a control in a window whose whole job is showing what is in the shop.
+     */
+    toggleView() {
+        this._tiles = !this._tiles;
+        writePref('tiles', this._tiles);
+        void this.render(false);
+    }
+
+    /** Whether the shelves are drawn as tiles: a catalogue always is, a shop when asked. */
+    get isTiled() {
+        return this.catalogueMode || this._tiles;
+    }
+
     /** Turn to a spread. Clamped, so a stale button on a shortened catalogue lands somewhere. */
     turnPage(page) {
         this._page = Math.max(0, Number(page) || 0);
@@ -3310,7 +3464,17 @@ const ShopBehaviour = (Base) => class extends Base {
             // find out from a blank page in a shop rather than from a test.
             entries: (pages[page] ?? []).map((entry) => ({
                 ...entry,
-                isFiller: entry.kind === 'filler'
+                isFiller: entry.kind === 'filler',
+                // **The position, written onto the tile.** The layout decided where every
+                // tile goes and filled what was left; letting the browser place them again
+                // from spans alone would be a second opinion, and the holes the fillers
+                // were cut for would move out from under them.
+                //
+                // On the *item*, because that is what the row partial is handed -- the
+                // entry around it is this function's bookkeeping and never reaches a
+                // template.
+                gridStyle: gridStyle(entry),
+                item: entry.item ? { ...entry.item, gridStyle: gridStyle(entry) } : entry.item
             })),
             page: page + 1,
             pageCount: pages.length,
@@ -3411,6 +3575,30 @@ const ShopBehaviour = (Base) => class extends Base {
             this._illustration || merchant.img
         );
         await this.render(false);
+    }
+
+    /**
+     * Show this shop's catalogue, or its counter.
+     *
+     * **The same window, in the other view.** A catalogue is not a different shop: it is
+     * the warehouse shelves instead of the counter shelves, priced the same way and slated
+     * the same way. Opening a second window for it would mean two slates for one shop,
+     * which is the bug the one-window-per-subject rule exists to prevent.
+     *
+     * The slate is cleared on the way through, and that is not tidiness: an order refuses
+     * any line that did not come off a catalogue shelf and a settlement refuses any line
+     * that did, so a slate carrying both is a slate that can only fail. Better to lose two
+     * clicks than to hand somebody a checkout that cannot work and no reason why.
+     */
+    toggleCatalogueView() {
+        if (!game.user.isGM) return;
+        this.catalogueMode = !this.catalogueMode;
+        this._page = 0;
+        if (this.cart.size) {
+            this.cart.clear();
+            notify.info(game.i18n.localize('coffee-pub-merchant.shop.slateClearedForView'));
+        }
+        void this.render(false);
     }
 
     /** Put a pin for this shop on the scene being looked at. */

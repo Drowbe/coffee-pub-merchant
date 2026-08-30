@@ -144,8 +144,11 @@ through an order path that has not been run once yet. Better after phase 1 has b
 
 ## Known gaps in what was built
 
-- A receipt shows what is coming in its description, written once at order time. **The days remaining do not
-  tick down** as the clock advances; it says what it said when it was printed. Re-writing the description on
+- ~~The days remaining on a receipt do not tick down.~~ **Closed as intended, 2026-08-30.** A receipt is
+  the record of an order, not a living artifact; consulting one gives a live count and that is enough.
+  Left below for the reasoning.
+- A receipt shows what is coming in its description, written once at order time. The days remaining do not
+  tick down as the clock advances; it says what it said when it was printed. Re-writing the description on
   every world-time change is a write per receipt per crossing, which is worse than a slightly stale sentence.
   Mostly covered now: *consulting* a receipt computes the remaining days against the clock at that moment,
   so the number a player is told is always current — only the paragraph on the sheet is stale.

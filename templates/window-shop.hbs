@@ -1,4 +1,4 @@
-<div class="merchant-shop-content{{#if catalogue}} merchant-shop-catalogue{{/if}}">
+<div class="merchant-shop-content{{#if catalogue}} merchant-shop-catalogue{{/if}}{{#if tiled}} merchant-shop-tiles{{/if}}">
     {{#if busyLabel}}
         {{!-- Zero-height sticky rail: the panel floats over the dimmed list and does
               not scroll away, without competing for top: 0 with the pinned header. --}}
@@ -280,6 +280,14 @@
                             data-tooltip="{{stockSortTooltip}}">
                         <i class="{{stockSortIcon}}"></i>
                     </button>
+                    {{!-- **Two ways to read the same shelves.** A list is for finding a
+                          named thing among sixty; a wall is for seeing what a shop has,
+                          which is a different question. Beside the search because both
+                          are about how you are looking rather than about what is there. --}}
+                    <button type="button" class="merchant-shop-search-sort" data-action="toggleView"
+                            data-tooltip="{{viewTooltip}}">
+                        <i class="{{viewIcon}}"></i>
+                    </button>
                 </section>
                 {{/unless}}
 
@@ -432,7 +440,8 @@
                                 <div class="merchant-shop-item-list">
                                     {{#each spread.entries}}
                                         {{#if isFiller}}
-                                            <div class="merchant-shop-item merchant-shop-filler">
+                                            <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}"
+                                                 style="{{gridStyle}}">
                                                 <strong>{{title}}</strong>
                                                 <p>{{body}}</p>
                                             </div>
@@ -447,7 +456,20 @@
                                     <h4><i class="{{icon}}"></i> {{label}}</h4>
                                     <div class="merchant-shop-item-list">
                                         {{#each items}}
-                                            {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                                            {{#if isAd}}
+                                                {{!-- The shop's own copy, among its goods.
+                                                      A tile in a wall and a classified in
+                                                      a list are the same object in two
+                                                      shapes; the class differs so each can
+                                                      be the right shape. --}}
+                                                <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}"
+                                                     style="{{gridStyle}}">
+                                                    <strong>{{title}}</strong>
+                                                    <p>{{body}}</p>
+                                                </div>
+                                            {{else}}
+                                                {{> "modules/coffee-pub-merchant/templates/partial-shop-row.hbs" this}}
+                                            {{/if}}
                                         {{/each}}
                                     </div>
                                 </div>

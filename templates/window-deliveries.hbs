@@ -1,0 +1,78 @@
+{{!--
+    Everything in the post, as a list a GM can read at a glance.
+
+    One card per parcel rather than a table: what a GM is looking for is "is anything
+    stuck?", and the answer is a state and a date, not a row of columns to compare. The
+    state is said in words on the card — in transit, waiting to be collected — because a
+    coloured edge alone would need a legend.
+--}}
+<div class="merchant-transit">
+    {{#if hasRows}}
+        <div class="merchant-transit-head">
+            <span><i class="fa-solid fa-wagon-covered"></i> {{localize "coffee-pub-merchant.transit.heading"}}</span>
+            <span class="merchant-transit-count">{{count}}</span>
+        </div>
+
+        <div class="merchant-transit-list">
+            {{#each rows}}
+                <div class="merchant-transit-row{{#if awaiting}} is-waiting{{else if landed}} is-due{{/if}}">
+                    <img class="merchant-transit-face" src="{{whoImg}}" alt="">
+
+                    <div class="merchant-transit-copy">
+                        <strong>{{who}}</strong>
+                        <span class="merchant-transit-shop">{{shop}}</span>
+                        <span class="merchant-transit-goods">{{goods}}</span>
+
+                        <span class="merchant-transit-meta">
+                            <span><i class="{{serviceIcon}}"></i> {{service}}</span>
+                            {{#if where}}<span><i class="fa-solid fa-location-dot"></i> {{where}}</span>{{/if}}
+                            <span><i class="fa-solid fa-box"></i> &times;{{crates}}</span>
+                            <span><i class="fa-solid fa-coins"></i> {{paid}}</span>
+                        </span>
+
+                        {{!-- The party's own words to a courier. Shown because a GM reading
+                              this list is exactly who it was written for. --}}
+                        {{#if instructions}}
+                            <span class="merchant-transit-note"><i class="fa-solid fa-quote-left"></i> {{instructions}}</span>
+                        {{/if}}
+                    </div>
+
+                    <div class="merchant-transit-state">
+                        {{#if awaiting}}
+                            <span class="merchant-transit-when">{{localize "coffee-pub-merchant.transit.awaiting"}}</span>
+                        {{else if landed}}
+                            <span class="merchant-transit-when">{{localize "coffee-pub-merchant.transit.due"}}</span>
+                        {{else}}
+                            <span class="merchant-transit-when">{{when}}</span>
+                        {{/if}}
+
+                        <span class="merchant-transit-actions">
+                            <button type="button" class="blacksmith-window-btn-secondary" data-action="openReceipt"
+                                    data-actor-uuid="{{actorUuid}}" data-item-id="{{itemId}}"
+                                    data-tooltip="{{localize "coffee-pub-merchant.transit.receiptTooltip"}}">
+                                <i class="fa-solid fa-receipt"></i>
+                            </button>
+                            <button type="button" class="blacksmith-window-btn-secondary merchant-transit-deliver"
+                                    data-action="deliverNow"
+                                    data-actor-uuid="{{actorUuid}}" data-item-id="{{itemId}}"
+                                    data-tooltip="{{localize "coffee-pub-merchant.transit.deliverTooltip"}}">
+                                <i class="fa-solid fa-box-open"></i>
+                            </button>
+                            <button type="button" class="blacksmith-window-btn-secondary merchant-transit-cancel"
+                                    data-action="cancelOrder"
+                                    data-actor-uuid="{{actorUuid}}" data-item-id="{{itemId}}"
+                                    data-tooltip="{{localize "coffee-pub-merchant.transit.cancelTooltip"}}">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                        </span>
+                    </div>
+                </div>
+            {{/each}}
+        </div>
+    {{else}}
+        <div class="merchant-transit-empty">
+            <i class="fa-solid fa-wagon-covered"></i>
+            <span>{{localize "coffee-pub-merchant.transit.empty"}}</span>
+        </div>
+    {{/if}}
+</div>

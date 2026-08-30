@@ -877,62 +877,13 @@ console.log('ok  a shelf filters what a table brings in, not only what a query d
     console.log('ok  cards vary by worth, and a description fits on one');
 }
 
-// --- printed pages ----------------------------------------------------------
-// A catalogue is printed in order: a page fills, then the next one starts. There is no
-// reflowing to balance them, because a reader turning to page three expects what came
-// after page two.
-{
-    const { paginateCards, CARD_SLOTS, SPREAD_SLOTS, CATALOGUE_FILLERS } = await import('../scripts/const.js');
-    const items = (n, size) => Array.from({ length: n }, (_, i) => ({ kind: 'item', size, id: `${size}${i}` }));
-    const only = (page, kind) => page.filter((entry) => entry.kind === kind);
+// --- printed pages -----------------------------------------------------------
+//
+// Moved to `test-cards.mjs`. Pagination stopped being arithmetic when the layout started
+// placing tiles itself: what a page holds is now a question about geometry — where each
+// tile sits and what is left over — and asserting it means rendering the page back into a
+// grid and looking for holes, which wants a file of its own.
 
-    assert.deepStrictEqual(paginateCards([]), [], 'nothing prints nothing');
-
-    // **A slot is a grid cell**, so a tile costs exactly the area it covers: three columns
-    // by four rows is twelve, however they are made up.
-    const small = paginateCards(items(12, 'small'));
-    assert.strictEqual(small.length, 1, 'twelve one-cell tiles fill a page exactly');
-    assert.strictEqual(only(small[0], 'filler').length, 0, 'and a full page prints no advertising');
-
-    assert.strictEqual(paginateCards(items(3, 'large')).length, 1, 'three two-by-twos is the same page');
-    assert.strictEqual(paginateCards(items(4, 'large')).length, 2, 'and a fourth starts the next');
-    assert.strictEqual(paginateCards(items(6, 'medium')).length, 1, 'six one-by-twos likewise');
-
-    // The ragged end is filled, and capped: a last page of three items and nine
-    // advertisements is a pamphlet, not a catalogue.
-    const ragged = paginateCards(items(13, 'small'));
-    assert.strictEqual(ragged.length, 2, 'the thirteenth starts a page');
-    assert.ok(only(ragged[1], 'filler').length > 0, 'whose gap is filled');
-    assert.ok(only(ragged[1], 'filler').length <= 2, 'but never by more than two');
-
-    // A tile is never split across a page boundary: it goes wholly on this page or wholly
-    // on the next, which is what a fixed cell budget buys.
-    const mixed = paginateCards([...items(5, 'small'), ...items(2, 'large'), ...items(4, 'small')]);
-    for (const page of mixed) {
-        const cells = page.reduce((sum, e) => sum + (e.kind === 'filler' ? 2 : CARD_SLOTS[e.size]), 0);
-        assert.ok(cells <= SPREAD_SLOTS, `a page holds ${cells} cells, never more than ${SPREAD_SLOTS}`);
-    }
-
-    // Advertising cycles rather than repeating, so a long catalogue is not the same page
-    // of copy over and over.
-    const long = paginateCards(items(40, 'small').flatMap((item, i) => (i % 5 === 4 ? [] : [item])));
-    const printed = long.flatMap((page) => only(page, 'filler')).map((entry) => entry.title);
-    if (printed.length > 1) {
-        assert.notStrictEqual(printed[0], printed[1], 'two gaps do not print the same advertisement');
-    }
-
-    // Every entry that goes onto a page comes back off it: nothing is dropped by the
-    // arithmetic, which is the one failure a reader could never diagnose.
-    const source = items(9, 'medium');
-    const dealt = paginateCards(source).flat().filter((entry) => entry.kind !== 'filler');
-    assert.strictEqual(dealt.length, source.length, 'every entry is printed exactly once');
-
-    assert.ok(CATALOGUE_FILLERS.every((f) => f.title && f.body), 'every filler says something');
-    assert.strictEqual(CARD_SLOTS.large, 4, 'two columns by two rows');
-    assert.strictEqual(SPREAD_SLOTS, 12);
-
-    console.log('ok  a catalogue prints in order, and a short page is filled rather than empty');
-}
 
 console.log('\nall stock logic checks passed');
 

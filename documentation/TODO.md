@@ -119,9 +119,11 @@ is described rather than placed.
 - **Lost and stolen parcels are wanted.** A parcel that is an Item somebody is holding can go astray, and a
   receipt whose parcel never came is a plot. Worth a GM affordance rather than being purely narrative.
 
-### Phase 2 — on the map
+### Phase 2 — on the map — DEFERRED
 
-Only after phase 1 has been played with:
+**Deferred on 2026-08-30**: the receipt approach turned out to be the better one. Collection through the
+receipt needs no pin, works in a theatre-of-the-mind session, and travels with the party rather than with
+the map. Depot pins would be a second way to do what the receipt already does.
 
 - Depot **pins** to collect a Ground delivery from, and whatever says which pins are depots.
 - The **portal network flag** on a merchant, and a Parcel Portal destination picker listing the shops that
@@ -150,6 +152,46 @@ Only after phase 1 has been played with:
   *is* — is a presentation of the catalogue shell, and the full-screen surface is where it will look best.
 - Delivery types, their costs and their speeds want to be a table in `const.js` like `INVENTORY_TYPES`, so a
   fourth one is a row rather than a branch.
+
+### Waiting on Blacksmith: geography
+
+**When the hub knows where a scene *is*, most of the collection dialog goes away.** Right now the module
+cannot answer "are the party at the coaching inn?" — a scene is not a location, so it asks the GM every
+time. If Blacksmith grows geo-aware scenes (a scene knowing the place it depicts, and places knowing which
+other places they are near), then:
+
+- A parcel whose destination resolves to where the party actually are is **handed over without asking**.
+  The toast does the telling and nobody is interrupted.
+- The GM is asked **only when the location is unknown or ambiguous** — a theatre-of-the-mind session, a
+  destination that is a name somebody made up, a party split across two places.
+
+The flow is already shaped for this: `collect()` is one branch on one question, and everything else it does
+is verification that stays. Replacing the question with a lookup and falling back to the dialog is a small
+change to one method, which is the point of having put the question in one place.
+
+### Selling by post — where the goods sit
+
+Settled in conversation, not yet built:
+
+- A **"Pending Delivery"** section on the merchant, which is **never shoppable**. Goods posted to a shop are
+  between two shelves for a few days and that is what the section says.
+- Two actions on it: **cancel delivery**, and **deliver now** — the latter being the same flow as a party
+  who have verified the parcel is ready and asked for it, so it calls `handOver` rather than a copy.
+- The roll-up of everything in transit is the more useful GM view, and that is `window-deliveries.js`.
+
+### Advertising, as its own system
+
+The catalogue's filler copy is currently eight canned lines in `const.js`. It wants to become a system:
+
+- **Ad space somebody buys.** A merchant paying to appear in another merchant's catalogue, which is a
+  transaction, a relationship between two shops, and a thing a party can notice.
+- **A secret channel.** An advertisement is a message in public that only its intended reader understands,
+  and a party who work that out have found something no rule of ours had to invent.
+- **The newspaper**, a later phase, is where the same objects are read for their own sake rather than
+  between goods.
+
+Until then they are canned copy dealt into gaps, and the list view will want its own shape of them —
+a printed classified rather than a tile.
 
 ### Still open
 

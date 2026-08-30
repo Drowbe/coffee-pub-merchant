@@ -34,6 +34,12 @@ way to find a bug and where a wrong answer is silent:
   `filterShopList`. That makes it the only check here that would catch a selector no longer matching the
   markup — which is the way this particular feature breaks, and which reads as a search that quietly returns
   too little rather than as an error.
+- **`test-cards.mjs`** — the printed page, and the promise that there is never a hole in one. The
+  checks render a page back into a three-by-four grid of characters and assert there is no `.` in it,
+  which is the only way to state a geometric property: the arithmetic version of this test passed
+  happily while pages were ending ragged, because twelve cells of goods and a full page are not the
+  same claim. Also that the goods stay in the order they were printed in, that nothing is dropped or
+  printed twice, and that the spans the layout reasons about are the spans the stylesheet draws.
 - **`test-mail.mjs`** — how many crates an order needs, which is arithmetic the party are charged for.
   `packCrates` runs three times on the same goods — pricing the slate, taking the money, filling the
   boxes — so the property that matters is that it is deterministic and loses nothing: a stack split

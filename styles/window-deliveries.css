@@ -1,0 +1,172 @@
+/* ==================================================================
+   ORDERS IN TRANSIT
+   ==================================================================
+
+   A list of parcels, read to answer one question: is anything stuck?
+
+   So the state is the loudest thing on a row after the name — a coloured left edge and
+   a word, never a colour alone, because a legend nobody has read is not a signal. The
+   rest of a row is the detail a GM needs before they act on it: who, from where, what is
+   in it, what it cost, and whatever the party told the courier.
+*/
+
+.merchant-transit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 8px;
+}
+
+.merchant-transit-head {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 5px;
+    background: var(--blacksmith-tool-surface-raised);
+    color: var(--blacksmith-tool-accent);
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.merchant-transit-count {
+    padding: 0 7px;
+    border-radius: 9px;
+    background: var(--blacksmith-tool-surface-sunken);
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .68rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.merchant-transit-list {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Three columns: who it is for, what it is, and what can be done about it. */
+.merchant-transit-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: start;
+    padding: 7px 9px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-left: 3px solid var(--blacksmith-tool-divider);
+    border-radius: 5px;
+    background: var(--blacksmith-tool-surface-raised);
+}
+
+/* **Landed, and landed-and-waiting, are different problems.** One is about to resolve
+   itself; the other is sitting on a shelf until somebody walks in, which is the state a
+   GM most often wants to find in this window. */
+.merchant-transit-row.is-due { border-left-color: #b07a2a; }
+.merchant-transit-row.is-waiting { border-left-color: #2f6b33; }
+
+.merchant-transit-face {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--blacksmith-tool-divider);
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.merchant-transit-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.merchant-transit-copy > strong { color: var(--blacksmith-tool-text); font-size: .78rem; }
+.merchant-transit-shop { color: var(--blacksmith-tool-accent); font-size: .68rem; }
+
+.merchant-transit-goods {
+    overflow: hidden;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .66rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The facts that fit on one line, wrapped rather than truncated: a destination is worth
+   two lines and is never worth cutting in half. */
+.merchant-transit-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .62rem;
+}
+
+.merchant-transit-meta i { margin-right: 3px; opacity: .8; }
+
+/* What the party told the courier. Quoted and set apart, because it is the one thing on
+   the row somebody wrote rather than something the module worked out. */
+.merchant-transit-note {
+    margin-top: 2px;
+    padding-left: 6px;
+    border-left: 2px solid color-mix(in srgb, var(--blacksmith-tool-accent) 40%, transparent);
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .62rem;
+    font-style: italic;
+}
+
+.merchant-transit-note i { margin-right: 4px; font-size: .55rem; opacity: .7; }
+
+.merchant-transit-state {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-end;
+}
+
+.merchant-transit-when {
+    color: var(--blacksmith-tool-text);
+    font-size: .66rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.merchant-transit-row.is-waiting .merchant-transit-when { color: #6ab06f; }
+.merchant-transit-row.is-due .merchant-transit-when { color: #d9a441; }
+
+.merchant-transit-actions { display: inline-flex; gap: 3px; }
+
+.merchant-transit-actions > button {
+    display: inline-grid;
+    width: 24px;
+    height: 22px;
+    place-items: center;
+    padding: 0;
+    font-size: .68rem;
+}
+
+/* Handing over is the constructive one and striking off is the destructive one; they sit
+   next to each other, so they do not look alike. */
+.merchant-transit-deliver:not([disabled]) { border-color: #3f8a45; background: #2f6b33; color: #f4ede0; }
+.merchant-transit-deliver:not([disabled]):hover { border-color: #5cae62; background: #3f8a45; color: #fff; }
+.merchant-transit-cancel:not([disabled]) { border-color: #a4432f; background: #8c2f22; color: #f4ede0; }
+.merchant-transit-cancel:not([disabled]):hover { border-color: #c25b44; background: #a4432f; color: #fff; }
+
+.merchant-transit-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .72rem;
+    text-align: center;
+}
+
+.merchant-transit-empty > i { font-size: 1.6rem; opacity: .4; }

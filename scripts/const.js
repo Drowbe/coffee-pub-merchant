@@ -945,28 +945,40 @@ export function cardBlurb(html, limit = 160) {
 }
 
 /**
- * How many grid cells a tile occupies.
+ * **The shape of a tile, in columns by rows.**
  *
- * **These are the spans, not an approximation of them.** The page is a three-column grid
- * with `grid-auto-flow: dense`, and a tile is one cell, one column by two rows, or two by
- * two — so the cost of a tile is exactly the area it covers, and a page's budget is exactly
- * its cells. Pagination has to happen before anything is laid out, and this is what lets it
- * be arithmetic rather than measurement.
+ * These are the spans the grid draws, and now also the spans the *layout* reasons about:
+ * the packing below places every tile itself rather than handing the problem to CSS, so
+ * these numbers have to mean the same thing in both places or the page a reader sees is not
+ * the page that was planned.
  */
-export const CARD_SLOTS = Object.freeze({ small: 1, medium: 2, large: 4 });
+export const CARD_SPANS = Object.freeze({
+    small: Object.freeze({ w: 1, h: 1 }),
+    medium: Object.freeze({ w: 1, h: 2 }),
+    large: Object.freeze({ w: 2, h: 2 })
+});
 
 /** Columns across a page. The tiles span one or two of them. */
 export const PAGE_COLUMNS = 3;
 
+/** Rows down a page. Columns by rows is what a page holds. */
+export const PAGE_ROWS = 4;
+
 /**
- * Cells on a page: three columns by four rows.
+ * **The shapes an advertisement can take, biggest first.**
  *
- * **A page does not scroll, so this is a real limit rather than a hint.** Whatever does not
- * fit is the next page — which is the entire difference between a page and a list, and the
- * reason the number is fixed rather than measured. `dense` packing means a page rarely ends
- * with a hole, and the ones it does end with are what the advertising is for.
+ * A notice exists to fill what the goods left over, so it needs more than one shape: a page
+ * ending in a two-by-two hole and a page ending in one cell are different holes, and a
+ * single small notice can only fill the second. Biggest first because the filler takes the
+ * largest shape each hole allows, which is what stops a page ending in a scatter of
+ * identical little boxes.
  */
-export const SPREAD_SLOTS = 12;
+export const AD_SPANS = Object.freeze([
+    Object.freeze({ size: 'large', w: 2, h: 2 }),
+    Object.freeze({ size: 'wide', w: 2, h: 1 }),
+    Object.freeze({ size: 'tall', w: 1, h: 2 }),
+    Object.freeze({ size: 'small', w: 1, h: 1 })
+]);
 
 /**
  * **The copy that fills an awkward gap at the end of a page.**
@@ -1016,66 +1028,225 @@ export const CATALOGUE_FILLERS = Object.freeze([
 ]);
 
 /**
- * Deal the stream out into spreads, filling the ragged end of each with catalogue copy.
+ * Deal advertising into a list of goods, evenly, without touching the goods.
  *
- * **Greedy, and it has to be.** A page is filled until the next entry would overflow it,
- * then closed — there is no reflowing to balance the pages, because a catalogue is printed
- * in order and a reader turning to page three expects what came after page two.
+ * **The tiled page fills holes; a list has no holes.** A wall packs and leaves gaps, which
+ * is where a notice goes. A list is one column of rows with nothing left over, so an
+ * advertisement has to *interrupt* it -- which is what a classified in a column of listings
+ * does, and why it reads as one rather than as a broken row.
  *
- * A heading that would land at the very end of a page is pushed to the next one instead: a
- * heading with nothing under it is a heading on the wrong page, and that is the one case
- * worth special-casing.
+ * Spaced rather than random. Random clusters: three in a row at the top of a shelf and none
+ * below is what a reader notices, and what they notice is that something is wrong. This
+ * puts one every `every` rows, which is regular enough to read as the layout and irregular
+ * enough not to look like part of a row.
  *
- * Fillers are drawn in order and cycle, so a long catalogue does not print the same
- * advertisement on every page. Pure, so the whole of the arithmetic is testable.
+ * Pure, and it copies: the caller's list is not touched.
  */
-export function paginateCards(entries, {
-    budget = SPREAD_SLOTS, fillers = CATALOGUE_FILLERS, fillCost = 2, maxFill = 2
-} = {}) {
-    const pages = [];
-    let page = [];
-    let used = 0;
-    let filler = 0;
+export function adsIntoList(rows, { every = 7, fillers = CATALOGUE_FILLERS, offset = 0 } = {}) {
+    if (!rows?.length || !fillers.length || every < 1) return [...(rows ?? [])];
 
-    const closePage = () => {
-        if (!page.length) return;
-
-        // How many will fit, **capped**: a page holding three items and nine advertisements
-        // is not a catalogue, it is a pamphlet. Two at most; past that the page is honestly
-        // short and looks better short.
-        let left = budget - used;
-        const printing = [];
-        while (left >= fillCost && printing.length < maxFill && fillers.length) {
-            printing.push({ kind: 'filler', ...fillers[filler % fillers.length] });
-            filler++;
-            left -= fillCost;
+    const out = [];
+    let taken = offset;
+    for (let i = 0; i < rows.length; i++) {
+        out.push(rows[i]);
+        // Never after the last row: an advertisement at the bottom of a shelf is a footer,
+        // and a footer is the one place a reader has already stopped looking.
+        const last = i === rows.length - 1;
+        if (!last && (i + 1) % every === 0) {
+            out.push({ ...fillers[taken % fillers.length], isAd: true });
+            taken++;
         }
+    }
+    return out;
+}
 
-        // **Dealt into the page, not stacked on the end of it.** An advertisement appended
-        // after the goods is an appendix, and the whole reason for having them is to fill
-        // the awkward holes a tiled page leaves *in the middle* -- which is where a real
-        // catalogue puts them. Spread evenly through the entries, the grid's dense packing
-        // then drops each one into the first hole that fits it, which is the gap it was
-        // printed for.
-        for (let i = 0; i < printing.length; i++) {
-            const at = Math.round(((i + 1) * page.length) / (printing.length + 1)) + i;
-            page.splice(Math.min(at, page.length), 0, printing[i]);
-        }
+/**
+ * **Where every tile actually goes, worked out here rather than left to the browser.**
+ *
+ * CSS `grid-auto-flow: dense` does very nearly this: it walks the grid in reading order and
+ * drops each item in the first place it fits. What it cannot do is *say what it did* — and
+ * the holes were the whole problem, being exactly the cells the browser knew about and the
+ * module did not. Counting cells was never enough: twelve cells of goods can still leave a
+ * two-by-two hole and a tile that will not fit in it.
+ *
+ * So the placement is computed, the free cells come back with it, and the caller fills
+ * them. The positions are written onto the tiles as explicit grid coordinates, so what the
+ * browser draws is what was planned rather than a second opinion about it.
+ *
+ * @param {Array} entries Tiles carrying a `size` naming a `CARD_SPANS` shape.
+ * @param {object} options `columns`, and `rows` as a hard limit (a page) or null (a wall).
+ * @returns {{placed: Array, free: Array, rows: number, spilled: Array, grid: Array}}
+ */
+export function layoutTiles(entries, { columns = PAGE_COLUMNS, rows = null } = {}) {
+    const grid = [];
+    const placed = [];
+    let spilled = [];
 
-        pages.push(page);
-        page = [];
-        used = 0;
+    const rowAt = (r) => {
+        while (grid.length <= r) grid.push(new Array(columns).fill(false));
+        return grid[r];
     };
 
-    for (const entry of entries) {
-        const cost = CARD_SLOTS[entry.size] ?? CARD_SLOTS.small;
-        if (used + cost > budget && page.length) closePage();
-        page.push(entry);
-        used += cost;
+    const fits = (r, c, w, h) => {
+        if (c + w > columns) return false;
+        if (rows !== null && r + h > rows) return false;
+        for (let y = r; y < r + h; y++) {
+            const line = rowAt(y);
+            for (let x = c; x < c + w; x++) if (line[x]) return false;
+        }
+        return true;
+    };
+
+    const occupy = (r, c, w, h) => {
+        for (let y = r; y < r + h; y++) {
+            const line = rowAt(y);
+            for (let x = c; x < c + w; x++) line[x] = true;
+        }
+    };
+
+    /** The first place this shape fits, in reading order. `dense`, exactly. */
+    const findSpot = (w, h) => {
+        const limit = rows === null ? grid.length : rows - h;
+        for (let r = 0; r <= limit; r++) {
+            rowAt(r + h - 1);
+            for (let c = 0; c <= columns - w; c++) if (fits(r, c, w, h)) return { r, c };
+        }
+        return null;
+    };
+
+    const list = entries ?? [];
+    for (let i = 0; i < list.length; i++) {
+        const span = CARD_SPANS[list[i]?.size] ?? CARD_SPANS.small;
+        const spot = findSpot(span.w, span.h);
+        if (!spot) {
+            // Nothing left on this page will hold it, and everything after it goes too: a
+            // catalogue is printed in order, and reaching past a large tile to fit a small
+            // one would reorder the goods behind the reader's back.
+            spilled = list.slice(i);
+            break;
+        }
+        occupy(spot.r, spot.c, span.w, span.h);
+        placed.push({ ...list[i], col: spot.c + 1, row: spot.r + 1, w: span.w, h: span.h });
     }
-    closePage();
+
+    const height = rows ?? grid.length;
+    const free = [];
+    for (let r = 0; r < height; r++) {
+        const line = rowAt(r);
+        for (let c = 0; c < columns; c++) if (!line[c]) free.push({ r, c });
+    }
+
+    return { placed, free, rows: height, spilled, grid };
+}
+
+/**
+ * Fill every empty cell with advertising, taking the biggest shape each hole allows.
+ *
+ * **A page is never left with a hole in it**, which is the guarantee the whole layout
+ * exists to make: the one-by-one shape fits any single free cell, so this always ends with
+ * the grid full. Bigger shapes are tried first, so a large gap becomes one notice rather
+ * than four, and the copy cycles so a shop does not print the same advertisement twice on
+ * one page.
+ */
+export function fillWithAds(layout, { columns = PAGE_COLUMNS, fillers = CATALOGUE_FILLERS, from = 0 } = {}) {
+    if (!fillers.length) return { ads: [], used: 0 };
+
+    const grid = layout.grid;
+    const rowAt = (r) => {
+        while (grid.length <= r) grid.push(new Array(columns).fill(false));
+        return grid[r];
+    };
+    const fits = (r, c, w, h) => {
+        if (c + w > columns || r + h > layout.rows) return false;
+        for (let y = r; y < r + h; y++) {
+            const line = rowAt(y);
+            for (let x = c; x < c + w; x++) if (line[x]) return false;
+        }
+        return true;
+    };
+
+    const ads = [];
+    let used = 0;
+
+    for (const cell of layout.free) {
+        if (rowAt(cell.r)[cell.c]) continue;
+        const span = AD_SPANS.find((shape) => fits(cell.r, cell.c, shape.w, shape.h)) ?? AD_SPANS.at(-1);
+
+        for (let y = cell.r; y < cell.r + span.h; y++) {
+            const line = rowAt(y);
+            for (let x = cell.c; x < cell.c + span.w; x++) line[x] = true;
+        }
+
+        ads.push({
+            kind: 'filler',
+            ...fillers[(from + used) % fillers.length],
+            size: span.size,
+            col: cell.c + 1,
+            row: cell.r + 1,
+            w: span.w,
+            h: span.h
+        });
+        used++;
+    }
+
+    return { ads, used };
+}
+
+/**
+ * Deal the goods out into pages that are always full.
+ *
+ * **Every page carries at least one advertisement, and no page has a hole in it.** That is
+ * one requirement rather than two: goods are placed until the next one will not fit, one
+ * cell is kept back so a notice has somewhere to go, and whatever is still empty is filled
+ * with notices cut to the holes. A page that came out exactly full gives its last tile back
+ * to the next page to make the room.
+ *
+ * The version this replaces counted cells and hoped. Twelve cells of goods can still leave
+ * a two-by-two hole that no tile fits, which is why pages ended ragged and why the
+ * advertising only ever turned up at the end of the last one.
+ *
+ * Pure, and the arithmetic the printed page depends on: `tests/test-cards.mjs`.
+ */
+export function paginateCards(entries, {
+    columns = PAGE_COLUMNS, rows = PAGE_ROWS, fillers = CATALOGUE_FILLERS
+} = {}) {
+    const pages = [];
+    let remaining = [...(entries ?? [])];
+    let advert = 0;
+
+    while (remaining.length) {
+        let layout = layoutTiles(remaining, { columns, rows });
+        if (!layout.placed.length) break;   // A tile wider than the page: stop rather than loop.
+
+        // Keep a cell back for the shop's own voice. A page that filled exactly hands its
+        // last tile on rather than printing an advertisement nobody had room for.
+        if (!layout.free.length && layout.placed.length > 1) {
+            const keep = layout.placed.length - 1;
+            layout = layoutTiles(remaining.slice(0, keep), { columns, rows });
+            layout.spilled = remaining.slice(keep);
+        }
+
+        const { ads, used } = fillWithAds(layout, { columns, fillers, from: advert });
+        advert += used;
+        pages.push([...layout.placed, ...ads]);
+        remaining = layout.spilled;
+    }
 
     return pages;
+}
+
+/**
+ * The same, for a wall with no pages: as many rows as it takes, and no holes.
+ *
+ * A shelf is not a printed object, and paginating one would hide stock behind a control in
+ * the window whose whole job is showing what is in the shop. So the wall grows, and the
+ * only thing left to fill is what the packing left over — on a wall, a ragged last row
+ * rather than a page's worth of gaps.
+ */
+export function layoutWall(entries, { columns = PAGE_COLUMNS, fillers = CATALOGUE_FILLERS, from = 0 } = {}) {
+    const layout = layoutTiles(entries, { columns, rows: null });
+    const { ads } = fillWithAds(layout, { columns, fillers, from });
+    return [...layout.placed, ...ads];
 }
 
 /**
