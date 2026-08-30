@@ -1877,5 +1877,10 @@ level onto every existing row; it logs how many.
     leaves everything as it was.
 284. **The crate is a real object**: 5 lb empty, 50 lb capacity, 5 gp, and the character's carried
     weight goes up by the crate plus its contents.
-285. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+285. **Clicking the crate asks.** Click a delivered parcel in the inventory: the keep-or-return
+    question appears. Cancel, click it again: it asks again.
+286. **The slate has a Delivery section** under Buying, listing the courier and the crates with what
+    each costs, and the ledger's Delivery row equals the two added together.
+287. **The order toast carries the shop's picture** and the order under it, and waits to be dismissed.
+288. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

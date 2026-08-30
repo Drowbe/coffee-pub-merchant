@@ -2800,7 +2800,8 @@ export class MerchantManager {
             emit(SOCKET_EVENT.WAITING, {
                 actorUuid: actor.uuid,
                 shop: current.shopName ?? '',
-                where: current.destination ?? ''
+                where: current.destination ?? '',
+                img: live.img ?? ''
             });
             notify.info(game.i18n.format('coffee-pub-merchant.delivery.waitingGm', {
                 shop: current.shopName ?? '', where: current.destination ?? '', who: actor.name
@@ -3291,11 +3292,19 @@ export class MerchantManager {
                 owner = null;
             }
             if (!owner?.isOwner) return;
-            // Not persistent: nothing has changed hands and there is nothing to acknowledge.
-            // What it does is tell them the trip is now worth making.
-            notify.info(game.i18n.format('coffee-pub-merchant.delivery.waiting', {
-                shop: data?.shop ?? '', where: data?.where ?? ''
-            }));
+            // **Persistent, like the arrival it precedes.** It says a journey is now worth
+            // making, which is a decision rather than a notice -- and it arrives because the
+            // clock moved rather than because anybody pressed anything, so eight seconds
+            // later there would be no sign it ever happened.
+            notify.parcel(
+                game.i18n.format('coffee-pub-merchant.delivery.waiting', {
+                    shop: data?.shop ?? '', where: data?.where ?? ''
+                }),
+                game.i18n.format('coffee-pub-merchant.delivery.waitingHint', {
+                    where: data?.where ?? ''
+                }),
+                data?.img || undefined
+            );
         });
 
         on(SOCKET_EVENT.NOT_THERE, (data) => {

@@ -6,7 +6,7 @@ import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
     opensFullScreen,
-    DEFAULT_DELIVERY_SERVICE,
+    DEFAULT_DELIVERY_SERVICE, arrivalTime,
     isCatalogue,
     cardSize, cardBlurb,
     paginateCards
@@ -15,7 +15,8 @@ import { hasPins, canPin, pinPalette, pinTaken, leavingQuantity } from './utilit
 import { abandonedLeavings } from './utility-compendium.js';
 import { canPrint } from './utility-catalogue.js';
 import {
-    services, feeBase, arrivalLabel, destinationsFor, destinationNote, crateCount, crateDepositBase
+    services, feeBase, arrivalLabel, destinationsFor, destinationNote, crateCount, crateDepositBase,
+    serviceFor, PARCEL_IMG
 } from './utility-mail.js';
 import { startProgress } from './utility-progress.js';
 import {
@@ -2075,9 +2076,34 @@ const ShopBehaviour = (Base) => class extends Base {
             // that the counter does not: the fee for the service chosen, and the three
             // services to choose between.
             catalogue: this.catalogueMode,
-            feeLabel: formatBase(deliveryFee),
+            feeLabel: formatBase(deliveryFee + deposit),
             crates,
-            depositLabel: formatBase(deposit),
+            // **What the delivery is made of, as lines rather than as a subtotal.** The
+            // ledger above says what leaves the purse; this says what it buys. Two things
+            // are being paid for and they are not the same kind of thing -- a courier's
+            // time and a physical box the party will be holding afterwards -- and a single
+            // "Delivery" figure covering both is where a crate deposit goes unnoticed
+            // until it turns up as a crate.
+            //
+            // Not slate lines: nothing here can be re-priced, re-counted or removed. The
+            // way to change this row is to choose a different service or buy less.
+            deliveryLines: this.catalogueMode && cartLines.length
+                ? [
+                    {
+                        icon: serviceFor(this.service).icon,
+                        name: serviceFor(this.service).name,
+                        note: arrivalLabel(arrivalTime(game.time?.worldTime ?? 0, serviceFor(this.service).days)),
+                        totalLabel: formatBase(deliveryFee)
+                    },
+                    {
+                        img: PARCEL_IMG,
+                        name: game.i18n.localize('coffee-pub-merchant.delivery.crateName'),
+                        quantity: crates,
+                        note: game.i18n.localize('coffee-pub-merchant.delivery.crateNote'),
+                        totalLabel: formatBase(deposit)
+                    }
+                ]
+                : [],
             destinations: this.catalogueMode ? this._destinationOptions() : null,
             destinationNote: this.catalogueMode
                 ? destinationNote(this.service, destinationsFor(this.service))
@@ -3363,13 +3389,27 @@ const ShopBehaviour = (Base) => class extends Base {
             return;
         }
 
+        // **The same shape as a purchase receipt**, because it is one: money has moved and
+        // this is the only record of what for until the parcel lands. Persistent, with the
+        // shop's own face on it and the whole order underneath -- what was bought, how it is
+        // coming, where to, and when. The plain one-line toast this replaced said the shop
+        // and the day and left the rest to be remembered.
+        const ordered = [...this.cart].map(([itemId, quantity]) => {
+            const row = merchant.items.get(itemId);
+            return row ? `${row.name} x${quantity}` : null;
+        }).filter(Boolean).join(', ');
+
         this.cart.clear();
         this.instructions = '';
-        playFeedback(SOUND.TRANSACTION);
-        notify.info(game.i18n.format('coffee-pub-merchant.delivery.ordered', {
-            shop: result.shop ?? merchant.name,
-            arrival: arrivalLabel(result.arrivesAt)
-        }));
+        notify.receipt(
+            game.i18n.format('coffee-pub-merchant.delivery.ordered', {
+                shop: result.shop ?? merchant.name,
+                arrival: arrivalLabel(result.arrivesAt)
+            }),
+            [ordered, result.service, this.destination || null, formatBase(result.total)]
+                .filter(Boolean).join(' • '),
+            this._illustration || merchant.img
+        );
         await this.render(false);
     }
 

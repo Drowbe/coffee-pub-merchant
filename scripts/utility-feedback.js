@@ -250,8 +250,9 @@ export const notify = {
      * If this proves too insistent in play, the one-line change is a `duration` of ten
      * or so: the toast stays clickable and simply stops waiting to be acknowledged.
      */
-    receipt: (title, subtitle) => show('success', title, {
+    receipt: (title, subtitle, image) => show('success', title, {
         subtitle,
+        image,
         duration: 0,
         // Carried on the toast rather than played separately, so the sound and the
         // thing it announces cannot come apart.

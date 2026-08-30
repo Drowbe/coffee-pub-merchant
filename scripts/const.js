@@ -754,7 +754,7 @@ export const DELIVERY_SERVICES = Object.freeze([
     {
         key: 'ground',
         name: 'Ground',
-        icon: 'fa-solid fa-cart-flatbed',
+        icon: 'fa-solid fa-wagon-covered',
         days: 7,
         feeGp: 5,
         hintKey: 'coffee-pub-merchant.delivery.groundHint'

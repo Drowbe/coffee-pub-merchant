@@ -645,8 +645,6 @@
             "viaService": "By {service}",
             "open": "Open Parcel",
             "openFailed": "The parcel would not open. Its contents are still inside it.",
-            "deposit": "Crates",
-            "depositTooltip": "A deposit on the boxes. Send them back when you unpack and you get it returned; keep one and you have bought it.",
             "manifestDeposit": "Crate deposit: {deposit} for {crates}",
             "crateOf": "({index} of {of})",
             "crateName": "Shipping Crate",
@@ -664,7 +662,10 @@
             "collectTitle": "Collecting a parcel",
             "collectAsk": "{who} wants to pick up their parcel from {where}. Are they at that location?",
             "collectGoods": "In the parcel: {goods}",
-            "collectYes": "They are there"
+            "collectYes": "They are there",
+            "segment": "Delivery",
+            "crateNote": "refunded if returned",
+            "waitingHint": "Go to {where} and consult your receipt to collect it."
         }
     },
     "TYPES": {

@@ -787,8 +787,12 @@ async function askAboutTheBox(record, deposit) {
         closeValue: 'cancel'
     });
 
-    if (answer === 'keep') return true;
-    if (answer === 'return') return false;
+    // **`dialog.wait` answers with an object, not with the action.** Comparing the result
+    // to `'keep'` was comparing an object to a string: always false, so both buttons fell
+    // through to "neither" and opening a parcel did nothing at all. The market dialog in
+    // `merchant.js` reads `.value` for the same reason.
+    if (answer?.value === 'keep') return true;
+    if (answer?.value === 'return') return false;
     return null;
 }
 
@@ -839,13 +843,55 @@ function askToCollect(item, record) {
 }
 
 /**
- * Consulting a receipt says where the parcel is, and does not post a card.
+ * Parcels currently being asked about, so one sheet does not ask twice.
  *
- * The catalogue's shape exactly, and for its reasons: `dnd5e.preUseActivity` fires on the
- * click, returning `false` cancels the roll, and the sheet header carries the same thing
- * for a GM inspecting one in the sidebar with no character to use it as.
+ * A sheet re-renders for all sorts of reasons -- a contained item changing, another
+ * client's update, the dialog itself taking focus -- and each one would raise another copy
+ * of the question. By item id rather than by document, because the fallback path deletes
+ * and rebuilds a parcel under the same id.
+ */
+const _asking = new Set();
+
+/**
+ * **Clicking a delivered parcel asks what to do with it.**
+ *
+ * A container has no activity to click, so the *only* thing clicking one does in dnd5e is
+ * open its sheet -- which shows a crate with things in it and no way to unpack. The sheet
+ * opening is therefore the gesture, and the question rides on it.
+ *
+ * **It asks every time, and that is the point.** A parcel is not finished business until
+ * somebody has decided about the box: cancel leaves the crate exactly as it was, and the
+ * next click asks again. The alternative -- asking once and never again -- leaves a parcel
+ * that can only be unpacked through a header menu nobody found the first time.
+ */
+async function promptOnOpen(item) {
+    const record = consignmentOf(item);
+    if (!record || !isDelivered(record) || !item.isOwner) return;
+    if (_asking.has(item.id)) return;
+
+    _asking.add(item.id);
+    try {
+        await openParcel(item);
+    } finally {
+        _asking.delete(item.id);
+    }
+}
+
+/**
+ * Every way in and out of a consignment: reading a receipt, and opening a crate.
+ *
+ * `dnd5e.preUseActivity` fires on the click on a receipt's name and returning `false`
+ * cancels the roll; a container has no activity at all, so a parcel is caught when its
+ * sheet renders instead. The sheet header carries both for a GM inspecting one in the
+ * sidebar with no character to use it as.
  */
 export function registerReceipts(hook) {
+    hook('renderApplicationV2', 'Ask what to do with a parcel when it is opened', (app) => {
+        const item = app?.document;
+        if (item?.documentName !== 'Item') return;
+        void promptOnOpen(item);
+    });
+
     hook('dnd5e.preUseActivity', 'Answer a receipt, or open a parcel', (activity) => {
         const item = activity?.item;
         const record = consignmentOf(item);
@@ -881,7 +927,7 @@ export function registerReceipts(hook) {
         }
 
         controls.push({
-            icon: 'fa-solid fa-truck-fast',
+            icon: 'fa-solid fa-wagon-covered',
             label: game.i18n.localize('coffee-pub-merchant.delivery.check'),
             action: 'merchantParcel',
             onClick: () => receiptToast(item)

@@ -365,7 +365,7 @@
                                   says once, on the shelf, why its rows have no Add button. --}}
                             {{#if warehouse}}
                                 <span class="merchant-shop-hidden-tag" data-tooltip="{{localize "coffee-pub-merchant.shop.warehouseTooltip"}}">
-                                    <i class="fa-solid fa-truck-ramp-box"></i> {{localize "coffee-pub-merchant.shop.warehouse"}}
+                                    <i class="fa-solid fa-warehouse"></i> {{localize "coffee-pub-merchant.shop.warehouse"}}
                                 </span>
                             {{/if}}
                             {{!-- Its own condition, not `canStock`: a buyback shelf and a
@@ -564,13 +564,6 @@
                                       price: it comes back if the crates go back, and the
                                       count is what a party notices when an order grows an
                                       anvil and needs a second one. --}}
-                                {{#if crates}}
-                                <div class="merchant-shop-cart-sum">
-                                    <dt>{{localize "coffee-pub-merchant.delivery.deposit"}}</dt>
-                                    <dd data-tooltip="{{localize "coffee-pub-merchant.delivery.depositTooltip"}}">&minus;{{depositLabel}}
-                                        <em class="merchant-shop-crates">&times;{{crates}}</em></dd>
-                                </div>
-                                {{/if}}
                                 {{/if}}
                                 <div class="merchant-shop-cart-sum merchant-shop-cart-sum-net merchant-shop-cart-net-{{netDirection}}">
                                     <dt>{{localize "coffee-pub-merchant.shop.total"}}</dt>
@@ -635,6 +628,37 @@
                                     <div class="merchant-shop-cart-list">
                                         {{#each cart}}
                                             {{> "modules/coffee-pub-merchant/templates/partial-slate-line.hbs" this}}
+                                        {{/each}}
+                                    </div>
+                                </div>
+                            {{/if}}
+
+                            {{!-- **What the delivery costs, itemised under what it is
+                                  delivering.** The courier and the crate are two separate
+                                  purchases -- somebody's time and a physical box the party
+                                  will be holding afterwards -- and a single "Delivery"
+                                  figure covering both is how a crate deposit goes unnoticed
+                                  until a crate turns up. No quantity handle and no remove
+                                  button: the way to change these is to choose another
+                                  service or buy less. --}}
+                            {{#if deliveryLines}}
+                                <div class="merchant-shop-cart-segment merchant-shop-cart-delivery">
+                                    <h4><span><i class="fa-solid fa-wagon-covered"></i> {{localize "coffee-pub-merchant.delivery.segment"}}</span></h4>
+                                    <div class="merchant-shop-cart-list">
+                                        {{#each deliveryLines}}
+                                            <div class="merchant-shop-cart-line is-fixed">
+                                                {{#if img}}
+                                                    <img src="{{img}}" alt="">
+                                                {{else}}
+                                                    <span class="merchant-shop-cart-glyph"><i class="{{icon}}"></i></span>
+                                                {{/if}}
+                                                <span class="merchant-shop-cart-name">{{name}}
+                                                    {{#if note}}<em>{{note}}</em>{{/if}}</span>
+                                                {{#if quantity}}
+                                                    <span class="merchant-shop-cart-qty">&times;<strong>{{quantity}}</strong></span>
+                                                {{/if}}
+                                                <span class="merchant-shop-cart-total">{{totalLabel}}</span>
+                                            </div>
                                         {{/each}}
                                     </div>
                                 </div>
