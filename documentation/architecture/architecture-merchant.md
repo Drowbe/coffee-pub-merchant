@@ -1237,6 +1237,12 @@ Where a parcel can arrive has nothing to do with who posted it.
 A **courier beast** asks for nowhere at all, and that is an answer rather than an empty list: it goes
 looking for whoever is holding the receipt, which is what its price buys.
 
+**Opening it empties it.** *Open Parcel* on the sheet header clears `system.container` on each of
+the contents and then deletes the box — contents first, because dnd5e takes a container's contents
+with it when it is deleted. The header rather than an activity: a container has none, and dnd5e
+gives activities to consumables and weapons rather than to boxes. The same click on a *receipt*
+answers where the parcel is instead, which is what the object means at that moment.
+
 ### Lost packages
 
 **A receipt nobody is holding is a lost package.** The courier looks for whoever has the receipt; if the

@@ -639,7 +639,10 @@
             "checkActivity": "Check the delivery",
             "check": "Check Delivery",
             "alreadyHere": "This one has already arrived.",
-            "viaService": "By {service}"
+            "viaService": "By {service}",
+            "open": "Open Parcel",
+            "opened": "Opened the parcel from {shop}.",
+            "openFailed": "The parcel would not open. Its contents are still inside it."
         }
     },
     "TYPES": {

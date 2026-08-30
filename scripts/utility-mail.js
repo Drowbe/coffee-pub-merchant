@@ -569,6 +569,50 @@ export function receiptToast(item) {
 }
 
 /**
+ * **Open the crate: everything in it comes out, and the packaging goes.**
+ *
+ * A delivered parcel is a container, so its contents are already on the Actor -- nested
+ * inside it rather than loose in the pack. Opening moves them out by clearing
+ * `system.container`, which is the same thing dragging each one out of the container would
+ * do, and then deletes the box.
+ *
+ * **Contents first, box second, and never the other way round.** dnd5e takes a container's
+ * contents with it when it is deleted; a delete that ran first would destroy the delivery
+ * in the act of unwrapping it.
+ *
+ * The crate is not kept. It is packaging with a shop's name on it, and a party who order
+ * regularly would otherwise accumulate one empty box per delivery for ever. Anybody who
+ * wants a crate can be given a crate.
+ */
+export async function openParcel(item) {
+    const record = consignmentOf(item);
+    const actor = item?.parent;
+    if (!record || !actor || !isDelivered(record)) return null;
+
+    const inside = actor.items.filter((held) => held.system?.container === item.id);
+    const names = inside.map((held) => `${held.name} x${held.system?.quantity ?? 1}`).join(', ');
+
+    try {
+        if (inside.length) {
+            await actor.updateEmbeddedDocuments('Item', inside.map((held) => ({
+                _id: held.id,
+                'system.container': null
+            })));
+        }
+        await item.delete();
+    } catch (error) {
+        console.error(`${MODULE.TITLE} | Could not open a parcel:`, error);
+        notify.error(game.i18n.localize('coffee-pub-merchant.delivery.openFailed'));
+        return null;
+    }
+
+    notify.success(game.i18n.format('coffee-pub-merchant.delivery.opened', {
+        shop: record.shopName ?? ''
+    }), { subtitle: names });
+    return inside;
+}
+
+/**
  * Consulting a receipt says where the parcel is, and does not post a card.
  *
  * The catalogue's shape exactly, and for its reasons: `dnd5e.preUseActivity` fires on the
@@ -576,16 +620,39 @@ export function receiptToast(item) {
  * for a GM inspecting one in the sidebar with no character to use it as.
  */
 export function registerReceipts(hook) {
-    hook('dnd5e.preUseActivity', 'Say where a parcel is when a receipt is consulted', (activity) => {
+    hook('dnd5e.preUseActivity', 'Answer a receipt, or open a parcel', (activity) => {
         const item = activity?.item;
-        if (!consignmentOf(item)) return;
-        receiptToast(item);
+        const record = consignmentOf(item);
+        if (!record) return;
+        // The same click means two things at two moments, which is what the object itself
+        // means at those moments: before it arrives it is a note to be read, and after it
+        // arrives it is a box to be opened. A delivered parcel only reaches this if it kept
+        // its activity -- a container has none -- which is the fallback path where the type
+        // change was refused, and it should still open rather than merely report itself.
+        if (isDelivered(record)) void openParcel(item);
+        else receiptToast(item);
         return false;
     }, { canCancel: true });
 
-    hook('getHeaderControlsApplicationV2', 'Check the delivery on a receipt sheet', (app, controls) => {
+    hook('getHeaderControlsApplicationV2', 'Check a delivery, or open the parcel', (app, controls) => {
         const item = app?.document;
-        if (item?.documentName !== 'Item' || !consignmentOf(item)) return;
+        if (item?.documentName !== 'Item') return;
+        const record = consignmentOf(item);
+        if (!record) return;
+
+        // **The parcel's only action lives here**, because a container has no activities to
+        // click: dnd5e gives them to consumables and weapons, not to boxes. The sheet header
+        // is the one surface a container does have, and it is where a GM reaches for
+        // everything else about a document anyway.
+        if (isDelivered(record)) {
+            controls.push({
+                icon: 'fa-solid fa-box-open',
+                label: game.i18n.localize('coffee-pub-merchant.delivery.open'),
+                action: 'merchantOpenParcel',
+                onClick: () => void openParcel(item)
+            });
+            return;
+        }
 
         controls.push({
             icon: 'fa-solid fa-truck-fast',

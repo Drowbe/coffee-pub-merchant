@@ -1859,5 +1859,7 @@ level onto every existing row; it logs how many.
 275. **An arriving parcel raises a toast that stays** until it is clicked away, naming the shop and
     what was in it. It appears on the owner's client, not the GM's, and the GM's own notice is
     unchanged.
-276. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+276. **Open the parcel.** *Open Parcel* on its sheet header: the goods land loose in the pack, the
+    crate is gone, and a toast says what came out. Nothing is lost — count the items before and after.
+277. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.
