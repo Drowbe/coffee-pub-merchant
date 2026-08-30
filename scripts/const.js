@@ -847,6 +847,19 @@ export function deliveryPointFor(service) {
 }
 
 /**
+ * Where the world keeps its own list of places, per delivery point.
+ *
+ * **A world setting, not a merchant one.** The first cut put the list on each shop, which
+ * made a GM retype the same coaching inns into every merchant that sold by post and left
+ * five copies to disagree with each other. A place a parcel can reach is a fact about the
+ * world; whether a *shop* is one of them is a fact about the shop, and that stays on the
+ * shop as a flag.
+ */
+export function deliveryPlacesKey(point) {
+    return point === DELIVERY_POINT.PORTAL ? 'deliveryPlacesPortal' : 'deliveryPlacesPhysical';
+}
+
+/**
  * A GM's own list of places, one per line, as a list.
  *
  * **Free text rather than a picker, and deliberately.** Not every place a parcel can go is

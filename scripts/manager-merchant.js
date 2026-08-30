@@ -167,9 +167,6 @@ export class MerchantManager {
             // on a road is neither. Both off until a GM says otherwise.
             [DELIVERY_POINT.PHYSICAL]: false,
             [DELIVERY_POINT.PORTAL]: false,
-            // A GM's own places, one per line, for everywhere that is not a merchant.
-            physicalLocations: '',
-            portalLocations: '',
             // Free text, GM-authored, optional. Enriched when shown, so a GM can put
             // a journal link or an inline roll in it.
             description: '',
@@ -2648,11 +2645,20 @@ export class MerchantManager {
         // One leg, and exact: the same arithmetic a purchase uses, so an order cannot be
         // paid for with money a purchase could not have paid with.
         if (!hasExchange()) return { ok: false, code: 'EXCHANGE_UNAVAILABLE' };
+
+        // **Both of these are answered by the value, not by an `ok` on it.**
+        // `planSettlement` returns a plan or `null`, and `_remint` returns a boolean --
+        // so `plan.ok` was `undefined` on a perfectly good plan and *every order ever
+        // placed* was refused, with a purse holding three thousand gold. The settlement
+        // path a few hundred lines down reads exactly these two the right way; this one
+        // was written from memory rather than from them.
         const plan = planSettlement(shopper.system?.currency ?? {}, total);
-        if (!plan.ok) return { ok: false, code: 'INSUFFICIENT_FUNDS' };
+        if (!plan) {
+            return { ok: false, code: 'CANNOT_AFFORD', price: total, held: purseValue(shopper) };
+        }
         if (plan.remint) {
-            const reminted = await this._remint(shopper, plan.remint);
-            if (!reminted.ok) return reminted;
+            const recut = await this._remint(shopper, plan.remint);
+            if (!recut) return { ok: false, code: 'CANNOT_MAKE_CHANGE', price: total };
         }
 
         const paid = total > 0
@@ -2678,12 +2684,28 @@ export class MerchantManager {
             // which is what makes a note to a courier safe to allow and interesting to
             // write. The destination is checked against what this merchant actually offers,
             // because a client naming its own is a client naming anywhere.
-            destination: this._verifiedDestination(merchant, service.key, payload.destination),
+            destination: this._verifiedDestination(service.key, payload.destination),
             instructions: payload.instructions
         });
 
+        // **The receipt is the order.** It carries the consignment, it is what the courier
+        // looks for, and re-arming on load walks the receipts because they *are* the queue.
+        // So one that failed to be created is not a cosmetic loss: the coin has moved and
+        // the warehouse has come down, and without this the order would report success with
+        // nothing anywhere to show for it and nothing scheduled to arrive.
+        //
+        // It cannot refuse at this point -- refusing after payment is a charge for nothing
+        // -- so it tells the GM instead, the way a lost parcel does, naming what was in it
+        // so they can hand it over by hand.
         const [receipt] = await shopper.createEmbeddedDocuments('Item', [receiptData(record)]);
         if (receipt) scheduleDelivery({ actor: shopper, item: receipt, record }, (p) => this.deliver(p));
+        else {
+            console.error(`${MODULE.TITLE} | The receipt for ${shopper.name} could not be created:`, record);
+            notify.error(game.i18n.format('coffee-pub-merchant.delivery.noReceipt', {
+                who: shopper.name,
+                goods: record.items.map((line) => `${line.name} x${line.quantity}`).join(', ')
+            }));
+        }
 
         this.broadcastActorRefresh(merchant);
         return { ok: true, total, fee, arrivesAt: record.arrivesAt, shop: record.shopName, service: service.name };
@@ -2697,9 +2719,12 @@ export class MerchantManager {
      * anywhere at all — including a place the GM has not listed and a shop that has not
      * offered to take parcels. Anything unrecognised falls back to nothing rather than being
      * honoured, so the worst a bad payload does is produce a parcel with no address on it.
+     *
+     * The merchant is not asked, because where a parcel can arrive is not its business: the
+     * list is the world's shops that take parcels plus the world's own places.
      */
-    static _verifiedDestination(merchant, service, claimed) {
-        const offered = destinationsFor(service, this.getConfig(merchant));
+    static _verifiedDestination(service, claimed) {
+        const offered = destinationsFor(service);
         // A service that asks nowhere has nowhere to verify. The beast finds the receipt.
         if (offered === null) return null;
         const named = String(claimed ?? '').trim();

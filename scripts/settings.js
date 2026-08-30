@@ -22,7 +22,7 @@ import {
     DEFAULT_PIN_DESIGN, PIN_DESIGN_SETTINGS, DEFAULT_SHOP_LOOK, SHOP_LOOK_SETTINGS,
     DEFAULT_ABANDONED_STOCK,
     TOKEN_MARKER_SETTINGS,
-    DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey
+    DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey, DELIVERY_POINT, deliveryPlacesKey
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -452,6 +452,74 @@ function registerDeliverySettings() {
             type: Number,
             range: { min: 0, max: 1000, step: 5 },
             default: service.feeGp
+        });
+    }
+
+    registerDeliveryPlaces();
+}
+
+/**
+ * Everywhere a parcel can be sent that is not a shop.
+ *
+ * **World settings, because a place is a fact about the world.** These began as two boxes
+ * on each merchant, which meant retyping the same coaching inns into every shop that sold
+ * by post and leaving five copies free to drift apart. Whether a *shop* takes parcels is
+ * still on the shop -- that one is an offer the shopkeeper is making -- and every shop
+ * carrying the flag is offered alongside these.
+ *
+ * Free text rather than a picker: a safehouse, a poste restante, a name the party made up.
+ * None of those is a document, and requiring one would be requiring a GM to build a shop
+ * for a hole in a wall.
+ */
+function registerDeliveryPlaces() {
+    // **A textarea, said by the field rather than asked for at the call site.** Foundry
+    // renders a StringField as a one-line box and takes the element type from the *input*
+    // config -- which the settings sheet builds itself and never passes through. A field
+    // that knows it holds a list is the only place left to say so, and it can carry its own
+    // placeholder while it is there.
+    class PlacesField extends foundry.data.fields.StringField {
+        _toInput(config) {
+            config.elementType = 'textarea';
+            config.rows = 4;
+            config.placeholder ??= this.options.placeholder ?? '';
+            return super._toInput(config);
+        }
+    }
+
+    // Keys written out rather than built from the point, so a search for one finds it and
+    // `test-i18n.mjs` can see that it is asked for. A composed key is a key nothing knows
+    // about until it is missing in play.
+    const boxes = [
+        {
+            point: DELIVERY_POINT.PHYSICAL,
+            name: 'coffee-pub-merchant.delivery.settings.placesPhysical',
+            hint: 'coffee-pub-merchant.delivery.settings.placesPhysicalHint',
+            placeholder: 'coffee-pub-merchant.delivery.settings.placesPhysicalPlaceholder'
+        },
+        {
+            point: DELIVERY_POINT.PORTAL,
+            name: 'coffee-pub-merchant.delivery.settings.placesPortal',
+            hint: 'coffee-pub-merchant.delivery.settings.placesPortalHint',
+            placeholder: 'coffee-pub-merchant.delivery.settings.placesPortalPlaceholder'
+        }
+    ];
+
+    for (const box of boxes) {
+        game.settings.register(MODULE.ID, deliveryPlacesKey(box.point), {
+            name: game.i18n.localize(box.name),
+            hint: game.i18n.localize(box.hint),
+            scope: 'world',
+            config: true,
+            default: '',
+            type: new PlacesField({
+                required: false,
+                blank: true,
+                initial: '',
+                // **The box explains itself rather than showing two invented names.** A
+                // placeholder of example places reads as data somebody typed, and a GM who
+                // is not sure what belongs here learns nothing from being shown two inns.
+                placeholder: game.i18n.localize(box.placeholder)
+            })
         });
     }
 }

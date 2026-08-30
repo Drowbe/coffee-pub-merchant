@@ -209,6 +209,151 @@ let _swapping = false;
  * recommend exactly that; Merchant broke a live world on it, Blacksmith fixed the doc
  * and added the re-exports on 2026-08-19, and this is the result.
  */
+// ==============================================================
+// ===== PATCHING THE PAGE INSTEAD OF REPRINTING IT =============
+// ==============================================================
+//
+// **Every gesture in this window ends in a full re-render, and that is fine. What is not
+// fine is throwing the page away to show it.**
+//
+// Handlebars gives Foundry a freshly built element for the part and Foundry calls
+// `replaceWith` on the old one. Correct, and violent: every node in the shop is destroyed
+// and rebuilt, which means every `<img>` is a new element that has to fetch and decode its
+// picture again. In a 740-pixel window of 32-pixel icons nobody notices. On a full-screen
+// catalogue -- a wall of large images, one of which the user has just clicked "add" on --
+// the whole wall blinks, and a layout built from the new nodes settles a frame later, so
+// the panel jumps as well. Adding a thing to a slate should not repaint the shop.
+//
+// So instead of swapping the tree, we walk it: the same tag in the same place keeps its
+// node and takes the new element's attributes, and only what genuinely differs is created
+// or removed. An `<img>` whose `src` did not change is never touched, so it never reloads;
+// scroll positions, focus and the caret survive because the elements holding them survive.
+//
+// Three things are deliberately preserved against the incoming markup:
+//
+// - **`data-merchant-bound`.** It is the guard that says "a listener is already on this
+//   node". The node survives and so does its listener, so dropping the flag because the new
+//   markup does not carry it would bind a second one on every render.
+// - **A text field with no `value` attribute.** The search box renders empty every time and
+//   is filled from `this._search`; taking the new element at its word would clear what
+//   somebody is typing. A field the template *does* give a value is synced from it.
+// - **Anything focused.** Never write to the element the caret is in.
+
+/** Attributes that identify a node across renders, so a list can be matched by identity. */
+const MORPH_KEYS = ['data-item-id', 'data-inventory-id', 'data-service', 'data-actor-uuid', 'id'];
+
+/** What this node *is*, if it says. Null means "match me by position". */
+function morphKey(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    for (const attribute of MORPH_KEYS) {
+        const value = node.getAttribute(attribute);
+        if (value) return `${node.nodeName}:${attribute}=${value}`;
+    }
+    return null;
+}
+
+/** Bring one element's attributes into line, keeping the binding flag. */
+function morphAttributes(from, to) {
+    for (const attribute of Array.from(from.attributes)) {
+        // The listener is still attached to this node, so the flag is still true.
+        if (attribute.name === 'data-merchant-bound') continue;
+        if (!to.hasAttribute(attribute.name)) from.removeAttribute(attribute.name);
+    }
+    for (const attribute of Array.from(to.attributes)) {
+        if (from.getAttribute(attribute.name) !== attribute.value) {
+            from.setAttribute(attribute.name, attribute.value);
+        }
+    }
+}
+
+/**
+ * Fields keep their *live* value, which attributes do not describe.
+ *
+ * A rendered `value="3"` is the field's default, and once a user has typed in a box the
+ * browser stops keeping the two in step -- so a field has to be assigned to, not marked up.
+ */
+function morphFieldState(from, to) {
+    if (from === document.activeElement) return;
+
+    if (from instanceof HTMLInputElement) {
+        if (from.type === 'checkbox' || from.type === 'radio') from.checked = to.checked;
+        // No `value` in the markup means the template does not own this box: the search
+        // field is rendered empty and filled from window state, and clearing it here would
+        // wipe a query mid-keystroke on somebody else's purchase.
+        else if (to.hasAttribute('value')) from.value = to.getAttribute('value');
+    } else if (from instanceof HTMLTextAreaElement) {
+        from.value = to.textContent ?? '';
+    }
+}
+
+/** One node, in place. Recursive, through `morphChildren`. */
+function morphNode(from, to) {
+    if (from.nodeType !== Node.ELEMENT_NODE) {
+        if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue;
+        return;
+    }
+
+    morphAttributes(from, to);
+    morphFieldState(from, to);
+
+    // A textarea's value is its children; having just set it, walking them would undo it.
+    if (from.nodeName === 'TEXTAREA') return;
+
+    morphChildren(from, to);
+
+    // After the options exist, and by assignment for the same reason fields are.
+    if (from instanceof HTMLSelectElement && from !== document.activeElement) from.value = to.value;
+}
+
+/**
+ * Line the children up, by identity where there is one and by position where there is not.
+ *
+ * Keyed matching is what makes a *changed list* cheap rather than merely a changed node:
+ * when a row is bought and disappears everything below it shifts up, and matching by
+ * position alone would rewrite every row after the gap -- including every image. With keys,
+ * one row is removed and nothing else is touched.
+ */
+function morphChildren(from, to) {
+    const pool = new Map();
+    for (const child of from.childNodes) {
+        const key = morphKey(child);
+        if (key && !pool.has(key)) pool.set(key, child);
+    }
+
+    let cursor = from.firstChild;
+    for (const next of Array.from(to.childNodes)) {
+        const key = morphKey(next);
+        const matched = key ? pool.get(key) : null;
+
+        if (matched) {
+            pool.delete(key);
+            if (matched === cursor) cursor = cursor.nextSibling;
+            else from.insertBefore(matched, cursor);
+            morphNode(matched, next);
+            continue;
+        }
+
+        // Unkeyed: the node in this position will do, as long as it is the same kind of
+        // thing and is not itself somebody's keyed row waiting to be claimed.
+        if (cursor && cursor.nodeType === next.nodeType && cursor.nodeName === next.nodeName
+            && !morphKey(cursor)) {
+            const here = cursor;
+            cursor = cursor.nextSibling;
+            morphNode(here, next);
+            continue;
+        }
+
+        from.insertBefore(next, cursor);
+    }
+
+    // Whatever the new markup never reached is gone from the shop.
+    while (cursor) {
+        const spent = cursor;
+        cursor = cursor.nextSibling;
+        spent.remove();
+    }
+}
+
 const ShopBehaviour = (Base) => class extends Base {
     // One window per token, and the registry behind that, are the base class's:
     // `openFor`, `closeFor` and the registry behind them, keyed by uuid. Ours
@@ -1787,6 +1932,14 @@ const ShopBehaviour = (Base) => class extends Base {
         const cartTotal = cartLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
         const basketLines = missing ? [] : await this._basketLines();
         const basketTotal = basketLines.reduce((sum, line) => sum + (line.total ?? 0), 0);
+        // **The fee is part of what you pay, so it is part of the total.** It was shown as
+        // its own line and then left out of the sum under it -- a ledger reading "-3 cp,
+        // -5 gp, total -3 cp", which is the one thing a ledger may not do.
+        //
+        // No goods, no fee: nothing is being sent, and a delivery charge against an empty
+        // slate is a number with nothing behind it.
+        const deliveryFee = this.catalogueMode && cartLines.length ? feeBase(this.service) : 0;
+        const net = cartTotal + deliveryFee - basketTotal;
 
         // **Resolved once, used twice.** The card sets it as a CSS custom property and the
         // fullscreen shell hands the same path to Blacksmith as its backdrop. Working it
@@ -1907,10 +2060,10 @@ const ShopBehaviour = (Base) => class extends Base {
             // that the counter does not: the fee for the service chosen, and the three
             // services to choose between.
             catalogue: this.catalogueMode,
-            feeLabel: formatBase(this.catalogueMode ? feeBase(this.service) : 0),
-            destinations: this.catalogueMode ? this._destinationOptions(config) : null,
+            feeLabel: formatBase(deliveryFee),
+            destinations: this.catalogueMode ? this._destinationOptions() : null,
             destinationNote: this.catalogueMode
-                ? destinationNote(this.service, destinationsFor(this.service, config))
+                ? destinationNote(this.service, destinationsFor(this.service))
                 : '',
             instructions: this.instructions,
             deliveryServices: this.catalogueMode
@@ -1933,13 +2086,11 @@ const ShopBehaviour = (Base) => class extends Base {
             // work out which one a bare number is.
             // A total you are owed is written with a sign rather than a colour, so
             // the direction survives every theme and does not depend on seeing one.
-            netTotalLabel: (cartTotal - basketTotal < 0 ? '+' : '\u2212')
-                + formatBase(Math.abs(cartTotal - basketTotal)),
+            netTotalLabel: (net < 0 ? '+' : '\u2212')
+                + formatBase(Math.abs(net)),
             // Paying out and taking in are different events, and the colour says
             // which before the figure is read.
-            netDirection: cartTotal - basketTotal > 0 ? 'pay'
-                : cartTotal - basketTotal < 0 ? 'receive'
-                    : 'even',
+            netDirection: net > 0 ? 'pay' : net < 0 ? 'receive' : 'even',
             // The shopper's purse as it stands, which is what the total is a change
             // to. A number that big is meaningless without the number it acts on.
             fundsLabel: recipient ? formatBase(purseValue(recipient)) : formatBase(0),
@@ -1986,7 +2137,9 @@ const ShopBehaviour = (Base) => class extends Base {
         // somebody returning to sell one thing must see "Trade" before they press it
         // rather than discovering it in the confirm.
         const hasAnything = cartLines.length > 0 || basketLines.length > 0;
-        const net = cartTotal - basketTotal;
+        // `net` is the one computed with the ledger above -- delivery included, which is
+        // what the button is about to take. A second `cartTotal - basketTotal` here quoted
+        // a figure the ledger three inches away disagreed with.
         const settleTooltip = !hasAnything ? game.i18n.localize('coffee-pub-merchant.slate.nothingYet')
             : net > 0 ? game.i18n.format('coffee-pub-merchant.slate.youPay', { amount: formatBase(net) })
                 : net < 0 ? game.i18n.format('coffee-pub-merchant.slate.youReceive', { amount: formatBase(-net) })
@@ -2169,6 +2322,30 @@ const ShopBehaviour = (Base) => class extends Base {
         if (_swapping) return;
         const { actor } = await this._resolveSubject();
         playFeedback(which, actor ? MerchantManager.soundFor(actor, which === SOUND.WINDOW_OPEN ? 'open' : 'close') : null);
+    }
+
+    /**
+     * Patch the rendered part into the page rather than replacing it. See `morphNode`.
+     *
+     * Only for a re-render: the first one has nothing to patch into, and a shape this does
+     * not recognise -- a part that renders as the content element itself, which neither base
+     * uses today -- is handed straight back to Foundry rather than guessed at.
+     */
+    _replaceHTML(result, content, options) {
+        const pairs = [];
+        for (const [partId, next] of Object.entries(result)) {
+            const prior = content.querySelector(`[data-application-part="${partId}"]`);
+            if (!prior) return super._replaceHTML(result, content, options);
+            pairs.push([partId, prior, next]);
+        }
+
+        for (const [partId, prior, next] of pairs) {
+            morphNode(prior, next);
+            // The prior element is the live one, so listeners belong on it. Foundry's own
+            // record of which element is the part is private and still holds the element
+            // from the first render -- which is this one, and still the right answer.
+            this._attachPartListeners(partId, prior, options);
+        }
     }
 
     /**
@@ -3120,8 +3297,8 @@ const ShopBehaviour = (Base) => class extends Base {
      * the template can tell "no destination is needed" from "no destination exists", which
      * are different sentences and want different words.
      */
-    _destinationOptions(config) {
-        const places = destinationsFor(this.service, config);
+    _destinationOptions() {
+        const places = destinationsFor(this.service);
         if (places === null) return null;
         // The first is the default rather than a blank row: an order with nowhere to go is
         // not a state worth being able to reach through the picker.

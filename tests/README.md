@@ -34,6 +34,12 @@ way to find a bug and where a wrong answer is silent:
   `filterShopList`. That makes it the only check here that would catch a selector no longer matching the
   markup — which is the way this particular feature breaks, and which reads as a search that quietly returns
   too little rather than as an error.
+- **`test-morph.mjs`** — the shop window patching its rendered page instead of replacing it. Most of the
+  assertions are on **node identity**, not on markup: that the same `<img>` object is still in the tree
+  after a render, that a row leaving does not rebuild the rows under it, that a bound node keeps the flag
+  saying a listener is on it. A morph producing correct HTML proves nothing — `replaceWith` produces correct
+  HTML too, and that is the thing being replaced. The last case asserts the boring half as well: whatever the
+  render says is what is standing afterwards.
 - **`test-stock.mjs`** — calendar arithmetic, policy inheritance, the restock cadence, par resolution, and
   the lock. The lock cases are the point: two buyers racing for the last item, a queue surviving a callback
   that throws, and the key being released rather than leaking. Finite stock reintroduced a race that

@@ -15,7 +15,9 @@
 // crying wolf, and the class of bug it does catch is one nothing else here would.
 import assert from 'node:assert';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const SCRIPTS = 'scripts';
 
@@ -222,5 +224,35 @@ if (uniqueMissing.length) {
 }
 assert.strictEqual(uniqueMissing.length, 0, 'every method called on `this` is defined');
 console.log('ok  no method is called on `this` without being defined');
+
+// --- and that every file is a module the browser would accept ---------------
+//
+// **`node --check scripts/foo.js` does not check what Foundry loads.** With a `.js`
+// extension and no `package.json` saying otherwise, Node parses the file as a script,
+// and a script and a module are not the same grammar: a duplicate `const` in one
+// function scope passed `--check` cleanly and threw `Identifier 'net' has already been
+// declared` the moment Foundry imported it. Copying each file to `.mjs` first is the
+// whole of the fix.
+//
+// The cheapest check here, and the loudest failure it catches: a module that will not
+// parse takes the entire module down with it, before a single hook is registered.
+const tmp = path.join(os.tmpdir(), `merchant-parse-${process.pid}.mjs`);
+const unparsable = [];
+for (const file of files) {
+    fs.copyFileSync(path.join(SCRIPTS, file), tmp);
+    const check = spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf8' });
+    if (check.status !== 0) {
+        const said = String(check.stderr || '').split('\n').find((l) => /Error/.test(l)) ?? '';
+        unparsable.push(`${file}: ${said.trim()}`);
+    }
+}
+fs.rmSync(tmp, { force: true });
+
+if (unparsable.length) {
+    console.error('does not parse as an ES module:');
+    for (const entry of unparsable) console.error('  ' + entry);
+}
+assert.strictEqual(unparsable.length, 0, 'every script parses as an ES module');
+console.log(`ok  ${files.length} scripts parse as ES modules`);
 
 console.log('\nall import checks passed');

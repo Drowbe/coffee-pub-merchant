@@ -324,6 +324,17 @@
             {{#each inventories}}
                 <section class="merchant-shop-section merchant-shop-inventory{{#if hidden}} merchant-shop-inventory-hidden{{/if}}{{#if collapsed}} is-collapsed{{/if}}">
                     <h3>
+                        {{!-- **A catalogue shelf does not fold up.** Collapsing is for a
+                              counter, where shelves are stacked and one of them being in
+                              the way is a real problem. A catalogue is one shelf filling
+                              the window a page at a time -- there is nothing underneath it
+                              to reach, so the control could only ever hide the thing you
+                              opened, and a chevron that does that is a trap. --}}
+                        {{#if spread}}
+                            <span class="merchant-shop-inventory-name is-static">
+                                <img class="merchant-shop-inventory-icon" src="{{img}}" alt="">{{label}}
+                            </span>
+                        {{else}}
                         <button type="button" class="merchant-shop-inventory-name"
                                 data-action="collapseInventory" data-inventory-id="{{id}}"
                                 aria-expanded="{{#if collapsed}}false{{else}}true{{/if}}"
@@ -331,6 +342,7 @@
                             <i class="fa-solid fa-chevron-down merchant-shop-inventory-chevron"></i>
                             <img class="merchant-shop-inventory-icon" src="{{img}}" alt="">{{label}}
                         </button>
+                        {{/if}}
                         <span class="merchant-shop-head-actions">
                             {{#if canToggle}}
                                 {{!-- GM only. The shop is where you are standing when
@@ -387,6 +399,23 @@
                                 </button>
                             {{/if}}
                             <span class="merchant-shop-count">{{count}}</span>
+                            {{!-- Last on the bar, so the two arrows are the outermost thing
+                                  on the shelf and the number reads between them. --}}
+                            {{#if spread.paged}}
+                                <span class="merchant-shop-pager">
+                                    <button type="button" class="merchant-shop-page-btn" data-action="turnPage"
+                                            data-page="{{spread.prevPage}}" {{#unless spread.hasPrev}}disabled{{/unless}}
+                                            data-tooltip="{{localize "coffee-pub-merchant.shop.pagePrev"}}">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <span class="merchant-shop-page-count">{{spread.page}} / {{spread.pageCount}}</span>
+                                    <button type="button" class="merchant-shop-page-btn" data-action="turnPage"
+                                            data-page="{{spread.nextPage}}" {{#unless spread.hasNext}}disabled{{/unless}}
+                                            data-tooltip="{{localize "coffee-pub-merchant.shop.pageNext"}}">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </span>
+                            {{/if}}
                         </span>
                     </h3>
 
@@ -430,14 +459,14 @@
                             </div>
                         {{/if}}
                         {{#if spread.paged}}
-                            {{!-- Where you are in the book, and the two ways out of it. A
-                                  count as well as arrows, because "page 2 of 5" is the fact
-                                  a reader actually wants and an arrow alone never says it. --}}
-                            {{!-- **Over the page, not under it.** A control below the goods is
-                                  a control you scroll to, and a page that has to be scrolled
-                                  to is not a page. These are edge strips, the way a reader
-                                  turns a page on a tablet: the whole left side goes back and
-                                  the whole right side goes on. --}}
+                            {{!-- **The gesture, alongside the buttons on the bar.** These are
+                                  edge strips, the way a reader turns a page on a tablet: the
+                                  whole left side goes back and the whole right side goes on,
+                                  invisible until the cursor is over them. The bar carries the
+                                  same two moves for anyone who never thinks to try the edge --
+                                  which is most people, which is why the bar exists. Both, and
+                                  neither below the fold: a control you scroll to is a control
+                                  on a page that is not a page. --}}
                             <button type="button" class="merchant-shop-turn is-prev" data-action="turnPage"
                                     data-page="{{spread.prevPage}}" {{#unless spread.hasPrev}}disabled{{/unless}}
                                     data-tooltip="{{localize "coffee-pub-merchant.shop.pagePrev"}}">
@@ -448,7 +477,6 @@
                                     data-tooltip="{{localize "coffee-pub-merchant.shop.pageNext"}}">
                                 <i class="fa-solid fa-chevron-right"></i>
                             </button>
-                            <span class="merchant-shop-folio">{{spread.page}} / {{spread.pageCount}}</span>
                         {{/if}}
                     </div>
                 </section>

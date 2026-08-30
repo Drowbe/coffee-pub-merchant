@@ -557,6 +557,45 @@
    used to be. The tooltip still carries the reason it is disabled. */
 .merchant-shop-cart-add { display: inline-grid; width: 26px; height: 24px; place-items: center; padding: 0; }
 
+/*
+ * **Adding is green and taking away is red, and neither is a decoration.**
+ *
+ * A row carries two icon buttons a few pixels apart -- a plus that puts the thing on your
+ * slate and a cross that takes it off the shelf for good -- and until now they were the
+ * same grey square. On a card wall they sit on a picture, at 24 pixels, and the only thing
+ * telling them apart is the glyph inside. Colour is the cheapest possible way to keep a
+ * destructive button from being clicked by somebody who meant the other one.
+ *
+ * **The button is the colour, not the glyph inside it.** A tinted outline with a coloured
+ * icon is the same grey square from two feet away, which is the distance a person is at
+ * when they reach for the wrong one. Filled at rest and lighter under the cursor.
+ */
+.merchant-shop-cart-add:not([disabled]) {
+    border-color: #3f8a45;
+    background: #2f6b33;
+    color: #f4ede0;
+}
+
+.merchant-shop-cart-add:not([disabled]):hover {
+    border-color: #5cae62;
+    background: #3f8a45;
+    color: #fff;
+}
+
+/* The GM's own: this is the shelf no longer carrying the thing at all, which is why it
+   wears the same red as the slate's remove rather than the neutral of its neighbours. */
+.merchant-shop-remove:not([disabled]) {
+    border-color: #a4432f;
+    background: #8c2f22;
+    color: #f4ede0;
+}
+
+.merchant-shop-remove:not([disabled]):hover {
+    border-color: #c25b44;
+    background: #a4432f;
+    color: #fff;
+}
+
 /* --- Inventory headings do the grouping ------------------------------------- */
 /*
  * Removing the cards removed the group boundaries with them: seven items on the
@@ -657,7 +696,9 @@
 .merchant-shop-cart-total { min-width: 0; font-size: .76rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 /* At the far edge, and red — it is the one destructive control on the line. Quiet
    until the line is pointed at, so a list of eight is not a row of warnings. */
-.merchant-shop-cart-remove { padding: 0 2px 0 6px; color: #a4432f; font-size: .78rem; line-height: 1; opacity: .45; }
+/* **Red at rest, not only under the cursor.** It was at .45 opacity until the line was
+   hovered, which made the one destructive control on a slate the quietest thing on it. */
+.merchant-shop-cart-remove { padding: 0 2px 0 6px; color: #c96a53; font-size: .78rem; line-height: 1; opacity: .8; }
 .merchant-shop-cart-line:hover .merchant-shop-cart-remove { opacity: 1; }
 .merchant-shop-cart-remove:hover { color: #8c2f22; }
 
@@ -829,6 +870,10 @@
     text-align: left; cursor: pointer;
 }
 .merchant-shop-inventory-name:hover { color: var(--merchant-interactive); }
+/* A catalogue's shelf name is a label, not a control: no pointer, and none of the hover
+   colour that says something happens if you click. */
+.merchant-shop-inventory-name.is-static { cursor: default; }
+.merchant-shop-inventory-name.is-static:hover { color: inherit; }
 .merchant-shop-inventory-name:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 2px; }
 
 /* Points down when open, right when shut — the direction people already read as
@@ -1194,6 +1239,24 @@
     text-align: left;
 }
 
+/*
+ * **The plate is always dark, so its text is always light -- stated, not inherited.**
+ *
+ * A counter row prices in the theme's accent and muted colours, which is right when the
+ * row sits on the window's own background: both follow the theme, so both stay legible in
+ * either. A card's plate does not follow the theme -- it is dark because it has to survive
+ * whatever picture is behind it -- so a theme colour on it is a coin flip, and in the light
+ * theme it comes up dark ink on a dark plate.
+ */
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price strong { color: #f2d99b; }
+
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price em,
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price .merchant-shop-negotiate {
+    color: rgba(241, 231, 214, .72);
+}
+
+.merchant-shop-catalogue .merchant-shop-card .merchant-shop-item-price .merchant-shop-unpriced { color: #f08e78; }
+
 /* And the add button opposite it. */
 .merchant-shop-catalogue .merchant-shop-card .merchant-shop-row-actions {
     position: absolute;
@@ -1312,17 +1375,50 @@
    control. */
 .merchant-shop-turn[disabled] { display: none; }
 
-/* Which page, in the corner, the way a book prints it. */
-.merchant-shop-folio {
-    position: absolute;
-    right: 8px;
-    bottom: 4px;
-    z-index: 2;
-    padding: 1px 7px;
+/*
+ * **Which page, and the way to the next one, in the shelf's own bar.**
+ *
+ * The bar already carries everything that is about the shelf rather than about a thing on
+ * it -- restock, stock, the count -- and it had room to spare. Putting the pager there
+ * costs no page: an edge strip is a gesture, and a gesture needs a visible twin for anyone
+ * who did not think to try it. The strips stay for the people who do.
+ */
+.merchant-shop-pager {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+    margin-left: 2px;
+}
+
+.merchant-shop-pager .merchant-shop-page-btn {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
     border-radius: 3px;
-    background: rgba(8, 6, 4, .7);
-    color: rgba(241, 231, 214, .8);
-    font-size: .6rem;
+    background: none;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .7rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.merchant-shop-pager .merchant-shop-page-btn:hover:not([disabled]) {
+    background: var(--blacksmith-tool-surface-raised);
+    color: var(--blacksmith-tool-accent);
+}
+
+/* Dimmed rather than gone: a pager that drops a button at the ends of the book shuffles the
+   page number sideways every time you reach one. */
+.merchant-shop-pager .merchant-shop-page-btn[disabled] {
+    opacity: .3;
+    cursor: default;
+}
+
+.merchant-shop-page-count {
+    min-width: 34px;
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .62rem;
     font-variant-numeric: tabular-nums;
-    pointer-events: none;
+    text-align: center;
 }

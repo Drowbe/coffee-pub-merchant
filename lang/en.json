@@ -192,14 +192,12 @@
             "doorToken": "Token",
             "doorPin": "Map pin",
             "doorCatalogue": "Catalogue",
-            "deliveryPhysical": "Takes parcels for collection",
-            "deliveryPhysicalHint": "This shop will hold a Ground delivery until somebody comes for it, so it appears on the list of places a parcel can be sent.",
-            "deliveryPortal": "On the portal network",
-            "deliveryPortalHint": "This shop has a ring in the back room. Parcel Portal can send to it and from it.",
-            "portalLocations": "Portal delivery locations",
-            "portalLocationsHint": "One per line. Places on the portal network that are not merchants — a guild hall, a tower, a name the party made up. Offered alongside every shop flagged as being on the network.",
-            "physicalLocations": "Physical delivery locations",
-            "physicalLocationsHint": "One per line. Places a Ground parcel can be collected from that are not merchants. Offered alongside every shop flagged as taking parcels."
+            "deliveryPhysical": "Parcels can be collected here",
+            "deliveryPhysicalHint": "This shop will hold a Ground parcel until somebody comes for it, so it is offered as a place other shops can deliver to.",
+            "deliveryPortal": "There is a portal ring in the back room",
+            "deliveryPortalHint": "Parcel Portal can send to this shop and from it, so it is offered as a place other shops can deliver to.",
+            "deliveryPoints": "Deliveries",
+            "deliveryPlacesNote": "Places that are not shops — an inn, a guild hall, a name the party made up — are a list for the whole world, in Settings under Merchant → Mail Order. One list serves every shop, so there is nothing to retype here."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",
@@ -621,16 +619,23 @@
                 "headingDelivery": "Mail Order",
                 "headingDeliveryHint": "What each delivery service costs and how long it takes. A catalogue shelf is a warehouse — nothing on one is carried out of the shop, so everything ordered from one arrives by post, on these terms.",
                 "days": "{service}: days in transit",
-                "fee": "{service}: delivery fee (gp)"
+                "fee": "{service}: delivery fee (gp)",
+                "placesPhysical": "Places a Ground parcel can be collected",
+                "placesPhysicalHint": "Somewhere a cart can leave a crate that is not a shop. Every shop marked \"parcels can be collected here\" is offered as well.",
+                "placesPhysicalPlaceholder": "One place per line — an inn, a guard post, a warehouse the party rent. Whatever you write here is what a buyer picks from when they choose Ground delivery.",
+                "placesPortal": "Places on the portal network",
+                "placesPortalHint": "Somewhere with a ring that is not a shop. Every shop marked as having a portal ring is offered as well.",
+                "placesPortalPlaceholder": "One place per line — a guild hall, a tower, a ring the party found. Whatever you write here is what a buyer picks from when they choose Parcel Portal."
             },
             "where": "Deliver to",
             "beastNote": "The beast triangulates on the receipt. It will find whoever is carrying it.",
             "noPhysical": "No shop in this world takes parcels for collection yet.",
             "noPortal": "No shop in this world is on the portal network yet.",
             "instructions": "Special instructions",
-            "instructionsPlaceholder": "Leave it with the innkeeper. Do not knock. Tell them who sent it.",
+            "instructionsPlaceholder": "Anything the courier should know — where to leave it, who to ask for, care of whom, a name that is not yours. It is written on the parcel and nobody checks it.",
             "manifestWhere": "To: {where}",
-            "manifestInstructions": "Instructions: {note}"
+            "manifestInstructions": "Instructions: {note}",
+            "noReceipt": "The order was paid for but no receipt could be created for {who}. Nothing will arrive on its own. It was: {goods}"
         }
     },
     "TYPES": {

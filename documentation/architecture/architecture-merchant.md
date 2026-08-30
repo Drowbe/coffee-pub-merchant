@@ -919,6 +919,15 @@ Notable behaviours worth knowing before you touch it:
   away commits, Escape abandons, `0` removes the line. Price edits are GM-only and write to the document.
 - **Item tooltips** come from dnd5e's own `richTooltip()` — the same thing Squire uses. Free, and correct.
 - `_keepScroll()` preserves scroll position across the re-render that follows every gesture.
+- **A render patches the page; it does not reprint it.** `_replaceHTML` is overridden to walk the old tree
+  against the new one rather than let Foundry `replaceWith` the part. Foundry's own behaviour is correct and
+  destroys every node, which means every `<img>` refetches and redecodes — invisible at 740 pixels of
+  32-pixel icons, and a wall of large pictures blinking on every click in a full-screen catalogue. Rows are
+  matched by `data-item-id`, so one leaving does not rewrite the rows below it. Three things are held against
+  the incoming markup: `data-merchant-bound` (the node survived, so its listener did), a text field the
+  template gives no `value` (the search box is filled from window state), and anything focused. See
+  `morphNode` in `window-shop.js`, and `tests/test-morph.mjs`, which asserts on node identity rather than on
+  markup — correct HTML is what the thing being replaced also produced.
 - A control that cannot act is **disabled with a reason on hover**, never absent. An absent button reads as
   "this shop does not do that"; a disabled one naming its reason reads as "not right now, and here is what
   would change it".
@@ -1192,10 +1201,41 @@ Three things from their page this obeys:
 Also worth knowing: **rewinding time re-arms a one-shot**, so a GM correcting the clock backwards past a
 delivery will see it arrive again.
 
+**A receipt is `loot`; a parcel is a `container`.** The receipt was originally created as an
+empty container, on the theory that an Item's type is not a thing to change under a system with
+opinions about subtypes. That reasoning was about the code and ignored the sheet: dnd5e files
+containers in their own section, so a promise of a delivery sat among the party's backpacks
+looking like a bag you could put things in, days before there was anything in it. The type is
+changed on arrival instead, with **`==system`** in the update: Foundry refuses to change a type
+while merging system data, and rightly — the incoming half-object would be merged into a schema
+that no longer applies, leaving a container carrying a loot item's fields. The `==` prefix
+force-replaces that one branch, which is exactly the claim being made. If a system ever refuses, the
+fallback rebuilds it under **the same id**, which is what the schedule and the courier both hold.
+
 **`grantItem` cannot build the parcel.** It refuses a packed container — the `CONTAINER_HAS_CONTENTS`
 refusal Merchant already reports quietly on restocks, because a copy would have to invent the contents or
 drop them. A parcel is a packed container by definition, so the contents are created as documents with
 `system.container` pointing at the receipt, which is how dnd5e nests an item anyway.
+
+### Where a parcel can go
+
+**Two questions, answered in two different places, and keeping them apart is the whole of it.**
+
+- *Is this shop somewhere a parcel can arrive?* Two flags on the merchant — `deliveryPhysical` (it will
+  hold a Ground parcel for collection) and `deliveryPortal` (there is a ring in the back room). Both are
+  offers a shopkeeper is making, so both live on the shop, and both are off until a GM says otherwise: a
+  pedlar on a road is neither.
+- *Where else can a parcel go?* Two **world settings**, `deliveryPlacesPhysical` and `deliveryPlacesPortal`,
+  free text one place per line. An inn, a guard post, a name the party made up — none of which is a
+  document, and requiring one would be requiring a GM to build a shop for a hole in a wall.
+
+The picker is the world's flagged shops plus the world's list, and the GM side verifies against exactly the
+same set. These began as two text boxes on **each merchant**, which was wrong on inspection: it made a GM
+retype the same coaching inns into every shop that sold by post and left five copies free to drift apart.
+Where a parcel can arrive has nothing to do with who posted it.
+
+A **courier beast** asks for nowhere at all, and that is an answer rather than an empty list: it goes
+looking for whoever is holding the receipt, which is what its price buys.
 
 ### Lost packages
 
@@ -1208,8 +1248,7 @@ quietly handed it back would take the decision away from them.
 
 ### What phase 1 does not do
 
-Depot pins, the portal-network flag and its destination picker, and selling by post. Where a parcel
-physically sits is described rather than placed: the three services differ in **days** and **fee**, and
+Depot pins and selling by post. Where a parcel physically sits is described rather than placed: the three services differ in **days** and **fee**, and
 everything else about them is fiction the GM narrates. See `../TODO.md` §1.
 
 ---

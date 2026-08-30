@@ -1837,3 +1837,17 @@ level onto every existing row; it logs how many.
     the new numbers and an order already in transit keeps the terms it was placed on.
 266. **Two clients.** A player ordering sees their own receipt; the GM sees the notice. A parcel arriving
     tells only the character it belongs to.
+267. **Delivery places are a world list.** Settings → **Merchant → Mail Order** has two multi-line boxes,
+    each explaining itself in the box rather than showing invented place names. Type a place into the Ground
+    one; **every** catalogue in the world offers it under *Deliver to*, not just the shop you were in.
+268. **A shop can be a delivery point.** Tick *Parcels can be collected here* on merchant A: it appears in
+    the Ground picker of merchant B's catalogue. Untick it and it goes. The portal flag does the same for
+    Parcel Portal, and neither flag affects the other service.
+269. **The two delivery flags are chips that stay lit.** Ticking one turns it green at once, and it is still
+    green when Settings is reopened.
+270. **A courier beast asks for nowhere.** Choosing it replaces the *Deliver to* picker with the note about
+    the beast finding whoever holds the receipt.
+271. **A destination the world does not offer is refused.** (Socket by hand.) The parcel arrives with no
+    address rather than the claimed one.
+272. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+    reopen Settings: it is still off, and the catalogue opens windowed.

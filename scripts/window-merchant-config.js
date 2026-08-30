@@ -379,21 +379,24 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             fullscreen.addEventListener('change', (event) => {
                 // The pill answers the click rather than the round trip, as the query chips do.
                 event.target.closest('.merchant-config-chip')?.classList.toggle('is-on', event.target.checked);
-                // **The whole set on every tick, never a delta.** A flag written one door at
-                // a time leaves the others unstated, and `setConfig` merges -- so unticking
-                // one would appear to do nothing until the next reload.
+                // **Every door, stated, on every tick -- including the ones that are off.**
+                // `setConfig` merges, and a merge cannot express an absence: a door left out
+                // of the write keeps whatever it had. Collecting only the ticked boxes made
+                // unticking one do nothing at all -- it wrote `{region: true}` over
+                // `{region: true, catalogue: true}` and the catalogue survived the merge.
+                // Writing `false` says it, which is the only thing a merge hears.
                 const doors = {};
                 for (const box of fullscreen.querySelectorAll('input[type="checkbox"]')) {
-                    if (box.checked) doors[box.value] = true;
+                    doors[box.value] = box.checked;
                 }
                 void this._setField({ fullscreen: doors }, { redraw: false });
             });
         }
 
-        // The two delivery flags and the two lists beside them. Written the way every other
-        // field in this window is: the checkbox on change, the text on blur, because a
-        // list of places is a paragraph and a write per keystroke is a write per keystroke
-        // to every client.
+        // The two delivery flags: is this shop somewhere a parcel can arrive. Where *else*
+        // a parcel can go is a list of places in the world rather than a fact about this
+        // shop, so it is a world setting -- see `registerDeliveryPlaces`. The chip answers
+        // the click itself, for the reason the door chips above do.
         for (const [attribute, field] of [
             ['data-merchant-delivery-physical', DELIVERY_POINT.PHYSICAL],
             ['data-merchant-delivery-portal', DELIVERY_POINT.PORTAL]
@@ -402,19 +405,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             if (!box || box.dataset.merchantBound === 'true') continue;
             box.dataset.merchantBound = 'true';
             box.addEventListener('change', (event) => {
+                event.target.closest('.merchant-config-enable')?.classList
+                    .toggle('is-on', event.target.checked);
                 void this._setField({ [field]: event.target.checked }, { redraw: false });
-            });
-        }
-
-        for (const [attribute, field] of [
-            ['data-merchant-physical-locations', 'physicalLocations'],
-            ['data-merchant-portal-locations', 'portalLocations']
-        ]) {
-            const box = this.element?.querySelector(`[${attribute}]`);
-            if (!box || box.dataset.merchantBound === 'true') continue;
-            box.dataset.merchantBound = 'true';
-            box.addEventListener('change', (event) => {
-                void this._setField({ [field]: event.target.value ?? '' }, { redraw: false });
             });
         }
 
@@ -1981,8 +1974,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             tillEmpty: enabled && purseValue(actor) === 0,
             deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
             deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
-            physicalLocations: merchantConfig.physicalLocations ?? '',
-            portalLocations: merchantConfig.portalLocations ?? '',
             fullscreenDoors: SHOP_DOORS.map((door) => ({
                 value: door.key,
                 label: game.i18n.localize(door.labelKey),

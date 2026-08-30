@@ -34,13 +34,14 @@
 import {
     MODULE, RECEIPT_FLAG, PAR_FLAG, FREE_FLAG, DELIVERY_SERVICES, DEFAULT_DELIVERY_SERVICE, deliveryService,
     deliveryDaysKey, deliveryFeeKey, arrivalTime, daysUntil, deliveryPointFor, customDestinations,
+    deliveryPlacesKey,
     DELIVERY_POINT
 } from './const.js';
 import { toBase, formatBase } from './utility-pricing.js';
 
 /** The image a receipt wears, and the one a parcel wears once it has been filled. */
 const RECEIPT_IMG = 'icons/sundries/documents/document-sealed-brown-red.webp';
-const PARCEL_IMG = 'icons/containers/boxes/crate-wooden-tied-brown.webp';
+const PARCEL_IMG = 'icons/containers/boxes/crate-wooden-brown.webp';
 
 function setting(key, fallback) {
     try {
@@ -97,17 +98,22 @@ export function arrivalLabel(arrivesAt, now = null) {
 /**
  * Everywhere a parcel can be sent by this service.
  *
- * **The world's shops plus the GM's own list.** A merchant carrying the matching flag is
- * offering to take parcels, and `worldMerchants` already enumerates every linked merchant
- * in the world — there is no separate register to keep, and one would only drift from the
- * Actors it was describing. Alongside them, a free-text list per merchant, because not
- * every place a parcel can go is a shop somebody has built: a safehouse, a poste restante,
- * a name a party made up.
+ * **The world's shops plus the world's own list.** A merchant carrying the matching flag
+ * is offering to take parcels, and `worldMerchants` already enumerates every linked
+ * merchant in the world — there is no separate register to keep, and one would only drift
+ * from the Actors it was describing. Alongside them, the GM's free-text list from Settings,
+ * because not every place a parcel can go is a shop somebody has built: a safehouse, a
+ * poste restante, a name a party made up.
+ *
+ * **The list is the world's, not the sending shop's.** Where a parcel can arrive has
+ * nothing to do with who posted it — the same coaching inn takes a crate from any merchant
+ * in the world — so a list per merchant was a list to be retyped for every shop that sold
+ * by post, with five copies free to drift apart.
  *
  * A beast returns nothing, and that is not an empty list — it is the answer. It goes
  * looking for whoever is holding the receipt, which is what its price buys.
  */
-export function destinationsFor(service, merchantConfig) {
+export function destinationsFor(service) {
     const point = deliveryPointFor(service);
     if (!point) return null;
 
@@ -121,9 +127,7 @@ export function destinationsFor(service, merchantConfig) {
         if (config?.[point] === true) places.add(config.name || actor.name);
     }
 
-    const custom = point === DELIVERY_POINT.PORTAL
-        ? merchantConfig?.portalLocations
-        : merchantConfig?.physicalLocations;
+    const custom = game.settings.get(MODULE.ID, deliveryPlacesKey(point));
     for (const place of customDestinations(custom)) places.add(place);
 
     return [...places].sort((a, b) => a.localeCompare(b));
@@ -332,19 +336,89 @@ export function unscheduleDelivery(item) {
 // ==================================================================
 
 /**
+ * **A note becomes a crate**: `loot` in, `container` out.
+ *
+ * Foundry allows a Document's subtype to change on update, and a receipt is the ideal case
+ * for it -- a name, a picture and a description, with no system data worth preserving. If a
+ * system ever refuses, the fallback rebuilds it under **the same id**, which is what every
+ * other part of this keeps hold of: the schedule is keyed by it, and so is the courier
+ * looking for whoever holds the receipt.
+ *
+ * Either way it is the same object to the people at the table. A receipt carried across
+ * three sessions is the parcel they open.
+ */
+async function becomeParcel(actor, item, record) {
+    const dressing = {
+        name: game.i18n.format('coffee-pub-merchant.delivery.parcelName', { shop: record.shopName ?? '' }),
+        img: PARCEL_IMG,
+        [`flags.${MODULE.ID}.${RECEIPT_FLAG}.delivered`]: true
+    };
+
+    try {
+        // **`==system` is what makes the type change legal.** Foundry refuses to change a
+        // Document's type while merging its system data, and it is right to: the incoming
+        // half-object would be merged into a schema that no longer applies, leaving a
+        // container carrying a loot item's fields. The `==` prefix force-replaces that one
+        // branch, which is exactly the claim being made -- this is a crate now, and none of
+        // what it held as a note survives except the words on it.
+        await item.update({
+            type: 'container',
+            ...dressing,
+            '==system': {
+                description: item.system?.description ?? {},
+                weight: { value: 0, units: 'lb' },
+                price: { value: 0, denomination: 'gp' }
+            }
+        });
+        if (item.type === 'container') return item;
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not turn the receipt into a container in place:`, error);
+    }
+
+    // Same id, built fresh. The system data is written rather than carried over: a loot
+    // item's fields are not a container's, and the parcel needs none of them anyway.
+    const source = item.toObject();
+    await item.delete();
+    const [rebuilt] = await actor.createEmbeddedDocuments('Item', [{
+        _id: source._id,
+        type: 'container',
+        name: dressing.name,
+        img: PARCEL_IMG,
+        system: {
+            description: source.system?.description ?? {},
+            weight: { value: 0, units: 'lb' },
+            price: { value: 0, denomination: 'gp' }
+        },
+        flags: foundry.utils.mergeObject(
+            source.flags ?? {},
+            { [MODULE.ID]: { [RECEIPT_FLAG]: { ...record, delivered: true } } },
+            { inplace: false }
+        )
+    }], { keepId: true });
+    return rebuilt ?? null;
+}
+
+/**
  * Turn a receipt into the parcel it was promising.
  *
  * **Built from documents rather than through `grantItem`**, which refuses a packed
  * container: the `CONTAINER_HAS_CONTENTS` refusal Merchant already reports quietly on
  * restocks, because a copy would have to invent the contents or drop them. A parcel is a
  * packed container by definition, so this creates the contents on the Actor with
- * `system.container` pointing at the receipt, which is how dnd5e nests an item anyway.
+ * `system.container` pointing at it, which is how dnd5e nests an item anyway.
  *
- * The same Item throughout: renamed, re-pictured, and filled. Nothing is created and
- * nothing is destroyed, so a receipt somebody has carried across three sessions is the
- * parcel they open.
+ * **The crate first, then what is in it.** dnd5e reads `system.container` as a reference to
+ * a container, so contents built against an item that is still a receipt have nowhere to
+ * live -- they would land loose in the pack, which is a delivery that arrived with the box
+ * missing rather than an error anybody would see.
  */
 export async function deliverParcel(actor, item, record) {
+    const parcel = await becomeParcel(actor, item, record);
+    if (!parcel) {
+        console.error(`${MODULE.TITLE} | The parcel for ${actor?.name} could not be opened:`, record);
+        return null;
+    }
+
     const contents = record.items.map((line) => {
         const source = foundry.utils.deepClone(line.source ?? {});
 
@@ -369,28 +443,28 @@ export async function deliverParcel(actor, item, record) {
             system: {
                 ...(source.system ?? {}),
                 quantity: line.quantity,
-                container: item.id
+                container: parcel.id
             }
         };
     });
 
     await actor.createEmbeddedDocuments('Item', contents, { keepId: false });
-    await item.update({
-        name: game.i18n.format('coffee-pub-merchant.delivery.parcelName', { shop: record.shopName ?? '' }),
-        img: PARCEL_IMG,
-        [`flags.${MODULE.ID}.${RECEIPT_FLAG}.delivered`]: true
-    });
-    return item;
+    return parcel;
 }
 
 /** What a receipt is called and looks like when it is made. */
 export function receiptData(record) {
     return {
         name: game.i18n.format('coffee-pub-merchant.delivery.receiptName', { shop: record.shopName ?? '' }),
-        // **A container from the outset**, empty. An Item's type is not a thing to change
-        // under a system with opinions about subtypes, and an empty container is what a
-        // receipt is: a promise with a shape.
-        type: 'container',
+        // **A receipt is a piece of paper, so it is an ordinary item.**
+        //
+        // It was a container from the outset -- empty, on the theory that an Item's type is
+        // not a thing to change under a system with opinions about subtypes. That reasoning
+        // was about the code and ignored the sheet: dnd5e files containers in their own
+        // section, so a promise of a delivery sat among the party's backpacks looking like a
+        // bag you could put things in, days before there was anything in it. The parcel is
+        // the container; the receipt is the note that says one is coming.
+        type: 'loot',
         img: RECEIPT_IMG,
         system: {
             description: { value: manifestHtml(record) },
