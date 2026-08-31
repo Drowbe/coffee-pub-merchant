@@ -101,6 +101,16 @@
 /* Who runs it, under what it is called. Quieter than the name and louder than the
    facts beneath, which is the order in which the three get read. */
 .merchant-shop-keeper { color: var(--blacksmith-tool-text); font-size: .82rem; opacity: .8; }
+/*
+ * **One more line on the card's own row, in the card's own voice.**
+ *
+ * The first cut gave this a border, a blue ground and a guild colour, on the argument that a
+ * membership is a different kind of fact from a trade or a set of hours. True, and it still
+ * did not earn a treatment of its own: sitting beside four quiet entries it read as a
+ * warning label. The name is the distinctive part and it needs no help.
+ */
+.merchant-shop-boink > i { opacity: .85; }
+
 .merchant-shop-description { margin-top: 4px; color: var(--blacksmith-tool-text-muted); font-size: .72rem; }
 .merchant-shop-warning { color: #a4432f; }
 
@@ -195,10 +205,19 @@
 .merchant-shop-subject { grid-template-columns: 58px minmax(0,1fr) auto; }
 /* Squarer and with room around the words, so it reads as the sign hanging in the
    window rather than as a tag. */
+/*
+ * **Filled, not outlined.** Whether a shop is open is the first thing a player reads on
+ * this card, and an outlined pill in a thin green was the quietest mark on a header that
+ * has an illustration behind it. Green means open, red means closed, white words on both:
+ * the plainest way those two things can be said, and legible over any artwork.
+ */
 .merchant-shop-open-toggle,
-.merchant-shop-open-state { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; padding: 2px 10px; border: 1px solid color-mix(in srgb, #2f6b33 45%, var(--blacksmith-tool-divider)); border-radius: 5px; background: transparent; color: #2f6b33; font-family: inherit; font-size: .72rem; white-space: nowrap; }
+.merchant-shop-open-state { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; padding: 2px 10px; border: 1px solid #3f8a45; border-radius: 5px; background: #2f6b33; color: #f4ede0; font-family: inherit; font-size: .72rem; font-weight: 600; white-space: nowrap; }
 .merchant-shop-open-toggle { cursor: pointer; }
-.merchant-shop-open-state.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
+.merchant-shop-open-toggle:hover { border-color: #5cae62; background: #3f8a45; color: #fff; }
+.merchant-shop-open-state.is-closed,
+.merchant-shop-open-toggle.is-closed { border-color: #a4432f; background: #8c2f22; }
+.merchant-shop-open-toggle.is-closed:hover { border-color: #c25b44; background: #a4432f; }
 /* Name at one end, the door at the other; the two lines below run the full width
    underneath both. Baseline-aligned so the chip sits on the name's line rather
    than floating in the middle of it. */
@@ -206,9 +225,6 @@
 .merchant-shop-titleline > .merchant-shop-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-shop-titleline > .merchant-shop-open-toggle,
 .merchant-shop-titleline > .merchant-shop-open-state { flex: 0 0 auto; }
-.merchant-shop-open-toggle:hover { background: color-mix(in srgb, #2f6b33 14%, transparent); }
-.merchant-shop-open-toggle.is-closed { border-color: color-mix(in srgb, #8c2f22 45%, var(--blacksmith-tool-divider)); color: #a4432f; }
-.merchant-shop-open-toggle.is-closed:hover { background: color-mix(in srgb, #8c2f22 14%, transparent); }
 
 .merchant-shop-browsing { display: flex; gap: 9px; align-items: center; padding: 8px 10px; border: 1px dashed color-mix(in srgb, #8c2f22 35%, var(--blacksmith-tool-divider)); border-radius: 6px; background: color-mix(in srgb, #8c2f22 7%, var(--blacksmith-tool-surface-sunken)); color: var(--blacksmith-tool-text); font-size: .74rem; }
 
@@ -609,7 +625,11 @@
 .merchant-shop-stock .merchant-shop-inventory > h3 {
     position: sticky;
     top: 0;
-    z-index: 1;
+    /* **Above the goods, and it has to stay there.** A sticky heading at 1 and a card's own
+       buttons at 1 are a tie, and a tie is broken by document order — so every tile
+       scrolling past printed its add and remove buttons over the heading, which is a
+       control from one shelf floating on the label of another. */
+    z-index: 4;
     margin: 0;
     padding: 6px 9px;
     border: 0;
@@ -863,21 +883,19 @@
 }
 
 /*
- * Open and Closed keep their green and red — the two colours in this window that carry
- * meaning rather than decoration — lightened to hold contrast, on a plate dark enough to
- * work over any part of any picture.
+ * **Over a picture the pill keeps its fill; it only gains an edge.**
+ *
+ * This used to swap the green ground for a dark plate with green text, on the theory that
+ * a coloured fill would fight the artwork. It does not — a solid green block with white on
+ * it is the most legible thing that can sit over a photograph, and it is the same badge
+ * whether or not a GM has given the shop an illustration. What art does call for is a
+ * brighter rim and a shadow, so the block has an edge against whatever is behind it.
  */
 .merchant-shop-subject[data-has-illustration] .merchant-shop-open-toggle,
 .merchant-shop-subject[data-has-illustration] .merchant-shop-open-state {
-    background: rgba(16, 11, 7, .72);
-    border-color: rgba(255, 255, 255, .3);
-    color: #8fd694;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .8);
-}
-.merchant-shop-subject[data-has-illustration] .merchant-shop-open-toggle.is-closed,
-.merchant-shop-subject[data-has-illustration] .merchant-shop-open-state.is-closed {
-    border-color: rgba(255, 255, 255, .3);
-    color: #f0937f;
+    border-color: rgba(255, 255, 255, .45);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
 }
 
 /* Both portraits gain an edge they did not need against parchment. */
@@ -1353,6 +1371,34 @@
  * goods rather than as something that can be bought.
  */
 /*
+ * **A notice has a colour of its own — the card, not the words.**
+ *
+ * The tint colours the edge, the wash over the picture and the ground behind the copy, and
+ * stops there. Tinting the headline as well made it a coloured word on a coloured ground:
+ * an orange notice in the light theme printed orange text on pale orange paper, which is
+ * the one thing a headline may not be. Text stays on the theme's own colours, where it is
+ * legible by construction in both.
+ *
+ * Eight advertisements in one warm gold read as one advertisement printed eight times. A
+ * tint apiece makes them look like different notices from different hands — which is what
+ * they will literally be once a merchant can buy space, so the mechanism is worth having
+ * before the feature that needs it.
+ *
+ * One custom property carries it, as an unparenthesised RGB triplet so the same value can
+ * be mixed at four different strengths: the edge, the wash, the headline and the ground.
+ * Every rule below reads `--ad-tint` and none of them names a colour, so a fifth tint is a
+ * four-line block rather than an edit in eight places.
+ *
+ * The default is the warm gold everything used before, which is what an advertisement with
+ * no colour set still gets.
+ */
+.merchant-shop-filler { --ad-tint: 200 150 70; }
+.merchant-shop-filler.is-blue { --ad-tint: 96 148 205; }
+.merchant-shop-filler.is-red { --ad-tint: 196 84 66; }
+.merchant-shop-filler.is-orange { --ad-tint: 214 138 58; }
+.merchant-shop-filler.is-green { --ad-tint: 106 168 104; }
+
+/*
  * **In a list it is a banner; in a wall it is a tile.** The same object in two shapes.
  *
  * The first version set the art in a 26-pixel square at the left, in the column where every
@@ -1373,41 +1419,53 @@
     align-items: flex-start;
     padding: 9px 12px;
     overflow: hidden;
-    border: 1px dashed color-mix(in srgb, #c08a3e 50%, transparent);
+    border: 1px dashed rgb(var(--ad-tint) / .5);
     border-radius: 5px;
+    /* **The tint is flat across the card.** A gradient made the colour a highlight in one
+       corner rather than the notice's own colour, which is what it is for — and with the art
+       fading in from the other side the band had two things fading in opposite directions
+       and no ground of its own anywhere. */
     background:
-        linear-gradient(100deg, rgba(200, 150, 70, .10), transparent 60%),
+        linear-gradient(rgb(var(--ad-tint) / .12), rgb(var(--ad-tint) / .12)),
         var(--blacksmith-tool-surface-sunken);
     text-align: left;
 }
 
 /*
- * **Masked rather than faded with a gradient overlay**, because the row sits on whatever
- * background the shelf has and an overlay would have to match it. A mask takes the picture
- * away instead of painting over it, so the fade is correct on any ground and in either
- * theme. Prefixed as well as not: the unprefixed property is what Chromium wants now, and
- * the prefix costs a line against the version somebody is still running.
+ * **Painted by the band, not carried in an `<img>`.**
+ *
+ * A notice is also a `.merchant-shop-item`, and that class sizes its image to a 38-pixel
+ * icon with `!important` — three of them, because a row's icon column must not move. The
+ * banner's art was fighting that rule and losing: it came out 38 pixels wide and 148 tall,
+ * a sliver of rope standing on end. Painting the picture as a background sidesteps the
+ * argument entirely, and it is the more honest markup anyway — this is decoration, not
+ * content, and the `<img>` was never something a reader was meant to look *at*.
+ *
+ * The URL rides in on `--ad-art`, written inline beside the grid coordinates, because it is
+ * data about this notice rather than a rule about notices.
  */
-.merchant-shop-item-list > .merchant-shop-filler > img {
+.merchant-shop-item-list > .merchant-shop-filler > img { display: none; }
+
+.merchant-shop-item-list > .merchant-shop-filler::before {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
     z-index: 0;
-    width: 52%;
-    height: 100% !important;
-    max-width: none !important;
-    margin: 0;
-    border: 0;
-    border-radius: 0;
-    object-fit: cover;
-    object-position: center;
-    opacity: .55;
-    filter: saturate(.8);
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 62%);
-    mask-image: linear-gradient(to right, transparent, #000 62%);
-    transform: scale(1.25);
-    transform-origin: right center;
+    width: 48%;
+    /* `cover` on a band this wide crops a square icon top and bottom, which is the zoom:
+       what shows is a detail rather than the whole picture shrunk to fit. */
+    background-image: var(--ad-art);
+    background-position: center;
+    background-size: cover;
+    opacity: .5;
+    filter: saturate(.85);
+    /* **A short fade, over the last third at most.** A long one turns the picture into a
+       smear with no edge anywhere; this keeps most of the art at full strength and only
+       softens where the copy might reach it. */
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 28%);
+    mask-image: linear-gradient(to right, transparent, #000 28%);
+    content: '';
 }
 
 /* The copy keeps to the left half, so it never runs into the strong part of the picture. */
@@ -1422,16 +1480,16 @@
     color: var(--blacksmith-tool-accent);
     font-size: .72rem;
     font-style: italic;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .45);
 }
 
 .merchant-shop-item-list > .merchant-shop-filler > p {
     margin: 0;
+    /* No text shadow: this copy sits on the card's own ground rather than on the picture,
+       and a shadow under text with clean paper behind it is decoration for its own sake. */
     color: var(--blacksmith-tool-text-muted);
     font-size: .62rem;
     font-style: italic;
     line-height: 1.3;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .45);
 }
 
 /* The tile shape, which wins inside a wall by being later and more specific. The spans
@@ -1462,7 +1520,7 @@
     margin: 0;
     padding: 8px 9px 9px;
     overflow: hidden;
-    border: 1px dashed color-mix(in srgb, #c08a3e 60%, transparent);
+    border: 1px dashed rgb(var(--ad-tint) / .6);
     border-radius: 5px;
     background: #241f1a;
     text-align: center;
@@ -1494,7 +1552,7 @@
     z-index: 0;
     background:
         linear-gradient(to top, rgba(12, 9, 6, .94) 34%, rgba(12, 9, 6, .34) 72%, rgba(12, 9, 6, .12)),
-        linear-gradient(160deg, rgba(200, 150, 70, .22), transparent 65%);
+        linear-gradient(160deg, rgb(var(--ad-tint) / .3), transparent 65%);
     content: '';
 }
 

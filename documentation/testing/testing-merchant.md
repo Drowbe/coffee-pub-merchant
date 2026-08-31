@@ -1888,5 +1888,10 @@ level onto every existing row; it logs how many.
     open another one: both come back. Full screen does **not** — that is still the GM's per-door setting.
 290. **The wall keeps its sections.** Each shelf is its own wall with its own heading, and nothing
     prints over the shelf below it.
-291. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+291. **A BOINK shop says so.** Tick *A BOINK ring in the back room* on a merchant: the badge appears on
+    its shop card for players as well as the GM, and the shop is offered as a Parcel Portal destination
+    from every other catalogue in the world. Untick it and both go.
+292. **The network advertises itself.** BOINK notices turn up among the shop's own copy, in blue.
+293. **The Sell tab is always a list**, whichever view the Buy tab is in.
+294. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

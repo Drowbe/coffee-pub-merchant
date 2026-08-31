@@ -770,7 +770,7 @@ export const DELIVERY_SERVICES = Object.freeze([
     {
         key: 'portal',
         name: 'Parcel Portal',
-        icon: 'fa-solid fa-ring',
+        icon: 'fa-solid fa-chart-network',
         days: 1,
         feeGp: 150,
         hintKey: 'coffee-pub-merchant.delivery.portalHint'
@@ -817,6 +817,39 @@ export function daysUntil(arrivesAt, now) {
     if (!Number.isFinite(left) || left <= 0) return 0;
     return Math.ceil(left / secondsPerDay());
 }
+
+/**
+ * **The Boundless Order Interplanar Network Keep, which everybody calls BOINK.**
+ *
+ * **The Order is the whole apparatus of shopping at a distance, not one delivery service.**
+ * The rings are the part a party notices, but a catalogue is the Order's too: a book that
+ * knows what a shop three towns away has on its shelves this morning, takes an order, and
+ * has it carried or stepped through to you. A shopkeeper who joins is buying into all of
+ * it — the book, the clerks, the ledger and the ring in the back room — which is why one
+ * flag says the lot and why the badge appears on the shop rather than on a service.
+ *
+ * Naming it turns a capability into an *organisation*: something a party can be impressed
+ * by, suspicious of, indebted to, or thrown out of, none of which a boolean can be.
+ *
+ * **It is still a badge, not a mechanism.** A BOINK shop is exactly a shop carrying
+ * `DELIVERY_POINT.PORTAL`; nothing about delivery or catalogues changes because it has a
+ * name. What the name buys is that the flag is visible to players at all — on the shop's
+ * card and in the advertising — where before it was a GM-side switch whose only evidence
+ * was a destination appearing in a picker once they were already ordering.
+ *
+ * The tone is deliberate. A guild of interplanar teleportation clerks would name itself
+ * something magnificent, and everyone else would shorten it to the thing it spells.
+ */
+export const BOINK = Object.freeze({
+    name: 'Boundless Order Interplanar Network Keep',
+    short: 'BOINK',
+    tagline: 'Have your next purchase BOINKed to you!',
+    /** What a member shop is buying into, in one line, for a tooltip or a hint. */
+    covers: 'Magic catalogues, clerks who know your face, and a ring in the back room.',
+    icon: 'fa-solid fa-ring',
+    /** The network's own colour, for the badge and its advertising. See `--ad-tint`. */
+    tint: 'blue'
+});
 
 /**
  * **Which merchants are delivery points, and it is not all of them.**
@@ -988,6 +1021,12 @@ export const AD_SPANS = Object.freeze([
  * deliberate rather than as a layout that ran out, and it is free characterisation: a shop
  * that nags you about rations is a shop with a voice.
  *
+ * **Each carries a colour as well as a picture.** Eight notices in one warm gold read as one
+ * notice printed eight times; a tint apiece is the cheapest way to make them look like
+ * different advertisements from different hands — which is what they will literally be once
+ * a merchant can buy space. Four colours across eight notices, so each appears twice: enough
+ * variety to break the sameness, few enough that the palette still looks chosen.
+ *
  * **Each carries a picture**, and it is doing the same job the picture on a tile does:
  * telling you what the notice is about before you have read it. Without one an
  * advertisement in a wall of goods is the only tile that is purely words, which reads as a
@@ -1000,41 +1039,61 @@ export const AD_SPANS = Object.freeze([
 export const CATALOGUE_FILLERS = Object.freeze([
     {
         img: 'icons/consumables/food/bowl-stew-brown.webp',
+        tint: 'green',
         title: 'Pack enough rations?',
         body: 'Do not go hungry on your next adventure. Order plenty.'
     },
     {
         img: 'icons/weapons/ammunition/arrows-barbed-white.webp',
+        tint: 'red',
         title: 'Have enough pointy things?',
         body: 'Do not spend your next adventure dead. Stock up.'
     },
     {
         img: 'icons/sundries/lights/lantern-iron-lit-yellow.webp',
+        tint: 'orange',
         title: 'Best deals are in person',
         body: 'Some things never make the catalogue. Visit us.'
     },
     {
         img: 'icons/sundries/survival/rope-wrapped-brown.webp',
+        tint: 'green',
         title: 'Rope. Always rope.',
         body: 'Fifty feet can solve more problems than a sword.'
     },
     {
+        img: 'icons/magic/symbols/runes-star-blue.webp',
+        tint: 'blue',
+        title: 'Have it BOINKed to you',
+        body: 'The Boundless Order Interplanar Network Keep. A ring at both ends, and your parcel steps through it.'
+    },
+    {
+        img: 'icons/magic/symbols/ring-circle-smoke-blue.webp',
+        tint: 'blue',
+        title: 'BOINK it. You know you want to.',
+        body: 'Ask whether this shop keeps a ring. The ones that do never stop mentioning it.'
+    },
+    {
         img: 'icons/containers/chest/chest-simple-box-brown.webp',
+        tint: 'blue',
         title: 'A word on delivery',
         body: 'Beasts finds you for delivery. Otherwise, pick it up.'
     },
     {
         img: 'icons/sundries/lights/torch-brown-lit.webp',
+        tint: 'orange',
         title: 'Torches by the dozen',
         body: 'The dark is free. Seeing in it is not.'
     },
     {
         img: 'icons/containers/barrels/barrel-walnut-steel-brown.webp',
+        tint: 'blue',
         title: 'Ask about bulk',
         body: 'Parties who order together pay one delivery, not four.'
     },
     {
         img: 'icons/tools/nautical/diving-helmet.webp',
+        tint: 'red',
         title: 'Nothing here you want?',
         body: 'What is printed is what we ship. Maybe visit us.'
     }

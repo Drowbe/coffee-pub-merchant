@@ -1225,6 +1225,13 @@ drop them. A parcel is a packed container by definition, so the contents are cre
   hold a Ground parcel for collection) and `deliveryPortal` (there is a ring in the back room). Both are
   offers a shopkeeper is making, so both live on the shop, and both are off until a GM says otherwise: a
   pedlar on a road is neither.
+- *Is it on the network?* `deliveryPortal` is membership of **BOINK** — the Boundless Order Interplanar
+  Network Keep — the same flag it always was with a name on it. Naming it turns a capability into an
+  organisation: something a party can be impressed by, indebted to, or thrown out of, none of which a
+  boolean can be. **A badge, not a mechanism** — a BOINK shop is exactly a shop carrying the flag and
+  nothing about delivery changed. What the name buys is that the flag is now *visible to players*, on the
+  shop's card and in the advertising, where its only previous evidence was a destination quietly appearing
+  in a picker once they were already ordering.
 - *Where else can a parcel go?* Two **world settings**, `deliveryPlacesPhysical` and `deliveryPlacesPortal`,
   free text one place per line. An inn, a guard post, a name the party made up — none of which is a
   document, and requiring one would be requiring a GM to build a shop for a hole in a wall.

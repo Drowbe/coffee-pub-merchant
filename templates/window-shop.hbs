@@ -76,6 +76,14 @@
                                       expected is the town, not the shopkeeper, and a
                                       player should be able to tell which. --}}
                                 {{#if marketLabel}}<span><i class="fa-solid fa-scale-balanced"></i> {{marketLabel}}</span>{{/if}}
+                                {{!-- The one line on this row that is a *membership* rather
+                                      than a fact about the shop, so it wears the network's
+                                      own colour rather than the card's. --}}
+                                {{#if boink}}
+                                    <span class="merchant-shop-boink" data-tooltip="{{boinkTooltip}}">
+                                        <i class="{{boinkIcon}}"></i> {{boinkLabel}}
+                                    </span>
+                                {{/if}}
                             </div>
                             {{/unless}}
                         </div>
@@ -440,8 +448,8 @@
                                 <div class="merchant-shop-item-list">
                                     {{#each spread.entries}}
                                         {{#if isFiller}}
-                                            <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}"
-                                                 style="{{gridStyle}}">
+                                            <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}{{#if tint}} is-{{tint}}{{/if}}"
+                                                 style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}">
                                                 {{#if img}}<img src="{{img}}" alt="">{{/if}}
                                                 <strong>{{title}}</strong>
                                                 <p>{{body}}</p>
@@ -463,8 +471,8 @@
                                                       a list are the same object in two
                                                       shapes; the class differs so each can
                                                       be the right shape. --}}
-                                                <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}"
-                                                     style="{{gridStyle}}">
+                                                <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}{{#if tint}} is-{{tint}}{{/if}}"
+                                                     style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}">
                                                     {{#if img}}<img src="{{img}}" alt="">{{/if}}
                                                     <strong>{{title}}</strong>
                                                     <p>{{body}}</p>

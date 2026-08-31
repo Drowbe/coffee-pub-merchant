@@ -6,7 +6,7 @@ import {
     MODULE, ITEM_CATEGORIES, formatHour, shopKind, isAlwaysOpen, isAlwaysClosed, isUnpriced, isPurchased,
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
     opensFullScreen,
-    DEFAULT_DELIVERY_SERVICE, arrivalTime,
+    DEFAULT_DELIVERY_SERVICE, arrivalTime, DELIVERY_POINT, BOINK,
     isCatalogue,
     cardSize, cardBlurb,
     paginateCards, adsIntoList, layoutWall
@@ -394,6 +394,25 @@ function morphChildren(from, to) {
         cursor = cursor.nextSibling;
         spent.remove();
     }
+}
+
+/**
+ * A notice's picture, as a value CSS can use.
+ *
+ * **Resolved against the server root, not the stylesheet.** The banner paints its art from
+ * a custom property, and a relative `url()` in CSS resolves against the *stylesheet* --
+ * so `icons/foo.webp` written inline in the HTML was fetched from `styles/icons/foo.webp`
+ * and 404'd eight times over. `getRoute` is Foundry's own answer and also handles a server
+ * hosted under a path prefix, which a hand-written leading slash would not.
+ *
+ * Unquoted deliberately: Handlebars escapes quotes in an attribute, which would turn a
+ * quoted `url()` into `url(&#x27;...&#x27;)` and break it. A path has nothing in it that
+ * needs quoting.
+ */
+function adArt(img) {
+    if (!img) return '';
+    const route = foundry.utils.getRoute?.(img) ?? `/${img}`;
+    return `url(${route})`;
 }
 
 /**
@@ -977,7 +996,13 @@ const ShopBehaviour = (Base) => class extends Base {
         const buyback = merchant ? this._purchasedInventory(merchant) : null;
         const sort = this.sellSort;
 
-        if (!this._selling) return { open: false };
+        // **A catalogue never sells, so it can never be on the selling side.** Stated here
+        // rather than only where the tab is switched, because there are three ways into
+        // catalogue mode -- the Item, the GM's toggle, and a window reopened in it -- and a
+        // guard on one of them is a guard on one of them. Toggling to the catalogue while
+        // the Sell tab was open used to load a selling catalogue: a side of the window that
+        // has no rows, no actions and no meaning.
+        if (!this._selling || this.catalogueMode) return { open: false };
         if (!seller || !buyback) {
             return {
                 open: true,
@@ -2008,12 +2033,14 @@ const ShopBehaviour = (Base) => class extends Base {
                                     items: wall.map((entry) => ({
                                         ...entry,
                                         isAd: entry.kind === 'filler',
-                                        gridStyle: gridStyle(entry)
+                                        gridStyle: gridStyle(entry),
+                                        art: adArt(entry.img)
                                     }))
                                 };
                             }
 
-                            const rows = adsIntoList(category.items, { every: 7, offset: adOffset });
+                            const rows = adsIntoList(category.items, { every: 7, offset: adOffset })
+                                .map((row) => (row.isAd ? { ...row, art: adArt(row.img) } : row));
                             adOffset += rows.length - category.items.length;
                             return { ...category, items: rows };
                         })
@@ -2137,6 +2164,15 @@ const ShopBehaviour = (Base) => class extends Base {
             // the world \u2014 but a player looking at a bill twice what they expected
             // deserves to know it is the town rather than the shopkeeper.
             marketLabel: marketShortLabel(this.market),
+            // **A shop on the network says so.** The portal flag was GM-side and invisible:
+            // its only evidence to a player was a destination quietly appearing in a picker
+            // once they were already ordering. A shop that has paid a guild for a ring in
+            // the back room would put that on the door, and a party who learn to look for
+            // the badge have learned something the module never had to explain.
+            boink: !missing && config?.[DELIVERY_POINT.PORTAL] === true,
+            boinkLabel: BOINK.short,
+            boinkIcon: BOINK.icon,
+            boinkTooltip: `${BOINK.name}. ${BOINK.covers} ${BOINK.tagline}`,
             // The party's standing here, said where the shopping happens rather than
             // in the settings window. Absent when the shop has not opted in, or when
             // the standing is neutral and there is nothing to report.
@@ -3416,8 +3452,18 @@ const ShopBehaviour = (Base) => class extends Base {
         void this.render(false);
     }
 
-    /** Whether the shelves are drawn as tiles: a catalogue always is, a shop when asked. */
+    /**
+     * Whether the shelves are drawn as tiles: a catalogue always is, a shop when asked.
+     *
+     * **Never on the selling side.** The wall is a way of looking at *stock* -- pictures of
+     * things a shop has, laid out to be browsed. Your own pack is a list you are picking
+     * from, one line at a time, and the class was on the window rather than on the shelves,
+     * so switching to the wall turned the sell tab into a grid of icons with the prices
+     * sliced off. The toggle is not even reachable from that tab; the view should not follow
+     * you there either.
+     */
     get isTiled() {
+        if (this._selling) return false;
         return this.catalogueMode || this._tiles;
     }
 
@@ -3465,6 +3511,7 @@ const ShopBehaviour = (Base) => class extends Base {
             entries: (pages[page] ?? []).map((entry) => ({
                 ...entry,
                 isFiller: entry.kind === 'filler',
+                art: adArt(entry.img),
                 // **The position, written onto the tile.** The layout decided where every
                 // tile goes and filled what was left; letting the browser place them again
                 // from spans alone would be a second opinion, and the holes the fillers
@@ -3507,14 +3554,23 @@ const ShopBehaviour = (Base) => class extends Base {
     _destinationOptions() {
         const places = destinationsFor(this.service);
         if (places === null) return null;
-        // The first is the default rather than a blank row: an order with nowhere to go is
-        // not a state worth being able to reach through the picker.
-        if (!this.destination && places.length) this.destination = places[0];
-        return places.map((place) => ({
-            value: place,
-            label: place,
-            selected: place === this.destination
-        }));
+
+        // **Nothing is chosen for them.** The first place used to be selected by default,
+        // so a party who never opened the picker had their goods sent wherever the list
+        // happened to start -- alphabetically, so usually somewhere they had never heard of.
+        // Where a parcel goes is a decision, and a decision nobody made is not one.
+        return [
+            {
+                value: '',
+                label: game.i18n.localize('coffee-pub-merchant.delivery.choose'),
+                selected: !this.destination
+            },
+            ...places.map((place) => ({
+                value: place,
+                label: place,
+                selected: place === this.destination
+            }))
+        ];
     }
 
     /**
@@ -3534,6 +3590,14 @@ const ShopBehaviour = (Base) => class extends Base {
         const lines = [...this.cart].map(([itemId, quantity]) => ({ itemId, quantity }));
         if (!lines.length) {
             notify.warn(game.i18n.localize('coffee-pub-merchant.refuse.catalogueEmpty'));
+            return;
+        }
+
+        // A service that asks for a place has to be given one. The GM side refuses an
+        // address it does not recognise, so an order sent without one arrives with a blank
+        // label -- correct, and useless to everybody.
+        if (destinationsFor(this.service) !== null && !this.destination) {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.delivery.chooseFirst'));
             return;
         }
 
@@ -3593,6 +3657,9 @@ const ShopBehaviour = (Base) => class extends Base {
     toggleCatalogueView() {
         if (!game.user.isGM) return;
         this.catalogueMode = !this.catalogueMode;
+        // Back to the counter's own side on the way in *and* on the way out: leaving a
+        // catalogue should put a GM where they started, not on a tab they never chose.
+        this._selling = false;
         this._page = 0;
         if (this.cart.size) {
             this.cart.clear();

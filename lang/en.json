@@ -197,8 +197,8 @@
             "doorCatalogue": "Catalogue",
             "deliveryPhysical": "Parcels can be collected here",
             "deliveryPhysicalHint": "This shop will hold a Ground parcel until somebody comes for it, so it is offered as a place other shops can deliver to.",
-            "deliveryPortal": "There is a portal ring in the back room",
-            "deliveryPortalHint": "Parcel Portal can send to this shop and from it, so it is offered as a place other shops can deliver to.",
+            "deliveryPortal": "A member of BOINK",
+            "deliveryPortalHint": "The Boundless Order Interplanar Network Keep: magic catalogues, clerks who know your face, and a ring in the back room. Members show the BOINK badge on their card, can be sent to and from by Parcel Portal, and are offered as a destination anywhere in the world.",
             "deliveryPoints": "Deliveries",
             "deliveryPlacesNote": "Places that are not shops — an inn, a guild hall, a name the party made up — are a list for the whole world, in Settings under Merchant → Mail Order. One list serves every shop, so there is nothing to retype here."
         },
@@ -596,14 +596,14 @@
         "catalogue": {
             "itemName": "Catalogue: {shop}",
             "activity": "Consult",
-            "blurb": "Consult this to browse the merchant’s stock from wherever you are reading it.",
+            "blurb": "Consult it to open the shop from wherever you are reading. A BOINK catalogue knows what is on the shelves this morning.",
             "open": "Open Merchant",
             "printed": "Printed {name}. Drag it from the Items directory to whoever should have it."
         },
         "delivery": {
             "groundHint": "Carts and barges. Cheapest, slowest, and you collect it yourself.",
             "beastHint": "Something with wings that knows your face. It brings the parcel to you.",
-            "portalHint": "A guild with a ring on both ends. Next to no time, and priced accordingly.",
+            "portalHint": "BOINK: a ring at both ends and a clerk who has seen your face before. Next to no time, and priced accordingly.",
             "service": "Delivery",
             "fee": "Delivery",
             "arrives": "Arrives in {days} days",
@@ -627,8 +627,8 @@
                 "placesPhysical": "Places a Ground parcel can be collected",
                 "placesPhysicalHint": "Somewhere a cart can leave a crate that is not a shop. Every shop marked \"parcels can be collected here\" is offered as well.",
                 "placesPhysicalPlaceholder": "One place per line — an inn, a guard post, a warehouse the party rent. Whatever you write here is what a buyer picks from when they choose Ground delivery.",
-                "placesPortal": "Places on the portal network",
-                "placesPortalHint": "Somewhere with a ring that is not a shop. Every shop marked as having a portal ring is offered as well.",
+                "placesPortal": "Places on the BOINK network",
+                "placesPortalHint": "Somewhere with a ring that is not a shop. Every shop with a BOINK ring in the back room is offered as well.",
                 "placesPortalPlaceholder": "One place per line — a guild hall, a tower, a ring the party found. Whatever you write here is what a buyer picks from when they choose Parcel Portal.",
                 "crateDeposit": "Crate deposit (gp)",
                 "crateDepositHint": "What a shop charges for the box, refunded when it is sent back. One crate holds 50 lb, so a heavy order needs several."
@@ -638,7 +638,7 @@
             "noPhysical": "No shop in this world takes parcels for collection yet.",
             "noPortal": "No shop in this world is on the portal network yet.",
             "instructions": "Special instructions",
-            "instructionsPlaceholder": "Anything the courier should know — where to leave it, who to ask for, care of whom, a name that is not yours. It is written on the parcel and nobody checks it.",
+            "instructionsPlaceholder": "Special instructions…",
             "manifestWhere": "To: {where}",
             "manifestInstructions": "Instructions: {note}",
             "noReceipt": "The order was paid for but no receipt could be created for {who}. Nothing will arrive on its own. It was: {goods}",
@@ -673,7 +673,9 @@
             "collected": "You collected your parcel from {shop} at {where}.",
             "inPack": "In your pack — open the crate to unpack it",
             "crateSpec": "Shipping Crate — {empty} lb empty, holds {holds} lb",
-            "depositBack": "{deposit} deposit returned"
+            "depositBack": "{deposit} deposit returned",
+            "choose": "Choose delivery location…",
+            "chooseFirst": "Choose where this order should be delivered."
         },
         "transit": {
             "heading": "In the post",
