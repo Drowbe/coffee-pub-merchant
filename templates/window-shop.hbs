@@ -278,12 +278,20 @@
                 {{#unless catalogue}}
                 <section class="merchant-shop-section merchant-shop-search{{#if sell.open}} is-hidden{{/if}}">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="search" placeholder="{{localize "coffee-pub-merchant.shop.searchStock"}}" aria-label="{{localize "coffee-pub-merchant.shop.searchStockLabel"}}"
-                           data-shop-search autocomplete="off" spellcheck="false">
-                    <button type="button" class="merchant-shop-search-clear" data-shop-search-clear
-                            data-tooltip="{{localize "coffee-pub-merchant.shop.clearSearch"}}" hidden>
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    {{!-- **The clear sits inside the box**, which is where every search
+                          field anybody has used puts it. Outside, it was a third button in
+                          a row of buttons, and a reader had to work out which one undid the
+                          typing. A wrapper because the field has to be the positioning
+                          parent: the row's right-hand edge belongs to the sort and view
+                          controls, not to the input. --}}
+                    <span class="merchant-shop-search-field">
+                        <input type="search" placeholder="{{localize "coffee-pub-merchant.shop.searchStock"}}" aria-label="{{localize "coffee-pub-merchant.shop.searchStockLabel"}}"
+                               data-shop-search autocomplete="off" spellcheck="false">
+                        <button type="button" class="merchant-shop-search-clear" data-shop-search-clear
+                                data-tooltip="{{localize "coffee-pub-merchant.shop.clearSearch"}}" hidden>
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </span>
                     <button type="button" class="merchant-shop-search-sort" data-action="sortStock"
                             data-tooltip="{{stockSortTooltip}}">
                         <i class="{{stockSortIcon}}"></i>

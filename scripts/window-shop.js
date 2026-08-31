@@ -3082,7 +3082,13 @@ const ShopBehaviour = (Base) => class extends Base {
 
     /** One pass over the rendered list. See `filterShopList`. */
     _applyFilter() {
-        if (this.element) filterShopList(this.element, this._search);
+        if (!this.element) return;
+        // **A catalogue has no search box, so it has no search.** The query survives on the
+        // window while the box comes and goes with the view, and a filter left running
+        // behind a control nobody can see emptied the catalogue with no way to say why --
+        // toggling back to the counter and clearing the box was the only cure, which is a
+        // thing to discover rather than to do.
+        filterShopList(this.element, this.catalogueMode ? '' : this._search);
     }
 
     /**
