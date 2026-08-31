@@ -650,6 +650,10 @@ const ShopBehaviour = (Base) => class extends Base {
         // being the shop by post. Carried on the window rather than derived, because it is a
         // fact about how the door was opened.
         this.catalogueMode = options.catalogue === true;
+        // Carried across a shell swap for the reason the catalogue is: which side of the
+        // counter you are on is a fact about the window, and losing it when the window
+        // changes shape is the window forgetting where you were.
+        this._selling = options.selling === true;
         this.service = DEFAULT_DELIVERY_SERVICE;
         // Where it goes and anything asked for on the way. Per window, not persisted: an
         // order is a thing you are filling in, and a half-written note is not worth keeping.
@@ -3431,7 +3435,12 @@ const ShopBehaviour = (Base) => class extends Base {
     async toggleExpand() {
         const next = !this.isExpanded;
         const subject = this._subject;
-        const options = this._openOptions;
+        // **The options it was opened with, plus the view it is in now.** A shell swap
+        // rebuilds the window from the options of the *original* open -- so a GM who
+        // toggled to the catalogue and then pressed Full Screen got a full-screen counter,
+        // because the options still said counter. Which view you are looking at is a fact
+        // about the window in front of you, not about how it was first opened.
+        const options = { ...this._openOptions, catalogue: this.catalogueMode, selling: this._selling };
 
         // **No door slam on the way through.** Closing one shell and opening the other
         // would play the closing sound and then the opening one, every time somebody
