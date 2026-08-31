@@ -1895,5 +1895,14 @@ level onto every existing row; it logs how many.
 293. **The Sell tab is always a list**, whichever view the Buy tab is in.
 294. **Search the wall.** The survivors pack up together with no gaps, advertisements drop out, and
     clearing the box restores the printed layout exactly as it was.
-295. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+295. **Orders in Transit opens** from the shop window's header, GM only, and lists every pending
+    consignment: who, from where, what is in it, the service, the destination, what it cost, and any
+    instructions. Three states are distinguishable — in transit, arriving, waiting to be collected.
+296. **Hand it over now** from that window delivers exactly as collecting at the counter does, including
+    the player's toast, and the row disappears.
+297. **The window keeps up**: a parcel landing on the clock, one handed over and one struck off each
+    redraw it while it is open.
+298. **The wall and the counter survive a shell swap.** In the catalogue, press Full Screen: it opens
+    full screen *in the catalogue*. Same for the Sell tab.
+299. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

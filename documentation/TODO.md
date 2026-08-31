@@ -29,10 +29,20 @@ will expire.**
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
 2026-08-28 and reads well, so the stage two that entry held open is not wanted.
 
-What is left is the catalogue, which shipped as *the shop reached from elsewhere* and is becoming something
-larger: **mail order** — a catalogue shelf type whose stock is a warehouse rather than a counter, three
-delivery services, a receipt that becomes the parcel it was promising, and a party who will find uses for
-all of it that nobody planned. Phase 1 designed on 2026-08-29 and written up below.
+**Phase 1 of mail order is done and played.** Designed 2026-08-29, built the same night, and taken end to
+end on 2026-08-30: order, carriage, crate deposit, a parcel that waits at its destination, a GM who says
+whether the party are standing there, collection, unpacking, and the crate going back for its deposit. What
+came with it and was not in the original plan:
+
+- **Orders in Transit** (`window-deliveries.js`), the GM's view of everything in the post, with *hand it
+  over now* and *strike it off, and here is what they paid*.
+- **The crate as a real object** — 5 lb, 50 lb of capacity, 5 gp — so a heavy order needs several, which is
+  arithmetic the party are charged for and `tests/test-mail.mjs` pins down.
+- **The wall**: the catalogue's tiled layout offered for ordinary shelves too, with the placement computed
+  rather than left to CSS so the shop's own advertising can be cut to the holes. `tests/test-cards.mjs`.
+- **BOINK**, which named the portal network and turned a flag into an organisation.
+
+What is left is below: selling by post, and advertising as a system.
 
 **One open ask with Blacksmith**, recorded in `architecture/architecture-merchant.md` §16 with what to
 delete when it lands. Two others closed on 2026-08-28 — the uncurated-compendium one by Merchant scanning

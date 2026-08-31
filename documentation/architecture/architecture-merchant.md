@@ -1322,6 +1322,94 @@ everything else about them is fiction the GM narrates. See `../TODO.md` §1.
 
 ---
 
+## 12b. Orders in transit
+
+`scripts/window-deliveries.js` — **the one place that says what the world owes.**
+
+Mail order scatters its state deliberately: a consignment lives on the receipt, and the receipts are the
+queue. That is the right *storage* — it survives a session, a deleted merchant and a rewound clock — and a
+terrible *view*. Answering "did that order ever land?" meant opening every character sheet in the party and
+looking for a piece of paper.
+
+This reads the same durable state the courier does, `pendingConsignments()`, and lays it out. Nothing is
+stored and nothing is cached: the window is a lens, and closing it loses nothing.
+
+**Three states, not two.** In transit; landed and coming to them (a beast still chasing a moving target);
+landed and *waiting to be collected*, which is the one a GM is usually hunting for — a crate on a shelf
+three towns away that nobody has walked in for.
+
+**Two actions, because everything else is already a thing you can do to an Item.** A receipt can be deleted,
+moved, renamed or handed to another character by dragging; rebuilding those here would be a second way to do
+them, free to disagree with the first. What is *not* reachable that way is striking an order off and
+deciding the party have collected it — and the second calls `MerchantManager.handOver`, the same method the
+collection dialog's *yes* branch calls, so a parcel handed over from this window and one handed over at the
+counter are the same event.
+
+**Cancelling asks about the money**: refund what was paid, keep it, or do neither. The module used to refuse
+the question and refund nothing, on the grounds that the decision belongs to the table. It does — which is
+an argument for asking rather than for deciding on the GM's behalf. Nothing is taken from the merchant: the
+shop's half of a mail order is fiction, and a refund that failed because a business closed would be a worse
+answer than one that simply happens.
+
+---
+
+## 12c. The wall, the page, and the shop's own advertising
+
+`scripts/const.js` (`layoutTiles`, `fillWithAds`, `paginateCards`, `layoutWall`, `adsIntoList`),
+`tests/test-cards.mjs`.
+
+**Two ways to read the same shelves.** A list is for finding a named thing among sixty; a wall is for seeing
+what a shop has, which is a different question. A toggle beside the search switches every section between
+them — same shelves, same headings, same counts, nothing filtered. A catalogue is *always* a wall, and never
+offers the choice: a printed catalogue that could be shown as a list would not be a catalogue.
+
+**A catalogue has pages; a shelf does not.** Paginating a shelf would hide stock behind a control in the
+window whose whole job is showing what is in the shop. So a wall grows downward on fixed-height rows, and a
+page divides the height it has been given into four.
+
+### The layout is computed, not delegated
+
+`grid-auto-flow: dense` does very nearly what is wanted: it walks the grid in reading order and drops each
+tile in the first place it fits. What it cannot do is **say what it did** — and the holes were the whole
+problem, being exactly the cells the browser knew about and the module did not.
+
+Counting cells was never enough. Twelve cells of goods can still leave a two-by-two gap that no remaining
+tile fits, which is why pages ended ragged and why the advertising bunched at the end of the last one. So
+`layoutTiles` places every tile itself, in that same first-fit order, and reports the free cells;
+`fillWithAds` cuts notices to them, largest shape first, so a big gap becomes one notice rather than four.
+The one-by-one shape fits any single cell, which is what makes "no page has a hole in it" a guarantee rather
+than an aspiration.
+
+Positions are written onto the tiles as explicit grid coordinates, so what the browser draws is what was
+planned rather than a second opinion about it. `tests/test-cards.mjs` renders each page back into a grid of
+characters and fails on any `.`.
+
+**Every page carries at least one advertisement.** A page that filled exactly hands its last tile to the
+next page to make the room, because a catalogue where the shop's voice appears only on the final page is not
+a catalogue.
+
+### One notice, two shapes
+
+A wall packs and leaves gaps, so a notice fills one. A list has no gaps, so a notice *interrupts* it every
+seventh row the way a classified interrupts a column of listings — spaced rather than random, because random
+clusters, and never last, because the bottom of a shelf is where a reader has already stopped looking.
+
+In a wall the art fills the tile with the copy over a gradient, built exactly as a card is; in a list it is a
+band with the picture bled into the right-hand side and masked out across the middle. Each notice carries a
+**tint** — one custom property as an RGB triplet, mixed at three strengths for the edge, the wash and the
+ground — which colours *the card and never the words*: an orange headline on pale orange paper is the one
+thing a headline may not be.
+
+**Searching a wall repacks it.** Explicit coordinates mean hiding half the tiles leaves the rest where they
+were, so while a search runs the coordinates come off and only the spans remain, letting `dense` pull the
+survivors together. Clearing the box restores the printed layout — the one the advertising was cut for.
+Notices are excluded from a search outright: an advertisement has nothing to match on.
+
+This is where advertising *becomes* a system in phase 2 — bought space, an Ad Manager, the newspaper. The
+two shapes and the placement are already what a bought notice will render as. See `../TODO.md`.
+
+---
+
 ## 13. The token marker
 
 A merchant token is visibly a merchant, and visibly *what kind*, without anyone double-clicking to find out.
