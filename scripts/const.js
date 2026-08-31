@@ -770,7 +770,7 @@ export const DELIVERY_SERVICES = Object.freeze([
     {
         key: 'portal',
         name: 'Parcel Portal',
-        icon: 'fa-solid fa-chart-network',
+        icon: 'fa-solid fa-ring',
         days: 1,
         feeGp: 150,
         hintKey: 'coffee-pub-merchant.delivery.portalHint'
@@ -846,7 +846,7 @@ export const BOINK = Object.freeze({
     tagline: 'Have your next purchase BOINKed to you!',
     /** What a member shop is buying into, in one line, for a tooltip or a hint. */
     covers: 'Magic catalogues, clerks who know your face, and a ring in the back room.',
-    icon: 'fa-solid fa-ring',
+    icon: 'fa-solid fa-chart-network',
     /** The network's own colour, for the badge and its advertising. See `--ad-tint`. */
     tint: 'blue'
 });

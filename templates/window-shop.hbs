@@ -449,7 +449,7 @@
                                     {{#each spread.entries}}
                                         {{#if isFiller}}
                                             <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}{{#if tint}} is-{{tint}}{{/if}}"
-                                                 style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}">
+                                                 style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}"{{#if gridPlace}} data-place="{{gridPlace}}"{{/if}}>
                                                 {{#if img}}<img src="{{img}}" alt="">{{/if}}
                                                 <strong>{{title}}</strong>
                                                 <p>{{body}}</p>
@@ -472,7 +472,7 @@
                                                       shapes; the class differs so each can
                                                       be the right shape. --}}
                                                 <div class="merchant-shop-item merchant-shop-filler{{#if size}} is-{{size}}{{/if}}{{#if tint}} is-{{tint}}{{/if}}"
-                                                     style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}">
+                                                     style="{{gridStyle}}{{#if art}};--ad-art:{{art}}{{/if}}"{{#if gridPlace}} data-place="{{gridPlace}}"{{/if}}>
                                                     {{#if img}}<img src="{{img}}" alt="">{{/if}}
                                                     <strong>{{title}}</strong>
                                                     <p>{{body}}</p>

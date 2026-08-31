@@ -1893,5 +1893,7 @@ level onto every existing row; it logs how many.
     from every other catalogue in the world. Untick it and both go.
 292. **The network advertises itself.** BOINK notices turn up among the shop's own copy, in blue.
 293. **The Sell tab is always a list**, whichever view the Buy tab is in.
-294. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
+294. **Search the wall.** The survivors pack up together with no gaps, advertisements drop out, and
+    clearing the box restores the printed layout exactly as it was.
+295. **Full-screen doors untick.** Merchant Settings → turn *Catalogue* off with another door left on,
     reopen Settings: it is still off, and the catalogue opens windowed.

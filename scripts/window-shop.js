@@ -88,6 +88,30 @@ async function _enrich(text) {
  * @returns {number} how many rows are visible
  */
 export function filterShopList(root, query) {
+    /**
+     * **A searched wall repacks itself; a placed wall does not.**
+     *
+     * Every tile carries explicit grid coordinates, because the layout works out where each
+     * one goes so it can cut advertising to fit the holes it leaves. Hiding half of them
+     * leaves the other half exactly where they were -- which is what a search looked like:
+     * two swords marooned in a field of empty cells, one of them four rows down.
+     *
+     * While a search is running the coordinates come off and the tiles keep only their
+     * spans, so the browser's own `dense` packing shuffles the survivors up together.
+     * Clearing the box puts the printed layout straight back -- which matters, because that
+     * layout is the one the advertising was cut for.
+     *
+     * The placement is read back from `data-place` rather than held in a variable: the list
+     * is rebuilt on every render, and a variable would be describing tiles that no longer
+     * exist.
+     */
+    const repackTiles = (inventory, needle) => {
+        for (const tile of inventory.querySelectorAll('.merchant-shop-item[data-place]')) {
+            const [col, row, w, h] = tile.dataset.place.split(' ');
+            tile.style.gridColumn = needle ? `span ${w}` : `${col} / span ${w}`;
+            tile.style.gridRow = needle ? `span ${h}` : `${row} / span ${h}`;
+        }
+    };
     if (!root) return 0;
     const needle = (query ?? '').trim().toLowerCase();
 
@@ -102,13 +126,20 @@ export function filterShopList(root, query) {
         for (const category of inventory.querySelectorAll('.merchant-shop-category')) {
             let categoryVisible = 0;
             for (const row of category.querySelectorAll('.merchant-shop-item')) {
-                const hit = !needle || (row.dataset.search ?? '').includes(needle);
+                // **An advertisement is not a search result.** It has nothing to match on,
+                // and a notice sitting among four filtered rows reads as one of them.
+                const advert = row.classList.contains('merchant-shop-filler');
+                const hit = !needle || (!advert && (row.dataset.search ?? '').includes(needle));
                 row.hidden = !hit;
-                if (hit) categoryVisible++;
+                // Notices are not counted either way: a shelf whose only survivor is an
+                // advertisement is an empty shelf.
+                if (hit && !advert) categoryVisible++;
             }
             category.hidden = categoryVisible === 0;
             inventoryVisible += categoryVisible;
         }
+
+        repackTiles(inventory, needle);
 
         // An empty inventory keeps its "nothing on this inventory" line when nobody is
         // searching, and gets out of the way when somebody is.
@@ -426,6 +457,17 @@ function adArt(img) {
 function gridStyle(entry) {
     if (!entry?.col || !entry?.row) return '';
     return `grid-column:${entry.col}/span ${entry.w};grid-row:${entry.row}/span ${entry.h}`;
+}
+
+/**
+ * The same placement as four numbers, for the filter to put back afterwards.
+ *
+ * A style attribute is for the browser and a data attribute is for us; parsing the one to
+ * recover the other would be reading our own output back.
+ */
+function gridPlace(entry) {
+    if (!entry?.col || !entry?.row) return '';
+    return `${entry.col} ${entry.row} ${entry.w} ${entry.h}`;
 }
 
 const ShopBehaviour = (Base) => class extends Base {
@@ -2034,6 +2076,7 @@ const ShopBehaviour = (Base) => class extends Base {
                                         ...entry,
                                         isAd: entry.kind === 'filler',
                                         gridStyle: gridStyle(entry),
+                                        gridPlace: gridPlace(entry),
                                         art: adArt(entry.img)
                                     }))
                                 };
@@ -3512,6 +3555,7 @@ const ShopBehaviour = (Base) => class extends Base {
                 ...entry,
                 isFiller: entry.kind === 'filler',
                 art: adArt(entry.img),
+                gridPlace: gridPlace(entry),
                 // **The position, written onto the tile.** The layout decided where every
                 // tile goes and filled what was left; letting the browser place them again
                 // from spans alone would be a second opinion, and the holes the fillers
@@ -3521,7 +3565,9 @@ const ShopBehaviour = (Base) => class extends Base {
                 // entry around it is this function's bookkeeping and never reaches a
                 // template.
                 gridStyle: gridStyle(entry),
-                item: entry.item ? { ...entry.item, gridStyle: gridStyle(entry) } : entry.item
+                item: entry.item
+                    ? { ...entry.item, gridStyle: gridStyle(entry), gridPlace: gridPlace(entry) }
+                    : entry.item
             })),
             page: page + 1,
             pageCount: pages.length,
