@@ -7,7 +7,6 @@
 | What shipped, and why | `CHANGELOG.md` |
 | How the system works | `architecture/architecture-merchant.md` |
 | The conventions this codebase follows | `../CONTRIBUTING.md` |
-| What to verify at a table | `../testing/testing-merchant.md` |
 | What is broken and not yet fixed | `known-issues.md` |
 | How to use Merchant at a table | `userguides/` |
 | Decisions taken unattended, and their review | `plans/plan-decisions-to-review.md` |

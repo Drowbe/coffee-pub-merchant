@@ -147,8 +147,9 @@ the lock, the trading-hours derivation, stock depth, the search filter. **If you
 test it** — that is what makes it worth having extracted.
 
 Be honest about what this does and does not prove. `node --check` will happily pass a variable referenced
-out of scope; only opening the window catches that. Tests here are a floor, not a ceiling, and
-`testing/testing-merchant.md` is the rest of it.
+out of scope; only opening the window catches that. Tests here are a floor, not a ceiling. The rest is
+walking the change at a table -- and when a run turns up work that has shipped unproven, a `testing/`
+document at the repository root is where it is written down until it is discharged.
 
 ---
 

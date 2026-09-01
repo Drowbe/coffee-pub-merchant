@@ -158,6 +158,5 @@ whole world, with the ability to hand a parcel over early or strike an order off
 [Known issues](../known-issues.md) lists what does not work yet.
 [Architecture](../architecture/architecture-merchant.md) is for changing Merchant rather than using it.
 
-The screenshots above are from a running world, and the labels in this guide were re-read against them.
-Two sections have not been walked with a screenshot yet -- turning an Actor into a shop, and filling a
-shelf -- so if a label there does not match what you see, that is a bug worth reporting.
+The screenshots above are from a running world, and every label in this guide was read back against
+them. If one does not match what you see on screen, that is a bug worth reporting.

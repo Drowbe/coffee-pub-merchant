@@ -285,10 +285,9 @@ which cannot act says why on hover.
 
 **Status: CLOSED as a decision.** Since promoted to a general rule in `CONTRIBUTING.md` §5.
 
-**The concurrency risk it names is still open, and is a testing item rather than a decision.** Two players
-racing for the last unit is the one thing here that a single-GM development world cannot exercise, and
-`testing/testing-merchant.md` carries a specific check for it. The lock is sound in reasoning — exactly one
-GM client handles requests — but reasoning is not the same as having seen it.
+**The concurrency risk it names is a testing item rather than a decision.** Two players racing for the
+last unit is the one thing here that a single-GM development world cannot exercise. The lock is sound in
+reasoning — exactly one GM client handles requests — but reasoning is not the same as having seen it.
 
 Zero stock is checked on the GM as well as in the window. This follows the standing rule — *a setting that
 hides a control must also refuse the request* — and it is what makes two players racing for the last unit
