@@ -6,6 +6,10 @@ Shops for Foundry VTT: mark an Actor as a merchant and their token becomes a sho
 into. They browse the shelves, put what they are buying and selling on one slate, and settle the whole
 thing in a single press. Merchant is part of the Coffee Pub suite and requires Coffee Pub Blacksmith.
 
+![A shop open full screen: the merchant's catalogue as a wall of illustrated tiles with prices, and the
+buyer's slate down the right with delivery service, destination and running
+total](assets/merchant-catalogue-fullscreen.webp)
+
 This page routes. Each section points at the document that answers the question rather than answering it
 here.
 

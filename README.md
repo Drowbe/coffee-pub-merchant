@@ -8,6 +8,13 @@ Mark an Actor as a merchant and their token becomes a shop. Your players double-
 shelves, put what they are buying and selling on one slate, and settle the whole thing in a single
 press.
 
+![A shop open full screen: the merchant's catalogue as a wall of illustrated tiles with prices, and the
+buyer's slate down the right with delivery service, destination and running
+total](documentation/assets/merchant-catalogue-fullscreen.webp)
+
+![The same shop as a list: shelves grouped by category, quantities and prices per row, and the slate
+showing what is being bought and sold at once](documentation/assets/merchant-shop-list.webp)
+
 ## What it does
 
 - **Shelves that behave like shelves.** Stock lives in containers on the merchant, so a shopkeeper's

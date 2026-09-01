@@ -50,9 +50,14 @@ measured in in-world days.
 **Double-click the merchant's token.** That is the whole gesture, and it is the same one for a GM and a
 player.
 
-Across the top is the shop: its name, its category, its trading hours, and whether it is **Open** -- a
-green badge when it is trading, red when it is not. Below that, the shelves. Each row is one thing for
-sale, with what it costs and how many are left.
+Across the top is the shop's card: its name, its category, its description, and whether it is **Open**
+-- a green badge when it is trading, red when it is not. Trading hours appear there too once you have
+set any. Below the card are the shelves, grouped by the kind of thing they hold. Each row is one item,
+with what it costs and how many are left.
+
+![A shop in list view: the merchant's card across the top with the Open badge, Buy and Sell tabs, a
+shelf called The Basics grouped into Weapons and Armor and Gear, and the slate on the right showing
+Funds, Buying, Selling and Total](../assets/merchant-shop-list.webp)
 
 A GM sees more than a player does: hidden shelves, the count on every row (double-click to change it),
 and the price (double-click that too).
@@ -61,8 +66,8 @@ and the price (double-click that too).
 
 Any player who owns a character can do this.
 
-1. **Buying as** at the top left names who is shopping. A player with one character will not need to
-   touch it; a GM, or anyone with several, picks there. The party Group Actor is in the list, so
+1. **Buying as** on the shop's card names who is shopping. A player with one character will not need
+   to touch it; a GM, or anyone with several, picks there. The party Group Actor is in the list, so
    shopping for the party means being the party.
 2. Press the green **+** on a row. It goes onto the **slate** on the right.
 3. Change how many by double-clicking the quantity on the slate line. Zero takes it off.
@@ -81,6 +86,21 @@ Only if the shop buys, which means it has a Buyback shelf. If it does not, the *
 Switch to **Sell**. Your character's pack is listed; the **+** on a row puts it on the slate to sell,
 and the same **Complete Transaction** settles both directions at once. You can buy and sell in the same
 press.
+
+## Read the shelves as a wall
+
+The two buttons at the right of the search box change how the shelves are drawn. The list is for
+finding a named thing among sixty; the wall is for seeing what a shop has, which is a different
+question. Nothing is filtered either way -- the same shelves, the same headings, the same counts.
+
+![The same shop as a wall: shelves drawn as tiles of item art at different sizes, with prices and
+quantities on each, and the shop's own printed notices among the goods](../assets/merchant-shop-masonary.webp)
+
+The shop's own advertising appears among the goods in both views. It is the shop talking, not something
+you can buy.
+
+Your choice of view is remembered on your own machine, so the next shop you open opens the way you left
+the last one.
 
 ## What a closed shop does
 
@@ -111,12 +131,33 @@ differ in what they cost and how long they take), then **Deliver to** for a dest
 box for special instructions to the courier. Crates are charged as a deposit and refunded if you send
 them back.
 
-**Place Order** takes the coin now. The buyer gets a receipt Item; consulting it says how long is left.
-When the parcel reaches its destination the owner is told, and consulting the receipt again asks the GM
-whether the party are actually standing there. A Courier Beast is the exception -- it finds whoever is
-carrying the receipt, wherever they are.
+**Place Order** takes the coin now, and a receipt appears in the buyer's inventory. Consulting it says
+how long is left, what is coming, by which service and to where.
 
-When the crate arrives, clicking it asks whether to keep it or send it back for the deposit.
+![A character's inventory showing "Receipt: Phil's Shop-O-Stuff", and the notice raised by consulting
+it: "Arrives in 7 days", by Ground, to Madame Freonna's Teak Kettle, with the goods and the
+instructions listed](../assets/merchant-receipt.webp)
+
+When the parcel reaches its destination the owner is told. Consult the receipt again to collect it: the
+GM is asked whether the party are actually standing at that place, because nothing else in Foundry
+knows where you are.
+
+![The notice a player sees while the GM is being asked: "Asking whether you can collect the parcel at
+Madame Freonna's Teak Kettle..."](../assets/merchant-collect-parcel.webp)
+
+If they say yes, the crate lands in the pack. A Courier Beast is the exception to all of this -- it
+finds whoever is carrying the receipt, wherever they are, and needs no destination at all.
+
+![The parcel in the character's inventory, and the notice: "You collected your parcel from Phil's
+Shop-O-Stuff at Madame Freonna's Teak Kettle", listing the goods and saying to open the crate to unpack
+it](../assets/merchant-collect.webp)
+
+Clicking the crate asks what to do with it. **Send it back** returns the deposit; **Keep the crate**
+means you have bought a crate, which is a real object with a weight and a capacity. **Cancel** leaves
+it shut, and clicking it again asks the same question.
+
+![The parcel's contents behind a dialog headed "Open the parcel", offering Cancel, Keep the Crate and
+Send It Back](../assets/merchant-return-crate.webp)
 
 GMs: **Orders in Transit** in the shop window's header menu lists everything in the post across the
 whole world, with the ability to hand a parcel over early or strike an order off.
@@ -126,6 +167,6 @@ whole world, with the ability to hand a parcel over early or strike an order off
 [Known issues](../known-issues.md) lists what does not work yet.
 [Architecture](../architecture/architecture-merchant.md) is for changing Merchant rather than using it.
 
-Screenshots have not been added to this guide yet, and every label above was read from the module's own
-English strings rather than from a running world. If one of them does not match what you see on screen,
-that is a bug worth reporting.
+The screenshots above are from a running world, and the labels in this guide were re-read against them.
+Two sections have not been walked with a screenshot yet -- turning an Actor into a shop, and filling a
+shelf -- so if a label there does not match what you see, that is a bug worth reporting.
