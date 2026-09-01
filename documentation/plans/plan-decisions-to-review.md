@@ -1,6 +1,10 @@
 # Decisions taken unattended
 
-**Part two — open, from the unattended session of 2026-08-28.** Part one is below it and is closed.
+**Status: in progress.** Part two is open and awaiting review; part one below it was reviewed and closed
+on 2026-08-19. When part two is reviewed, whatever survives moves into
+`../architecture/architecture-merchant.md` and this file is deleted.
+
+**Part two — open, from the unattended session of 2026-08-28.**
 
 ---
 

@@ -17,7 +17,7 @@ and `node_modules/` is already ignored.
 
 ## What these are for
 
-**Not** a substitute for `../documentation/testing/testing-merchant.md`. These cannot catch a wrong document
+**Not** a substitute for `../testing/testing-merchant.md`. These cannot catch a wrong document
 path, a template field that does not exist, a hook that never fires, or a permission check on the wrong user
 — which is most of what can go wrong in a Foundry module, and all of which needs a table.
 

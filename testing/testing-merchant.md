@@ -1766,7 +1766,7 @@ level onto every existing row; it logs how many.
     controls and the hotbar — with the shop's illustration as the room behind it and the shop itself on a
     dark panel in the middle of it.
 233. **Three ways out, all of which leave the surface rather than closing the shop**: **Leave Full Screen**
-    in the action bar, the ✕ in the corner, and Escape. **Cancel** beside them still closes the shop.
+    in the action bar, the close control in the corner, and Escape. **Cancel** beside them still closes the shop.
 234. **The slate survives the swap, in both directions.** Put things in the cart *and* the sell basket, go
     full screen, and they are still there; come back and they are still there.
 235. **Everything still works on the surface**: buy, sell, search, sort, fold a shelf, drag an item in,

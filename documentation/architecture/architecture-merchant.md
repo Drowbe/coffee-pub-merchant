@@ -1,7 +1,9 @@
 # Architecture
 
-What the system does and how the pieces fit. `plans/` records why it was built this way and what was
-rejected; this file is the map you need before reading either.
+**Audience:** someone changing Merchant, and the rest of the suite.
+
+What the system does and how the pieces fit, and why it is built this way. This is the map to read before
+the code.
 
 Read this first, then `CONTRIBUTING.md` for the conventions the code follows.
 
@@ -1317,8 +1319,8 @@ quietly handed it back would take the decision away from them.
 
 ### What phase 1 does not do
 
-Depot pins and selling by post. Where a parcel physically sits is described rather than placed: the three services differ in **days** and **fee**, and
-everything else about them is fiction the GM narrates. See `../TODO.md` §1.
+Depot pins and selling by post. Where a parcel physically sits is described rather than placed: the three
+services differ in **days** and **fee**, and everything else about them is fiction the GM narrates.
 
 ---
 
@@ -1405,8 +1407,8 @@ were, so while a search runs the coordinates come off and only the spans remain,
 survivors together. Clearing the box restores the printed layout — the one the advertising was cut for.
 Notices are excluded from a search outright: an advertisement has nothing to match on.
 
-This is where advertising *becomes* a system in phase 2 — bought space, an Ad Manager, the newspaper. The
-two shapes and the placement are already what a bought notice will render as. See `../TODO.md`.
+The two shapes and the placement are what a bought notice would render as, if advertising ever becomes
+something a merchant sells rather than something a shop says.
 
 ---
 
@@ -1521,7 +1523,7 @@ token was equally undefined. They are declared for the surface in `window-shop.c
 **dark**-tool values: a parchment card is right in a window on a grey canvas and wrong in front of a lit
 scene, where it competes with the room instead of sitting in it.
 
-**The ✕ and Escape leave the surface; they do not close the shop.** `onDismiss(reason)` is the documented hook
+**The close control and Escape leave the surface; they do not close the shop.** `onDismiss(reason)` is the documented hook
 for exactly this — the *viewer asked for this to go away* path, deliberately separate from `close()`, which is
 every other route: a socket, a timer, the manager closing a shop whose merchant was deleted. The first version
 turned both controls off to protect a half-built slate, which is the worse answer: turning off the way out of
@@ -1635,9 +1637,8 @@ is the shortest document here and the one most worth reading before writing anyt
 
   Only `gp` is named, so the rest of the purse is left alone rather than zeroed — the field is "gold to
   spend", not "the whole purse".
-- ~~**One extraction left**~~ — **closed 2026-08-22.** `dialog.pickActor` shipped and `changeRecipient`
-  calls it; the private copy and `plans/plan-extraction.md` are both deleted. Every candidate the exercise
-  raised has now either landed or been withdrawn.
+- **One extraction left, and it landed.** `dialog.pickActor` shipped and `changeRecipient` calls it; the
+  private copy is gone. Every candidate that exercise raised has now either landed or been withdrawn.
 
   Two behaviours went missing in the move and are asked for upstream: the picker opens on the **first**
   actor rather than the current one, and it no longer badges anyone with lines already on a slate — which is

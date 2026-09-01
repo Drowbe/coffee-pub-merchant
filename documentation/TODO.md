@@ -7,8 +7,10 @@
 | What shipped, and why | `CHANGELOG.md` |
 | How the system works | `architecture/architecture-merchant.md` |
 | The conventions this codebase follows | `../CONTRIBUTING.md` |
-| What to verify at a table | `testing/testing-merchant.md` |
-| Decisions taken unattended, and their review | `DECISIONS-TO-REVIEW.md` |
+| What to verify at a table | `../testing/testing-merchant.md` |
+| What is broken and not yet fixed | `known-issues.md` |
+| How to use Merchant at a table | `userguides/` |
+| Decisions taken unattended, and their review | `plans/plan-decisions-to-review.md` |
 
 A plan lives in `plans/` only while it is being built; the directory is empty between plans, and that is
 the correct state for it. **When something is finished, log it where it belongs and delete it from here** —

@@ -6,7 +6,7 @@ because breaking it has cost real time, in this module or in Curator next door.
 Read `documentation/architecture/architecture-merchant.md` first for what the system does, and this file
 before writing anything. `documentation/TODO.md` is what is still open, and nothing else.
 
-Before touching the transaction model, read `documentation/DECISIONS-TO-REVIEW.md`. Its first entry is out
+Before touching the transaction model, read `documentation/plans/plan-decisions-to-review.md`. Its first entry is out
 of date in one respect: `exchange` shipped with both `copy` and `preserveEmptySource`, so buying is one
 atomic call again and the grant-then-charge failure it describes cannot happen.
 
@@ -148,7 +148,7 @@ test it** — that is what makes it worth having extracted.
 
 Be honest about what this does and does not prove. `node --check` will happily pass a variable referenced
 out of scope; only opening the window catches that. Tests here are a floor, not a ceiling, and
-`documentation/testing/testing-merchant.md` is the rest of it.
+`testing/testing-merchant.md` is the rest of it.
 
 ---
 
