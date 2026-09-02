@@ -25,6 +25,7 @@ will expire.**
 | 1 | [Mail order](#1-mail-order) | Ways in | L | **Phase 1 played end to end 2026-08-30** |
 | 2 | Selling by post | Ways in | M | **Phase 2** — designed, not built |
 | 3 | [Advertising](#advertising-as-its-own-system) | Systems | L | **Phase 2** — sketched |
+| 4 | [Profiles](#4-profiles) | Ways in | S | **Built 2026-09-02**, partly played |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
@@ -168,6 +169,32 @@ the map. Depot pins would be a second way to do what the receipt already does.
   *is* — is a presentation of the catalogue shell, and the full-screen surface is where it will look best.
 - Delivery types, their costs and their speeds want to be a table in `const.js` like `INVENTORY_TYPES`, so a
   fourth one is a row rather than a branch.
+
+## 4. Profiles
+
+**Category:** Ways in · **Size:** S · **Built 2026-09-02.** A shop described as a recipe -- settings plus
+shelf definitions, no goods and no identity -- applied to an Actor that already exists. Design and the
+reasoning behind it are in `architecture/architecture-merchant.md` §11a; this entry is what is left.
+
+**Played:** applying the shipped profile to a bare merchant, and to one that already had shelves.
+
+**Not yet played**, all of it added after that run:
+
+- **Save as profile**, in the settings window footer. Save a tuned shop, then apply it to another and check
+  what arrives: its settings and shelves, and none of its stock, portrait or name.
+- **Delete a saved profile**, with the bin beside Apply. It should be absent for the shipped profile.
+- **The singleton rule.** Apply to a shop whose buyback or catalogue shelf is called something else, and
+  neither should be added again.
+- **Applying twice.** The name guard should mean nothing is doubled.
+- **The dialog width cap.** The save prompt was spanning the screen; `styles/dialog.css` now caps every
+  merchant dialog.
+
+**Decided 2026-09-02: a profile is never edited.** Saving a new one from a tuned shop and deleting the old
+is the whole answer, and both are done from a merchant's settings window -- reached from a token, where a
+GM is already looking at the shop they are describing. An editor for a profile would be a second copy of
+that window, kept in step with it for ever, to change values the shop itself edits better.
+
+---
 
 ### Waiting on Blacksmith: geography
 

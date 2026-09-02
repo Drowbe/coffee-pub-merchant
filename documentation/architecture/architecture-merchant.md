@@ -1379,6 +1379,11 @@ to leak later and nothing for a future reader to wonder about. `order` and `par`
 is rewritten against whatever shop the profile lands on, and the second is what is on a shelf today rather
 than a rule about it.
 
+**A profile is never edited.** Changing one means saving a new profile from a shop and deleting the old,
+both from a merchant's settings window. An editor would be a second copy of that window, kept in step with
+it for ever, offering to change values the shop itself edits better -- and the shop is the honest place to
+tune them, because you can see what they do.
+
 **The section is shut unless asked for.** Setting a shop up from a profile is done once, and a section
 offering it standing open for the rest of that shop's life holds the top of the window above everything a
 GM came there to change.

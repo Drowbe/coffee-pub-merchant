@@ -371,6 +371,15 @@
 .merchant-config-profiles.is-collapsed .merchant-config-fold-chevron { transform: rotate(-90deg); }
 .merchant-config-profiles.is-collapsed .merchant-config-fold-body { display: none; }
 
+/* **A folded section is one bar, not a heading floating over an empty one.** The heading
+   carries a bottom rule and the margin that separates it from the body; with the body gone
+   both were drawing a line under nothing and leaving a strip of empty card beneath it. */
+.merchant-config-profiles.is-collapsed > h3 {
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+}
+
 /* Apply, and -- for a profile this world saved -- the way to forget it. */
 .merchant-config-profile-actions { display: inline-flex; gap: 4px; align-items: center; }
 
