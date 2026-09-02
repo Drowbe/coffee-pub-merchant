@@ -610,21 +610,19 @@ export class MerchantManager {
 
         const existing = actor.items
             .filter((item) => this.isInventory(item))
-            .map((item) => item.name);
+            .map((item) => ({ name: item.name, type: this.getInventoryConfig(item)?.type }));
         const wanted = missingShelves(profile, existing);
 
         // The shop first: a shelf created against the new markup and hours reads correctly
         // the moment it appears, and a failure here leaves nothing half-dressed.
         //
-        // **What was applied is written down.** Without it the only evidence a profile had
-        // been used was the shelves it happened to leave, which a GM cannot tell from
-        // shelves they built themselves -- so the answer to "have I done this one?" was to
-        // apply it again and read the dialog.
-        await this.setConfig(actor, {
-            enabled: true,
-            ...(profile.shop ?? {}),
-            profile: { key: profile.key, name: profile.name, at: Date.now() }
-        });
+        // **Nothing records which profile this was.** It was stored and shown for a while,
+        // on the argument that a GM would want to know -- but applying is a one-shot with no
+        // relationship afterwards: nothing reads the value, nothing behaves differently for
+        // it, and a profile never propagates. What it does do is go stale, because a shop
+        // rebuilt by hand still claims to be the thing it started as. A profile is a
+        // starting point, and a starting point stops describing a shop almost immediately.
+        await this.setConfig(actor, { enabled: true, ...(profile.shop ?? {}) });
 
         // **Through `setTillCoin`, which already exists**, rather than a third way to write
         // a till: it takes the inventory lock, it falls back when Blacksmith has no

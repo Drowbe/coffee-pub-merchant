@@ -2013,9 +2013,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             profileHint: this._profile
                 ? (shopProfile(this._profile, MerchantManager.savedProfiles())?.hint ?? '')
                 : game.i18n.localize('coffee-pub-merchant.config.profilePick'),
-            // What was last applied, if anything. Stored on the shop rather than inferred
-            // from its shelves, which a GM cannot tell from shelves they built by hand.
-            profileApplied: merchantConfig.profile?.name ?? null,
             deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
             deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
             fullscreenDoors: SHOP_DOORS.map((door) => ({
@@ -2202,7 +2199,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
 
         const existing = actor.items
             .filter((item) => MerchantManager.isInventory(item))
-            .map((item) => item.name);
+            .map((item) => ({ name: item.name, type: MerchantManager.getInventoryConfig(item)?.type }));
         const adding = missingShelves(profile, existing);
 
         const blacksmith = _blacksmith();

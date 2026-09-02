@@ -371,19 +371,6 @@
 .merchant-config-profiles.is-collapsed .merchant-config-fold-chevron { transform: rotate(-90deg); }
 .merchant-config-profiles.is-collapsed .merchant-config-fold-body { display: none; }
 
-/* What the shop was set up from, on the heading, so a folded section still answers the one
-   question a GM asks of it. */
-.merchant-config-fold-note {
-    overflow: hidden;
-    color: var(--blacksmith-tool-text-muted);
-    font-size: .66rem;
-    font-weight: 400;
-    letter-spacing: 0;
-    text-overflow: ellipsis;
-    text-transform: none;
-    white-space: nowrap;
-}
-
 /* Apply, and -- for a profile this world saved -- the way to forget it. */
 .merchant-config-profile-actions { display: inline-flex; gap: 4px; align-items: center; }
 

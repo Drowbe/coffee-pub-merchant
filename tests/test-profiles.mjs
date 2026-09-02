@@ -207,4 +207,72 @@ console.log('ok  saving a shop keeps how it works and drops who it is');
 }
 console.log('ok  a saved profile is usable by the same picker that made it');
 
+// --- a shop has one catalogue and one buyback shelf ----------------------
+//
+// **These two are matched on their type, not their name.** The catalogue view draws every
+// catalogue shelf as one book and selling looks for *the* buyback shelf, so a second is not
+// a second of anything -- it is one shelf's contents in two places with no way to tell which
+// is which. Name matching alone would have added one to any shop that had called theirs
+// something else, which is most of them.
+{
+    const profile = shopProfile('general');
+
+    const differently = [
+        { name: 'Pawn', type: 'purchased' },
+        { name: 'The Ledger', type: 'catalogue' }
+    ];
+    const missing = missingShelves(profile, differently).map((shelf) => shelf.name);
+    assert.deepStrictEqual(missing, ['General Supplies', 'Trade Goods'], 'neither singleton is added again');
+
+    // And the ordinary types still match by name, so an unrelated general shelf blocks
+    // nothing -- including the general shelves the profile names.
+    const unrelated = missingShelves(profile, [{ name: 'Oddments', type: 'general' }]);
+    assert.strictEqual(unrelated.length, profile.shelves.length);
+}
+console.log('ok  a shop gets one catalogue and one buyback shelf, whatever they are called');
+
+// --- the singleton types say so themselves -------------------------------
+//
+// In the type table rather than a list somewhere else, so a seventh type declares its own
+// rule where its name, icon and defaults already live.
+{
+    assert.strictEqual(INVENTORY_TYPES.catalogue.single, true);
+    assert.strictEqual(INVENTORY_TYPES.purchased.single, true);
+    assert.strictEqual(INVENTORY_TYPES.general.single, undefined, 'a shop may have several');
+}
+console.log('ok  the singleton types are declared in the type table');
+
+// --- a bare list of names still works ------------------------------------
+//
+// The signature widened from names to `{ name, type }`; taking a string as a name keeps
+// every existing caller and every check above honest.
+{
+    const profile = shopProfile('general');
+    assert.strictEqual(missingShelves(profile, ['General Supplies']).length, profile.shelves.length - 1);
+}
+console.log('ok  a plain list of names is still understood');
+
+// --- a shop may repeat a shelf name as often as it likes -----------------
+//
+// **Only the singletons are constrained.** Two shelves called General beside two called Odds
+// and Ends is an ordinary shop -- nothing in the module looks a shelf up by name, every
+// lookup is by id -- so the matcher has to cope with repeats in what it is handed rather
+// than treat them as a state that cannot happen.
+{
+    const profile = shopProfile('general');
+    const shop = [
+        { name: 'General', type: 'general' },
+        { name: 'General', type: 'general' },
+        { name: 'Good Stuff', type: 'general' },
+        { name: 'More Stuff', type: 'general' },
+        { name: 'Catalogue', type: 'catalogue' },
+        { name: 'Purchased', type: 'purchased' }
+    ];
+
+    const missing = missingShelves(profile, shop).map((shelf) => shelf.name);
+    assert.deepStrictEqual(missing, ['General Supplies', 'Trade Goods'],
+        'the two general shelves are added; the two singletons are not');
+}
+console.log('ok  repeated shelf names are ordinary, and only the singletons are constrained');
+
 console.log('\nall profile checks passed');

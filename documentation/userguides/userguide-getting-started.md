@@ -32,8 +32,7 @@ Close the settings window. Put a token for that Actor on a scene.
 
 GM only, and optional -- but it is the short way to a working shop.
 
-**Shop profiles** at the top of the window is folded shut; open it, pick a profile and press **Apply**.
-Once a shop has been set up from one, the folded heading says which. **General Goods Merchant** sets the shop's
+**Shop profiles** at the top of the window is folded shut; open it, pick a profile and press **Apply**. **General Goods Merchant** sets the shop's
 category, trading hours, markup and till, and adds four shelves: everyday supplies and trade goods drawn
 from the SRD compendiums, a buy-back shelf, and a catalogue for ordering by post. Press **Restock
 Everything** afterwards and the shelves fill.

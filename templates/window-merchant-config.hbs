@@ -53,16 +53,6 @@
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     {{localize "coffee-pub-merchant.config.profiles"}}
                 </button>
-                {{!-- **What the shop was set up from, on the heading.** Folded is this
-                      section's normal state, so the one fact still worth reading after the
-                      first minute has to survive the fold. Without it, the only evidence a
-                      profile had been used was the shelves it left -- which a GM cannot tell
-                      from shelves they built by hand. --}}
-                {{#if profileApplied}}
-                    <span class="merchant-config-fold-note">
-                        {{localize "coffee-pub-merchant.config.profileAppliedNote"}} {{profileApplied}}
-                    </span>
-                {{/if}}
             </h3>
 
             <div class="merchant-config-fold-body">

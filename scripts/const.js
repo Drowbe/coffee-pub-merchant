@@ -689,6 +689,11 @@ export const INVENTORY_TYPES = Object.freeze({
         hint: 'A warehouse elsewhere. Ordered by post, never carried out.',
         pricing: 'markup',
         restocks: true,
+        // **One to a shop.** The catalogue view shows every catalogue shelf as one book, and
+        // ordering refuses any line that did not come off one -- so a second is not a second
+        // catalogue, it is the same catalogue with its stock in two places and no way for a
+        // reader to tell which.
+        single: true,
         // **Infinite by default, and the catalogue view shows no quantities at all.** A
         // warehouse is the one shelf where "we have as many as you like" is the ordinary
         // answer, and a stock level is not a fact a reader of a catalogue needs.
@@ -700,6 +705,9 @@ export const INVENTORY_TYPES = Object.freeze({
         img: 'icons/containers/bags/sack-cloth-tan.webp',
         hint: 'Where things bought from the party end up.',
         pricing: 'trade',
+        // **One to a shop**, for the same reason: selling looks for *the* buyback shelf, and
+        // two would make where a sold sword lands an implementation detail.
+        single: true,
         // Never. Its stock is whatever the party sold, so there is no level to
         // return to and a refill would conjure duplicates of somebody's old sword.
         restocks: false,
@@ -903,6 +911,10 @@ export function shopProfile(key, saved) {
 export function profileFromShop(name, shopConfig, shelves) {
     const shop = { ...(shopConfig ?? {}) };
     // Identity, state, and things that describe this shop's history rather than its shape.
+    // `profile` is no longer written by anything -- recording which profile a shop came from
+    // turned out to describe nothing useful and to go stale -- but a world that applied one
+    // before that changed still has the field, and a profile saved from such a shop must not
+    // carry somebody else's provenance into a picker.
     for (const field of ['name', 'enabled', 'img', 'portrait', 'illustration', 'override', 'profile']) {
         delete shop[field];
     }
@@ -926,18 +938,46 @@ export function profileFromShop(name, shopConfig, shelves) {
 }
 
 /**
- * Which shelves in a profile this merchant does not already have, by name.
+ * Which shelves in a profile this merchant does not already have.
  *
- * **Matched on the shelf's name rather than its type**, because a shop may perfectly well
- * carry two `general` shelves and a profile naming one of them should not be told the job
- * is done. Names are compared case-insensitively and trimmed: "Buy Back" and "buy back"
- * are the same shelf to a person, and this exists to answer what a person would say.
+ * **Two rules, and only one of them is a constraint.**
  *
- * Pure, so what applying a profile is about to do can be shown before it does it.
+ * **A type marked `single` may exist once**, and that is a rule of the system rather than a
+ * courtesy: the catalogue view draws every catalogue shelf as one book, and selling looks
+ * for *the* buyback shelf. A second is not a second of anything -- it is one shelf's
+ * contents in two places with no way for a reader to tell which is which. So those are
+ * matched on their type, whatever the shop has called them, because most shops rename them.
+ *
+ * **Everything else is matched on its name, and that is a guard, not a rule.** A shop may
+ * hold as many shelves as it likes with as many repeated names as it likes -- two called
+ * General beside two called Odds and Ends is a perfectly ordinary shop, and nothing in the
+ * module looks a shelf up by name. What this prevents is narrower and duller: pressing Apply
+ * twice, which would otherwise silently double every shelf the profile names. A GM who
+ * genuinely wants a second General Supplies adds one, where they can see what they are
+ * doing.
+ *
+ * Names compare case-insensitively and trimmed, since "Buy Back" and "buy back" are the same
+ * shelf to a person and the guard exists to answer what a person would say.
+ *
+ * Takes `{ name, type }` rather than bare names so the singleton rule can see the type; a
+ * plain string is still read as a name. Pure, so what applying a profile is about to do can
+ * be shown before it does it.
  */
-export function missingShelves(profile, existingNames) {
-    const have = new Set((existingNames ?? []).map((name) => String(name ?? '').trim().toLowerCase()));
-    return (profile?.shelves ?? []).filter((shelf) => !have.has(shelf.name.trim().toLowerCase()));
+export function missingShelves(profile, existing) {
+    const rows = (existing ?? []).map((entry) => (
+        typeof entry === 'string' ? { name: entry, type: null } : (entry ?? {})
+    ));
+    const names = new Set(rows.map((row) => String(row.name ?? '').trim().toLowerCase()));
+    const types = new Set(rows.map((row) => row.type).filter(Boolean));
+
+    return (profile?.shelves ?? []).filter((shelf) => {
+        const named = names.has(shelf.name.trim().toLowerCase());
+        // A singleton is satisfied by its *type* as well as by its name, never only by its
+        // name: a caller that knows the types catches a buyback shelf called "Pawn", and one
+        // that only has names still behaves the way every other shelf does.
+        if (INVENTORY_TYPES[shelf.type]?.single) return !named && !types.has(shelf.type);
+        return !named;
+    });
 }
 
 /** A warehouse rather than a counter: nothing on it changes hands where you are standing. */

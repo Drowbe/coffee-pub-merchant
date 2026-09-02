@@ -1348,7 +1348,21 @@ sell things. **Compendium actors clone; profiles configure.** Holding that line 
 becoming a second, worse import system, and `tests/test-profiles.mjs` asserts both halves of it.
 
 **Applying never deletes.** It writes the shop's settings and adds the shelves the profile names that are
-not already there, matched by name, case-insensitively. A shelf that exists is left alone, stock and all.
+not already there. A shelf that exists is left alone, stock and all.
+
+**Two matching rules, and only one of them is a constraint.**
+
+A type marked `single` in `INVENTORY_TYPES` -- `catalogue` and `purchased` -- **may exist once**, and that
+is a rule of the system: the catalogue view draws every catalogue shelf as one book, and selling looks for
+*the* buyback shelf. A second is one shelf's contents in two places with no way to tell which is which.
+Those match on their type, whatever a shop has called them, because most shops rename them.
+
+Every other shelf matches on its **name**, and that is a guard rather than a rule. **A shop may hold any
+number of shelves with any names, repeated freely** -- two called General beside two called Odds and Ends
+is an ordinary shop, and nothing in the module looks a shelf up by name; every lookup is by id. What the
+guard prevents is narrower: pressing Apply twice, which would otherwise silently double every shelf the
+profile names. A GM who wants a second General Supplies adds one by hand, where they can see what they are
+doing.
 There is no merge and no replace: deleting a shelf is already a gesture with its own confirmation and
 understood consequences.
 
@@ -1367,8 +1381,15 @@ than a rule about it.
 
 **The section is shut unless asked for.** Setting a shop up from a profile is done once, and a section
 offering it standing open for the rest of that shop's life holds the top of the window above everything a
-GM came there to change. Folded, its heading still says what the shop was set up from, which is the only
-part still worth reading after the first minute.
+GM came there to change.
+
+**Nothing records which profile a shop came from.** It was stored and displayed for a while, on the
+argument that a GM would want to know. It does not survive the question *what would read it?* -- applying
+is a one-shot with no relationship afterwards, nothing behaves differently for the value, and a profile
+never propagates. What it does do is go stale: a shop rebuilt by hand still claims to be the thing it
+started as. A starting point stops describing a shop almost immediately. `profileFromShop` still strips the
+field, because worlds that applied a profile before this carry it and it must not travel into a saved
+profile.
 
 **Applying reports both halves.** What was written -- the shelves added and the settings set -- and what
 was not: existing shelves, their stock, the shop's name and its portrait. A button called Apply on a
