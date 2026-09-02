@@ -1365,6 +1365,15 @@ to leak later and nothing for a future reader to wonder about. `order` and `par`
 is rewritten against whatever shop the profile lands on, and the second is what is on a shelf today rather
 than a rule about it.
 
+**The section is shut unless asked for.** Setting a shop up from a profile is done once, and a section
+offering it standing open for the rest of that shop's life holds the top of the window above everything a
+GM came there to change. Folded, its heading still says what the shop was set up from, which is the only
+part still worth reading after the first minute.
+
+**Applying reports both halves.** What was written -- the shelves added and the settings set -- and what
+was not: existing shelves, their stock, the shop's name and its portrait. A button called Apply on a
+window full of settings sounds like it might have overwritten the lot, and answering that costs one clause.
+
 **The picker is a starting point, not a bound field.** It opens on "Select a profile", Apply is disabled
 until one is chosen, and it returns to that after applying -- because this is a one-time getting-started
 gesture and a picker left showing what was applied reads as a setting in force. What the shop was set up

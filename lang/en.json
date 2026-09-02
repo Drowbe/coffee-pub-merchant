@@ -229,7 +229,13 @@
             "deleteProfileAsk": "Forget the profile {profile}?",
             "deleteProfileNote": "Shops already set up from it keep their shelves. Nothing else in the world holds a copy of the recipe.",
             "deleteProfileFailed": "That profile could not be deleted.",
-            "profileDeleted": "Deleted {profile}."
+            "profileDeleted": "Deleted {profile}.",
+            "profilesTooltip": "Set this shop up from a profile. Closed unless you need it.",
+            "profileAddedShelves": "Added: {shelves}",
+            "profileAddedNone": "No shelves added — this shop already had them all",
+            "profileWroteSettings": "Set the category, hours, markup, till, doors and delivery",
+            "profileKeptShelves": "Left {kept} shelf/shelves and their stock alone",
+            "profileUntouched": "Name, portrait and stock untouched"
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

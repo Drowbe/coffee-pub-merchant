@@ -251,6 +251,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
         applyProfile: (_event, _target, win) => void win.applyProfile(),
+        toggleProfiles: (_event, _target, win) => win.toggleProfiles(),
         saveProfile: (_event, _target, win) => void win.saveProfile(),
         deleteProfile: (_event, _target, win) => void win.deleteProfile(),
         openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
@@ -2000,6 +2001,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // as a shop that is already that kind, and Apply becomes a button whose effect
             // depends on a choice nobody made.
             profileChosen: Boolean(this._profile),
+            // **Shut unless asked for, every time this window opens.** Setting a shop up
+            // from a profile is a thing you do once; a section standing open for the rest
+            // of that shop's life is a permanent offer to do it again, at the top of the
+            // window, above everything a GM actually came here to change.
+            profilesOpen: this._profilesOpen === true,
             // **Only a profile this world saved can be deleted.** The shipped one is not
             // ours to remove and a disabled button that never enables is a control that
             // teaches nothing, so the button is simply not there for it.
@@ -2229,13 +2235,43 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // applied reads as a setting in force, and the shop already says what it was set
             // up from a few pixels above.
             this._profile = null;
+
+            // **Say what moved and what did not, in that order.** The second half is the
+            // one a GM is most likely to be uneasy about -- a button called Apply on a
+            // window of settings sounds like it might have overwritten the lot -- and it
+            // costs one clause to answer.
+            const said = [
+                result.created.length
+                    ? game.i18n.format('coffee-pub-merchant.config.profileAddedShelves', {
+                        shelves: result.created.join(', ')
+                    })
+                    : game.i18n.localize('coffee-pub-merchant.config.profileAddedNone'),
+                game.i18n.localize('coffee-pub-merchant.config.profileWroteSettings'),
+                result.kept
+                    ? game.i18n.format('coffee-pub-merchant.config.profileKeptShelves', { kept: result.kept })
+                    : '',
+                game.i18n.localize('coffee-pub-merchant.config.profileUntouched')
+            ].filter(Boolean);
+
             notify.success(game.i18n.format('coffee-pub-merchant.config.profileApplied', {
                 profile: profile.name
-            }), { subtitle: result.created.join(', ') });
+            }), {
+                subtitle: said.join(' - '),
+                // Longer than an ordinary toast and dismissed by a click: this is a summary
+                // of a change to a shop, read rather than noticed.
+                duration: 14,
+                onClick: () => {}
+            });
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not apply that profile:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.config.profileFailed'));
         }
+        void this.render(false);
+    }
+
+    /** Open or shut the profiles section. Per window, and never remembered: see `profilesOpen`. */
+    toggleProfiles() {
+        this._profilesOpen = !this._profilesOpen;
         void this.render(false);
     }
 

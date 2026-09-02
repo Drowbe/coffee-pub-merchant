@@ -651,7 +651,17 @@ export class MerchantManager {
         }
 
         this.broadcastActorRefresh(actor);
-        return { profile, created, kept: existing.length };
+        // **What was written, not just that something was.** A GM who has just pressed a
+        // button on a window full of settings should not have to hunt for what moved --
+        // and the half that did *not* move is the half they are most likely to worry
+        // about, so it is reported too rather than left to be trusted.
+        return {
+            profile,
+            created,
+            kept: existing.length,
+            settings: Object.keys(profile.shop ?? {}),
+            till: Boolean(profile.till)
+        };
     }
 
     /**
