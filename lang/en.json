@@ -200,7 +200,19 @@
             "deliveryPortal": "A member of BOINK",
             "deliveryPortalHint": "The Boundless Order Interplanar Network Keep: magic catalogues, clerks who know your face, and a ring in the back room. Members show the BOINK badge on their card, can be sent to and from by Parcel Portal, and are offered as a destination anywhere in the world.",
             "deliveryPoints": "Deliveries",
-            "deliveryPlacesNote": "Places that are not shops — an inn, a guild hall, a name the party made up — are a list for the whole world, in Settings under Merchant → Mail Order. One list serves every shop, so there is nothing to retype here."
+            "deliveryPlacesNote": "Places that are not shops — an inn, a guild hall, a name the party made up — are a list for the whole world, in Settings under Merchant → Mail Order. One list serves every shop, so there is nothing to retype here.",
+            "profiles": "Shop profiles",
+            "applyProfile": "Apply",
+            "applyProfileTooltip": "Set this shop up as the chosen kind of shop. Nothing already here is removed.",
+            "profileNote": "A profile sets the shop up and adds the shelves it names, with the compendiums, filters and restock cadence a shop like that would use. It never removes a shelf you already have, and it never touches the stock on one.",
+            "profileTitle": "Apply {profile}",
+            "profileAsk": "Set {actor} up as a {profile}?",
+            "profileShelves": "Shelves added: {shelves}",
+            "profileNoShelves": "none — every shelf this profile names is already here",
+            "profileKeeps": "Shelves already on this merchant are left exactly as they are, stock included.",
+            "profileRename": "Apply and rename to {name}",
+            "profileApplied": "Applied {profile}.",
+            "profileFailed": "That profile could not be applied."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

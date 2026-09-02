@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- **Shop profiles** (`scripts/const.js`, `scripts/manager-merchant.js`, `scripts/window-merchant-config.js`, `tests/test-profiles.mjs`). Pick a profile beside **Is a merchant**, press Apply, and a bare Actor becomes a working shop: category, hours, markup, till, and the shelves that kind of shop keeps. A merchant was already two pieces of JSON -- settings on the Actor, a config per shelf on the containers -- so a profile is that JSON with the identity stripped out, and applying one is a config write and a few container creates rather than a new storage shape.
+- **A profile carries recipes, never goods.** It names compendiums, price bands, rarities and a restock cadence; the restock machinery that already exists fills the shelves. Storing items would go stale against the compendiums, bloat every world holding one, and make every alchemist identical -- this way two shops from one profile are the same kind of shop with different things on the shelf.
+- **Applying never deletes.** Shelves that exist are left alone, stock and all, matched by name and case-insensitively; only what is missing is added. The shop's name is a separate button rather than the default, because a profile applied to an NPC the party have known for six sessions must not quietly rename them.
+- **One profile ships** -- General Goods Merchant -- drawing only on `dnd5e.items` and `dnd5e.tradegoods`, which the system installs itself, so it cannot produce an empty shop on a fresh world. It doubles as the worked example of the shape.
+- Nothing in a profile identifies a shopkeeper: no portrait, no token art, no illustration. Foundry already clones a *person* -- an Actor in a compendium brings its art and its stock -- and profiles exist for the case that cannot serve. Compendium actors clone; profiles configure, and `tests/test-profiles.mjs` asserts both halves.
+
+### Changed
+- **A catalogue shelf wears the printed catalogue's picture** (`icons/sundries/documents/blueprint-magical-brown.webp`) rather than a crate of boxes. The shelf and the Item are the same object at two moments, and a reader who has seen one should recognise the other.
+
 ## [13.4.1]
 
 ### Changed

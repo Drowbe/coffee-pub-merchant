@@ -34,6 +34,36 @@
         </label>
     </section>
 
+    {{!-- **Beside the switch that makes this a shop, because it answers the next question.**
+          A GM who has just ticked "Is a merchant" is looking at an empty Storefront and
+          wondering what to do with it; a profile is the short way to a working shop, and
+          any other placement makes it a thing to go and find. Only for a merchant: there is
+          nothing to dress until there is a shop. --}}
+    {{#if enabled}}
+        {{#if profiles}}
+        <section class="merchant-config-section merchant-config-profiles">
+            <h3>
+                <span><i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.profiles"}}</span>
+            </h3>
+
+            <div class="merchant-config-row merchant-config-row-inline">
+                <select data-merchant-profile aria-label="{{localize "coffee-pub-merchant.config.profiles"}}">
+                    {{#each profiles}}
+                        <option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+                    {{/each}}
+                </select>
+                <button type="button" class="blacksmith-window-btn-secondary" data-action="applyProfile"
+                        data-tooltip="{{localize "coffee-pub-merchant.config.applyProfileTooltip"}}">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.applyProfile"}}
+                </button>
+                <small class="merchant-config-hint">{{profileHint}}</small>
+            </div>
+
+            <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.profileNote"}}</div>
+        </section>
+        {{/if}}
+    {{/if}}
+
     {{#if enabled}}
         <section class="merchant-config-section">
             <h3>

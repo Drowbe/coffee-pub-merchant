@@ -40,6 +40,12 @@ way to find a bug and where a wrong answer is silent:
   happily while pages were ending ragged, because twelve cells of goods and a full page are not the
   same claim. Also that the goods stay in the order they were printed in, that nothing is dropped or
   printed twice, and that the spans the layout reasons about are the spans the stylesheet draws.
+- **`test-profiles.mjs`** — the shipped shop profiles, and the arithmetic of applying one. Two kinds of
+  check: that `missingShelves` matches the way a person would (case-insensitively, by name rather than by
+  type, so applying twice cannot leave "Buy Back" beside "buy back"), and that the shipped profile is
+  valid against the shapes the rest of the module reads — an unknown shelf type or a rarity token nothing
+  recognises produces a shelf that draws nothing and says nothing about why. It also asserts the two
+  design rules in code: no profile carries items, and none carries a portrait.
 - **`test-mail.mjs`** — how many crates an order needs, which is arithmetic the party are charged for.
   `packCrates` runs three times on the same goods — pricing the slate, taking the money, filling the
   boxes — so the property that matters is that it is deterministic and loses nothing: a stack split

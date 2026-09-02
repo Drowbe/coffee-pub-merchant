@@ -8,7 +8,8 @@ import {
     MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables,
     SHOP_SOUND_KEYS,
     SHOP_DOORS,
-    DELIVERY_POINT
+    DELIVERY_POINT,
+    SHOP_PROFILES, shopProfile, missingShelves
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
 import { canPrint } from './utility-catalogue.js';
@@ -249,6 +250,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
     static ACTION_HANDLERS = {
         close: (_event, _target, win) => win.close(),
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
+        applyProfile: (_event, _target, win) => void win.applyProfile(),
         openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
         toggleInventoryVisible: (_event, target, win) => void win.toggleInventoryVisible(target.dataset.inventoryId),
         removeInventory: (_event, target, win) => void win.removeInventory(target.dataset.inventoryId),
@@ -408,6 +410,17 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 event.target.closest('.merchant-config-enable')?.classList
                     .toggle('is-on', event.target.checked);
                 void this._setField({ [field]: event.target.checked }, { redraw: false });
+            });
+        }
+
+        const profile = this.element?.querySelector('[data-merchant-profile]');
+        if (profile && profile.dataset.merchantBound !== 'true') {
+            profile.dataset.merchantBound = 'true';
+            // Re-rendered rather than merely stored, so the hint under the picker describes
+            // the profile now selected. Nothing is written to the shop until Apply.
+            profile.addEventListener('change', (event) => {
+                this._profile = event.target.value;
+                void this.render(false);
             });
         }
 
@@ -1972,6 +1985,16 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             shopName: MerchantManager.getConfig(actor)?.name ?? '',
             tillLabel: enabled ? formatBase(purseValue(actor)) : null,
             tillEmpty: enabled && purseValue(actor) === 0,
+            // **Only the list and which one is picked.** What a profile would do is worked
+            // out when it is applied, against the shop as it stands then -- computing it
+            // here would be a promise made at render time and kept at click time, with a
+            // shelf possibly created in between.
+            profiles: SHOP_PROFILES.map((profile) => ({
+                key: profile.key,
+                name: profile.name,
+                selected: profile.key === this._profile
+            })),
+            profileHint: shopProfile(this._profile ?? SHOP_PROFILES[0]?.key)?.hint ?? '',
             deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
             deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
             fullscreenDoors: SHOP_DOORS.map((door) => ({
@@ -2127,6 +2150,87 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             return false;
         }
         return MerchantManager.isMerchant(actor) && canPin(actor);
+    }
+
+    /**
+     * Dress this shop as a kind of shop.
+     *
+     * **Confirmed, and the dialog says what happens to what is already there**, because
+     * "apply" is a word that sounds like it might replace things. It cannot -- shelves that
+     * exist are left alone -- so the honest sentence names the shelves being added and says
+     * the rest is untouched.
+     *
+     * **Renaming is the third button, never the default.** Applied to an NPC the party have
+     * known for six sessions, the name is the one change that does not look like a change
+     * until somebody notices their innkeeper is called General Goods Merchant.
+     */
+    async applyProfile() {
+        if (!game.user.isGM) return;
+        const actor = await this._resolveActor();
+        const profile = shopProfile(this._profile ?? SHOP_PROFILES[0]?.key);
+        if (!actor || !profile) return;
+
+        const existing = actor.items
+            .filter((item) => MerchantManager.isInventory(item))
+            .map((item) => item.name);
+        const adding = missingShelves(profile, existing);
+
+        const blacksmith = _blacksmith();
+        let rename = false;
+
+        if (typeof blacksmith?.dialog?.wait === 'function') {
+            const shelves = adding.length
+                ? adding.map((shelf) => shelf.name).join(', ')
+                : game.i18n.localize('coffee-pub-merchant.config.profileNoShelves');
+
+            const answer = await blacksmith.dialog.wait({
+                title: game.i18n.format('coffee-pub-merchant.config.profileTitle', { profile: profile.name }),
+                classes: ['merchant-dialog'],
+                content: `<p>${game.i18n.format('coffee-pub-merchant.config.profileAsk', {
+                    profile: foundry.utils.escapeHTML(profile.name),
+                    actor: foundry.utils.escapeHTML(actor.name)
+                })}</p><p>${game.i18n.format('coffee-pub-merchant.config.profileShelves', {
+                    shelves: foundry.utils.escapeHTML(shelves)
+                })}</p><p>${game.i18n.localize('coffee-pub-merchant.config.profileKeeps')}</p>`,
+                buttons: [
+                    {
+                        action: 'cancel',
+                        label: game.i18n.localize('coffee-pub-merchant.common.cancel'),
+                        icon: 'fa-solid fa-xmark'
+                    },
+                    {
+                        action: 'rename',
+                        label: game.i18n.format('coffee-pub-merchant.config.profileRename', {
+                            name: profile.shop?.name ?? profile.name
+                        }),
+                        icon: 'fa-solid fa-signature'
+                    },
+                    {
+                        action: 'apply',
+                        label: game.i18n.localize('coffee-pub-merchant.config.applyProfile'),
+                        icon: 'fa-solid fa-wand-magic-sparkles',
+                        default: true
+                    }
+                ],
+                closeValue: 'cancel'
+            });
+
+            // `.value`, because `dialog.wait` answers with an object rather than the action.
+            if (!answer?.value || answer.value === 'cancel') return;
+            rename = answer.value === 'rename';
+        }
+
+        try {
+            const result = await MerchantManager.applyProfile(actor, profile.key, { rename });
+            if (!result) return;
+            notify.success(game.i18n.format('coffee-pub-merchant.config.profileApplied', {
+                profile: profile.name
+            }), { subtitle: result.created.join(', ') });
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not apply that profile:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.config.profileFailed'));
+        }
+        void this.render(false);
     }
 
     /**

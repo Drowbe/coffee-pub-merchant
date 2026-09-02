@@ -8,6 +8,7 @@ import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
+    shopProfile, missingShelves,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
     DEFAULT_FULLSCREEN_DOORS,
@@ -582,6 +583,71 @@ export class MerchantManager {
         if (!containerId) return null;
         const container = actor.items.get(containerId);
         return this.isInventory(container) ? container : null;
+    }
+
+    /**
+     * Dress an existing merchant as a kind of shop.
+     *
+     * **Never destructive, and that is the whole safety model.** It writes the shop's own
+     * settings and adds the shelves the profile names that are not already there, matched by
+     * name. A shelf that exists is left exactly as it is, stock and all -- because the
+     * gesture is "make this a general store", not "throw away what I have built", and the
+     * second is already available as deleting a shelf, where the confirmation and the
+     * consequences are understood.
+     *
+     * **The shop's own name is offered, not imposed.** A profile applied to the innkeeper
+     * the party have known for six sessions must not rename them, which is the entire reason
+     * this exists rather than a compendium Actor being dragged out: an imported Actor brings
+     * its art, its stock and its name, and if that is what you want it is the better tool.
+     * `rename` is the caller's decision and defaults to leaving the name alone.
+     *
+     * Returns what it did, so the caller can say so rather than guess.
+     */
+    static async applyProfile(actor, profileKey, { rename = false } = {}) {
+        if (!game.user.isGM || !actor) return null;
+        const profile = shopProfile(profileKey);
+        if (!profile) return null;
+
+        const existing = actor.items
+            .filter((item) => this.isInventory(item))
+            .map((item) => item.name);
+        const wanted = missingShelves(profile, existing);
+
+        // The shop first: a shelf created against the new markup and hours reads correctly
+        // the moment it appears, and a failure here leaves nothing half-dressed.
+        const { name, ...rest } = profile.shop ?? {};
+        await this.setConfig(actor, {
+            enabled: true,
+            ...rest,
+            ...(rename && name ? { name } : {})
+        });
+
+        // **Through `setTillCoin`, which already exists**, rather than a third way to write
+        // a till: it takes the inventory lock, it falls back when Blacksmith has no
+        // `setCurrency`, and it writes only the denomination named -- so a profile setting
+        // gold leaves whatever silver a shopkeeper was carrying.
+        for (const [denomination, amount] of Object.entries(profile.till ?? {})) {
+            await this.setTillCoin(actor, denomination, amount);
+        }
+
+        // Shelves in the order the profile lists them, each carrying that order, so a shop
+        // reads top to bottom the way the profile was written rather than the way the
+        // creates happened to resolve.
+        const created = [];
+        for (const [index, shelf] of wanted.entries()) {
+            const inventory = await this.addInventory(actor, shelf.type);
+            if (!inventory) continue;
+
+            await inventory.update({ name: shelf.name });
+            await this.setInventoryConfig(actor, inventory.id, {
+                ...shelf.config,
+                order: (existing.length + index) * 10
+            });
+            created.push(shelf.name);
+        }
+
+        this.broadcastActorRefresh(actor);
+        return { profile, created, kept: existing.length };
     }
 
     /**

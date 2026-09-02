@@ -323,6 +323,21 @@
 .merchant-config-row-tall > .merchant-config-label { padding-top: 0; }
 .merchant-config-row input[type="number"] { max-width: 110px; }
 
+/*
+ * **The profile picker sits directly under the switch that makes this a shop**, because it
+ * answers the question a GM has the moment they tick it: an empty Storefront and no idea
+ * what to put on it. Picker, button, and a line saying what the chosen one is -- laid out
+ * across rather than stacked, since together they are one gesture.
+ */
+.merchant-config-profiles .merchant-config-row-inline {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    align-items: center;
+}
+
+.merchant-config-profiles select { width: 100%; min-width: 0; }
+.merchant-config-profiles .merchant-config-hint { grid-column: 1 / -1; margin-top: 1px; }
+
 /* The exception: a row whose label and controls sit on one line, for the tables,
    where the name is the label and the settings belong beside it. */
 .merchant-config-row-inline { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 10px; align-items: center; }

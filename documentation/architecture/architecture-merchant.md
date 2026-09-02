@@ -1324,6 +1324,40 @@ services differ in **days** and **fee**, and everything else about them is ficti
 
 ---
 
+## 11a. Profiles: a shop as a recipe
+
+`scripts/const.js` (`SHOP_PROFILES`, `shopProfile`, `missingShelves`),
+`MerchantManager.applyProfile`, `tests/test-profiles.mjs`.
+
+A merchant is already two pieces of JSON: the shop's settings on the Actor, and one config per shelf on
+the containers. **A profile is that JSON with the identity stripped out**, so applying one is a config
+write and a few container creates. No storage shape had to be invented for it.
+
+**A profile carries recipes, never goods.** Storing items would mean carrying source data the way a
+consignment does -- stale against the compendiums, duplicating content the world already has, and making
+every alchemist in a world hold identical stock. A profile says what a shop of that kind *draws from*:
+these packs, this price band, these rarities, refilled this often. The restock machinery that already
+exists fills the shelves, so two shops from one profile are the same kind of shop with different things
+on them.
+
+**Nothing in a profile identifies a shopkeeper** -- no portrait, no token art, and the shop's name is
+offered as a separate button rather than written. Foundry already duplicates a *person*: put the Actor in
+a compendium and drag out a copy, which brings the art and the stock with it. A profile earns its place in
+the one case that cannot serve -- the innkeeper the party have known for six sessions, who now needs to
+sell things. **Compendium actors clone; profiles configure.** Holding that line is what stops this
+becoming a second, worse import system, and `tests/test-profiles.mjs` asserts both halves of it.
+
+**Applying never deletes.** It writes the shop's settings and adds the shelves the profile names that are
+not already there, matched by name, case-insensitively. A shelf that exists is left alone, stock and all.
+There is no merge and no replace: deleting a shelf is already a gesture with its own confirmation and
+understood consequences.
+
+**One profile ships**, drawing only on `dnd5e.items` and `dnd5e.tradegoods`, which the system installs
+itself -- so it cannot produce an empty shop on a fresh world. Everything else is the GM's, and the
+shipped one is as much a worked example of the shape as it is a shop.
+
+---
+
 ## 12b. Orders in transit
 
 `scripts/window-deliveries.js` — **the one place that says what the world owes.**

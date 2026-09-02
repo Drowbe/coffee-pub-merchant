@@ -685,7 +685,7 @@ export const INVENTORY_TYPES = Object.freeze({
     catalogue: {
         key: INVENTORY_TYPE.CATALOGUE,
         name: 'Catalogue',
-        img: 'icons/containers/boxes/crates-wooden-stacked.webp',
+        img: 'icons/sundries/documents/blueprint-magical-brown.webp',
         hint: 'A warehouse elsewhere. Ordered by post, never carried out.',
         pricing: 'markup',
         restocks: true,
@@ -719,6 +719,172 @@ export const INVENTORY_TYPES = Object.freeze({
         defaults: { order: 50, visible: true, markup: 1.05, buyRate: 0.7, stock: STOCK.FINITE }
     }
 });
+
+// ==================================================================
+// ===== PROFILES ===================================================
+// ==================================================================
+//
+// **A shop, described as a recipe rather than as goods.**
+//
+// A merchant is already two pieces of JSON: the shop's own settings on the Actor, and one
+// config per shelf on the containers. A profile is that JSON with the identity stripped
+// out -- so applying one is a config write and a few container creates, and no new storage
+// shape had to be invented for it.
+//
+// ===== RECIPES, NOT GOODS =========================================
+//
+// **A profile carries queries and tables, never items.** Storing actual items would mean
+// carrying item source data around the way a consignment does, which goes stale, duplicates
+// compendium content a world already has, and makes every alchemist in a world hold exactly
+// the same stock. A profile says *what a shop like this draws from* -- these packs, this
+// price band, these rarities, refilled this often -- and the restock machinery that already
+// exists fills the shelves. Two shops from one profile are the same kind of shop with
+// different things on the shelf, which is the point.
+//
+// ===== WHAT A PROFILE MAY NOT CONTAIN =============================
+//
+// **Nothing that identifies a shopkeeper**: no portrait, no token art, no name that
+// overwrites one already there. Foundry already has a way to duplicate a *person* -- put
+// the Actor in a compendium and drag out a copy -- and it is better at it than we would be,
+// because it brings the art and the stock with it.
+//
+// A profile earns its place in the one case an imported Actor cannot serve: the innkeeper
+// the party have known for six sessions, who now needs to sell things. **Compendium actors
+// clone; profiles configure.** Keeping that line is what stops this becoming a second,
+// worse import system.
+//
+// ===== APPLYING NEVER DELETES =====================================
+//
+// A profile writes the shop's settings and adds the shelves it names. Shelves that are
+// already there are left alone, stock and all. There is no merge and no replace: a GM who
+// wants a shelf gone deletes it themselves, where the confirmation and the consequences are
+// already understood. See `applyProfile`.
+
+/**
+ * **The one profile that ships, and it is a worked example as much as a shop.**
+ *
+ * It draws only on `dnd5e.items` and `dnd5e.tradegoods`, which the system installs itself,
+ * so it cannot fail on a fresh world -- the reason there is exactly one. Everything else a
+ * world wants is the GM's, saved off a shop they have already built and tuned, which is
+ * also how anybody learns the shape.
+ *
+ * Deliberately absent: an illustration. A picture would be a path into a module the world
+ * may not have, and a broken image on the shop card is a poor first impression of a feature
+ * whose whole job is a good one.
+ */
+export const SHOP_PROFILES = Object.freeze([
+    Object.freeze({
+        key: 'general',
+        name: 'General Goods Merchant',
+        hint: 'Everyday stock from the SRD, a counter, a buy-back shelf and a catalogue.',
+        icon: 'fa-solid fa-shop',
+        // What is written onto the Actor. Merged over what is there, so anything a profile
+        // does not mention -- sounds, the look, an override in force -- survives untouched.
+        shop: Object.freeze({
+            name: 'General Goods Merchant',
+            kind: 'general',
+            description: "They've got stuff... the stuff isn't very exciting, but if you need the basics, they got you.",
+            // Walking in and consulting the catalogue take over the screen; a token or a pin
+            // opens a window, because those are gestures somebody makes while doing
+            // something else.
+            fullscreen: Object.freeze({ region: true, token: false, pin: false, catalogue: true }),
+            deliveryPhysical: true,
+            deliveryPortal: true,
+            hours: Object.freeze({ open: 6, close: 19 }),
+            pricing: Object.freeze({ markup: 1, reputation: true, overrides: {} })
+        }),
+        till: Object.freeze({ gp: 3000 }),
+        // Order matters: shelves are created in this order and carry it in `order`.
+        shelves: Object.freeze([
+            Object.freeze({
+                type: 'general',
+                name: 'General Supplies',
+                config: Object.freeze({
+                    visible: true,
+                    markup: 1,
+                    stock: 'restocking',
+                    auto: false,
+                    restockDays: 3,
+                    depth: 'normal',
+                    maxProducts: 50,
+                    maxPerItem: 20,
+                    query: Object.freeze({
+                        sources: Object.freeze([Object.freeze({ id: 'dnd5e.items', enabled: true })]),
+                        subtypes: null,
+                        rarity: Object.freeze(['mundane', 'common']),
+                        priceGp: Object.freeze({ min: 0, max: 250 })
+                    })
+                })
+            }),
+            Object.freeze({
+                type: 'general',
+                name: 'Trade Goods',
+                config: Object.freeze({
+                    visible: true,
+                    markup: 1,
+                    stock: 'restocking',
+                    auto: false,
+                    restockDays: 3,
+                    depth: 'normal',
+                    maxProducts: 50,
+                    maxPerItem: 20,
+                    query: Object.freeze({
+                        sources: Object.freeze([Object.freeze({ id: 'dnd5e.tradegoods', enabled: true })]),
+                        subtypes: null,
+                        rarity: Object.freeze(['mundane', 'common']),
+                        priceGp: Object.freeze({ min: 0, max: 250 })
+                    })
+                })
+            }),
+            Object.freeze({
+                type: 'purchased',
+                name: 'Buy Back',
+                config: Object.freeze({ visible: true, markup: 1.05, buyRate: 0.8, stock: 'finite' })
+            }),
+            Object.freeze({
+                type: 'catalogue',
+                name: 'Catalogue',
+                config: Object.freeze({
+                    visible: true,
+                    markup: 1.05,
+                    // A warehouse never runs out: it is a list of what can be sent for, not
+                    // a shelf somebody is taking things off.
+                    stock: 'infinite',
+                    maxProducts: 50,
+                    query: Object.freeze({
+                        sources: Object.freeze([
+                            Object.freeze({ id: 'dnd5e.items', enabled: true }),
+                            Object.freeze({ id: 'dnd5e.tradegoods', enabled: true })
+                        ]),
+                        subtypes: null,
+                        rarity: Object.freeze(['mundane', 'common']),
+                        priceGp: Object.freeze({ min: 0, max: 1000 })
+                    })
+                })
+            })
+        ])
+    })
+]);
+
+/** A profile by key, or null. */
+export function shopProfile(key) {
+    return SHOP_PROFILES.find((profile) => profile.key === key) ?? null;
+}
+
+/**
+ * Which shelves in a profile this merchant does not already have, by name.
+ *
+ * **Matched on the shelf's name rather than its type**, because a shop may perfectly well
+ * carry two `general` shelves and a profile naming one of them should not be told the job
+ * is done. Names are compared case-insensitively and trimmed: "Buy Back" and "buy back"
+ * are the same shelf to a person, and this exists to answer what a person would say.
+ *
+ * Pure, so what applying a profile is about to do can be shown before it does it.
+ */
+export function missingShelves(profile, existingNames) {
+    const have = new Set((existingNames ?? []).map((name) => String(name ?? '').trim().toLowerCase()));
+    return (profile?.shelves ?? []).filter((shelf) => !have.has(shelf.name.trim().toLowerCase()));
+}
 
 /** A warehouse rather than a counter: nothing on it changes hands where you are standing. */
 export function isCatalogue(type) {

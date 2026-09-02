@@ -28,6 +28,20 @@ picks the icon a player sees), and optionally a description and an illustration.
 
 Close the settings window. Put a token for that Actor on a scene.
 
+## Set it up in one press
+
+GM only, and optional -- but it is the short way to a working shop.
+
+Under **Shop profiles**, pick one and press **Apply**. **General Goods Merchant** sets the shop's
+category, trading hours, markup and till, and adds four shelves: everyday supplies and trade goods drawn
+from the SRD compendiums, a buy-back shelf, and a catalogue for ordering by post. Press **Restock
+Everything** afterwards and the shelves fill.
+
+**Applying never removes anything.** Shelves already on the merchant are left exactly as they are, stock
+included; only shelves the profile names and the merchant does not have are added. The shop's *name* is
+left alone too, unless you choose the button that renames it -- so a profile can be applied to an NPC
+your players already know without turning them into somebody else.
+
 ## Put something on the shelves
 
 Stock lives in container Items on the merchant, which is why a shopkeeper's own armour and belt dagger
