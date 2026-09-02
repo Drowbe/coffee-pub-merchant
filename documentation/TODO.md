@@ -182,7 +182,8 @@ reasoning behind it are in `architecture/architecture-merchant.md` §11a; this e
 
 - **Save as profile**, in the settings window footer. Save a tuned shop, then apply it to another and check
   what arrives: its settings and shelves, and none of its stock, portrait or name.
-- **Delete a saved profile**, with the bin beside Apply. It should be absent for the shipped profile.
+- **Delete a profile**, with the bin beside Apply -- a saved one, and the shipped one. Removing the shipped
+  one should make a **Restore** button appear, and pressing it should bring the profile back.
 - **The singleton rule.** Apply to a shop whose buyback or catalogue shelf is called something else, and
   neither should be added again.
 - **Applying twice.** The name guard should mean nothing is doubled.

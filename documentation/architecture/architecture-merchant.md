@@ -1379,6 +1379,14 @@ to leak later and nothing for a future reader to wonder about. `order` and `par`
 is rewritten against whatever shop the profile lands on, and the second is what is on a shelf today rather
 than a rule about it.
 
+**Any profile can be removed, the shipped one included.** A saved profile leaves the setting; the shipped
+one cannot, because it lives in code -- so a world says it is gone by writing a **tombstone**, an entry
+carrying its key and nothing else, which `allProfiles` filters out. That is the same mechanism as a saved
+profile replacing a shipped one by key, and it is reversible: while any tombstone exists the section offers
+**Restore**, which drops them. Holding the shipped profile back was the first cut, on the grounds that it
+is not ours to delete -- true of the file and irrelevant to the world, where a GM who does not want it
+should not have to look at it for ever.
+
 **A profile is never edited.** Changing one means saving a new profile from a shop and deleting the old,
 both from a merchant's settings window. An editor would be a second copy of that window, kept in step with
 it for ever, offering to change values the shop itself edits better -- and the shop is the honest place to

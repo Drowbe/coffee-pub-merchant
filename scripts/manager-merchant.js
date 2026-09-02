@@ -9,6 +9,7 @@ import {
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
     shopProfile, missingShelves, allProfiles, profileFromShop, PROFILES_SETTING,
+    hasHiddenProfiles, isShippedProfile,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
     DEFAULT_FULLSCREEN_DOORS,
@@ -709,8 +710,32 @@ export class MerchantManager {
 
     /** Forget a saved profile. Shipped ones cannot be removed, and say so by not being there. */
     static async deleteProfile(key) {
-        if (!game.user.isGM) return null;
+        if (!game.user.isGM || !key) return null;
+
         const saved = this.savedProfiles().filter((profile) => profile.key !== key);
+        // A shipped profile cannot be removed from the setting because it is not in it. It
+        // goes away by leaving a tombstone behind instead -- see `allProfiles`.
+        if (isShippedProfile(key)) saved.push({ key, hidden: true });
+
+        await game.settings.set(MODULE.ID, PROFILES_SETTING, saved);
+        return saved;
+    }
+
+    /** Whether this world has put any shipped profile away. */
+    static hasHiddenProfiles() {
+        return hasHiddenProfiles(this.savedProfiles());
+    }
+
+    /**
+     * Bring back every shipped profile this world has put away.
+     *
+     * All of them at once rather than one at a time: there is one, and a picker of removed
+     * things to pick from is more machinery than the case deserves. If a second ever ships,
+     * this becomes a list -- and until then it should not pretend to be one.
+     */
+    static async restoreProfiles() {
+        if (!game.user.isGM) return null;
+        const saved = this.savedProfiles().filter((profile) => profile.hidden !== true);
         await game.settings.set(MODULE.ID, PROFILES_SETTING, saved);
         return saved;
     }

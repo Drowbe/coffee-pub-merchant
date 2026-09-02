@@ -223,10 +223,10 @@
             "saveProfileFailed": "That profile could not be saved.",
             "profileSaved": "Saved {profile}.",
             "deleteProfile": "Delete profile",
-            "deleteProfileTooltip": "Forget this saved profile. Shops already set up from it keep their shelves.",
+            "deleteProfileTooltip": "Remove this profile from the list. Shops already set up from it keep their shelves.",
             "deleteProfileTitle": "Delete a profile",
             "deleteProfileAsk": "Forget the profile {profile}?",
-            "deleteProfileNote": "Shops already set up from it keep their shelves. Nothing else in the world holds a copy of the recipe.",
+            "deleteProfileNote": "Shops already set up from it keep their shelves. A profile that ships with Merchant can be brought back; one you saved cannot.",
             "deleteProfileFailed": "That profile could not be deleted.",
             "profileDeleted": "Deleted {profile}.",
             "profilesTooltip": "Set this shop up from a profile. Closed unless you need it.",
@@ -234,7 +234,11 @@
             "profileAddedNone": "No shelves added — this shop already had them all",
             "profileWroteSettings": "Set the category, hours, markup, till, doors and delivery",
             "profileKeptShelves": "Left {kept} shelf/shelves and their stock alone",
-            "profileUntouched": "Name, portrait and stock untouched"
+            "profileUntouched": "Name, portrait and stock untouched",
+            "profileHiddenNote": "A profile that ships with Merchant has been removed from this list.",
+            "restoreProfiles": "Restore",
+            "restoreProfilesTooltip": "Put the profiles that ship with Merchant back in the list.",
+            "profilesRestored": "The profiles that ship with Merchant are back in the list."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

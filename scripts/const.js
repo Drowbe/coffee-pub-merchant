@@ -883,9 +883,31 @@ export const PROFILES_SETTING = 'shopProfiles';
  * resolution -- a GM who names their own profile `general` has said which they meant.
  */
 export function allProfiles(saved) {
-    const custom = Array.isArray(saved) ? saved.filter((entry) => entry?.key && entry?.name) : [];
-    const keys = new Set(custom.map((entry) => entry.key));
-    return [...SHOP_PROFILES.filter((profile) => !keys.has(profile.key)), ...custom];
+    const rows = Array.isArray(saved) ? saved.filter((entry) => entry?.key) : [];
+
+    // **A shipped profile is removed by writing down that it is gone**, because it lives in
+    // code and cannot be deleted from a setting. A tombstone -- an entry with the key and
+    // nothing else -- is how a world says so, and `restoreProfiles` is how it takes it back.
+    // The same mechanism serves the ordinary case of a saved profile keyed like a shipped
+    // one: it replaces it, and a GM who names theirs `general` has said which they meant.
+    const hidden = new Set(rows.filter((entry) => entry.hidden === true).map((entry) => entry.key));
+    const custom = rows.filter((entry) => entry.hidden !== true && entry.name);
+    const replaced = new Set(custom.map((entry) => entry.key));
+
+    return [
+        ...SHOP_PROFILES.filter((profile) => !hidden.has(profile.key) && !replaced.has(profile.key)),
+        ...custom
+    ];
+}
+
+/** Whether a world has put any shipped profile away. Drives the offer to bring it back. */
+export function hasHiddenProfiles(saved) {
+    return (Array.isArray(saved) ? saved : []).some((entry) => entry?.hidden === true);
+}
+
+/** Whether this key names a profile that ships with the module rather than a saved one. */
+export function isShippedProfile(key) {
+    return SHOP_PROFILES.some((profile) => profile.key === key);
 }
 
 /** A profile by key, from a world's full list. */

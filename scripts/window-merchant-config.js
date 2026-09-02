@@ -252,6 +252,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
         applyProfile: (_event, _target, win) => void win.applyProfile(),
         toggleProfiles: (_event, _target, win) => win.toggleProfiles(),
+        restoreProfiles: (_event, _target, win) => void win.restoreProfiles(),
         saveProfile: (_event, _target, win) => void win.saveProfile(),
         deleteProfile: (_event, _target, win) => void win.deleteProfile(),
         openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
@@ -2006,10 +2007,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // of that shop's life is a permanent offer to do it again, at the top of the
             // window, above everything a GM actually came here to change.
             profilesOpen: this._profilesOpen === true,
-            // **Only a profile this world saved can be deleted.** The shipped one is not
-            // ours to remove and a disabled button that never enables is a control that
-            // teaches nothing, so the button is simply not there for it.
-            profileCustom: MerchantManager.savedProfiles().some((entry) => entry.key === this._profile),
+            // **Anything in the picker can be removed, the shipped profile included.** It
+            // was held back at first on the grounds that it is not ours to delete, which is
+            // true of the file and irrelevant to the world: a GM who does not want it in
+            // their list should not have to look at it for ever. It goes away by leaving a
+            // tombstone in the setting, and `Restore` brings it back.
+            profileCustom: Boolean(this._profile),
+            profileHidden: MerchantManager.hasHiddenProfiles(),
             profileHint: this._profile
                 ? (shopProfile(this._profile, MerchantManager.savedProfiles())?.hint ?? '')
                 : game.i18n.localize('coffee-pub-merchant.config.profilePick'),
@@ -2262,6 +2266,23 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not apply that profile:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.config.profileFailed'));
+        }
+        void this.render(false);
+    }
+
+    /**
+     * Bring back the shipped profile this world put away.
+     *
+     * Unconfirmed, deliberately: it adds a row to a picker and takes nothing away, which is
+     * the one shape of change that does not need asking about.
+     */
+    async restoreProfiles() {
+        if (!game.user.isGM) return;
+        try {
+            await MerchantManager.restoreProfiles();
+            notify.info(game.i18n.localize('coffee-pub-merchant.config.profilesRestored'));
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not restore the shipped profiles:`, error);
         }
         void this.render(false);
     }

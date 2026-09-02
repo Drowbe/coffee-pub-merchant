@@ -74,8 +74,10 @@
                             data-tooltip="{{localize "coffee-pub-merchant.config.applyProfileTooltip"}}">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.applyProfile"}}
                     </button>
-                    {{!-- Present only for a profile this world saved: the shipped one is not
-                          ours to remove, and a button that can never enable teaches nothing. --}}
+                    {{!-- Present for whatever is selected, the shipped profile included: a
+                          GM who does not want it in their list should not have to look at it
+                          for ever. Removing that one leaves a tombstone rather than deleting
+                          a file, and Restore below brings it back. --}}
                     {{#if profileCustom}}
                         <button type="button" class="blacksmith-window-btn-secondary merchant-config-profile-delete"
                                 data-action="deleteProfile"
@@ -86,6 +88,16 @@
                 </span>
                 <small class="merchant-config-hint">{{profileHint}}</small>
             </div>
+
+            {{#if profileHidden}}
+                <div class="merchant-config-row merchant-config-row-inline">
+                    <span class="merchant-config-hint">{{localize "coffee-pub-merchant.config.profileHiddenNote"}}</span>
+                    <button type="button" class="blacksmith-window-btn-secondary" data-action="restoreProfiles"
+                            data-tooltip="{{localize "coffee-pub-merchant.config.restoreProfilesTooltip"}}">
+                        <i class="fa-solid fa-rotate-left"></i> {{localize "coffee-pub-merchant.config.restoreProfiles"}}
+                    </button>
+                </div>
+            {{/if}}
 
             <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.profileNote"}}</div>
             </div>

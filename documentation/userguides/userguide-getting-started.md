@@ -44,8 +44,9 @@ know without turning them into somebody else. Once applied, the section says whi
 set up from.
 
 **Save a shop you like as a profile.** **Save as profile** sits at the bottom of the settings window
-beside **I'm Done**: name it, and every other merchant can be set up the same way. A profile you saved can
-be removed with the bin beside Apply; the one that ships cannot. It saves how the shop *works* -- its category, hours, markup, till, and each
+beside **I'm Done**: name it, and every other merchant can be set up the same way. Any profile can be removed with the bin
+beside Apply, including the one that ships with Merchant -- and if you remove that one, a **Restore** button
+appears to put it back. It saves how the shop *works* -- its category, hours, markup, till, and each
 shelf with its compendiums, filters and restock cadence. It does not save the stock, the portrait or the
 name, because those belong to that shopkeeper rather than to the kind of shop they run.
 

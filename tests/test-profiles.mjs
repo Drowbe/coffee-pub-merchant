@@ -14,6 +14,7 @@
 import assert from 'node:assert';
 import {
     SHOP_PROFILES, shopProfile, missingShelves, allProfiles, profileFromShop,
+    hasHiddenProfiles, isShippedProfile,
     INVENTORY_TYPES, SHOP_KINDS, SHOP_DOORS, STOCK, STOCK_DEPTH
 } from '../scripts/const.js';
 // The rarity vocabulary lives with the compendium query that uses it, not in `const.js`.
@@ -274,5 +275,43 @@ console.log('ok  a plain list of names is still understood');
         'the two general shelves are added; the two singletons are not');
 }
 console.log('ok  repeated shelf names are ordinary, and only the singletons are constrained');
+
+// --- a world may put the shipped profile away ----------------------------
+//
+// **It lives in code, so it cannot be deleted from a setting.** A world says it is gone by
+// writing a tombstone -- an entry carrying the key and nothing else -- and `restoreProfiles`
+// removes that. Without this a GM who does not want it is looking at it for ever.
+{
+    const gone = [{ key: 'general', hidden: true }];
+    assert.deepStrictEqual(allProfiles(gone), [], 'the shipped profile is out of the list');
+    assert.strictEqual(shopProfile('general', gone), null, 'and cannot be applied');
+    assert.strictEqual(hasHiddenProfiles(gone), true, 'so the offer to restore it appears');
+
+    // Their own profiles are unaffected by a tombstone for a different key.
+    const mixed = [{ key: 'general', hidden: true }, { key: 'fence', name: 'A Fence', shelves: [] }];
+    assert.deepStrictEqual(allProfiles(mixed).map((p) => p.name), ['A Fence']);
+}
+console.log('ok  a world can put the shipped profile away, and is offered it back');
+
+// --- and taking it back is dropping the tombstone -------------------------
+{
+    const restored = [{ key: 'general', hidden: true }, { key: 'fence', name: 'A Fence', shelves: [] }]
+        .filter((entry) => entry.hidden !== true);
+    assert.strictEqual(allProfiles(restored).length, SHOP_PROFILES.length + 1);
+    assert.strictEqual(hasHiddenProfiles(restored), false);
+}
+console.log('ok  restoring is dropping the tombstone, and brings it back');
+
+// --- a tombstone is not a profile ----------------------------------------
+//
+// It has a key and no name, which is exactly the shape the list filter drops -- so a
+// tombstone can never be offered in a picker or applied to a shop.
+{
+    const tomb = [{ key: 'general', hidden: true }];
+    assert.strictEqual(allProfiles(tomb).some((p) => p.hidden), false);
+    assert.strictEqual(isShippedProfile('general'), true, 'and the key is still known to be shipped');
+    assert.strictEqual(isShippedProfile('fence'), false);
+}
+console.log('ok  a tombstone is never offered as a profile');
 
 console.log('\nall profile checks passed');
