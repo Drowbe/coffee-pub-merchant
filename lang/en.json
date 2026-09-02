@@ -210,9 +210,20 @@
             "profileShelves": "Shelves added: {shelves}",
             "profileNoShelves": "none — every shelf this profile names is already here",
             "profileKeeps": "Shelves already on this merchant are left exactly as they are, stock included.",
-            "profileRename": "Apply and rename to {name}",
             "profileApplied": "Applied {profile}.",
-            "profileFailed": "That profile could not be applied."
+            "profileFailed": "That profile could not be applied.",
+            "profilePlaceholder": "Select a profile...",
+            "profilePick": "Pick a profile to set this shop up in one press.",
+            "profileAppliedNote": "Set up from",
+            "saveProfile": "Save as profile",
+            "saveProfileNote": "Reuse this shop’s setup on other merchants.",
+            "saveProfileTooltip": "Save this shop’s settings and shelves as a profile. No stock, no portrait, no name.",
+            "saveProfileTitle": "Save as profile",
+            "saveProfileAsk": "Save this shop’s settings and its shelves — the compendiums, filters and restock cadence — as a profile you can apply to other merchants. Its stock, portrait and name are not saved.",
+            "saveProfileLabel": "Profile name",
+            "saveProfileNeedsName": "Give the profile a name.",
+            "saveProfileFailed": "That profile could not be saved.",
+            "profileSaved": "Saved {profile}."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

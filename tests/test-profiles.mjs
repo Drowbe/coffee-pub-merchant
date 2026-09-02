@@ -13,7 +13,7 @@
 // No dependencies: `const.js` imports nothing and touches no Foundry global at load.
 import assert from 'node:assert';
 import {
-    SHOP_PROFILES, shopProfile, missingShelves,
+    SHOP_PROFILES, shopProfile, missingShelves, allProfiles, profileFromShop,
     INVENTORY_TYPES, SHOP_KINDS, SHOP_DOORS, STOCK, STOCK_DEPTH
 } from '../scripts/const.js';
 // The rarity vocabulary lives with the compendium query that uses it, not in `const.js`.
@@ -141,5 +141,70 @@ console.log('ok  no profile carries items, only the rules for getting them');
     }
 }
 console.log('ok  no profile carries a portrait, a token or an illustration');
+
+// --- a world's own profiles join the shipped one -------------------------
+{
+    const custom = [{ key: 'fence', name: 'A Fence', shelves: [] }];
+    assert.strictEqual(allProfiles(custom).length, SHOP_PROFILES.length + 1);
+    assert.strictEqual(shopProfile('fence', custom)?.name, 'A Fence');
+    assert.strictEqual(shopProfile('fence'), null, 'without the saved list it is not there');
+
+    // A saved profile keyed like a shipped one replaces it: a GM who named theirs `general`
+    // has said which they meant, and offering both is a picker with two identical rows.
+    const override = [{ key: 'general', name: 'My General Store', shelves: [] }];
+    assert.strictEqual(allProfiles(override).length, SHOP_PROFILES.length);
+    assert.strictEqual(shopProfile('general', override).name, 'My General Store');
+
+    // Rubbish in the setting is ignored rather than thrown over: this is a world setting a
+    // GM could edit by hand, and a shop that will not open is a poor way to learn that.
+    assert.strictEqual(allProfiles(null).length, SHOP_PROFILES.length);
+    assert.strictEqual(allProfiles([{ nonsense: true }, null]).length, SHOP_PROFILES.length);
+}
+console.log("ok  a world's saved profiles join the shipped one, and rubbish is ignored");
+
+// --- saving a shop drops everything that identifies it -------------------
+//
+// The load-bearing half of "compendium actors clone, profiles configure". If this leaks a
+// name or a picture, applying a profile starts overwriting the person.
+{
+    const saved = profileFromShop('Corner Shop', {
+        name: "Phil's Shop-O-Stuff",
+        enabled: true,
+        img: 'portrait.webp',
+        illustration: 'shop.webp',
+        override: { open: true },
+        profile: { key: 'general' },
+        kind: 'general',
+        pricing: { markup: 1.2 }
+    }, [
+        { name: 'Front', config: { type: 'general', order: 40, par: 7, markup: 1, stock: 'infinite' } }
+    ]);
+
+    assert.strictEqual(saved.name, 'Corner Shop', 'the profile is named by the GM');
+    for (const field of ['name', 'enabled', 'img', 'illustration', 'override', 'profile']) {
+        assert.strictEqual(saved.shop[field], undefined, `${field} is not saved`);
+    }
+    assert.deepStrictEqual(saved.shop.pricing, { markup: 1.2 }, 'how it works is saved');
+
+    // `order` is rewritten against the shop it lands on, and `par` is what is on a shelf
+    // today rather than a rule about it.
+    assert.strictEqual(saved.shelves[0].config.order, undefined);
+    assert.strictEqual(saved.shelves[0].config.par, undefined);
+    assert.strictEqual(saved.shelves[0].config.stock, 'infinite');
+}
+console.log('ok  saving a shop keeps how it works and drops who it is');
+
+// --- a saved profile is a profile ----------------------------------------
+//
+// It goes straight back into the same picker and the same apply path, so it has to satisfy
+// what those read: a key, a name, and shelves carrying a type.
+{
+    const saved = profileFromShop('  ', {}, [{ name: 'Odds', config: {} }]);
+    assert.ok(saved.key, 'always keyed');
+    assert.strictEqual(saved.name, 'Saved profile', 'an empty name still yields one');
+    assert.strictEqual(saved.shelves[0].type, 'general', 'a shelf with no type is a general one');
+    assert.strictEqual(missingShelves(saved, ['odds']).length, 0, 'and it matches like any other');
+}
+console.log('ok  a saved profile is usable by the same picker that made it');
 
 console.log('\nall profile checks passed');

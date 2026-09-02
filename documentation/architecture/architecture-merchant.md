@@ -1353,8 +1353,22 @@ There is no merge and no replace: deleting a shelf is already a gesture with its
 understood consequences.
 
 **One profile ships**, drawing only on `dnd5e.items` and `dnd5e.tradegoods`, which the system installs
-itself -- so it cannot produce an empty shop on a fresh world. Everything else is the GM's, and the
-shipped one is as much a worked example of the shape as it is a shop.
+itself -- so it cannot produce an empty shop on a fresh world. Everything else is the GM's, saved from a
+shop they have already built: `profileFromShop` reads a live merchant back into a profile, and the world
+setting `shopProfiles` holds what they save. A saved profile keyed like a shipped one replaces it, because
+a GM who names theirs `general` has said which they meant.
+
+**Saving reads the shop as it stands, not the profile that built it.** A shop that started from a profile
+and was then tuned by hand is precisely the one worth saving. Identity is dropped in `profileFromShop`
+rather than at apply time, so nothing that names a shopkeeper ever reaches the setting -- there is nothing
+to leak later and nothing for a future reader to wonder about. `order` and `par` are dropped too: the first
+is rewritten against whatever shop the profile lands on, and the second is what is on a shelf today rather
+than a rule about it.
+
+**What was applied is written onto the shop**, as `profile` in its config, and shown in the settings
+window. Without it the only evidence a profile had been used was the shelves it left behind, which a GM
+cannot tell from shelves they built themselves -- so the way to answer "have I done this one?" was to apply
+it again and read the dialog.
 
 ---
 

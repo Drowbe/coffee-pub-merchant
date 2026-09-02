@@ -8,7 +8,7 @@ import {
     MODULE, MERCHANT_FLAG, STOCK, PAR_FLAG, FREE_FLAG, DEFAULT_RESTOCK_DAYS, DEFAULT_SHOP_KIND,
     DEFAULT_MAX_PRODUCTS, DEFAULT_MAX_PER_ITEM,
     DEFAULT_TILL, INVENTORY_FLAG, INVENTORY_TYPE, INVENTORY_TYPES, DEFAULT_TABLE_ROLLS, MAX_TABLE_ROLLS,
-    shopProfile, missingShelves,
+    shopProfile, missingShelves, allProfiles, profileFromShop, PROFILES_SETTING,
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
     DEFAULT_FULLSCREEN_DOORS,
@@ -603,9 +603,9 @@ export class MerchantManager {
      *
      * Returns what it did, so the caller can say so rather than guess.
      */
-    static async applyProfile(actor, profileKey, { rename = false } = {}) {
+    static async applyProfile(actor, profileKey) {
         if (!game.user.isGM || !actor) return null;
-        const profile = shopProfile(profileKey);
+        const profile = shopProfile(profileKey, this.savedProfiles());
         if (!profile) return null;
 
         const existing = actor.items
@@ -615,11 +615,15 @@ export class MerchantManager {
 
         // The shop first: a shelf created against the new markup and hours reads correctly
         // the moment it appears, and a failure here leaves nothing half-dressed.
-        const { name, ...rest } = profile.shop ?? {};
+        //
+        // **What was applied is written down.** Without it the only evidence a profile had
+        // been used was the shelves it happened to leave, which a GM cannot tell from
+        // shelves they built themselves -- so the answer to "have I done this one?" was to
+        // apply it again and read the dialog.
         await this.setConfig(actor, {
             enabled: true,
-            ...rest,
-            ...(rename && name ? { name } : {})
+            ...(profile.shop ?? {}),
+            profile: { key: profile.key, name: profile.name, at: Date.now() }
         });
 
         // **Through `setTillCoin`, which already exists**, rather than a third way to write
@@ -648,6 +652,59 @@ export class MerchantManager {
 
         this.broadcastActorRefresh(actor);
         return { profile, created, kept: existing.length };
+    }
+
+    /**
+     * The profiles this world has saved, as stored.
+     *
+     * Read every time rather than cached: a GM saving one from another shop's settings
+     * window expects the picker in this one to know about it.
+     */
+    static savedProfiles() {
+        try {
+            return game.settings.get(MODULE.ID, PROFILES_SETTING) ?? [];
+        } catch (_error) {
+            return [];
+        }
+    }
+
+    /** Every profile a picker should offer: the shipped one, then this world's own. */
+    static profiles() {
+        return allProfiles(this.savedProfiles());
+    }
+
+    /**
+     * Save this shop as a profile other shops can be dressed with.
+     *
+     * **Read from the live shop rather than from whatever built it.** A shop that started
+     * from a profile and was then tuned by hand is exactly the one worth saving, and reading
+     * the profile it came from would save the version before the tuning.
+     *
+     * Identity is dropped in `profileFromShop`, not here, so there is no path where a
+     * shopkeeper's name or picture reaches the setting at all.
+     */
+    static async saveProfile(actor, name) {
+        if (!game.user.isGM || !actor) return null;
+
+        const shelves = this.getInventories(actor, { includeHidden: true, catalogue: null })
+            .map(({ item, config }) => ({ name: item.name, config }));
+
+        const profile = profileFromShop(name, {
+            ...(this.getConfig(actor) ?? {}),
+            till: { gp: Math.trunc(Number(actor.system?.currency?.gp) || 0) }
+        }, shelves);
+
+        const saved = [...this.savedProfiles(), profile];
+        await game.settings.set(MODULE.ID, PROFILES_SETTING, saved);
+        return profile;
+    }
+
+    /** Forget a saved profile. Shipped ones cannot be removed, and say so by not being there. */
+    static async deleteProfile(key) {
+        if (!game.user.isGM) return null;
+        const saved = this.savedProfiles().filter((profile) => profile.key !== key);
+        await game.settings.set(MODULE.ID, PROFILES_SETTING, saved);
+        return saved;
     }
 
     /**

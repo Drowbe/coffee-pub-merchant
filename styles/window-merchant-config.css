@@ -336,6 +336,27 @@
 }
 
 .merchant-config-profiles select { width: 100%; min-width: 0; }
+
+/* What this shop was set up from. Quiet and green: it is a fact about the shop rather than
+   a warning, and it answers a question a GM would otherwise answer by applying again. */
+.merchant-config-applied {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 7px;
+    padding: 4px 8px;
+    border-left: 2px solid color-mix(in srgb, #2f6b33 55%, var(--blacksmith-tool-divider));
+    border-radius: 3px;
+    background: color-mix(in srgb, #2f6b33 10%, transparent);
+    color: var(--blacksmith-tool-text-muted);
+    font-size: .68rem;
+}
+
+.merchant-config-applied > i { color: #4f9a55; font-size: .62rem; }
+.merchant-config-applied > strong { color: var(--blacksmith-tool-text); }
+
+/* The save row reads the other way round: the sentence first, the button at the end. */
+.merchant-config-profiles .merchant-config-row-inline + .merchant-config-row-inline { margin-top: 8px; }
 .merchant-config-profiles .merchant-config-hint { grid-column: 1 / -1; margin-top: 1px; }
 
 /* The exception: a row whose label and controls sit on one line, for the tables,

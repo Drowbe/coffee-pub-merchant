@@ -23,7 +23,7 @@ import {
     DEFAULT_ABANDONED_STOCK,
     TOKEN_MARKER_SETTINGS,
     DELIVERY_SERVICES, deliveryDaysKey, deliveryFeeKey, DELIVERY_POINT, deliveryPlacesKey,
-    CRATE, CRATE_DEPOSIT_SETTING
+    CRATE, CRATE_DEPOSIT_SETTING, PROFILES_SETTING
 } from './const.js';
 import { MerchantManager } from './manager-merchant.js';
 import { playSoundPath } from './utility-feedback.js';
@@ -472,6 +472,23 @@ function registerDeliverySettings() {
 }
 
 /**
+ * Where a world keeps the shop profiles its GM has saved.
+ *
+ * `config: false`, because this is not a control: it is written by the Save button in a
+ * merchant's settings window, where a GM is looking at the shop they want to save. A JSON
+ * blob in the settings list would be a thing to edit by hand and get wrong, and every field
+ * in it already has a proper control somewhere else.
+ */
+function registerProfileStore() {
+    game.settings.register(MODULE.ID, PROFILES_SETTING, {
+        scope: 'world',
+        config: false,
+        type: Array,
+        default: []
+    });
+}
+
+/**
  * Everywhere a parcel can be sent that is not a shop.
  *
  * **World settings, because a place is a fact about the world.** These began as two boxes
@@ -547,6 +564,7 @@ export function registerSettings() {
     registerAbandonedSettings();
 
     registerDeliverySettings();
+    registerProfileStore();
 
     registerHeader('Sound', 'H2',
         'coffee-pub-merchant.settings.headingSound',

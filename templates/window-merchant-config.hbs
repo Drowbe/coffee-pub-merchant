@@ -46,17 +46,45 @@
                 <span><i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.profiles"}}</span>
             </h3>
 
+            {{!-- **What was last applied, said plainly.** Without it the only evidence a
+                  profile had been used was the shelves it left, which a GM cannot tell from
+                  shelves they built themselves -- so the way to answer "have I done this
+                  one?" was to apply it again and read the dialog. --}}
+            {{#if profileApplied}}
+                <div class="merchant-config-applied">
+                    <i class="fa-solid fa-circle-check"></i>
+                    {{localize "coffee-pub-merchant.config.profileAppliedNote"}} <strong>{{profileApplied}}</strong>
+                </div>
+            {{/if}}
+
             <div class="merchant-config-row merchant-config-row-inline">
                 <select data-merchant-profile aria-label="{{localize "coffee-pub-merchant.config.profiles"}}">
+                    {{!-- Nothing is chosen for them: a picker opening on the first profile
+                          reads as a shop that is already that kind. --}}
+                    <option value="" {{#unless profileChosen}}selected{{/unless}}>
+                        {{localize "coffee-pub-merchant.config.profilePlaceholder"}}
+                    </option>
                     {{#each profiles}}
                         <option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>
                     {{/each}}
                 </select>
                 <button type="button" class="blacksmith-window-btn-secondary" data-action="applyProfile"
+                        {{#unless profileChosen}}disabled{{/unless}}
                         data-tooltip="{{localize "coffee-pub-merchant.config.applyProfileTooltip"}}">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.applyProfile"}}
                 </button>
                 <small class="merchant-config-hint">{{profileHint}}</small>
+            </div>
+
+            <div class="merchant-config-row merchant-config-row-inline">
+                {{!-- The other direction: this shop, saved as a kind of shop. It reads the
+                      shop as it stands rather than the profile that built it, so a shop
+                      tuned by hand saves the tuning. --}}
+                <span class="merchant-config-hint">{{localize "coffee-pub-merchant.config.saveProfileNote"}}</span>
+                <button type="button" class="blacksmith-window-btn-secondary" data-action="saveProfile"
+                        data-tooltip="{{localize "coffee-pub-merchant.config.saveProfileTooltip"}}">
+                    <i class="fa-solid fa-floppy-disk"></i> {{localize "coffee-pub-merchant.config.saveProfile"}}
+                </button>
             </div>
 
             <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.profileNote"}}</div>

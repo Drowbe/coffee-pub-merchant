@@ -781,7 +781,6 @@ export const SHOP_PROFILES = Object.freeze([
         // What is written onto the Actor. Merged over what is there, so anything a profile
         // does not mention -- sounds, the look, an override in force -- survives untouched.
         shop: Object.freeze({
-            name: 'General Goods Merchant',
             kind: 'general',
             description: "They've got stuff... the stuff isn't very exciting, but if you need the basics, they got you.",
             // Walking in and consulting the catalogue take over the screen; a token or a pin
@@ -866,9 +865,64 @@ export const SHOP_PROFILES = Object.freeze([
     })
 ]);
 
-/** A profile by key, or null. */
-export function shopProfile(key) {
-    return SHOP_PROFILES.find((profile) => profile.key === key) ?? null;
+/** Where a world keeps the profiles its GM has saved. */
+export const PROFILES_SETTING = 'shopProfiles';
+
+/**
+ * The profiles a world has: the shipped one, then whatever the GM has saved.
+ *
+ * A saved profile with the key of a shipped one replaces it, which is the only sane
+ * resolution -- a GM who names their own profile `general` has said which they meant.
+ */
+export function allProfiles(saved) {
+    const custom = Array.isArray(saved) ? saved.filter((entry) => entry?.key && entry?.name) : [];
+    const keys = new Set(custom.map((entry) => entry.key));
+    return [...SHOP_PROFILES.filter((profile) => !keys.has(profile.key)), ...custom];
+}
+
+/** A profile by key, from a world's full list. */
+export function shopProfile(key, saved) {
+    return allProfiles(saved).find((profile) => profile.key === key) ?? null;
+}
+
+/**
+ * Read a live merchant back into a profile.
+ *
+ * **The identity is dropped here rather than at apply time**, so a saved profile does not
+ * carry a shopkeeper's name or picture at all -- there is nothing to leak later, and nothing
+ * for a future reader to wonder whether they should be using. What survives is how the shop
+ * *works*: its category, hours, markup, doors, delivery flags, and one entry per shelf
+ * carrying that shelf's own settings and the query or tables it draws from.
+ *
+ * Stock is not read. A profile is a recipe, and what happens to be on the shelf today is the
+ * least reusable thing about a shop.
+ *
+ * Pure: it takes the config objects rather than the documents, so it can be tested without
+ * a world. See `tests/test-profiles.mjs`.
+ */
+export function profileFromShop(name, shopConfig, shelves) {
+    const shop = { ...(shopConfig ?? {}) };
+    // Identity, state, and things that describe this shop's history rather than its shape.
+    for (const field of ['name', 'enabled', 'img', 'portrait', 'illustration', 'override', 'profile']) {
+        delete shop[field];
+    }
+
+    return {
+        key: `custom-${Date.now().toString(36)}`,
+        name: String(name ?? '').trim() || 'Saved profile',
+        hint: 'Saved from a shop in this world.',
+        icon: 'fa-solid fa-wand-magic-sparkles',
+        shop,
+        till: shopConfig?.till ? { ...shopConfig.till } : null,
+        shelves: (shelves ?? []).map(({ name: shelfName, config }) => {
+            const kept = { ...(config ?? {}) };
+            // `order` is rewritten on apply against the shop it lands on, and `par` is a
+            // count of what is on a shelf right now rather than a rule about it.
+            delete kept.order;
+            delete kept.par;
+            return { type: kept.type ?? 'general', name: shelfName, config: kept };
+        })
+    };
 }
 
 /**

@@ -9,7 +9,7 @@ import {
     SHOP_SOUND_KEYS,
     SHOP_DOORS,
     DELIVERY_POINT,
-    SHOP_PROFILES, shopProfile, missingShelves
+    shopProfile, missingShelves
 } from './const.js';
 import { hasPins, canPin } from './utility-pins.js';
 import { canPrint } from './utility-catalogue.js';
@@ -251,6 +251,7 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
         applyProfile: (_event, _target, win) => void win.applyProfile(),
+        saveProfile: (_event, _target, win) => void win.saveProfile(),
         openInventory: (_event, target, win) => void win.openInventory(target.dataset.inventoryId),
         toggleInventoryVisible: (_event, target, win) => void win.toggleInventoryVisible(target.dataset.inventoryId),
         removeInventory: (_event, target, win) => void win.removeInventory(target.dataset.inventoryId),
@@ -1989,12 +1990,21 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // out when it is applied, against the shop as it stands then -- computing it
             // here would be a promise made at render time and kept at click time, with a
             // shelf possibly created in between.
-            profiles: SHOP_PROFILES.map((profile) => ({
+            profiles: MerchantManager.profiles().map((profile) => ({
                 key: profile.key,
                 name: profile.name,
                 selected: profile.key === this._profile
             })),
-            profileHint: shopProfile(this._profile ?? SHOP_PROFILES[0]?.key)?.hint ?? '',
+            // **Nothing is chosen for them.** A picker that opens on the first profile reads
+            // as a shop that is already that kind, and Apply becomes a button whose effect
+            // depends on a choice nobody made.
+            profileChosen: Boolean(this._profile),
+            profileHint: this._profile
+                ? (shopProfile(this._profile, MerchantManager.savedProfiles())?.hint ?? '')
+                : game.i18n.localize('coffee-pub-merchant.config.profilePick'),
+            // What was last applied, if anything. Stored on the shop rather than inferred
+            // from its shelves, which a GM cannot tell from shelves they built by hand.
+            profileApplied: merchantConfig.profile?.name ?? null,
             deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
             deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
             fullscreenDoors: SHOP_DOORS.map((door) => ({
@@ -2160,14 +2170,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
      * exist are left alone -- so the honest sentence names the shelves being added and says
      * the rest is untouched.
      *
-     * **Renaming is the third button, never the default.** Applied to an NPC the party have
-     * known for six sessions, the name is the one change that does not look like a change
-     * until somebody notices their innkeeper is called General Goods Merchant.
+     * **One button, one effect.** An earlier cut offered "apply and rename" beside "apply",
+     * which put two decisions in one press and made the middle button a thing to work out
+     * rather than read. A profile never touches the shop's name now; the field for it is
+     * eight lines further down this same window.
      */
     async applyProfile() {
         if (!game.user.isGM) return;
         const actor = await this._resolveActor();
-        const profile = shopProfile(this._profile ?? SHOP_PROFILES[0]?.key);
+        const profile = shopProfile(this._profile, MerchantManager.savedProfiles());
         if (!actor || !profile) return;
 
         const existing = actor.items
@@ -2176,14 +2187,13 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         const adding = missingShelves(profile, existing);
 
         const blacksmith = _blacksmith();
-        let rename = false;
 
-        if (typeof blacksmith?.dialog?.wait === 'function') {
+        if (typeof blacksmith?.dialog?.confirm === 'function') {
             const shelves = adding.length
                 ? adding.map((shelf) => shelf.name).join(', ')
                 : game.i18n.localize('coffee-pub-merchant.config.profileNoShelves');
 
-            const answer = await blacksmith.dialog.wait({
+            const sure = await blacksmith.dialog.confirm({
                 title: game.i18n.format('coffee-pub-merchant.config.profileTitle', { profile: profile.name }),
                 classes: ['merchant-dialog'],
                 content: `<p>${game.i18n.format('coffee-pub-merchant.config.profileAsk', {
@@ -2192,36 +2202,14 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 })}</p><p>${game.i18n.format('coffee-pub-merchant.config.profileShelves', {
                     shelves: foundry.utils.escapeHTML(shelves)
                 })}</p><p>${game.i18n.localize('coffee-pub-merchant.config.profileKeeps')}</p>`,
-                buttons: [
-                    {
-                        action: 'cancel',
-                        label: game.i18n.localize('coffee-pub-merchant.common.cancel'),
-                        icon: 'fa-solid fa-xmark'
-                    },
-                    {
-                        action: 'rename',
-                        label: game.i18n.format('coffee-pub-merchant.config.profileRename', {
-                            name: profile.shop?.name ?? profile.name
-                        }),
-                        icon: 'fa-solid fa-signature'
-                    },
-                    {
-                        action: 'apply',
-                        label: game.i18n.localize('coffee-pub-merchant.config.applyProfile'),
-                        icon: 'fa-solid fa-wand-magic-sparkles',
-                        default: true
-                    }
-                ],
-                closeValue: 'cancel'
+                confirmLabel: game.i18n.localize('coffee-pub-merchant.config.applyProfile'),
+                confirmIcon: 'fa-solid fa-wand-magic-sparkles'
             });
-
-            // `.value`, because `dialog.wait` answers with an object rather than the action.
-            if (!answer?.value || answer.value === 'cancel') return;
-            rename = answer.value === 'rename';
+            if (!sure) return;
         }
 
         try {
-            const result = await MerchantManager.applyProfile(actor, profile.key, { rename });
+            const result = await MerchantManager.applyProfile(actor, profile.key);
             if (!result) return;
             notify.success(game.i18n.format('coffee-pub-merchant.config.profileApplied', {
                 profile: profile.name
@@ -2229,6 +2217,71 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not apply that profile:`, error);
             notify.error(game.i18n.localize('coffee-pub-merchant.config.profileFailed'));
+        }
+        void this.render(false);
+    }
+
+    /**
+     * Save this shop as a profile.
+     *
+     * **Read from the shop as it stands**, not from whatever profile built it: a shop that
+     * started from a profile and was then tuned by hand is precisely the one worth saving,
+     * and reading its origin would save the version before the tuning.
+     *
+     * The name is asked for because a profile needs one of its own -- it is a *kind* of
+     * shop rather than this shop, and "Phil's Shop-O-Stuff" in a picker of shop kinds tells
+     * the next reader nothing.
+     */
+    async saveProfile() {
+        if (!game.user.isGM) return;
+        const actor = await this._resolveActor();
+        if (!actor) return;
+
+        const blacksmith = _blacksmith();
+        if (typeof blacksmith?.dialog?.prompt !== 'function') {
+            notify.warn(game.i18n.localize('coffee-pub-merchant.notify.dialogUnavailable'));
+            return;
+        }
+
+        const suggestion = MerchantManager.getConfig(actor)?.name || actor.name;
+
+        // `content` as a function so a rejected name comes back with what was typed still in
+        // the box: the helper reopens the dialog rather than showing an error in place, and
+        // an empty field on the second attempt reads as the dialog having thrown the name
+        // away. See `api-dialog.md`.
+        const outcome = await blacksmith.dialog.prompt({
+            title: game.i18n.localize('coffee-pub-merchant.config.saveProfileTitle'),
+            classes: ['merchant-dialog'],
+            content: ({ value }) => `
+                <p>${game.i18n.localize('coffee-pub-merchant.config.saveProfileAsk')}</p>
+                <div class="blacksmith-field">
+                    <span class="blacksmith-field-label">${
+                        game.i18n.localize('coffee-pub-merchant.config.saveProfileLabel')}</span>
+                    <input type="text" name="profile" class="blacksmith-input"
+                           value="${foundry.utils.escapeHTML(value ?? suggestion)}">
+                </div>`,
+            submitLabel: game.i18n.localize('coffee-pub-merchant.config.saveProfile'),
+            submitIcon: 'fa-solid fa-floppy-disk',
+            focusSelector: '[name="profile"]',
+            getValue: (root) => root.elements.profile.value.trim(),
+            validate: (value) => (value ? null : game.i18n.localize('coffee-pub-merchant.config.saveProfileNeedsName')),
+            cancelValue: '',
+            closeValue: ''
+        });
+
+        const name = outcome?.value;
+        if (!name) return;
+
+        try {
+            const saved = await MerchantManager.saveProfile(actor, name);
+            if (!saved) return;
+            this._profile = saved.key;
+            notify.success(game.i18n.format('coffee-pub-merchant.config.profileSaved', {
+                profile: saved.name
+            }), { subtitle: saved.shelves.map((shelf) => shelf.name).join(', ') });
+        } catch (error) {
+            console.error(`${MODULE.TITLE} | Could not save that profile:`, error);
+            notify.error(game.i18n.localize('coffee-pub-merchant.config.saveProfileFailed'));
         }
         void this.render(false);
     }
