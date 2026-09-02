@@ -187,6 +187,9 @@ reasoning behind it are in `architecture/architecture-merchant.md` §11a; this e
 - **The singleton rule.** Apply to a shop whose buyback or catalogue shelf is called something else, and
   neither should be added again.
 - **Applying twice.** The name guard should mean nothing is doubled.
+- **Folding.** Every section and every shelf card should fold from its heading, the buttons in a heading
+  should still work, and the state should survive closing the window -- except the profiles section, which
+  starts shut every time.
 - **The dialog width cap.** The save prompt was spanning the screen; `styles/dialog.css` now caps every
   merchant dialog.
 

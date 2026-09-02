@@ -339,42 +339,39 @@
 
 
 /*
- * **Shut by default, and the whole heading opens it.**
+ * **Every section of this window folds, and the whole heading is the control.**
  *
- * Setting a shop up from a profile is a thing done once, so the section that offers it
- * should not hold the top of the window for the rest of that shop's life. Folded, it is one
- * line saying what the shop was set up from -- which is the only part still worth reading
- * after the first minute.
+ * A shop's settings run to six sections and a card per shelf, so a GM working on one shelf
+ * scrolls past all of the rest. A chevron alone would be a small target for a thing whose
+ * only job is to get out of the way, so the heading is the button -- the controls sitting in
+ * it keep their own clicks, which the handler checks for.
+ *
+ * **Nothing but the heading is hidden, and no wrapper was added to do it.** A body element
+ * around every section's contents would have been six edits to a long template for a rule
+ * one selector can state. `> h3` covers a section's heading and a shelf card's alike.
  */
-.merchant-config-fold {
-    display: inline-flex;
-    gap: 7px;
-    align-items: center;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    letter-spacing: inherit;
-    text-align: left;
-    text-transform: inherit;
-    cursor: pointer;
-}
+[data-fold] > h3 { cursor: pointer; }
 
-.merchant-config-fold:hover { color: var(--merchant-interactive); }
-.merchant-config-fold:focus-visible { outline: 2px solid var(--blacksmith-tool-accent); outline-offset: 2px; }
+[data-fold] > h3 > span:first-child::before {
+    display: inline-block;
+    margin-right: 6px;
+    font-family: 'Font Awesome 6 Pro', 'Font Awesome 6 Free', 'FontAwesome';
+    font-size: .58rem;
+    font-weight: 900;
+    transition: transform .12s ease;
+    content: '078';
+}
 
 /* Points down when open, right when shut -- the direction everybody already reads as
    "there is more below" without being told. */
-.merchant-config-fold-chevron { flex: 0 0 auto; font-size: .6rem; transition: transform .12s ease; }
-.merchant-config-profiles.is-collapsed .merchant-config-fold-chevron { transform: rotate(-90deg); }
-.merchant-config-profiles.is-collapsed .merchant-config-fold-body { display: none; }
+[data-fold].is-collapsed > h3 > span:first-child::before { transform: rotate(-90deg); }
+
+[data-fold].is-collapsed > *:not(h3) { display: none; }
 
 /* **A folded section is one bar, not a heading floating over an empty one.** The heading
    carries a bottom rule and the margin that separates it from the body; with the body gone
    both were drawing a line under nothing and leaving a strip of empty card beneath it. */
-.merchant-config-profiles.is-collapsed > h3 {
+[data-fold].is-collapsed > h3 {
     margin: 0;
     padding: 0;
     border-bottom: 0;

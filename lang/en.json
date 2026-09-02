@@ -229,7 +229,6 @@
             "deleteProfileNote": "Shops already set up from it keep their shelves. A profile that ships with Merchant can be brought back; one you saved cannot.",
             "deleteProfileFailed": "That profile could not be deleted.",
             "profileDeleted": "Deleted {profile}.",
-            "profilesTooltip": "Set this shop up from a profile. Closed unless you need it.",
             "profileAddedShelves": "Added: {shelves}",
             "profileAddedNone": "No shelves added — this shop already had them all",
             "profileWroteSettings": "Set the category, hours, markup, till, doors and delivery",

@@ -41,21 +41,26 @@
           nothing to dress until there is a shop. --}}
     {{#if enabled}}
         {{#if profiles}}
-        <section class="merchant-config-section merchant-config-profiles{{#unless profilesOpen}} is-collapsed{{/unless}}">
+        <section class="merchant-config-section merchant-config-profiles" data-fold="profiles">
             {{!-- The whole heading is the control, the way a shelf's is in the shop window:
                   a chevron alone is a small target for a thing whose only job is to get out
                   of the way. --}}
             <h3>
-                <button type="button" class="merchant-config-fold" data-action="toggleProfiles"
-                        aria-expanded="{{#if profilesOpen}}true{{else}}false{{/if}}"
-                        data-tooltip="{{localize "coffee-pub-merchant.config.profilesTooltip"}}">
-                    <i class="fa-solid fa-chevron-down merchant-config-fold-chevron"></i>
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    {{localize "coffee-pub-merchant.config.profiles"}}
-                </button>
+                <span><i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.profiles"}}</span>
             </h3>
 
-            <div class="merchant-config-fold-body">
+            {{!-- **What the last press did, where the button is.** Not provenance: a shop
+                  does not record what it was set up from, because that stops describing it
+                  almost at once. This describes the press rather than the shop, so it lives
+                  on the window and goes when the window does. --}}
+            {{#if applied}}
+                <div class="merchant-config-applied">
+                    <strong><i class="fa-solid fa-circle-check"></i> {{applied.profile}}</strong>
+                    <ul>
+                        {{#each applied.lines}}<li>{{this}}</li>{{/each}}
+                    </ul>
+                </div>
+            {{/if}}
 
             <div class="merchant-config-row merchant-config-row-inline">
                 <select data-merchant-profile aria-label="{{localize "coffee-pub-merchant.config.profiles"}}">
@@ -100,13 +105,12 @@
             {{/if}}
 
             <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.profileNote"}}</div>
-            </div>
         </section>
         {{/if}}
     {{/if}}
 
     {{#if enabled}}
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="merchant">
             <h3>
                 <span><i class="fa-solid fa-store"></i> {{localize "coffee-pub-merchant.config.theShop"}}</span>
             </h3>
@@ -216,7 +220,7 @@
             </div>
         </section>
 
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="sound">
             <h3>
                 <span><i class="fa-solid fa-volume-high"></i> {{localize "coffee-pub-merchant.config.sound"}}</span>
             </h3>
@@ -240,7 +244,7 @@
             <small class="merchant-config-hint">{{localize "coffee-pub-merchant.config.soundHint"}}</small>
         </section>
 
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="hours">
             <h3>
                 <span><i class="fa-solid fa-clock"></i> {{localize "coffee-pub-merchant.config.tradingHours"}}</span>
                 <span class="merchant-config-hours-always{{#if alwaysClosed}} is-closed{{/if}}"
@@ -279,7 +283,7 @@
             {{/if}}
         </section>
 
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="till">
             <h3>
                 <span><i class="fa-solid fa-sack-dollar"></i> {{localize "coffee-pub-merchant.config.theTill"}}</span>
                 {{!-- What the coins below come to in total. It reads as a different
@@ -313,7 +317,7 @@
             {{/if}}
         </section>
 
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="pricing">
             <h3><span><i class="fa-solid fa-tags"></i> {{localize "coffee-pub-merchant.config.pricing"}}</span></h3>
 
             <div class="merchant-config-grid">
@@ -337,7 +341,7 @@
             </small>
         </section>
 
-        <section class="merchant-config-section">
+        <section class="merchant-config-section" data-fold="inventories">
             <h3>
                 <span><i class="fa-solid fa-layer-group"></i> {{localize "coffee-pub-merchant.config.inventories"}}</span>
                 <span class="merchant-config-head-actions">
@@ -396,7 +400,7 @@
         {{#each inventories}}
             {{!-- Each inventory is its own card with its own headings, so it reads like
                   the shop window rather than like a row in a table that grew settings. --}}
-            <div class="merchant-config-inv">
+            <div class="merchant-config-inv" data-fold="inv-{{id}}">
 
                         {{!-- **The category is the heading; the name is content.** The
                               type is what this card *is* and cannot be changed, which

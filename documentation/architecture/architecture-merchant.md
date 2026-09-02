@@ -1392,9 +1392,18 @@ both from a merchant's settings window. An editor would be a second copy of that
 it for ever, offering to change values the shop itself edits better -- and the shop is the honest place to
 tune them, because you can see what they do.
 
-**The section is shut unless asked for.** Setting a shop up from a profile is done once, and a section
-offering it standing open for the rest of that shop's life holds the top of the window above everything a
-GM came there to change.
+**Every section of the settings window folds**, including each shelf card, on one mechanism: a `data-fold`
+attribute names the section, the whole heading is the control, and `[data-fold].is-collapsed > *:not(h3)`
+hides the rest. No body wrapper was added -- that would have been six edits to a long template for a rule
+one selector states -- and the class is toggled directly rather than re-rendered, since folding changes
+nothing about the shop and a re-render of a window this size takes the scroll position and any half-typed
+field with it.
+
+**Folds are remembered per client, in `localStorage`, and the profiles section is the exception.** How
+somebody likes to read a window is not a fact about the shop, and two GMs at one table may want different
+things -- the same reasoning as the shop window's view and sort. Profiles starts shut every time, because
+setting a shop up from one is a one-time act; it also opens itself when it has an apply to report, since a
+report nobody can see is not a report.
 
 **Nothing records which profile a shop came from.** It was stored and displayed for a while, on the
 argument that a GM would want to know. It does not survive the question *what would read it?* -- applying
@@ -1404,9 +1413,16 @@ started as. A starting point stops describing a shop almost immediately. `profil
 field, because worlds that applied a profile before this carry it and it must not travel into a saved
 profile.
 
-**Applying reports both halves.** What was written -- the shelves added and the settings set -- and what
-was not: existing shelves, their stock, the shop's name and its portrait. A button called Apply on a
-window full of settings sounds like it might have overwritten the lot, and answering that costs one clause.
+**Applying reports both halves**, in the section as well as in a toast. What was written -- the shelves
+added and the settings set -- and what was not: existing shelves, their stock, the shop's name and its
+portrait. A button called Apply on a window full of settings sounds like it might have overwritten the lot,
+and answering that costs one clause.
+
+**That report is not provenance.** What a shop was *set up from* is permanent state that stops describing
+it almost at once, and is deliberately not recorded. What just happened when a button was pressed is about
+the press: it lives on the window, unfolds the section so it can be read, is cleared by choosing another
+profile, and goes when the window closes. A toast alone put the only summary of a change to a shop on a
+fourteen-second timer, in a corner, away from the thing it described.
 
 **The picker is a starting point, not a bound field.** It opens on "Select a profile", Apply is disabled
 until one is chosen, and it returns to that after applying -- because this is a one-time getting-started

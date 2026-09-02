@@ -25,6 +25,43 @@ import { notify, playFeedback, SOUND } from './utility-feedback.js';
 import { soundLibrary } from './settings.js';
 
 
+/**
+ * **Which sections of this window a person keeps shut.**
+ *
+ * A settings window for a shop is long -- identity, sound, hours, the till, pricing, and a
+ * card per shelf -- and a GM working on one shelf is scrolling past all of it. Folding is
+ * how they get the rest out of the way, so it has to survive the window closing or it is a
+ * gesture repeated every time.
+ *
+ * `localStorage`, per client, for the reason the shop window's view preferences are: how
+ * somebody likes to read a window is not a fact about the shop, and two GMs at one table
+ * may want different things. A world setting would make one person's folds everybody's, and
+ * a per-user setting would be a document write broadcast to every client to record something
+ * no other client will ever read.
+ *
+ * **The profiles section is deliberately not remembered.** Setting a shop up from a profile
+ * is a one-time act, so that one starts shut every time the window opens -- see
+ * `_foldedByDefault`.
+ */
+const FOLDS_KEY = `${MODULE.ID}-config-folds`;
+
+function readFolds() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(FOLDS_KEY) ?? '[]');
+        return new Set(Array.isArray(stored) ? stored : []);
+    } catch (_error) {
+        return new Set();
+    }
+}
+
+function writeFolds(keys) {
+    try {
+        localStorage.setItem(FOLDS_KEY, JSON.stringify([...keys]));
+    } catch (_error) {
+        // A browser with storage switched off simply does not remember. Nothing else breaks.
+    }
+}
+
 const TEMPLATE = 'modules/coffee-pub-merchant/templates/window-merchant-config.hbs';
 const RATE_PARTIAL = 'modules/coffee-pub-merchant/templates/partial-rate.hbs';
 let _partialsReady = null;
@@ -251,7 +288,6 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         close: (_event, _target, win) => win.close(),
         addInventory: (event, target, win) => void win.openInventoryMenu(event, target),
         applyProfile: (_event, _target, win) => void win.applyProfile(),
-        toggleProfiles: (_event, _target, win) => win.toggleProfiles(),
         restoreProfiles: (_event, _target, win) => void win.restoreProfiles(),
         saveProfile: (_event, _target, win) => void win.saveProfile(),
         deleteProfile: (_event, _target, win) => void win.deleteProfile(),
@@ -417,6 +453,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             });
         }
 
+        this._bindFolds();
+
         const profile = this.element?.querySelector('[data-merchant-profile]');
         if (profile && profile.dataset.merchantBound !== 'true') {
             profile.dataset.merchantBound = 'true';
@@ -424,6 +462,9 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // the profile now selected. Nothing is written to the shop until Apply.
             profile.addEventListener('change', (event) => {
                 this._profile = event.target.value;
+                // Choosing again is starting again: the last report describes a press that
+                // is no longer the one in front of them.
+                this._applied = null;
                 void this.render(false);
             });
         }
@@ -2002,11 +2043,11 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             // as a shop that is already that kind, and Apply becomes a button whose effect
             // depends on a choice nobody made.
             profileChosen: Boolean(this._profile),
+            applied: this._applied ?? null,
             // **Shut unless asked for, every time this window opens.** Setting a shop up
             // from a profile is a thing you do once; a section standing open for the rest
             // of that shop's life is a permanent offer to do it again, at the top of the
             // window, above everything a GM actually came here to change.
-            profilesOpen: this._profilesOpen === true,
             // **Anything in the picker can be removed, the shipped profile included.** It
             // was held back at first on the grounds that it is not ours to delete, which is
             // true of the file and irrelevant to the world: a GM who does not want it in
@@ -2232,9 +2273,8 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
             const result = await MerchantManager.applyProfile(actor, profile.key);
             if (!result) return;
             // **Back to "Select a profile".** This is a one-time getting-started gesture
-            // rather than a field bound to the shop: leaving the picker on what was just
-            // applied reads as a setting in force, and the shop already says what it was set
-            // up from a few pixels above.
+            // rather than a field bound to the shop: a picker left on what was just applied
+            // reads as a setting in force.
             this._profile = null;
 
             // **Say what moved and what did not, in that order.** The second half is the
@@ -2253,6 +2293,15 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                     : '',
                 game.i18n.localize('coffee-pub-merchant.config.profileUntouched')
             ].filter(Boolean);
+
+            // **The same summary stays in the section, and this is not provenance.** What
+            // a shop was *set up from* is permanent state that stops describing it almost
+            // at once, and was rightly dropped. What just happened when a button was pressed
+            // is about the press: it belongs where the button is, for as long as the person
+            // who pressed it is looking at that window, and it goes when they close it.
+            // A toast alone put the one summary of a change to a shop on a fourteen-second
+            // timer, in the corner, away from the thing it described.
+            this._applied = { profile: profile.name, lines: said };
 
             notify.success(game.i18n.format('coffee-pub-merchant.config.profileApplied', {
                 profile: profile.name
@@ -2287,10 +2336,75 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
         void this.render(false);
     }
 
-    /** Open or shut the profiles section. Per window, and never remembered: see `profilesOpen`. */
-    toggleProfiles() {
-        this._profilesOpen = !this._profilesOpen;
-        void this.render(false);
+    /**
+     * Whether a section starts shut when nothing has been said about it.
+     *
+     * Only profiles does. Every other section holds something a GM opened this window to
+     * change, and a window that opens with all of it hidden is a window they have to unpack
+     * before they can use it.
+     */
+    _foldedByDefault(key) {
+        return key === 'profiles';
+    }
+
+    /**
+     * Fold and unfold, and remember which.
+     *
+     * **The whole heading is the control**, the way a shelf's is in the shop window: a
+     * chevron alone is a small target for a thing whose only job is to get out of the way.
+     * A click that landed on one of the heading's own buttons -- hide, reorder, restock,
+     * delete -- is that button's, not the fold's, so those are let through.
+     *
+     * The class is toggled directly rather than re-rendered. Folding is a view, nothing
+     * about the shop has changed, and a re-render of a window this size would take the
+     * scroll position and any half-typed field with it.
+     */
+    _bindFolds() {
+        const stored = readFolds();
+
+        for (const section of this.element?.querySelectorAll('[data-fold]') ?? []) {
+            const key = section.dataset.fold;
+            const head = section.querySelector(':scope > h3');
+            if (!head) continue;
+
+            const shut = key === 'profiles'
+                // The profiles section keeps its own answer: it is shut by default, opened
+                // by a toggle, and forced open when it is reporting what an apply just did.
+                ? !(this._profilesOpen === true || Boolean(this._applied))
+                : (stored.has(key) || (!stored.has(`${key}:open`) && this._foldedByDefault(key)));
+            section.classList.toggle('is-collapsed', shut);
+
+            if (head.dataset.merchantBound === 'true') continue;
+            head.dataset.merchantBound = 'true';
+            head.setAttribute('role', 'button');
+            head.setAttribute('tabindex', '0');
+
+            const toggle = () => {
+                if (key === 'profiles') {
+                    this._profilesOpen = !this._profilesOpen;
+                    this._applied = null;
+                    section.classList.toggle('is-collapsed', !this._profilesOpen);
+                    return;
+                }
+                const folds = readFolds();
+                const nowShut = !section.classList.contains('is-collapsed');
+                if (nowShut) folds.add(key);
+                else folds.delete(key);
+                writeFolds(folds);
+                section.classList.toggle('is-collapsed', nowShut);
+            };
+
+            head.addEventListener('click', (event) => {
+                if (event.target.closest('button, input, select, textarea, a')) return;
+                toggle();
+            });
+            head.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                if (event.target !== head) return;
+                event.preventDefault();
+                toggle();
+            });
+        }
     }
 
     /**
