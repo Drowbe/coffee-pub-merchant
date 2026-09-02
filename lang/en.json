@@ -216,14 +216,20 @@
             "profilePick": "Pick a profile to set this shop up in one press.",
             "profileAppliedNote": "Set up from",
             "saveProfile": "Save as profile",
-            "saveProfileNote": "Reuse this shop’s setup on other merchants.",
             "saveProfileTooltip": "Save this shop’s settings and shelves as a profile. No stock, no portrait, no name.",
             "saveProfileTitle": "Save as profile",
-            "saveProfileAsk": "Save this shop’s settings and its shelves — the compendiums, filters and restock cadence — as a profile you can apply to other merchants. Its stock, portrait and name are not saved.",
+            "saveProfileAsk": "Saves how this shop works: its settings, and each shelf with its compendiums, filters and restock cadence. Its stock, portrait and name are not saved.",
             "saveProfileLabel": "Profile name",
             "saveProfileNeedsName": "Give the profile a name.",
             "saveProfileFailed": "That profile could not be saved.",
-            "profileSaved": "Saved {profile}."
+            "profileSaved": "Saved {profile}.",
+            "deleteProfile": "Delete profile",
+            "deleteProfileTooltip": "Forget this saved profile. Shops already set up from it keep their shelves.",
+            "deleteProfileTitle": "Delete a profile",
+            "deleteProfileAsk": "Forget the profile {profile}?",
+            "deleteProfileNote": "Shops already set up from it keep their shelves. Nothing else in the world holds a copy of the recipe.",
+            "deleteProfileFailed": "That profile could not be deleted.",
+            "profileDeleted": "Deleted {profile}."
         },
         "market": {
             "goingRate": "×1.00 · the going rate",

@@ -17,3 +17,14 @@
 .merchant-market-readout { margin-top: 8px; padding: 5px 9px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-size: .78rem; font-weight: 600; text-align: center; }
 .merchant-market-dialog .blacksmith-field,
 .merchant-market-dialog .dialog-content { min-width: min(460px, 70vw); }
+
+/*
+ * **A ceiling on every dialog of ours, not just the one that needed a floor.**
+ *
+ * DialogV2 sizes to its content and the shared dialog styling caps only the buttons, so a
+ * paragraph written as one long line becomes a window as wide as the paragraph -- which is
+ * how the save-profile prompt came out spanning the screen. The prose was shortened too,
+ * but prose is not a mechanism: this is, and it holds for whatever gets written next.
+ */
+.merchant-dialog .dialog-content,
+.merchant-dialog .window-content { max-width: min(560px, 80vw); }

@@ -68,23 +68,23 @@
                         <option value="{{key}}" {{#if selected}}selected{{/if}}>{{name}}</option>
                     {{/each}}
                 </select>
-                <button type="button" class="blacksmith-window-btn-secondary" data-action="applyProfile"
-                        {{#unless profileChosen}}disabled{{/unless}}
-                        data-tooltip="{{localize "coffee-pub-merchant.config.applyProfileTooltip"}}">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.applyProfile"}}
-                </button>
+                <span class="merchant-config-profile-actions">
+                    <button type="button" class="blacksmith-window-btn-secondary" data-action="applyProfile"
+                            {{#unless profileChosen}}disabled{{/unless}}
+                            data-tooltip="{{localize "coffee-pub-merchant.config.applyProfileTooltip"}}">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "coffee-pub-merchant.config.applyProfile"}}
+                    </button>
+                    {{!-- Present only for a profile this world saved: the shipped one is not
+                          ours to remove, and a button that can never enable teaches nothing. --}}
+                    {{#if profileCustom}}
+                        <button type="button" class="blacksmith-window-btn-secondary merchant-config-profile-delete"
+                                data-action="deleteProfile"
+                                data-tooltip="{{localize "coffee-pub-merchant.config.deleteProfileTooltip"}}">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    {{/if}}
+                </span>
                 <small class="merchant-config-hint">{{profileHint}}</small>
-            </div>
-
-            <div class="merchant-config-row merchant-config-row-inline">
-                {{!-- The other direction: this shop, saved as a kind of shop. It reads the
-                      shop as it stands rather than the profile that built it, so a shop
-                      tuned by hand saves the tuning. --}}
-                <span class="merchant-config-hint">{{localize "coffee-pub-merchant.config.saveProfileNote"}}</span>
-                <button type="button" class="blacksmith-window-btn-secondary" data-action="saveProfile"
-                        data-tooltip="{{localize "coffee-pub-merchant.config.saveProfileTooltip"}}">
-                    <i class="fa-solid fa-floppy-disk"></i> {{localize "coffee-pub-merchant.config.saveProfile"}}
-                </button>
             </div>
 
             <div class="merchant-config-note">{{localize "coffee-pub-merchant.config.profileNote"}}</div>

@@ -1365,6 +1365,11 @@ to leak later and nothing for a future reader to wonder about. `order` and `par`
 is rewritten against whatever shop the profile lands on, and the second is what is on a shelf today rather
 than a rule about it.
 
+**The picker is a starting point, not a bound field.** It opens on "Select a profile", Apply is disabled
+until one is chosen, and it returns to that after applying -- because this is a one-time getting-started
+gesture and a picker left showing what was applied reads as a setting in force. What the shop was set up
+from is recorded separately and shown above it.
+
 **What was applied is written onto the shop**, as `profile` in its config, and shown in the settings
 window. Without it the only evidence a profile had been used was the shelves it left behind, which a GM
 cannot tell from shelves they built themselves -- so the way to answer "have I done this one?" was to apply

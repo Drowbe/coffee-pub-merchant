@@ -355,8 +355,21 @@
 .merchant-config-applied > i { color: #4f9a55; font-size: .62rem; }
 .merchant-config-applied > strong { color: var(--blacksmith-tool-text); }
 
-/* The save row reads the other way round: the sentence first, the button at the end. */
-.merchant-config-profiles .merchant-config-row-inline + .merchant-config-row-inline { margin-top: 8px; }
+/* Apply, and -- for a profile this world saved -- the way to forget it. */
+.merchant-config-profile-actions { display: inline-flex; gap: 4px; align-items: center; }
+
+.merchant-config-profile-delete {
+    display: inline-grid;
+    width: 26px;
+    place-items: center;
+    padding: 0;
+}
+
+.merchant-config-profile-delete:not([disabled]):hover {
+    border-color: #a4432f;
+    background: #8c2f22;
+    color: #f4ede0;
+}
 .merchant-config-profiles .merchant-config-hint { grid-column: 1 / -1; margin-top: 1px; }
 
 /* The exception: a row whose label and controls sit on one line, for the tables,
