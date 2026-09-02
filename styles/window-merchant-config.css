@@ -350,7 +350,13 @@
  * around every section's contents would have been six edits to a long template for a rule
  * one selector can state. `> h3` covers a section's heading and a shelf card's alike.
  */
-[data-fold] > h3 { cursor: pointer; }
+[data-fold] > h3 { cursor: pointer; transition: color .12s ease; }
+
+/* **The heading answers the pointer**, because it is the control and nothing else about it
+   says so. Only the heading's own text and chevron light up -- the badges and buttons that
+   live in it keep their clicks, and so keep their own colours. */
+[data-fold] > h3:hover > span:first-child,
+[data-fold] > h3:hover > span:first-child::before { color: var(--merchant-interactive); }
 
 [data-fold] > h3 > span:first-child::before {
     display: inline-block;
@@ -359,7 +365,7 @@
     font-size: .58rem;
     font-weight: 900;
     transition: transform .12s ease;
-    content: '078';
+    content: '\f078';
 }
 
 /* Points down when open, right when shut -- the direction everybody already reads as

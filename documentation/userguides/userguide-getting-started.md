@@ -26,6 +26,10 @@ A shelf called **Storefront** is created for you, and the rest of the settings w
 give the shop a name and a **Category** (Provisioner, Blacksmith, Apothecary and so on -- the category
 picks the icon a player sees), and optionally a description and an illustration.
 
+**Every section of that window folds.** Click a heading -- a section's or a shelf card's -- and it rolls up
+to a single bar; the buttons sitting in a heading still work. What you leave shut stays shut next time you
+open the window, on this computer.
+
 Close the settings window. Put a token for that Actor on a scene.
 
 ## Set it up in one press
@@ -40,8 +44,9 @@ Everything** afterwards and the shelves fill.
 **Applying never removes anything.** Shelves already on the merchant are left exactly as they are, stock
 included; only shelves the profile names and the merchant does not have are added. The shop's name,
 portrait and description are never touched, so a profile can be applied to an NPC your players already
-know without turning them into somebody else. Once applied, the section says which profile the shop was
-set up from.
+know without turning them into somebody else. Once applied, the section lists what was added and what was
+left alone -- for as long as that window stays open. Nothing records afterwards which profile a shop came
+from, because a starting point stops describing a shop the moment you tune it.
 
 **Save a shop you like as a profile.** **Save as profile** sits at the bottom of the settings window
 beside **I'm Done**: name it, and every other merchant can be set up the same way. Any profile can be removed with the bin

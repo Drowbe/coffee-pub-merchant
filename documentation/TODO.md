@@ -176,7 +176,10 @@ the map. Depot pins would be a second way to do what the receipt already does.
 shelf definitions, no goods and no identity -- applied to an Actor that already exists. Design and the
 reasoning behind it are in `architecture/architecture-merchant.md` §11a; this entry is what is left.
 
-**Played:** applying the shipped profile to a bare merchant, and to one that already had shelves.
+**Played:** applying the shipped profile to a bare merchant, and to one that already had shelves;
+folding, on 2026-09-02, after a fix -- the chevron's `078` had been written to the stylesheet as a
+real form-feed byte, which is a parse error that took the whole rule with it, and the heading had no
+hover state because the control it replaced was a button that got one from the button styling.
 
 **Not yet played**, all of it added after that run:
 
@@ -187,9 +190,6 @@ reasoning behind it are in `architecture/architecture-merchant.md` §11a; this e
 - **The singleton rule.** Apply to a shop whose buyback or catalogue shelf is called something else, and
   neither should be added again.
 - **Applying twice.** The name guard should mean nothing is doubled.
-- **Folding.** Every section and every shelf card should fold from its heading, the buttons in a heading
-  should still work, and the state should survive closing the window -- except the profiles section, which
-  starts shut every time.
 - **The dialog width cap.** The save prompt was spanning the screen; `styles/dialog.css` now caps every
   merchant dialog.
 
