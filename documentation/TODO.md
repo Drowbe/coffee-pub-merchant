@@ -269,7 +269,15 @@ list — are already built and are what a bought placement will render as.
 
 ### Still open
 
-0. **A delivery address is a shop's name, and two shops may share one.** `destinationsFor` builds a `Set`
+1. **The full-screen working panel sits on the shop card.** Deferred past v14 deliberately -- it is
+   placement, not behaviour, and the bar it replaced was invisible. `.merchant-shop-working-panel` is
+   `top: 96px`, tuned for the windowed shell where that clears the header; the full-screen card is taller,
+   so the panel lands on the illustration and the description. Readable, and over content that is dimmed
+   while the work runs, but not where it belongs. The fix is a full-screen-scoped offset rather than a new
+   number for both, since the two shells have genuinely different headers -- see §14's rule that a
+   full-screen window reports inside itself. Seen on a live v14 restock, 2026-09-09.
+
+2. **A delivery address is a shop's name, and two shops may share one.** `destinationsFor` builds a `Set`
    of names -- shop configs plus the GM's own list -- so two merchants called the same thing collapse to
    one entry, and a parcel addressed there names a string rather than a shop. Mostly correct by intent: an
    address *is* a place-name, and the GM's custom entries are names with no document behind them at all.
@@ -277,13 +285,13 @@ list — are already built and are what a bought placement will render as.
    half and cannot fix the custom half, so the answer is probably to disambiguate in the picker rather than
    in the data. Found on a live world 2026-09-09, two shops sharing a name.
 
-1. **Where do posted goods land?** Selling by post pays on dispatch, so the party has its coin — but the
+3. **Where do posted goods land?** Selling by post pays on dispatch, so the party has its coin — but the
    merchant takes delivery later, and the Buyback shelf is where party goods already end up. A crate in the
    post is then a thing between two shelves for a few days.
-2. **What the courier does if nobody holds the catalogue any more.** It finds the holder, and the holder may
+4. **What the courier does if nobody holds the catalogue any more.** It finds the holder, and the holder may
    have sold it, lost it, or died. Probably: it becomes a parcel the GM hands out, which is the Beast case
    anyway.
-3. ~~**What a receipt looks like on a sheet.**~~ Done: consulting one raises a toast computed against the
+5. ~~**What a receipt looks like on a sheet.**~~ Done: consulting one raises a toast computed against the
    clock at the moment of asking, so the countdown counts down. The description on the Item is still the
    figure at ordering — see the gap in `plans/plan-mail-order.md`.
 
