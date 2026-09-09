@@ -654,11 +654,15 @@ const ShopBehaviour = (Base) => class extends Base {
         // counter you are on is a fact about the window, and losing it when the window
         // changes shape is the window forgetting where you were.
         this._selling = options.selling === true;
-        this.service = DEFAULT_DELIVERY_SERVICE;
-        // Where it goes and anything asked for on the way. Per window, not persisted: an
-        // order is a thing you are filling in, and a half-written note is not worth keeping.
-        this.destination = null;
-        this.instructions = '';
+        // **An order being filled in survives a shell swap.** Not persisted -- a
+        // half-written order is not worth keeping between sessions -- but pressing Full
+        // Screen is a change of room, not a change of mind, and the slate already carries
+        // across for exactly that reason. Losing the destination and a typed note on the
+        // way through, silently, left somebody re-choosing a place they had chosen and
+        // retyping instructions they had written.
+        this.service = options.service ?? DEFAULT_DELIVERY_SERVICE;
+        this.destination = options.destination ?? null;
+        this.instructions = options.instructions ?? '';
         // Which spread is open. Per window and not persisted: a page is where you are in a
         // book you are holding, not a fact about the book.
         this._page = 0;
@@ -3440,7 +3444,15 @@ const ShopBehaviour = (Base) => class extends Base {
         // toggled to the catalogue and then pressed Full Screen got a full-screen counter,
         // because the options still said counter. Which view you are looking at is a fact
         // about the window in front of you, not about how it was first opened.
-        const options = { ...this._openOptions, catalogue: this.catalogueMode, selling: this._selling };
+        const options = {
+            ...this._openOptions,
+            catalogue: this.catalogueMode,
+            selling: this._selling,
+            // The order in progress, for the same reason as the two above.
+            service: this.service,
+            destination: this.destination,
+            instructions: this.instructions
+        };
 
         // **No door slam on the way through.** Closing one shell and opening the other
         // would play the closing sound and then the opening one, every time somebody
@@ -3597,6 +3609,16 @@ const ShopBehaviour = (Base) => class extends Base {
     /** Which service this order goes by. Per window: it is a choice about this order. */
     setService(key) {
         if (!key) return;
+
+        // **Choosing the service you already have is not a choice.** The services are chips,
+        // not a dropdown, so pressing the one that is already lit is an ordinary thing to do
+        // -- confirming the default before ordering, most obviously -- and it fired this
+        // method every time. The clear below then wiped a destination the reader had already
+        // picked, silently, and Place Order told them to choose one. Ground and Portal were
+        // unorderable for anybody who pressed Ground; the Beast worked, because it is the one
+        // service that asks for nowhere.
+        if (key === this.service) return;
+
         this.service = key;
         // **The destination does not survive the service.** A depot is not a portal ring, so
         // a place chosen for one is not a place the other goes; keeping it would leave a
@@ -3615,6 +3637,14 @@ const ShopBehaviour = (Base) => class extends Base {
     _destinationOptions() {
         const places = destinationsFor(this.service);
         if (places === null) return null;
+
+        // **An empty list stays empty, placeholder and all.** The template asks
+        // `{{#if destinations}}`, and an array is truthy the moment it has one entry -- so
+        // returning the placeholder on its own rendered a picker with a single dead option
+        // and hid the note explaining that this world has nowhere to send a parcel yet. A
+        // reader then chose the only thing on offer, which is nothing, and was told to
+        // choose. `destinationNote` is written for precisely this case; it was unreachable.
+        if (!places.length) return [];
 
         // **Nothing is chosen for them.** The first place used to be selected by default,
         // so a party who never opened the picker had their goods sent wherever the list
@@ -3657,8 +3687,16 @@ const ShopBehaviour = (Base) => class extends Base {
         // A service that asks for a place has to be given one. The GM side refuses an
         // address it does not recognise, so an order sent without one arrives with a blank
         // label -- correct, and useless to everybody.
-        if (destinationsFor(this.service) !== null && !this.destination) {
-            notify.warn(game.i18n.localize('coffee-pub-merchant.delivery.chooseFirst'));
+        const places = destinationsFor(this.service);
+        if (places !== null && !this.destination) {
+            // **Two different refusals.** Telling somebody to choose a destination when the
+            // world has none is blaming them for an empty list; the fix is the GM's, and
+            // the message should say so rather than send them back to a picker that cannot
+            // help. The note under the picker says the same thing, and this is the reader
+            // who pressed the button anyway.
+            notify.warn(game.i18n.localize(places.length
+                ? 'coffee-pub-merchant.delivery.chooseFirst'
+                : 'coffee-pub-merchant.delivery.nowhereYet'));
             return;
         }
 
@@ -3699,6 +3737,21 @@ const ShopBehaviour = (Base) => class extends Base {
                 .filter(Boolean).join(' • '),
             this._illustration || merchant.img
         );
+
+        // **A full-screen catalogue closes when the order is placed.** The ordinary window
+        // stays open because it is a counter -- you buy a rope and carry on browsing, and
+        // shutting the shop on somebody mid-visit would be rude. Full screen is not a
+        // window, it is a takeover surface with nothing else on it, and the catalogue's
+        // whole gesture ends here: the goods are not on a shelf to go back to, they are in
+        // the post. Leaving the reader in a full-screen warehouse they have finished with
+        // makes them find the way out themselves.
+        //
+        // Only on success -- a failed order returns above without reaching this, so the
+        // slate survives to be corrected rather than vanishing with the reason.
+        if (this.isExpanded) {
+            await this.close();
+            return;
+        }
         await this.render(false);
     }
 

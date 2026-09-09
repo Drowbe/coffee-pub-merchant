@@ -712,7 +712,8 @@
             "crateSpec": "Shipping Crate — {empty} lb empty, holds {holds} lb",
             "depositBack": "{deposit} deposit returned",
             "choose": "Choose delivery location…",
-            "chooseFirst": "Choose where this order should be delivered."
+            "chooseFirst": "Choose where this order should be delivered.",
+            "nowhereYet": "This service has nowhere to deliver to yet. A GM sets delivery points in Merchant's Mail Order settings, or by letting a shop take parcels."
         },
         "transit": {
             "heading": "In the post",

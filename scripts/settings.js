@@ -508,6 +508,25 @@ function registerDeliveryPlaces() {
     // that knows it holds a list is the only place left to say so, and it can carry its own
     // placeholder while it is there.
     class PlacesField extends foundry.data.fields.StringField {
+        /**
+         * **Tidy what is stored, because a textarea does not.**
+         *
+         * The settings sheet writes a `<textarea>` whose closing tag sits on an indented
+         * line, and the indentation is part of the element's content -- so every save
+         * returned the list plus the template's whitespace, and the next save returned that
+         * plus its own. Two saved places had grown a couple of hundred trailing spaces
+         * before anybody looked. Nothing broke, because the reader trims each line -- but a
+         * value that grows every time it is written is a value that eventually will.
+         */
+        clean(value, options) {
+            const cleaned = super.clean(value, options);
+            if (typeof cleaned !== 'string') return cleaned;
+            const lines = cleaned.split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+            return lines.join('\n');
+        }
+
         _toInput(config) {
             config.elementType = 'textarea';
             config.rows = 4;

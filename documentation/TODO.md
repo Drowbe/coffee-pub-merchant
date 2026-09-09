@@ -26,6 +26,7 @@ will expire.**
 | 2 | Selling by post | Ways in | M | **Phase 2** — designed, not built |
 | 3 | [Advertising](#advertising-as-its-own-system) | Systems | L | **Phase 2** — sketched |
 | 4 | [Profiles](#4-profiles) | Ways in | S | **Built 2026-09-02**, partly played |
+| 5 | [A record of what was delivered](#5-a-record-of-what-was-delivered) | Mail order | S | **Raised 2026-09-09** — not designed |
 
 **All three of the previous list shipped in 13.3.0** — the token marker, the catalogue, and the shop full
 screen. **Columns are closed too, by use**: the single column at 1180px was judged at a wide monitor on
@@ -268,6 +269,14 @@ list — are already built and are what a bought placement will render as.
 
 ### Still open
 
+0. **A delivery address is a shop's name, and two shops may share one.** `destinationsFor` builds a `Set`
+   of names -- shop configs plus the GM's own list -- so two merchants called the same thing collapse to
+   one entry, and a parcel addressed there names a string rather than a shop. Mostly correct by intent: an
+   address *is* a place-name, and the GM's custom entries are names with no document behind them at all.
+   But the ambiguity is real, and it decides where a crate is waiting. Keying on uuid would fix the shop
+   half and cannot fix the custom half, so the answer is probably to disambiguate in the picker rather than
+   in the data. Found on a live world 2026-09-09, two shops sharing a name.
+
 1. **Where do posted goods land?** Selling by post pays on dispatch, so the party has its coin — but the
    merchant takes delivery later, and the Buyback shelf is where party goods already end up. A crate in the
    post is then a thing between two shelves for a few days.
@@ -277,6 +286,37 @@ list — are already built and are what a bought placement will render as.
 3. ~~**What a receipt looks like on a sheet.**~~ Done: consulting one raises a toast computed against the
    clock at the moment of asking, so the countdown counts down. The description on the Item is still the
    figure at ordering — see the gap in `plans/plan-mail-order.md`.
+
+---
+
+## 5. A record of what was delivered
+
+**Category:** Mail order · **Size:** S · **Raised 2026-09-09.** Once a parcel is collected and unpacked,
+**the order stops existing.** The receipt Item is consumed, the schedule has already fired, and Orders in
+Transit only ever showed what was still in the post -- so a party that has been ordering by catalogue for
+six sessions has no way to answer "what did we buy from them, and when". Nothing is wrong; there is simply
+no record, and the module is currently the only thing that ever knew.
+
+**Why it is worth having.** The delivered half is the part with narrative weight -- a shop the party have
+spent four hundred gold with is a relationship, and reputation already reads the ledger for pricing. It is
+also the obvious place to answer "we ordered that, where is it?" after the fact, and to reorder.
+
+**What has to be decided before this is buildable** -- all of it open:
+
+- **Where it lives.** A world setting is simplest and is a growing blob nobody prunes. A journal entry is
+  readable and editable by the GM, which cuts both ways. A flag on the merchant scopes it to the shop but
+  loses it when the merchant is deleted -- and §12a's whole argument is that a parcel must survive its
+  shop. A flag on the *buyer* is probably right for the same reason the receipt is an Item they hold.
+- **What a row keeps.** Consignment lines, service, destination, what it cost, ordered-at and delivered-at.
+  The consignment already carries item source data rather than uuids (§12a), so a row can survive the
+  shop's shelves being cleared -- which is the property that makes a record worth keeping at all.
+- **Whether it prunes.** A campaign that runs for years accumulates. Probably a cap per buyer, oldest out.
+- **Where it is read.** Orders in Transit is the natural home -- a second tab, or a filter -- rather than a
+  new window. It is already the GM's view of the post and it is already open at the moment somebody asks.
+- **Whether a player can see their own.** They hold the receipts on the way in; seeing where they went
+  afterwards is consistent, and it is the difference between a GM tool and a party one.
+
+**Not started, and deliberately not designed here.** Recorded so the gap is not rediscovered.
 
 ---
 
