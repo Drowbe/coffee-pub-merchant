@@ -33,10 +33,42 @@ import { MODULE } from './const.js';
  *
  * A `total` of zero is not an error: there was work to survey and there turned out to
  * be none of it. The bar is simply never shown.
+ *
+ * **`onLabel` moves the bar inside the caller's own window**, for the one case where
+ * core's notification cannot be seen: a full-screen surface sits above Foundry's
+ * notification layer (99999 against 200000), so a GM restocking from a full-screen shop
+ * got no bar at all. That is worse than cosmetic -- the file's opening comment says why
+ * this exists: a long silence reads as nothing having happened, and the GM presses the
+ * button again. Hiding the bar restores exactly the bug it was written to prevent.
+ *
+ * The host reports rather than owns: it is handed a label to show and, at the end, a
+ * `null` to take it down. Progress is the same arithmetic either way, so it stays here.
  */
-export function startProgress(total, message) {
+export function startProgress(total, message, { onLabel = null, onDone = null } = {}) {
     const units = Math.max(0, Math.trunc(Number(total) || 0));
     if (!units) return { step() {}, finish() {} };
+
+    if (typeof onLabel === 'function') {
+        let shown = 0;
+        let over = false;
+        onLabel(message);
+        return {
+            step(text) {
+                if (over) return;
+                shown = Math.min(units, shown + 1);
+                // The count, not a percentage: a shop being stocked is a number of things
+                // arriving, and "12 of 40" says how much longer where "30%" does not.
+                onLabel(`${text ?? message} (${shown}/${units})`);
+            },
+            /** Safe to call more than once, the same contract as the notification bar. */
+            finish(text) {
+                if (over) return;
+                over = true;
+                onLabel(null);
+                if (text && typeof onDone === 'function') onDone(text);
+            }
+        };
+    }
 
     let bar = null;
     try {

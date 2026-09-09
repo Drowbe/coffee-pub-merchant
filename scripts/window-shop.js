@@ -3218,7 +3218,15 @@ const ShopBehaviour = (Base) => class extends Base {
         const inventoryName = merchant.items.get(inventoryId)?.name ?? 'the inventory';
         const bar = startProgress(
             MerchantManager.restockWorkUnits(merchant, inventoryId, { force: true }),
-            `Restocking ${inventoryName}`
+            `Restocking ${inventoryName}`,
+            // **A full-screen shop reports its own work.** Core's progress notification
+            // lives at Foundry's notification layer, which a full-screen surface covers --
+            // so in that shell the bar is drawn in the window's own working panel, the one
+            // a settlement already uses. Windowed, core's bar is the right answer and is
+            // perfectly visible, so nothing changes there.
+            this.isExpanded
+                ? { onLabel: (label) => this._setWorking(label), onDone: (said) => notify.info(said) }
+                : {}
         );
         try {
             const filled = await MerchantManager.restockInventory(merchant, inventoryId, {
@@ -3231,9 +3239,41 @@ const ShopBehaviour = (Base) => class extends Base {
                 : game.i18n.format('coffee-pub-merchant.notify.nothingToRestock', { inventory: inventoryName }));
         } catch (error) {
             console.error(`${MODULE.TITLE} | Could not restock that inventory:`, error);
-            bar.finish(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
+            // No text: the error toast below says it, and a bar that repeats the message
+            // it is being dismissed for says the same thing to the same person twice.
+            bar.finish();
             notify.error(game.i18n.localize('coffee-pub-merchant.notify.restockFailed'));
         }
+    }
+
+    /**
+     * Show, update, or take down this window's own working panel.
+     *
+     * **Patched rather than re-rendered once it is up.** A restock steps forty times or
+     * more, and re-rendering a full-screen wall of art per step to change six characters
+     * of text is the thing the morph exists to avoid -- so the first label renders the
+     * panel and every label after it writes into the node.
+     */
+    _setWorking(label) {
+        if (!label) {
+            if (!this._busy) return;
+            this._busy = null;
+            void this.render(false);
+            return;
+        }
+
+        const first = !this._busy;
+        this._busy = { row: null, label };
+        if (first) {
+            void this.render(false);
+            return;
+        }
+
+        // The template writes the ellipsis, so this does too -- otherwise the first frame
+        // and every frame after it are punctuated differently.
+        const said = this.element?.querySelector('.merchant-shop-working-panel > span');
+        if (said) said.textContent = `${label}…`;
+        else void this.render(false);
     }
 
     /**

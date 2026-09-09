@@ -1651,6 +1651,22 @@ It is deliberately **not** called `maximize`: ApplicationV2 has that method alre
 
 ---
 
+### What a full-screen surface covers
+
+**It sits above Foundry's own layers, and that is the point.** Blacksmith's base stacks the surface at
+200000 against Foundry's notification layer at 99999, because a surface that blocks has to sit above
+anything a viewer could otherwise see or reach through it. The consequence for a consumer is that
+**anything drawn by a floating layer is invisible while a shop is full screen**, and that has bitten twice:
+
+- **Toasts.** Fixed in the hub -- the toast stack now sits above the surface. A toast is not something a
+  reader reaches *through* the surface at; it is the surface's own voice about what they just did, and it
+  is `pointer-events: none`, so the rule the ladder exists to enforce never applied to it.
+- **The restock progress bar**, which is core's notification progress and therefore still below. Not
+  fixable in the hub, and the trade is forced. So a full-screen shop draws that work **in its own working
+  panel** instead, via `startProgress`'s `onLabel` host. The general rule this leaves: **a full-screen
+  window must report inside itself.** Anything a shop needs a reader to see while it is the whole screen
+  belongs in the surface, not in a layer over it.
+
 ## 15. Blacksmith is not optional
 
 Merchant does not function without it, and this is deliberate — the alternative is forking components, which
