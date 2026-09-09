@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- **Token markers drew the icon followed by three junk characters on v14** (`scripts/canvas-marker.js`). The marker asks the browser what glyph a Font Awesome class draws rather than keeping a hand-transcribed table of codepoints -- still the right call -- but it read the computed `content` by stripping the outer quotes. `content` also takes an optional alternative text after a slash, and **Font Awesome 7 started emitting it**: `"54e" / ""`. Stripping the outer quotes left `f54e" / "`, so every merchant token showed its shop icon trailed by a quote, a slash and a quote. It now takes the first quoted run and ignores whatever follows. Nothing in Merchant changed to cause this; FA7 arrived with v14.
+
 ## [14.0.0]
 
 ### Fixed

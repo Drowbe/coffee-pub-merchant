@@ -74,6 +74,16 @@ const _glyphs = new Map();
  * Cached only on success. Before the font is loaded the computed content is `none`, and
  * caching that would mean a marker that stayed blank for the session because the first
  * token was drawn a frame too early.
+ *
+ * **`content` is not just a string, and Font Awesome 7 started using the rest of it.**
+ * The property takes an optional alternative text after a slash -- `content: "54e" / ""`
+ * -- which browsers report back verbatim from `getComputedStyle`. FA6 emitted the glyph
+ * alone, so stripping the outer quotes was enough; FA7 emits the alt form, and the same
+ * strip left `f54e" / "` behind. On the canvas that drew the icon followed by a literal
+ * quote, slash and quote: three junk characters on every merchant token, and the reason
+ * the fault appeared on the v14 upgrade rather than in anything Merchant changed.
+ *
+ * So take the **first quoted run** and ignore whatever follows it.
  */
 function glyphFor(iconClass) {
     if (_glyphs.has(iconClass)) return _glyphs.get(iconClass);
@@ -87,12 +97,17 @@ function glyphFor(iconClass) {
 
         const style = getComputedStyle(probe, '::before');
         const raw = style?.content ?? '';
-        const char = raw && raw !== 'none' ? raw.replace(/^["']|["']$/g, '') : '';
+        // The first quoted run, whatever quote it used, with an escaped quote inside it
+        // surviving. Everything after -- ` / "alt"` -- is not the glyph.
+        const quoted = /(["'])((?:\.|(?!).)*)/.exec(raw);
+        const char = raw && raw !== 'none' ? (quoted ? quoted[2] : raw.trim()) : '';
         if (!char) return null;
 
         const glyph = {
             char,
-            family: style.fontFamily || '"Font Awesome 6 Free"',
+            // Named families only as a last resort, and both generations of the free face:
+            // the computed value is the real answer and is what this reads first.
+            family: style.fontFamily || '"Font Awesome 7 Free", "Font Awesome 6 Free"',
             weight: style.fontWeight || '900'
         };
         _glyphs.set(iconClass, glyph);
