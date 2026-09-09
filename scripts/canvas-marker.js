@@ -97,10 +97,23 @@ function glyphFor(iconClass) {
 
         const style = getComputedStyle(probe, '::before');
         const raw = style?.content ?? '';
-        // The first quoted run, whatever quote it used, with an escaped quote inside it
-        // surviving. Everything after -- ` / "alt"` -- is not the glyph.
-        const quoted = /(["'])((?:\.|(?!).)*)/.exec(raw);
-        const char = raw && raw !== 'none' ? (quoted ? quoted[2] : raw.trim()) : '';
+        // **The first quoted run, and nothing after it.** Read character by character
+        // rather than by pattern: the whole content string is at most a few characters,
+        // a quote inside a Font Awesome glyph does not happen, and this cannot be got
+        // subtly wrong the way an escaped backreference can.
+        const text = String(raw).trim();
+        let char = '';
+        if (text && text !== 'none') {
+            const quote = text[0];
+            if (quote === '"' || quote === "'") {
+                const close = text.indexOf(quote, 1);
+                char = close > 0 ? text.slice(1, close) : '';
+            } else {
+                // Unquoted is not a shape Font Awesome emits, but a bare glyph is still
+                // usable and is a better answer than drawing nothing.
+                char = text;
+            }
+        }
         if (!char) return null;
 
         const glyph = {
