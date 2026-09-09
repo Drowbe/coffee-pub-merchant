@@ -8,8 +8,8 @@ screen the moment you do. Fifteen minutes, and you have a shop your players can 
 ## What you need before you start
 
 Merchant requires **Coffee Pub Blacksmith**, the suite's hub, and does not run without it. It is built
-for **Foundry v13** and the **D&D 5e** system: prices, quantities and coins are read from the system's
-own fields, so a shop works with items you already have.
+for **Foundry v13 and v14** and the **D&D 5e** system: prices, quantities and coins are read from the
+system's own fields, so a shop works with items you already have.
 
 Enable both modules in your world's module settings. Nothing changes on screen until you mark an Actor
 as a merchant -- Merchant adds no bar, no tray and no button anywhere until there is a shop to open.

@@ -1,6 +1,7 @@
 # Coffee Pub Merchant
 
-![Foundry v13](https://img.shields.io/badge/foundry-v13-green)
+![Foundry v13](https://img.shields.io/badge/foundry-v13-yellow)
+![Foundry v14](https://img.shields.io/badge/foundry-v14-green)
 ![D&D 5e](https://img.shields.io/badge/system-dnd5e-red)
 ![MIT License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -35,11 +36,11 @@ press.
 
 ## Requirements
 
-- [Coffee Pub Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) **13.19.2 or newer**. It
+- [Coffee Pub Blacksmith](https://github.com/Drowbe/coffee-pub-blacksmith) **14.1.0 or newer**. It
   provides the inventory primitives, window components, dialogs, compendium queries and socket
   infrastructure Merchant is built on. Merchant does not function without it.
 - **D&D 5e.** Stock and pricing read the system's own price, quantity and currency fields.
-- **Foundry v13.**
+- **Foundry v13 or v14.** Verified on v14; v13 remains supported until it costs something to keep.
 
 ## Install
 

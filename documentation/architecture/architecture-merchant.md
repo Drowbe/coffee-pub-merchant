@@ -1824,3 +1824,102 @@ by running.
 stored shape that changes needs moving rather than reading around, and the version is what says which world
 is which. **Bump it and write the pass in the same commit** — the pass is what the number is for, and a
 number without one is a promise nobody kept.
+
+---
+
+## 18. Foundry v14
+
+**One codebase serves v13 and v14, and there is not a single `game.release` branch in the module.** That is
+not restraint; it is what the hub buys. Merchant reaches core directly in three places and reaches
+everything else through Blacksmith, so a Foundry generation change is mostly somebody else's problem --
+and when it is not, it is one of those three.
+
+### What Merchant does not touch
+
+The v14 migration plan's inventory list comes back empty here, and the empty answers are worth recording so
+nobody re-derives them: no `MeasuredTemplate` (removed in v14, its capability moved onto regions), no V1
+`Application` or `FormApplication`, no `ActiveEffect` reads or writes, no chat commands or roll modes, no
+TinyMCE or `TextEditor`, no `detectionModes`, no `createThumbnail`, and no jQuery -- not one `$()` in the
+module. Every window is ApplicationV2 on a Blacksmith base, every utility call is namespaced
+(`foundry.utils.*`, `foundry.applications.handlebars.*`, `foundry.applications.apps.FilePicker`), and
+Merchant registers exactly two hooks: `init` and `ready`.
+
+**The Active Effects rewrite is the one that looks like it should have hurt and does not.** Merchant never
+writes an effect. Blacksmith's plan records the finding that matters for modules that do -- core's v14 shim
+migrates the legacy `changes` shape in full, so a module declaring `minimum: 13, maximum: 14` should emit
+the *legacy* shape, because the modern one does not exist on v13.
+
+### The three direct touchpoints
+
+Each is feature-detected and each degrades rather than throws, which is the pattern to keep:
+
+1. **The region behavior** (§11) -- `foundry.data.regionBehaviors.RegionBehaviorType`, resolved at `init`
+   and skipped with a console warning if absent. Verified present on v14, along with
+   `CONST.REGION_EVENTS.TOKEN_MOVE_IN`, `DocumentUUIDField` and `BooleanField`.
+2. **`CONFIG.Token.prototypeSheetClass`**, to open a prototype token sheet. On v14 this resolves to a class
+   with an **empty `name`** -- present but anonymous. The guard tests existence rather than `.name`, which
+   is why it survives; a guard written the other way would read a working class as missing.
+3. **`canvas.stage.toLocal` / `worldTransform.applyInverse`**, the pin-placement crosshair. Both intact.
+
+### A module's document subtype is namespaced, and a probe that forgets it lies
+
+`CONFIG.RegionBehavior.dataModels` is keyed **`coffee-pub-merchant.openShop`**, not `openShop` -- module
+subtypes carry the module id, and `REGION_BEHAVIOR_TYPE` is built from `MODULE.ID` for exactly that reason.
+A v14 probe looking for a bare `openShop` among the core behaviours reported it missing and it was not.
+Recorded because the same mistake is available to anyone auditing this module from the console: when
+checking whether Merchant's behavior registered, filter for keys containing a dot.
+
+### Verified on the v14 client, 2026-09-09
+
+Run against a live v14 install by the Blacksmith session, which holds the client:
+
+- **Font Awesome 7 is a non-issue.** The family resolves as FA7 Pro and legacy aliases (`fas`/`far`/`fab`)
+  still work. Merchant's eleven least-ordinary glyphs -- `fa-chart-network` (the BOINK brandmark),
+  `fa-wagon-covered`, `fa-user-group-simple`, `fa-book-atlas`, `fa-store-slash`, `fa-sack-xmark` among them
+  -- all render. The right probe reads `::before` content offscreen, which distinguishes *renders nothing*
+  from *class not found*; a lookup by name cannot.
+- **Pop-out works on both window bases.** v14 adds `detachWindow()` / `attachWindow()`, and the fullscreen
+  shop was tested separately from the tool windows because §14 makes it a **different Application** rather
+  than a resized one. C§ follows the window into the new document as inline `<style>`, not as `<link>` --
+  which is why a first probe looking for stylesheet hrefs wrongly reported that module styling had been
+  lost. `this.element` resolves throughout, the element is **moved rather than rebuilt** (node count held
+  exactly across a detach/reattach cycle), and delegated `[data-action]` handlers fire **once**, not twice:
+  `_attachFrameListeners` does not double-bind. Zero console errors.
+
+- **The module's own API answers correctly under v14.** `applyProfile` is idempotent -- a second apply
+  created nothing and kept all four shelves -- and the delete/restore round trip on the shipped profile
+  behaves in both directions. `openForActor` returns a window for a linked merchant and `null` for an
+  unlinked Actor with no token placed anywhere, which is the design (§10: an unlinked merchant is a shop
+  *per placement*, so there is nothing to open until one is placed). `crateCount` agrees with
+  `tests/test-mail.mjs` in the browser. `worldClock.schedule` has not moved.
+- **No v14 deprecation warning resolved to a Merchant file** in any run.
+
+**Two probe lessons worth keeping, because both produced a confident wrong answer.** `openForActor` is not
+`async` but returns the promise from `openFor`, so an un-awaited call counts windows before one exists; and
+`typeof null === 'object'`, so a legitimate `null` reads as a returned object. Print
+`x === null ? 'null' : x?.constructor?.name` instead. Separately, the first subject chosen was an imported,
+unlinked, unplaced NPC -- the worst specimen in the world -- and its correct `null` looked like a failure.
+**Look at the population before picking a specimen.**
+
+**Testing delegation means counting the framework, not the browser.** The test that established this
+registers a throwaway action in `app.options.actions`, clicks a synthetic `[data-action]` element and counts
+invocations at each stage, re-querying `app.element` rather than caching it. Counting DOM events would have
+measured event dispatch, which was never in doubt.
+
+### What static analysis cannot answer
+
+Two things need a live table and are not claims this document makes:
+
+- **Drag-and-drop into a popped-out window**, which crosses documents. Dropping an Item onto a shelf is one
+  of three stocking routes (the others are compendium query and roll table), so a failure degrades rather
+  than blocks -- but it is the route a GM reaches for first.
+- **A token crossing between levels into a region.** v14's Scene Levels make regions level-aware. The API
+  shape is unchanged and `TOKEN_MOVE_IN` still exists; whether it fires across a level boundary is a
+  semantic question a multi-level scene answers and a console does not.
+
+### The rule going forward
+
+**A `game.release.generation` check anywhere in feature code is a signal to refactor, not a fix.** If v15
+forces version-sensitive behaviour, it goes behind one named helper with a stable call site -- the same
+argument as §15's `hasPins()` and `hasQuery()` feature detection, which is why the region behavior and the
+prototype sheet already survive a generation change without knowing one happened.
