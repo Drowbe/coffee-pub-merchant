@@ -698,6 +698,8 @@
     opacity: 0; pointer-events: none;
 }
 .merchant-config-chip:hover { border-color: var(--merchant-interactive); }
+.merchant-config-chip.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.merchant-config-chip.is-disabled:hover { border-color: inherit; }
 .merchant-config-chip.is-on {
     background: var(--blacksmith-tool-accent);
     border-color: var(--blacksmith-tool-accent);

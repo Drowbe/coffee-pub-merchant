@@ -177,8 +177,8 @@
                     <span class="merchant-config-label">{{localize "coffee-pub-merchant.config.fullscreen"}}</span>
                     <div class="merchant-config-chips" data-merchant-fullscreen>
                         {{#each fullscreenDoors}}
-                            <label class="merchant-config-chip{{#if on}} is-on{{/if}}">
-                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}}>
+                            <label class="merchant-config-chip{{#if on}} is-on{{/if}}{{#if disabled}} is-disabled{{/if}}"{{#if reason}} data-tooltip="{{reason}}"{{/if}}>
+                                <input type="checkbox" value="{{value}}" {{#if on}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
                                 <span>{{label}}</span>
                             </label>
                         {{/each}}

@@ -7,7 +7,7 @@ import {
     inventoryTypeName, inventoryTypeHint, depthLabel, depthHint,
     MAX_BUYBACK_RATIO, normalizeTint, HOUSE_TINT, rarityLabel, drawsFromQuery, drawsFromTables,
     SHOP_SOUND_KEYS,
-    SHOP_DOORS,
+    SHOP_DOORS, isCatalogue,
     DELIVERY_POINT,
     shopProfile, missingShelves
 } from './const.js';
@@ -1338,7 +1338,12 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
      */
     openInventoryMenu(event, target) {
         const blacksmith = _blacksmith();
-        const presets = Object.values(INVENTORY_TYPES);
+        // A catalogue shelf is a warehouse reached through a printed catalogue, which names
+        // a linked Actor -- so an unlinked merchant is not offered one.
+        let linked = true;
+        try { linked = canPrint(fromUuidSync(this.actorUuid)); } catch (_error) { linked = true; }
+        const presets = Object.values(INVENTORY_TYPES)
+            .filter((preset) => linked || !isCatalogue(preset.key));
 
         const items = presets.map((preset) => ({
             name: preset.name,
@@ -2060,11 +2065,19 @@ export class MerchantConfigWindow extends BlacksmithToolWindowBaseV2 {
                 : game.i18n.localize('coffee-pub-merchant.config.profilePick'),
             deliveryPhysical: merchantConfig[DELIVERY_POINT.PHYSICAL] === true,
             deliveryPortal: merchantConfig[DELIVERY_POINT.PORTAL] === true,
-            fullscreenDoors: SHOP_DOORS.map((door) => ({
-                value: door.key,
-                label: game.i18n.localize(door.labelKey),
-                on: merchantConfig.fullscreen?.[door.key] === true
-            })),
+            // **The catalogue door is an Item that names a linked Actor**, so an unlinked
+            // merchant cannot have one. Shown switched off rather than absent, with the
+            // reason on it: a missing chip reads as a missing feature.
+            fullscreenDoors: SHOP_DOORS.map((door) => {
+                const unavailable = door.key === 'catalogue' && !canPrint(actor);
+                return {
+                    value: door.key,
+                    label: game.i18n.localize(door.labelKey),
+                    on: !unavailable && merchantConfig.fullscreen?.[door.key] === true,
+                    disabled: unavailable,
+                    reason: unavailable ? game.i18n.localize('coffee-pub-merchant.config.doorNeedsLink') : ''
+                };
+            }),
             kindOptions: SHOP_KINDS.map((option) => ({
                 value: option.key,
                 label: option.label,

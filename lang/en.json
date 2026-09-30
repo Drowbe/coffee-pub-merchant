@@ -195,6 +195,7 @@
             "doorToken": "Token",
             "doorPin": "Map pin",
             "doorCatalogue": "Catalogue",
+            "doorNeedsLink": "A catalogue names a linked merchant. Turn on Link Actor Data in the prototype token to use this.",
             "deliveryPhysical": "Parcels can be collected here",
             "deliveryPhysicalHint": "This shop will hold a Ground parcel until somebody comes for it, so it is offered as a place other shops can deliver to.",
             "deliveryPortal": "A member of BOINK",
