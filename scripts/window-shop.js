@@ -2149,8 +2149,10 @@ const ShopBehaviour = (Base) => class extends Base {
 
         const bodyContent = await foundry.applications.handlebars.renderTemplate(TEMPLATE, {
             missing,
-            shopName: config?.name || token?.name || this.shopName
-                || game.i18n.localize('coffee-pub-merchant.shop.abandonedName'),
+            // The Actor's own name comes before the abandoned label: a shop whose Actor
+            // resolves is not abandoned, whatever way its window was opened.
+            shopName: config?.name || token?.name || merchant?.name || this.shopName
+                || (missing ? game.i18n.localize('coffee-pub-merchant.shop.abandonedName') : ''),
             stockSortIcon: this.stockSort.icon,
             stockSortTooltip: game.i18n.format('coffee-pub-merchant.shop.sortTooltip', {
                 how: game.i18n.localize(this.stockSort.labelKey)

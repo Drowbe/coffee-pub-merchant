@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [14.0.2]
+
+### Fixed
+- **A shop opened without a token was titled "Abandoned merchant"** (`scripts/window-shop.js`). The name was taken from the merchant-name setting, then the token, then a name carried by the window, and only then the abandoned label. A shop with no name set whose window had no token to read -- or had been opened some way that passed no name -- fell through all three to a label that means the Actor is gone, on a shop whose Actor was standing right there with its stock on show. The Actor's own name now comes before the fallback, and the abandoned label is used only when the Actor really is missing.
+
 ## [14.0.1]
 
 ### Fixed
