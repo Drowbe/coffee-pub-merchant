@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- **Menu shelves, for pubs and restaurants** (`scripts/const.js`, `scripts/manager-merchant.js`, `scripts/window-shop.js`). A new **Menu** shelf type is stocked from a roll table of plain text, one dish per result, written `Name | 4 cp | A pint of the house brown` -- the price and description are optional, and the price is recognised by its shape (a number and a coin) rather than its place, so a line with none is a dish at 1 sp rather than a hole in the menu. Each dish becomes a real Item on the shelf, because everything that prices, shows, searches and sells a row assumes one. **Buying a dish serves it**: the coin is taken exactly as for anything else, nothing is handed over, and a line in the chat says who ordered what and what it cost. Menus are always table-fed and infinite, show no quantity, and a re-roll replaces the dishes it made and nothing a GM added by hand -- so a one-day restock interval with the table set to reroll gives a daily special.
+
 ## [14.0.2]
 
 ### Fixed

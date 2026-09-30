@@ -323,6 +323,12 @@
 /* The quantity column widens a little to hold an editable number without the
    price column shifting between a GM's view and a player's. */
 .merchant-shop-item { grid-template-columns: 38px minmax(0,1fr) 54px 96px auto; }
+/* A dish has no count column, so its row has one cell fewer -- and says what it is on a
+   second line that may run long rather than being cut off after a few words. */
+/* Stated with the selector that would otherwise win: the no-quantity rule further down is
+   two columns, which is right for a catalogue and leaves a dish's buttons nowhere to go. */
+.merchant-shop-window .merchant-shop-item.is-menu:not(:has(.merchant-shop-item-qty)) { grid-template-columns: 38px minmax(0,1fr) 96px auto; }
+.merchant-shop-item.is-menu .merchant-shop-item-copy span { white-space: normal; }
 .merchant-shop-item-qty > input { width: 100%; height: 22px; padding: 0 4px; border: 1px solid var(--blacksmith-tool-divider); border-radius: 4px; background: var(--blacksmith-tool-surface-raised); color: var(--blacksmith-tool-text); font-family: inherit; font-size: .76rem; text-align: center; }
 .merchant-shop-item-qty > input:focus { border-color: var(--blacksmith-tool-accent); outline: none; }
 

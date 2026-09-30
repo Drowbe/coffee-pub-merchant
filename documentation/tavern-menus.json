@@ -1,0 +1,782 @@
+[
+  {
+    "tableName": "Tavern Menu: Meals",
+    "tableDescription": "<p>Hot plates and mains. Each line reads Name, price, description.</p>",
+    "tableImagePath": "",
+    "drawWithReplacement": true,
+    "displayRollFormula": false,
+    "missingDocumentPolicy": "error",
+    "results": [
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Hearty Stew | 5 cp | Barley, root vegetables and whatever meat was going spare.",
+        "resultWeight": 1,
+        "resultRangeLower": 1,
+        "resultRangeUpper": 1
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Venison Pie | 1 sp | A flaky crust over slow cooked game and gravy.",
+        "resultWeight": 1,
+        "resultRangeLower": 2,
+        "resultRangeUpper": 2
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Roast Chicken | 8 cp | Half a bird, crisp skin, with a heel of bread.",
+        "resultWeight": 1,
+        "resultRangeLower": 3,
+        "resultRangeUpper": 3
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Spit Roasted Boar | 2 sp | Carved thick from the joint and dripping with juices.",
+        "resultWeight": 1,
+        "resultRangeLower": 4,
+        "resultRangeUpper": 4
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Grilled River Trout | 7 cp | Caught this morning, served with lemon and herbs.",
+        "resultWeight": 1,
+        "resultRangeLower": 5,
+        "resultRangeUpper": 5
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Fish and Onion Chowder | 6 cp | Creamy, peppery and served in a bread bowl.",
+        "resultWeight": 1,
+        "resultRangeLower": 6,
+        "resultRangeUpper": 6
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Shepherd's Pie | 6 cp | Minced mutton under a golden crust of mashed turnip.",
+        "resultWeight": 1,
+        "resultRangeLower": 7,
+        "resultRangeUpper": 7
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Sausage and Mash | 5 cp | Two fat sausages on a hill of buttery potato.",
+        "resultWeight": 1,
+        "resultRangeLower": 8,
+        "resultRangeUpper": 8
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Ploughman's Platter | 4 cp | Sharp cheese, pickled onion, cold ham and crusty bread.",
+        "resultWeight": 1,
+        "resultRangeLower": 9,
+        "resultRangeUpper": 9
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Braised Lamb Shank | 1 gp | Falling off the bone in a red wine sauce.",
+        "resultWeight": 1,
+        "resultRangeLower": 10,
+        "resultRangeUpper": 10
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Beef and Ale Pot | 7 cp | Slow simmered until the spoon stands up on its own.",
+        "resultWeight": 1,
+        "resultRangeLower": 11,
+        "resultRangeUpper": 11
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Herbed Rabbit | 9 cp | Roasted with thyme and served over barley.",
+        "resultWeight": 1,
+        "resultRangeLower": 12,
+        "resultRangeUpper": 12
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Mushroom and Leek Pie | 5 cp | A meatless pie that the regulars order anyway.",
+        "resultWeight": 1,
+        "resultRangeLower": 13,
+        "resultRangeUpper": 13
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Pork Belly and Apples | 1 sp | Crackling on top, sweet sharp apples beneath.",
+        "resultWeight": 1,
+        "resultRangeLower": 14,
+        "resultRangeUpper": 14
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Smoked Ham Hock | 8 cp | Served with pease pudding and mustard.",
+        "resultWeight": 1,
+        "resultRangeLower": 15,
+        "resultRangeUpper": 15
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Duck in Plum Sauce | 2 gp | Rich, dark and a little too fancy for the room.",
+        "resultWeight": 1,
+        "resultRangeLower": 16,
+        "resultRangeUpper": 16
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Dwarven Mountain Goat | 1 sp | Tough, salty and loved by anyone from the hills.",
+        "resultWeight": 1,
+        "resultRangeLower": 17,
+        "resultRangeUpper": 17
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Baked Salmon | 1 sp | A thick fillet under a crust of herbs and breadcrumbs.",
+        "resultWeight": 1,
+        "resultRangeLower": 18,
+        "resultRangeUpper": 18
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Bean and Bacon Pottage | 3 cp | Cheap, filling and a little smoky.",
+        "resultWeight": 1,
+        "resultRangeLower": 19,
+        "resultRangeUpper": 19
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Chicken and Dumplings | 6 cp | Soft dumplings in a peppery cream broth.",
+        "resultWeight": 1,
+        "resultRangeLower": 20,
+        "resultRangeUpper": 20
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Roast Beef and Gravy | 1 sp | Sliced thick, with greens and a pool of gravy.",
+        "resultWeight": 1,
+        "resultRangeLower": 21,
+        "resultRangeUpper": 21
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Stuffed Cabbage Rolls | 5 cp | Rice and pork wrapped in leaves and stewed in tomato.",
+        "resultWeight": 1,
+        "resultRangeLower": 22,
+        "resultRangeUpper": 22
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Eel Pie | 4 cp | A local favourite, best not asked about.",
+        "resultWeight": 1,
+        "resultRangeLower": 23,
+        "resultRangeUpper": 23
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Cook's Special | 3 sp | Whatever the cook is proudest of today. Ask, and be surprised.",
+        "resultWeight": 1,
+        "resultRangeLower": 24,
+        "resultRangeUpper": 24
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Feast of the House | 5 gp | A full spread for the table: roast, pie, bread, and a jug of the good wine.",
+        "resultWeight": 1,
+        "resultRangeLower": 25,
+        "resultRangeUpper": 25
+      }
+    ]
+  },
+  {
+    "tableName": "Tavern Menu: Appetizers",
+    "tableDescription": "<p>Small plates and bar snacks. Each line reads Name, price, description.</p>",
+    "tableImagePath": "",
+    "drawWithReplacement": true,
+    "displayRollFormula": false,
+    "missingDocumentPolicy": "error",
+    "results": [
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Loaf of Fresh Bread | 2 cp | Still warm, with a pat of butter.",
+        "resultWeight": 1,
+        "resultRangeLower": 1,
+        "resultRangeUpper": 1
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Roasted Chestnuts | 2 cp | A paper cone of them, hot enough to juggle.",
+        "resultWeight": 1,
+        "resultRangeLower": 2,
+        "resultRangeUpper": 2
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Pickled Eggs | 1 cp | Sharp and salty, sold from a jar on the bar.",
+        "resultWeight": 1,
+        "resultRangeLower": 3,
+        "resultRangeUpper": 3
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Smoked Sausage Bites | 3 cp | Sliced thin and served with mustard.",
+        "resultWeight": 1,
+        "resultRangeLower": 4,
+        "resultRangeUpper": 4
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Fried Dumplings | 4 cp | Crisp outside, stuffed with cabbage and pork.",
+        "resultWeight": 1,
+        "resultRangeLower": 5,
+        "resultRangeUpper": 5
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Cheese and Onion Tart | 3 cp | Small, rich and gone in two bites.",
+        "resultWeight": 1,
+        "resultRangeLower": 6,
+        "resultRangeUpper": 6
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Garlic Mushrooms | 3 cp | Butter, garlic and a little too much of both.",
+        "resultWeight": 1,
+        "resultRangeLower": 7,
+        "resultRangeUpper": 7
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Onion Rings | 2 cp | Battered in ale and fried until they rattle.",
+        "resultWeight": 1,
+        "resultRangeLower": 8,
+        "resultRangeUpper": 8
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Salted Nuts | 1 cp | A bowl of mixed nuts to keep the thirst going.",
+        "resultWeight": 1,
+        "resultRangeLower": 9,
+        "resultRangeUpper": 9
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Baked Turnip Chips | 2 cp | Crunchy, earthy and oddly addictive.",
+        "resultWeight": 1,
+        "resultRangeLower": 10,
+        "resultRangeUpper": 10
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Spiced Sausage Rolls | 3 cp | Flaky pastry around something peppery.",
+        "resultWeight": 1,
+        "resultRangeLower": 11,
+        "resultRangeUpper": 11
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Cured Ham Slices | 4 cp | Paper thin, with a wedge of pear.",
+        "resultWeight": 1,
+        "resultRangeLower": 12,
+        "resultRangeUpper": 12
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Stuffed Dates | 5 cp | Honey and soft cheese tucked into sticky fruit.",
+        "resultWeight": 1,
+        "resultRangeLower": 13,
+        "resultRangeUpper": 13
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Smoked Fish Paste | 3 cp | Spread thick on hard bread rounds.",
+        "resultWeight": 1,
+        "resultRangeLower": 14,
+        "resultRangeUpper": 14
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Cheese Board | 6 cp | Three cheeses, some nuts and a dollop of chutney.",
+        "resultWeight": 1,
+        "resultRangeLower": 15,
+        "resultRangeUpper": 15
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Fried Cheese Curds | 3 cp | Squeaky, golden and served scalding hot.",
+        "resultWeight": 1,
+        "resultRangeLower": 16,
+        "resultRangeUpper": 16
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Honeyed Figs | 4 cp | Halved, roasted and drizzled with something sweet.",
+        "resultWeight": 1,
+        "resultRangeLower": 17,
+        "resultRangeUpper": 17
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Pork Crackling | 2 cp | Salted and shattering, sold by the handful.",
+        "resultWeight": 1,
+        "resultRangeLower": 18,
+        "resultRangeUpper": 18
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Pickled Herring | 2 cp | Rolled around an onion slice and pinned with a stick.",
+        "resultWeight": 1,
+        "resultRangeLower": 19,
+        "resultRangeUpper": 19
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Bone Marrow on Toast | 6 cp | Rich enough to make a person quiet for a moment.",
+        "resultWeight": 1,
+        "resultRangeLower": 20,
+        "resultRangeUpper": 20
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Steamed Mussels | 5 cp | In white wine and parsley, with a spoon for the broth.",
+        "resultWeight": 1,
+        "resultRangeLower": 21,
+        "resultRangeUpper": 21
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Hard Boiled Quail Eggs | 3 cp | Served with a pinch of spiced salt.",
+        "resultWeight": 1,
+        "resultRangeLower": 22,
+        "resultRangeUpper": 22
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Goat Cheese Crostini | 4 cp | Toasted bread, soft cheese and a thread of honey.",
+        "resultWeight": 1,
+        "resultRangeLower": 23,
+        "resultRangeUpper": 23
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Dried Apple Rings | 1 cp | Chewy, sweet and good for the road.",
+        "resultWeight": 1,
+        "resultRangeLower": 24,
+        "resultRangeUpper": 24
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Tavern Sampler | 2 sp | A little of everything on a board, meant for sharing.",
+        "resultWeight": 1,
+        "resultRangeLower": 25,
+        "resultRangeUpper": 25
+      }
+    ]
+  },
+  {
+    "tableName": "Tavern Menu: Drinks",
+    "tableDescription": "<p>Ale, wine, spirits and softer things. Each line reads Name, price, description.</p>",
+    "tableImagePath": "",
+    "drawWithReplacement": true,
+    "displayRollFormula": false,
+    "missingDocumentPolicy": "error",
+    "results": [
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "House Ale | 4 cp | A pint of the brown, cloudy and honest.",
+        "resultWeight": 1,
+        "resultRangeLower": 1,
+        "resultRangeUpper": 1
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Dark Stout | 6 cp | Thick and bitter, served with a foam moustache.",
+        "resultWeight": 1,
+        "resultRangeLower": 2,
+        "resultRangeUpper": 2
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Honey Mead | 1 sp | Sweet and warming, brewed from the hives out back.",
+        "resultWeight": 1,
+        "resultRangeLower": 3,
+        "resultRangeUpper": 3
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Spiced Cider | 5 cp | Served hot with a cinnamon stick.",
+        "resultWeight": 1,
+        "resultRangeLower": 4,
+        "resultRangeUpper": 4
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Red Wine | 2 sp | A regional red, poured from a dusty bottle.",
+        "resultWeight": 1,
+        "resultRangeLower": 5,
+        "resultRangeUpper": 5
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "White Wine | 2 sp | Crisp and pale, better than the room deserves.",
+        "resultWeight": 1,
+        "resultRangeLower": 6,
+        "resultRangeUpper": 6
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Dwarven Firewater | 5 sp | A small glass that clears the sinuses and the conversation.",
+        "resultWeight": 1,
+        "resultRangeLower": 7,
+        "resultRangeUpper": 7
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Elven Sunwine | 2 gp | Pale gold and delicate, poured by the thimble.",
+        "resultWeight": 1,
+        "resultRangeLower": 8,
+        "resultRangeUpper": 8
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Fresh Milk | 2 cp | A mug of it, still cool from the cellar.",
+        "resultWeight": 1,
+        "resultRangeLower": 9,
+        "resultRangeUpper": 9
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Small Beer | 2 cp | Weak, cheap and safe to drink all day.",
+        "resultWeight": 1,
+        "resultRangeLower": 10,
+        "resultRangeUpper": 10
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Pale Lager | 5 cp | Cold from the cellar and gone before the foam settles.",
+        "resultWeight": 1,
+        "resultRangeLower": 11,
+        "resultRangeUpper": 11
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Amber Ale | 5 cp | Nutty, smooth and the barkeep's favourite.",
+        "resultWeight": 1,
+        "resultRangeLower": 12,
+        "resultRangeUpper": 12
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Hot Buttered Rum | 1 sp | Sweet, strong and dangerous on a cold night.",
+        "resultWeight": 1,
+        "resultRangeLower": 13,
+        "resultRangeUpper": 13
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Mulled Wine | 1 sp | Warmed with clove, orange peel and a little sugar.",
+        "resultWeight": 1,
+        "resultRangeLower": 14,
+        "resultRangeUpper": 14
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Plum Brandy | 3 sp | Fiery and fragrant, poured from an unlabelled flask.",
+        "resultWeight": 1,
+        "resultRangeLower": 15,
+        "resultRangeUpper": 15
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Barley Whisky | 4 sp | Aged in a cask that used to hold something else.",
+        "resultWeight": 1,
+        "resultRangeLower": 16,
+        "resultRangeUpper": 16
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Ginger Beer | 3 cp | Sharp, sweet and not quite as mild as it sounds.",
+        "resultWeight": 1,
+        "resultRangeLower": 17,
+        "resultRangeUpper": 17
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Herbal Tea | 2 cp | Mint and chamomile, steeped in a chipped pot.",
+        "resultWeight": 1,
+        "resultRangeLower": 18,
+        "resultRangeUpper": 18
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Black Coffee | 4 cp | Bitter and brewed strong enough to stand a spoon in.",
+        "resultWeight": 1,
+        "resultRangeLower": 19,
+        "resultRangeUpper": 19
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Hot Chocolate | 6 cp | Thick and dark, a rare treat this far from the coast.",
+        "resultWeight": 1,
+        "resultRangeLower": 20,
+        "resultRangeUpper": 20
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Apple Brandy | 2 sp | Smooth and golden, with a bite at the end.",
+        "resultWeight": 1,
+        "resultRangeLower": 21,
+        "resultRangeUpper": 21
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Blackberry Cordial | 4 cp | A sweet syrup in water, popular with the young.",
+        "resultWeight": 1,
+        "resultRangeLower": 22,
+        "resultRangeUpper": 22
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Goblin Grog | 3 cp | Do not ask what is in it. It is cheap, and it works.",
+        "resultWeight": 1,
+        "resultRangeLower": 23,
+        "resultRangeUpper": 23
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Elderflower Fizz | 7 cp | Light, floral and lightly sparkling.",
+        "resultWeight": 1,
+        "resultRangeLower": 24,
+        "resultRangeUpper": 24
+      },
+      {
+        "resultType": "text",
+        "resultImagePath": "",
+        "resultDocumentType": "",
+        "resultDocumentSource": "",
+        "resultText": "Bottle of the Good Wine | 1 gp | Uncorked at the table, with two cups.",
+        "resultWeight": 1,
+        "resultRangeLower": 25,
+        "resultRangeUpper": 25
+      }
+    ]
+  }
+]

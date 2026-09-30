@@ -608,7 +608,8 @@ export const INVENTORY_TYPE = Object.freeze({
     DISCOUNTED: 'discounted',
     UNPRICED: 'unpriced',
     PURCHASED: 'purchased',
-    CATALOGUE: 'catalogue'
+    CATALOGUE: 'catalogue',
+    MENU: 'menu'
 });
 
 /**
@@ -698,6 +699,19 @@ export const INVENTORY_TYPES = Object.freeze({
         // warehouse is the one shelf where "we have as many as you like" is the ordinary
         // answer, and a stock level is not a fact a reader of a catalogue needs.
         defaults: { order: 50, visible: true, markup: 1, stock: STOCK.INFINITE }
+    },
+    menu: {
+        key: INVENTORY_TYPE.MENU,
+        name: 'Menu',
+        img: 'icons/consumables/food/bowl-stew-brown.webp',
+        hint: 'Food and drink from a roll table of text. Served at the counter, never carried out.',
+        pricing: 'markup',
+        restocks: true,
+        // Always a table, whatever `source` says: a menu is written, not drawn from the
+        // compendiums. See `restockInventory`.
+        // Infinite, because a kitchen does not run out of a line in the middle of a visit,
+        // and the row shows no count.
+        defaults: { order: 15, visible: true, markup: 1, stock: STOCK.INFINITE, source: 'table' }
     },
     purchased: {
         key: INVENTORY_TYPE.PURCHASED,
@@ -1005,6 +1019,80 @@ export function missingShelves(profile, existing) {
 /** A warehouse rather than a counter: nothing on it changes hands where you are standing. */
 export function isCatalogue(type) {
     return type === INVENTORY_TYPE.CATALOGUE;
+}
+
+// **A menu is a shelf of dishes, not of goods.** Nothing on it is carried out: the
+// buyer pays and is served, which is a line in the chat and no item in a pack.
+//
+// Its rows are real Items all the same, generated from the text results of a roll table,
+// because everything that prices, shows, searches and sells a row assumes one. They are
+// marked so a re-roll can replace them without touching anything a GM put there by hand.
+export const MENU_FLAG = 'menu';
+
+/** What a dish looks like when its table result has no picture of its own. */
+export const MENU_IMG = 'icons/consumables/food/bowl-stew-brown.webp';
+
+/** What a dish costs when its line names no price, in silver. */
+export const MENU_DEFAULT_PRICE = Object.freeze({ value: 1, denomination: 'sp' });
+
+export function isMenu(type) {
+    return type === INVENTORY_TYPE.MENU;
+}
+
+/**
+ * What a dish looks like, by kind: a plate for a meal, a cheese for a starter, a stein for a drink.
+ *
+ * **The shelf decides first.** A GM who names three shelves Meals, Appetizers and Drinks has said
+ * what is on each, and a dish's own name is the weaker evidence. Only when the shelf is called
+ * something general does the dish's name get a say, and a dish that matches nothing is a meal.
+ * A picture on the table result itself beats all of this; see `_stockMenu`.
+ */
+const MENU_PICTURES = Object.freeze({
+    drinks: 'icons/consumables/drinks/alcohol-beer-stein-wooden-brown.webp',
+    appetizers: 'icons/consumables/food/cheese-wedge-swiss-yellow.webp',
+    meals: 'icons/consumables/food/plate-steak-grilled-brown-green.webp'
+});
+const DRINK_WORDS = /(ale|beer|stout|lager|mead|wine|cider|brandy|whisky|whiskey|rum|grog|gin|vodka|cordial|fizz|firewater|sunwine|milk|tea|coffee|chocolate|cocoa|juice|water|spirit|liquor|ginger beer)/i;
+const STARTER_WORDS = /(nuts?|chestnuts?|chips|rings|eggs?|bites|crostini|curds|figs|dates|crackling|herring|mussels|sampler|board|rolls|tart|dumplings?|bread|toast|olives?|pickled)/i;
+
+export function menuImage(shelfName, dishName) {
+    const shelf = String(shelfName ?? '');
+    if (/drink|beverage|bar|cellar|tap/i.test(shelf)) return MENU_PICTURES.drinks;
+    if (/appetizer|appetiser|starter|snack|small plate|side/i.test(shelf)) return MENU_PICTURES.appetizers;
+    if (/meal|main|entree|dinner|lunch|supper|plate/i.test(shelf)) return MENU_PICTURES.meals;
+
+    const dish = String(dishName ?? '');
+    if (DRINK_WORDS.test(dish)) return MENU_PICTURES.drinks;
+    if (STARTER_WORDS.test(dish)) return MENU_PICTURES.appetizers;
+    return MENU_PICTURES.meals;
+}
+
+/**
+ * Read one menu line: `Name | 4 cp | A pint of the house brown`.
+ *
+ * Name first, then a price, then whatever the kitchen says about it. Every part after the
+ * name is optional, and the price is recognised by its shape (a number and a coin) rather
+ * than by its place, so `Name | a long description` is a dish with the default price rather
+ * than a dish whose description was swallowed as a figure. Tags are stripped: a table's text
+ * is written by a person and ends up in a chat message and an Item.
+ *
+ * Returns null for a line with no name.
+ */
+export function parseMenuLine(text) {
+    const plain = String(text ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!plain) return null;
+
+    const [name, ...rest] = plain.split('|').map((part) => part.trim());
+    if (!name) return null;
+
+    let price = null;
+    const notes = [];
+    for (const part of rest) {
+        const match = !price && /^(\d+(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)$/i.exec(part);
+        if (match) price = { value: Number(match[1]), denomination: match[2].toLowerCase() };
+        else if (part) notes.push(part);
+    }
+    return { name, price: price ?? { ...MENU_DEFAULT_PRICE }, description: notes.join(' ') };
 }
 
 // ==================================================================

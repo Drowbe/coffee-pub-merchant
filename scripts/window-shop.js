@@ -7,7 +7,7 @@ import {
     normalizeTint, itemRarity, rarityLabel, ABANDONED_IMG,
     opensFullScreen,
     DEFAULT_DELIVERY_SERVICE, arrivalTime, DELIVERY_POINT, BOINK,
-    isCatalogue,
+    isCatalogue, isMenu,
     cardSize, cardBlurb,
     paginateCards, adsIntoList, layoutWall
 } from './const.js';
@@ -1879,6 +1879,7 @@ const ShopBehaviour = (Base) => class extends Base {
                 const isUnpricedInventory = isUnpriced(config.type);
                 // Shown to the GM at the counter, but not *sold* from there. See `canCart`.
                 const isWarehouse = isCatalogue(config.type);
+                const isMenuShelf = isMenu(config.type);
                 const contents = MerchantManager.getInventoryContents(merchant, inventory).map((item) => {
                     // **No shopper: this is the shelf.** What is written on a shelf is what
                     // the shop asks, and an agreement is a thing two people reach at the
@@ -1911,7 +1912,11 @@ const ShopBehaviour = (Base) => class extends Base {
                         type: item.type,
                         name: item.name,
                         img: item.img,
-                        typeLabel: item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
+                        // A dish says what it is rather than what it is filed under: "Consumable"
+                        // on every line of a menu is the one thing nobody wants to read.
+                        typeLabel: isMenuShelf
+                            ? (cardBlurb(item.system?.description?.value) || 'Food')
+                            : item.type?.charAt(0).toUpperCase() + item.type?.slice(1),
                         // Null on anything non-magical, which is most of a shop -- see
                         // `itemRarity`. The row shows nothing rather than "Mundane".
                         rarity: rarityLabel(itemRarity(item)),
@@ -1955,6 +1960,10 @@ const ShopBehaviour = (Base) => class extends Base {
                         // The partial drops the whole column in a catalogue; this keeps a
                         // GM from being offered an editor for a figure that is not shown.
                         catalogue: this.catalogueMode,
+                        // A dish has no count: the kitchen does not run out mid-visit. A class
+                        // as well as a missing column, because the row is a grid and a column
+                        // that is not drawn leaves the buttons a cell too many to wrap into.
+                        menu: isMenuShelf,
                         // **Everything a card wall shows, and only when one is being drawn.**
                         // A counter row shows a name, a price and a count; a card shows what
                         // a page in a catalogue shows -- a picture, what the thing is, what

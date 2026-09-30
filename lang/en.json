@@ -337,6 +337,10 @@
             "catalogue": {
                 "name": "Catalogue",
                 "hint": "A warehouse elsewhere. Ordered by post, never carried out."
+            },
+            "menu": {
+                "name": "Menu",
+                "hint": "Food and drink from a roll table of text. Served at the counter, never carried out."
             }
         },
         "depth": {
@@ -630,6 +634,10 @@
             "notLinked": "{name} is an unlinked merchant. Only a linked one can be a merchant on a map — an unlinked Actor is the mould its tokens are cast from, and has no stock of its own to sell.",
             "noMerchant": "This region names a merchant that no longer exists.",
             "nothingHere": "There is nothing open here."
+        },
+        "menu": {
+            "served": "{who} orders at {shop}:",
+            "paid": "Paid {total}."
         },
         "catalogue": {
             "itemName": "Catalogue: {shop}",

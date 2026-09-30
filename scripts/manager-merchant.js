@@ -13,14 +13,14 @@ import {
     inventoryType, isPurchased, isScheduledOpen, hourAt, secondsPerDay, SOURCE, DEFAULT_SOURCE,
     DEFAULT_STOCK_DEPTH, depthScale, typeCaps, rarityCaps, drawsFromQuery, drawsFromTables, shopLook, shopKind,
     DEFAULT_FULLSCREEN_DOORS,
-    isCatalogue,
+    isCatalogue, isMenu, MENU_FLAG, menuImage, parseMenuLine,
     DELIVERY_POINT
 } from './const.js';
 import {
     grantItem, grantItems, grantCurrency, isPhysical, exchange, hasExchange, setCurrency, hasSetCurrency
 } from './utility-inventory.js';
 import {
-    resolvePrice, resolvePurchasePrice, planSettlement, purseValue, fromBase, stockDepth, shopperKey
+    resolvePrice, resolvePurchasePrice, planSettlement, purseValue, fromBase, stockDepth, shopperKey, formatBase
 } from './utility-pricing.js';
 import { ShopWindow } from './window-shop.js';
 import { notify } from './utility-feedback.js';
@@ -1398,6 +1398,9 @@ export class MerchantManager {
         const step = typeof onStep === 'function' ? onStep : () => {};
 
         const drawn = [];
+        // What a menu shelf reads instead: the text of each result, with its picture.
+        const menuLines = [];
+        const menu = isMenu(this.getInventoryConfig(inventory).type);
         // uuid -> the table that drew it. Only needed when something fails to resolve,
         // which is exactly when a bare uuid is no use to anybody.
         const source = new Map();
@@ -1431,6 +1434,12 @@ export class MerchantManager {
                     break;
                 }
                 for (const result of results) {
+                    // A menu is text and nothing else; a result that points at a document
+                    // is somebody's mistake and is left out rather than stocked as goods.
+                    if (menu) {
+                        if (!result?.documentUuid) menuLines.push({ text: result?.name || result?.text, img: result?.img });
+                        continue;
+                    }
                     if (!result?.documentUuid) continue;
                     drawn.push(result.documentUuid);
                     if (!source.has(result.documentUuid)) source.set(result.documentUuid, table.name);
@@ -1438,6 +1447,7 @@ export class MerchantManager {
                 step(game.i18n.format('coffee-pub-merchant.progress.rollingOf', { table: table.name, done: i + 1, total: entry.rolls }));
             }
         }
+        if (menu) return this._stockMenu(actor, inventory, menuLines, step);
         if (!drawn.length) { step(game.i18n.format('coffee-pub-merchant.progress.nothingRolled', { inventory: inventory.name })); return 0; }
 
         // Resolved once per distinct uuid: several tables rolling the same row should
@@ -1647,6 +1657,68 @@ export class MerchantManager {
     }
 
     /**
+     * Where a shelf draws from. A menu is always a table: it is written by hand, and there
+     * is no compendium of dishes for a query to find.
+     */
+    static _sourceOf(config) {
+        return isMenu(config?.type) ? SOURCE.TABLE : (config?.source ?? DEFAULT_SOURCE);
+    }
+
+    /**
+     * Put a menu on a shelf, from the text its tables rolled.
+     *
+     * **Replaced, not added to.** A menu is what is on offer today, so a re-roll is a new
+     * menu and the old dishes go. Only rows this created are touched -- marked `menu` --
+     * so anything a GM put on the shelf by hand survives, and so does a shelf whose tables
+     * rolled nothing readable: an empty roll is not a reason to empty the kitchen.
+     *
+     * Each dish is a real Item (see `MENU_FLAG`), priced in the coin its line names. Two
+     * lines of the same name are one dish, and the shelf's product target caps the list.
+     */
+    static async _stockMenu(actor, inventory, lines, step) {
+        const { maxProducts } = this.getInventoryLimits(this.getInventoryConfig(inventory));
+        const seen = new Set();
+        const dishes = [];
+        for (const line of lines) {
+            const dish = parseMenuLine(line.text);
+            if (!dish) continue;
+            const key = dish.name.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            dishes.push({ ...dish, img: line.img });
+        }
+        if (!dishes.length) {
+            step(game.i18n.format('coffee-pub-merchant.progress.nothingRolled', { inventory: inventory.name }));
+            return 0;
+        }
+        const menu = dishes.slice(0, maxProducts);
+        step(game.i18n.format('coffee-pub-merchant.progress.stocking', { inventory: inventory.name }));
+
+        const escape = (text) => foundry.utils.escapeHTML?.(text) ?? String(text);
+        const stale = this.getInventoryContents(actor, inventory)
+            .filter((item) => item.getFlag(MODULE.ID, MENU_FLAG))
+            .map((item) => item.id);
+        if (stale.length) await actor.deleteEmbeddedDocuments('Item', stale);
+
+        const created = await actor.createEmbeddedDocuments('Item', menu.map((dish) => ({
+            name: dish.name,
+            type: 'consumable',
+            img: dish.img || menuImage(inventory.name, dish.name),
+            system: {
+                type: { value: 'food' },
+                description: { value: dish.description ? `<p>${escape(dish.description)}</p>` : '' },
+                quantity: 1,
+                weight: { value: 0, units: 'lb' },
+                price: dish.price,
+                container: inventory.id
+            },
+            flags: { [MODULE.ID]: { [MENU_FLAG]: true } }
+        })));
+        this.broadcastActorRefresh(actor);
+        return created?.length ?? 0;
+    }
+
+    /**
      * Stock an inventory from the compendiums.
      *
      * The query twin of `rollInventoryTable`, and deliberately the same shape: resolve
@@ -1756,7 +1828,7 @@ export class MerchantManager {
         if (!config) return false;
         if (isPurchased(config.type)) return false;
 
-        const source = config.source ?? DEFAULT_SOURCE;
+        const source = this._sourceOf(config);
         if (drawsFromQuery(source)) return true;
         if (source === SOURCE.TABLE && this.getInventoryTables(inventory).length) return true;
         // Manual, or a table shelf with no tables on it: the only thing left that a
@@ -1924,7 +1996,7 @@ export class MerchantManager {
         // A query shelf draws on the clock like a table-stocked one: it has no `auto`
         // flag to consult, because the shelf itself is the thing that says "keep me
         // stocked from the compendiums".
-        const source = config.source ?? DEFAULT_SOURCE;
+        const source = this._sourceOf(config);
         // A query shelf draws on the clock because the shelf itself says so; a table
         // shelf draws when one of its tables is set to. "Both" qualifies on either.
         const draws = drawsFromQuery(source)
@@ -2716,7 +2788,7 @@ export class MerchantManager {
 
             const quantity = Math.max(1, Math.trunc(Number(entry.quantity) || 1));
             total += unit * quantity;
-            lines.push({ item, quantity, inventoryConfig });
+            lines.push({ item, quantity, inventoryConfig, unit });
         }
         return { ok: true, lines, total };
     }
@@ -3178,6 +3250,11 @@ export class MerchantManager {
             }
         }
 
+        // **A dish is served, not handed over.** Priced and paid for like anything else, but
+        // nothing leaves the shelf: the goods legs below never see these lines.
+        const served = bought.lines.filter((line) => isMenu(line.inventoryConfig?.type));
+        const carried = bought.lines.filter((line) => !isMenu(line.inventoryConfig?.type));
+
         let inventory = null;
         let sold = { ok: true, lines: [], total: 0 };
         if (selling.length) {
@@ -3255,12 +3332,14 @@ export class MerchantManager {
             }]
             : [];
 
-        const result = await exchange({
-            transfers: [
-                ...this._goodsTransfers(merchant, shopper.uuid, bought.lines),
-                ...goodsIn,
-                ...coin
-            ],
+        const transfers = [
+            ...this._goodsTransfers(merchant, shopper.uuid, carried),
+            ...goodsIn,
+            ...coin
+        ];
+        // An all-menu order that costs nothing has no leg to commit.
+        const result = !transfers.length ? { ok: true } : await exchange({
+            transfers,
             // `par` describes an inventory, not an item, and has no business travelling with
             // one. `registerTransientFlag` hides it from merge comparison but leaves it
             // in the payload, so without this it lands in a buyer's inventory and rides
@@ -3281,10 +3360,39 @@ export class MerchantManager {
         // have. Cleared only on success, so a refused trade can be tried again on
         // the same terms.
         if (result?.ok) await this._clearAgreedPrices(merchant, bought.lines, sold.lines, shopper?.uuid ?? null);
+        if (result?.ok && served.length) await this._announceServed(merchant, shopper, served);
 
         return result?.ok
             ? { ...result, net, spent: bought.total, earned: sold.total }
             : result;
+    }
+
+    /**
+     * Say what was served, in the chat, once it is paid for.
+     *
+     * The whole point of a menu: the party eat, the coin has moved, and the table sees a line
+     * of it. Everything shown was written by a GM or a player and is escaped.
+     */
+    static async _announceServed(merchant, shopper, served) {
+        const escape = (text) => foundry.utils.escapeHTML?.(text) ?? String(text);
+        const shop = this.getConfig(merchant)?.name || merchant.name;
+        const dishes = served.map((line) => {
+            const price = formatBase(line.unit * line.quantity);
+            return `<li>${line.quantity > 1 ? `${line.quantity} \u00d7 ` : ''}${escape(line.item.name)} <em>(${escape(price)})</em></li>`;
+        }).join('');
+        const total = served.reduce((sum, line) => sum + line.unit * line.quantity, 0);
+        try {
+            await ChatMessage.create({
+                speaker: ChatMessage.getSpeaker({ actor: shopper }),
+                content: `<div class="merchant-served"><p>${game.i18n.format('coffee-pub-merchant.menu.served', {
+                    who: `<strong>${escape(shopper.name)}</strong>`,
+                    shop: `<strong>${escape(shop)}</strong>`
+                })}</p><ul>${dishes}</ul><p>${game.i18n.format('coffee-pub-merchant.menu.paid', { total: escape(formatBase(total)) })}</p></div>`
+            });
+        } catch (error) {
+            // Paid for and eaten; a missing chat line is a shame rather than a failed order.
+            console.error(`${MODULE.TITLE} | Could not announce what was served:`, error);
+        }
     }
 
     /**
