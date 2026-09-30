@@ -6,10 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [14.0.3]
 
 ### Added
 - **Menu shelves, for pubs and restaurants** (`scripts/const.js`, `scripts/manager-merchant.js`, `scripts/window-shop.js`). A new **Menu** shelf type is stocked from a roll table of plain text, one dish per result, written `Name | 4 cp | A pint of the house brown` -- the price and description are optional, and the price is recognised by its shape (a number and a coin) rather than its place, so a line with none is a dish at 1 sp rather than a hole in the menu. Each dish becomes a real Item on the shelf, because everything that prices, shows, searches and sells a row assumes one. **Buying a dish serves it**: the coin is taken exactly as for anything else, nothing is handed over, and a line in the chat says who ordered what and what it cost. Menus are always table-fed and infinite, show no quantity, and a re-roll replaces the dishes it made and nothing a GM added by hand -- so a one-day restock interval with the table set to reroll gives a daily special.
+- **Dishes are pictured by kind** (`scripts/const.js`). A plate for a meal, a cheese for a starter, a stein for a drink. The shelf's name decides first -- a GM who called three shelves Meals, Appetizers and Drinks has said what is on each -- and only on a generally named shelf does the dish's own name get a say. A picture on the table result beats both.
+
+### Fixed
+- **A menu row's buttons wrapped onto a second line** (`styles/window-shop.css`, `templates/partial-shop-row.hbs`). The shelf hides the quantity column, and an older rule for rows without one sets a two-column grid -- right for a catalogue, and leaving a dish's price and buttons a cell too few. Menu rows now state their own four-column grid with the selector that would otherwise lose. A dish also shows its description in place of "Consumable" on the second line, and that line may wrap.
+- **A shop opened without a token was titled "Abandoned merchant"** (`scripts/window-shop.js`). The Actor's own name now comes before that fallback, which is used only when the Actor really is missing.
+- **An unlinked merchant was offered a catalogue it cannot have** (`scripts/window-merchant-config.js`). The catalogue door is switched off with the reason on it, and the Catalogue shelf is left out of the Add Inventory menu. A catalogue names a linked Actor.
 
 ## [14.0.2]
 
