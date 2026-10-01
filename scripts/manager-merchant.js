@@ -1394,13 +1394,14 @@ export class MerchantManager {
     static async rollInventoryTable(actor, inventoryId, { automatic = false, onStep = null } = {}) {
         if (!game.user.isGM) return 0;
         const inventory = actor?.items?.get(inventoryId);
-        if (!this.getInventoryConfig(inventory)) return 0;
+        const config = this.getInventoryConfig(inventory);
+        if (!config) return 0;
         const step = typeof onStep === 'function' ? onStep : () => {};
 
         const drawn = [];
         // What a menu shelf reads instead: the text of each result, with its picture.
         const menuLines = [];
-        const menu = isMenu(this.getInventoryConfig(inventory).type);
+        const menu = isMenu(config.type);
         // uuid -> the table that drew it. Only needed when something fails to resolve,
         // which is exactly when a bare uuid is no use to anybody.
         const source = new Map();

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [14.0.4]
+
+### Fixed
+- **Restocking failed on any shelf fed by a roll table that rolled an item** (`scripts/manager-merchant.js`). The step that checks a table's draws against the shelf's own filters read `config.query` in a function that never defined `config`, so the first rolled item threw `ReferenceError: config is not defined` and the restock stopped with nothing delivered. Shelves with no tables, and menu shelves, return before that line and were unaffected -- which is how it went unnoticed. The function now reads the shelf's config once at the top.
+
 ## [14.0.3]
 
 ### Added
