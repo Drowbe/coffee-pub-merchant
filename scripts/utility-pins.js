@@ -184,7 +184,13 @@ export function registerPinVocabulary() {
             pinCategories: {
                 [PIN_TYPE]: {
                     label: game.i18n.localize('coffee-pub-merchant.pin.typeName'),
-                    tags: ['shop', ...shopKindTags()]
+                    tags: ['shop', ...shopKindTags()],
+                    // Where the pin's Actor lives, so Blacksmith can flag a pin whose merchant was deleted.
+                    // `relinkable` lets the GM point a broken pin at another merchant (see `refreshShopPin`),
+                    // `relinkScope: 'world'` because a shop is a linked Actor in this world, never a compendium entry.
+                    target: [PIN_ACTOR],
+                    relinkable: true,
+                    relinkScope: 'world'
                 }
             }
         });
@@ -353,6 +359,31 @@ export async function createShopPin(actor, { config = null, scene = null, x = nu
     } catch (error) {
         console.error(`${MODULE.TITLE} | Could not pin ${actor.name}:`, error);
         return null;
+    }
+}
+
+/**
+ * Re-dress a pin for the merchant it now points at. Blacksmith has already written the new Actor's UUID into
+ * the pin when a GM relinks it; what is left is the rest of what the pin remembers about its shop: its label,
+ * picture and tag, and the snapshot a pin keeps for when the Actor is gone. The list of things taken from the
+ * old shop's leavings belongs to the old shop, so it is dropped.
+ */
+export async function refreshShopPin(pinId, actor, config) {
+    if (!hasPins() || !pinId || !actor) return;
+    const pins = _api();
+    const live = pins.get?.(pinId);
+    if (!live) return;
+    const identity = shopPinIdentity(actor, config);
+    const { [PIN_TAKEN]: _oldTaken, ...kept } = live.config || {};
+    try {
+        await pins.update(pinId, {
+            text: identity.name,
+            image: identity.image,
+            tags: ['shop', identity.tag],
+            config: { ...kept, [PIN_ACTOR]: actor.uuid, [PIN_SHOP]: { ...shopSnapshot(actor, config), name: identity.name } }
+        });
+    } catch (error) {
+        console.warn(`${MODULE.TITLE} | Could not refresh the shop pin:`, error);
     }
 }
 

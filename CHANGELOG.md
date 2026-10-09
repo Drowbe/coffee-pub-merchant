@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Fixed
+- **Shop pins never told Blacksmith what they are** (`scripts/manager-merchant.js`). The pin vocabulary, which gives the shop pin type its "Merchant" label and its shop-kind tags, was registered from a `ready` hook that was itself added during `ready`, so it never ran. Blacksmith's menus and Manage Pins showed the raw type key, and the tag suggestions and layer filters had nothing to offer. It is now registered directly, because `initialize` already runs after Blacksmith is ready.
+
+### Added
+- **A broken shop pin can be relinked to another merchant** (`scripts/utility-pins.js`, `scripts/manager-merchant.js`). The shop pin type is now `relinkable` (and `relinkScope: 'world'`, so only this world's Actors are offered). When a GM relinks a pin whose merchant was deleted, Merchant re-dresses it for the new Actor: the label, picture and kind tag, and the remembered shop it shows once an Actor is gone. The list of things taken from the old shop's leavings is dropped, since it belonged to the old shop. Pointing a pin at an Actor that is not linked still works but warns, because that is what makes an Actor a shop. Needs a Blacksmith with relinking.
+- **A shop pin whose merchant was deleted is flagged** (`scripts/utility-pins.js`). The shop pin type now tells Blacksmith where its Actor is stored (`target: ['merchantActorUuid']`). When that Actor no longer exists, the GM and the pin's owners see a broken-link glyph on the pin, and Configure Pin shows a Linked to row with the merchant's name, which opens it. Double-clicking such a pin now says so instead of doing nothing, and Merchant is not asked to open a missing Actor. Needs a Blacksmith with this feature; an older one ignores the declaration.
+
 ## [14.0.4]
 
 ### Fixed

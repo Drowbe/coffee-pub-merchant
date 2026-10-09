@@ -39,7 +39,7 @@ import {
 } from './utility-compendium.js';
 import {
     hasPins, canPin, createShopPin, pickPinLocation, pinsForActor, pinActorUuid, pinShopSnapshot,
-    pinTaken, markPinTaken, leavingQuantity, registerPinVocabulary
+    pinTaken, markPinTaken, leavingQuantity, registerPinVocabulary, refreshShopPin, PIN_ACTOR
 } from './utility-pins.js';
 
 const CONTEXT = 'merchant-interaction';
@@ -2107,24 +2107,41 @@ export class MerchantManager {
      * Shop pins: what they are called, and what a click on one does.
      *
      * **Scoped to our own `moduleId`**, so nothing here ever sees another module's pins.
-     * The vocabulary has to wait for `ready` -- it localises, and it writes into a registry
-     * Blacksmith builds at the same moment -- while the click handler does not, and
-     * registering it early means a pin clicked during the first second still opens.
+     * The vocabulary localises, so it needs `ready`, and so does everything that calls this:
+     * `initialize` runs from inside Merchant's own `ready` handler, after Blacksmith has
+     * said it is ready. It is therefore called here, directly. Registering a `ready` hook
+     * from here instead is registering one that has already fired, which never runs: the
+     * pin type had no label and no tags, and a declared `target` never reached Blacksmith.
      */
     static _registerPins() {
         const pins = game.modules.get('coffee-pub-blacksmith')?.api?.pins;
         if (typeof pins?.on !== 'function') return;
 
-        this.hook('ready', 'Tell Blacksmith what a shop pin is', () => registerPinVocabulary());
+        registerPinVocabulary();
 
         try {
             // Double-click, matching the token: one gesture opens a shop, wherever the
             // door is. A single click on a pin is how you select and drag one.
             pins.on('doubleClick', (event) => void this.openFromPin(event?.pin),
                 { moduleId: MODULE.ID });
+            // A GM pointed a broken shop pin at another merchant: re-dress it for that merchant
+            pins.on('relinked', (event) => void this._onShopPinRelinked(event),
+                { moduleId: MODULE.ID });
         } catch (error) {
             console.warn(`${MODULE.TITLE} | Could not listen for shop pin clicks:`, error);
         }
+    }
+
+    /**
+     * A broken shop pin was pointed at another Actor. Blacksmith has written the UUID; the label, picture, tag
+     * and remembered shop are ours. A pin should only name a linked Actor, since that is what makes one a shop.
+     */
+    static async _onShopPinRelinked(event) {
+        if (event?.key !== PIN_ACTOR || !game.user?.isGM) return;
+        const actor = await fromUuid(event.newUuid);
+        if (!actor) return;
+        if (!canPin(actor)) notify.warn(game.i18n.localize('coffee-pub-merchant.pin.pinNeedsLinked'));
+        await refreshShopPin(event.pinId, actor, this.getConfig(actor));
     }
 
     /**
