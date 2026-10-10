@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased]
+## [14.0.5]
 
 ### Fixed
 - **Shop pins never told Blacksmith what they are** (`scripts/manager-merchant.js`). The pin vocabulary, which gives the shop pin type its "Merchant" label and its shop-kind tags, was registered from a `ready` hook that was itself added during `ready`, so it never ran. Blacksmith's menus and Manage Pins showed the raw type key, and the tag suggestions and layer filters had nothing to offer. It is now registered directly, because `initialize` already runs after Blacksmith is ready.
