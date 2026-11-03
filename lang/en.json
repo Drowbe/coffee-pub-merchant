@@ -743,13 +743,6 @@
             "refundFailed": "The order was struck off but the refund could not be paid."
         }
     },
-    "TYPES": {
-        "RegionBehavior": {
-            "coffee-pub-merchant": {
-                "openShop": "Open Merchant"
-            }
-        }
-    },
     "BEHAVIOR": {
         "TYPES": {
             "openShop": {

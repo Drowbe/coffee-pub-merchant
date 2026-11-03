@@ -85,13 +85,13 @@ assert.deepStrictEqual(missing, [],
 console.log(`ok  ${used.size} keys asked for, all present`);
 
 // **Foundry's own namespaces**, which it looks up by its own keys rather than ours: a
-// region behaviour's type label under `TYPES.RegionBehavior.<module>.<type>`, and its field
-// labels under the prefix the behaviour class declares. Nothing in our source asks for
-// them by name and nothing can — Foundry does the asking — so they are exempt from the
-// dead-key sweep and from the one-namespace rule, and from nothing else. The prefixes are
-// listed rather than pattern-matched, so a stray key does not smuggle itself in as one.
+// region behaviour's field labels under the prefix the behaviour class declares. (The type
+// label is no longer a key: Blacksmith's regions API builds it as "CP Merchant: Open Merchant".)
+// Nothing in our source asks for them by name and nothing can — Foundry does the asking — so
+// they are exempt from the dead-key sweep and from the one-namespace rule, and from nothing
+// else. The prefixes are listed rather than pattern-matched, so a stray key does not smuggle
+// itself in as one.
 const FOUNDRY_OWNED = [
-    'TYPES.RegionBehavior.',
     'BEHAVIOR.TYPES.openShop.'
 ];
 

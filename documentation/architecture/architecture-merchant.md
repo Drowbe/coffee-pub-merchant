@@ -1046,10 +1046,10 @@ late is not late, it is broken. It has its own `init` hook and needs no `game`.
 ### Field labels are named, not inherited
 
 `LOCALIZATION_PREFIXES` is resolved by `Localization.#localizeDataModels`, which walks
-`CONFIG[...].dataModels` and *then* fires `i18nInit` — and `i18nInit` runs **before** `init`. A model a
-module registers has already missed that pass, so its prefixes are never applied and every field renders
-with no label at all. Core's own behaviours can rely on the prefixes; a module's cannot. Each field names
-its key directly, which works whatever the order.
+`CONFIG[...].dataModels` inside `i18nInit` — and `i18nInit` fires **after** `init` (`game.mjs`: `init` is
+called, then `i18n.initialize()` loads translations). So a model registered at `init` should be covered by
+that pass. Fields rendered with no label on an earlier version of this code and the cause was never pinned
+down, so each field names its key directly, which works whatever the order.
 
 **`typeLabels` is load-bearing for the same reason it is easy to skip:** the sheet uses it as the legend of
 the fieldset it builds for our schema, so leaving it unset gives the GM a nameless box.
