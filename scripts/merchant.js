@@ -10,7 +10,7 @@ import { MerchantManager } from './manager-merchant.js';
 import { registerSettings } from './settings.js';
 
 /** Kept beside the pin in `module.json`; both have to move together. */
-const REQUIRED_BLACKSMITH = '13.19.2';
+const REQUIRED_BLACKSMITH = '14.6.0';
 import { registerToastChannels, notify } from './utility-feedback.js';
 import { MerchantConfigWindow } from './window-merchant-config.js';
 import { registerRegionBehavior } from './region-shop.js';

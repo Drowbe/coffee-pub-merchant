@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [14.0.6]
+
+### Changed
+- **The Open Merchant region behaviour is registered through Blacksmith** (`scripts/region-shop.js`, `lang/en.json`). `registerRegionBehavior()` now calls `api.regions.registerBehavior` and states only what the behaviour is: its fields and what walking in does. Blacksmith owns the `init` timing check, the model class, the type icon and label, and which client a handler runs on. The behaviour now reads **CP Merchant: Open Merchant** in the Create Behavior list and the fieldset legend, and the unused `TYPES.RegionBehavior` key is gone from the lang file. `module.json` still declares the `openShop` sub-type. There is no fallback: a Blacksmith without `api.regions` leaves the behaviour unregistered and logs a console error, so a scene that already has an Open Merchant region throws on token moves until Blacksmith is updated. Needs Blacksmith 14.6.0 or newer, which ships `api.regions`: the minimum in `module.json` and the runtime check in `scripts/merchant.js` are both raised to it.
+
+### Fixed
+- **A region's "Once only" never switched off when a player walked in** (`scripts/region-shop.js`). A region event reaches every client and the opening handler runs only on the mover's, so the write sat behind an active-GM check that only passed when the GM was the one who walked in. It is now its own handler on the active GM's client. It repeats the refusal checks (merchant, linked) from the region's own field, so a walk-in that is refused does not use up the region's one use.
+
 ## [14.0.5]
 
 ### Fixed
