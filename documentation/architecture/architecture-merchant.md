@@ -1027,11 +1027,20 @@ plainer than a placed one. Pressing the button arms a crosshair with a ghost; th
 A third door. A GM draws a region, adds an **Open Shop** behaviour and names the merchant; a token moving
 into the region opens the counter for whoever moved it.
 
-**Foundry's own extension point, not a patch.** A namespaced sub-type in
+**Foundry's own extension point, not a patch — registered through Blacksmith.** A namespaced sub-type in
 `CONFIG.RegionBehavior.dataModels` plus a `documentTypes` declaration in `module.json` is the whole
 mechanism — nothing in core is wrapped, and the config sheet renders our schema unaided:
 `region-behavior-config.mjs` walks any third-party model and emits every field whose
 `constructor.hasFormSupport` is true, which `DocumentUUIDField` is.
+
+The registration itself is `api.regions.registerBehavior` in Blacksmith (`documentation/api/api-regions.md`
+there); `scripts/region-shop.js` states only what the behaviour *is* — its fields and its handlers. Blacksmith
+owns the timing check, the class construction, `dataModels` / `typeIcons` / `typeLabels`, the suite-wide
+name (`CP Merchant: Open Merchant`) and who a handler runs on. `module.json` still declares
+`documentTypes.RegionBehavior.openShop`: Foundry reads it before any script runs. There is no fallback — a
+Blacksmith without `api.regions` leaves the behaviour unregistered and logs a console error; the version
+floor is the guard (`REQUIRED_BLACKSMITH` / `module.json` minimum, to be raised with the Blacksmith build
+that ships it).
 
 Four things about it are not obvious, and each cost something to find out.
 
@@ -1051,8 +1060,9 @@ called, then `i18n.initialize()` loads translations). So a model registered at `
 that pass. Fields rendered with no label on an earlier version of this code and the cause was never pinned
 down, so each field names its key directly, which works whatever the order.
 
-**`typeLabels` is load-bearing for the same reason it is easy to skip:** the sheet uses it as the legend of
-the fieldset it builds for our schema, so leaving it unset gives the GM a nameless box.
+**The type label is Blacksmith's to set**, and it is load-bearing: the sheet uses it as the legend of the
+fieldset it builds for our schema, and Foundry's Create Behavior list shows the raw type unless
+`game.i18n.has()` finds the label as a real key. Merchant ships no key for it.
 
 ### `tokenMoveIn`, not `tokenEnter`
 
@@ -1063,8 +1073,14 @@ choice, `_createEventsField({events: [...]})` restricts what can be picked.
 ### It opens on one client, and refuses out loud
 
 A region event fires for **every** client. Opening a window for the whole table because one player crossed a
-threshold is the sort of thing that gets a module turned off, so the handler returns immediately unless
-`event.user.isSelf`. The GM is deliberately not excluded: a GM moving a token into a shop is visiting a shop.
+threshold is the sort of thing that gets a module turned off, so the handler runs only on the mover's client
+(Blacksmith's default, `run: 'mover'`). The GM is deliberately not excluded: a GM moving a token into a shop
+is visiting a shop.
+
+**"Once only" is a second handler, on the active GM's client** (`run: 'activeGM'`). A write cannot live in the
+mover's handler: it only ever ran when the GM was the one who walked in, so Once never switched off for a
+player. The GM's handler cannot see whether the shop opened, so it repeats the refusal checks (merchant,
+linked) from the behaviour's own field and does not spend the region's one use on a refused walk-in.
 
 Only a **linked** merchant may be named, the same rule a pin follows and for the same reason — an unlinked
 Actor is the mould its tokens are cast from, with no stock of its own. That is refused twice: a `validate`
